@@ -1,7 +1,7 @@
 *.class
 *.log
 *.pyc
-sbt/*.jar
+build/*.jar
 
 # sbt specific
 .cache/
