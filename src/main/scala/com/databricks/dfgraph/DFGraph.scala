@@ -12,7 +12,7 @@ import scala.reflect.runtime.universe.TypeTag
  */
 class DFGraph[VD: TypeTag:ClassTag, ED: TypeTag:ClassTag](
     private val vertexDF: DataFrame,
-    private val edgeDF: DataFrame) {
+    private val edgeDF: DataFrame) extends Serializable {
   import DFGraph._
   private val _sqlContext: SQLContext = vertexDF.sqlContext
 
@@ -20,8 +20,11 @@ class DFGraph[VD: TypeTag:ClassTag, ED: TypeTag:ClassTag](
     val verts = VertexRDD(vertexDF.select(VERTEX_ID_COLNAME, VERTEX_ATTR_COLNAME).map {
       case Row(id: Long, attr: VD) => (id, attr)
     })
+    edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).printSchema()
+    edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).show()
     val edges = EdgeRDD.fromEdges[ED, VD](
       edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).map {
+        // TODO: fix matcherror
         case Row(src: Long, dst: Long, attr: ED) => Edge(src, dst, attr)
       }
     )

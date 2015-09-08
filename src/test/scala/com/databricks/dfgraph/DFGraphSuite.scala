@@ -11,7 +11,11 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
       val graph = Graph.fromEdgeTuples(sc.parallelize(doubleRing), 1)
       val vtxRdd = graph.vertices
       val edgeRdd = graph.edges
-      assert(DFGraph[Int, Int](vtxRdd, edgeRdd).toGraph() === graph)
+
+      val graphBuiltFromDFGraph = DFGraph(vtxRdd, edgeRdd).toGraph()
+
+      assert(graphBuiltFromDFGraph.vertices.count() === graph.vertices.count())
+      assert(graphBuiltFromDFGraph.edges.count() === graph.edges.count())
     }
   }
 
