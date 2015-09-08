@@ -18,14 +18,13 @@ class DFGraph[VD: TypeTag:ClassTag, ED: TypeTag:ClassTag](
 
   def toGraph(): Graph[VD, ED] = {
     val verts = VertexRDD(vertexDF.select(VERTEX_ID_COLNAME, VERTEX_ATTR_COLNAME).map {
-      case Row(id: Long, attr: VD) => (id, attr)
+      case Row(id: Long, attr) => (id, attr.asInstanceOf[VD])
     })
+
     edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).printSchema()
-    edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).show()
     val edges = EdgeRDD.fromEdges[ED, VD](
       edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).map {
-        // TODO: fix matcherror
-        case Row(src: Long, dst: Long, attr: ED) => Edge(src, dst, attr)
+        case Row(src: Long, dst: Long, attr) => Edge(src, dst, attr.asInstanceOf[ED])
       }
     )
     Graph(verts, edges)
