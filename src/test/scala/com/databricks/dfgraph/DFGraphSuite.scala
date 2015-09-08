@@ -3,6 +3,7 @@ package com.databricks.dfgraph
 import java.io.{IOException, File}
 import java.util.UUID
 
+import org.apache.commons.lang3.SystemUtils
 import org.apache.hadoop.util.ShutdownHookManager
 import org.apache.spark.graphx.Graph
 import org.apache.spark.sql.SQLContext
@@ -26,42 +27,32 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
 
   test("import/export") {
     withSpark { sc =>
-      val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
-      val doubleRing = ring ++ ring
-      val graph = Graph.fromEdgeTuples(sc.parallelize(doubleRing), 1)
-      val dfGraph = DFGraph(graph)
+      val tempDir = createDirectory(System.getProperty("java.io.tmpdir"), "spark")
+      try {
+        val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
+        val doubleRing = ring ++ ring
+        val graph = Graph.fromEdgeTuples(sc.parallelize(doubleRing), 1)
+        val dfGraph = DFGraph(graph)
 
-      val tempDir1 = createTempDir()
-      val path1 = tempDir1.toURI.toString
-      dfGraph.save(path1)
+        val path = tempDir.toURI.toString
+        dfGraph.save(path)
 
-      val sqlContext = SQLContext.getOrCreate(sc)
-      val loadedDfGraph = DFGraph.load[Int, Int](sqlContext, path1)
-      assert(loadedDfGraph.vertexDF.collect() === dfGraph.vertexDF.collect())
-      assert(loadedDfGraph.edgeDF.collect() === dfGraph.edgeDF.collect())
+        val sqlContext = SQLContext.getOrCreate(sc)
+        val loadedDfGraph = DFGraph.load[Int, Int](sqlContext, path)
+        assert(loadedDfGraph.vertexDF.collect() === dfGraph.vertexDF.collect())
+        assert(loadedDfGraph.edgeDF.collect() === dfGraph.edgeDF.collect())
+      } finally {
+        deleteRecursively(tempDir)
+      }
     }
   }
 
-
-  // TODO: reuse spark.util.Utils
-  // TODO: clean up directory after tests finish
-  /**
-   * Create a temporary directory inside the given parent directory. The directory will be
-   * automatically deleted when the VM shuts down.
-   */
-  private def createTempDir(
-      root: String = System.getProperty("java.io.tmpdir"),
-      namePrefix: String = "spark"): File = {
-    val dir = createDirectory(root, namePrefix)
-//    ShutdownHookManager.registerShutdownDeleteDir(dir)
-    dir
-  }
-
+  // TODO: share code with spark.util.Utils
   /**
    * Create a directory inside the given parent directory. The directory is guaranteed to be
    * newly created, and is not marked for automatic deletion.
    */
-  def createDirectory(root: String, namePrefix: String = "spark"): File = {
+  private def createDirectory(root: String, namePrefix: String = "spark"): File = {
     var attempts = 0
     val maxAttempts = 10
     var dir: File = null
@@ -79,6 +70,66 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
       } catch { case e: SecurityException => dir = null; }
     }
     dir.getCanonicalFile
+  }
+
+ /**
+   * Delete a file or directory and its contents recursively.
+   * Don't follow directories if they are symlinks.
+   * Throws an exception if deletion is unsuccessful.
+   */
+  private def deleteRecursively(file: File) {
+    if (file != null) {
+      try {
+        if (file.isDirectory && !isSymlink(file)) {
+          var savedIOException: IOException = null
+          for (child <- listFilesSafely(file)) {
+            try {
+              deleteRecursively(child)
+            } catch {
+              // In case of multiple exceptions, only last one will be thrown
+              case ioe: IOException => savedIOException = ioe
+            }
+          }
+          if (savedIOException != null) {
+            throw savedIOException
+          }
+        }
+      } finally {
+        if (!file.delete()) {
+          // Delete can also fail if the file simply did not exist
+          if (file.exists()) {
+            throw new IOException("Failed to delete: " + file.getAbsolutePath)
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Check to see if file is a symbolic link.
+   */
+  private def isSymlink(file: File): Boolean = {
+    if (file == null) throw new NullPointerException("File must not be null")
+    if (SystemUtils.IS_OS_WINDOWS) return false
+    val fileInCanonicalDir = if (file.getParent() == null) {
+      file
+    } else {
+      new File(file.getParentFile().getCanonicalFile(), file.getName())
+    }
+
+    !fileInCanonicalDir.getCanonicalFile().equals(fileInCanonicalDir.getAbsoluteFile())
+  }
+
+  private def listFilesSafely(file: File): Seq[File] = {
+    if (file.exists()) {
+      val files = file.listFiles()
+      if (files == null) {
+        throw new IOException("Failed to list files for dir: " + file)
+      }
+      files
+    } else {
+      List()
+    }
   }
 }
 
