@@ -22,3 +22,6 @@ sparkComponents ++= Seq("graphx", "sql")
 
 // add any Spark Package dependencies using spDependencies.
 // e.g. spDependencies += "databricks/spark-avro:0.1"
+
+libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % "test"
+
