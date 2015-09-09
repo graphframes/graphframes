@@ -25,18 +25,16 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
     }
   }
 
-  test("instantiate DFGraph from Graph with VD=Struct(Long, Array[String]), " +
-    "ED=Map[Double,Boolean]") {
-
+  test("instantiate DFGraph from Graph with VD=(Double, Boolean), ED=(Long, String)") {
     withSpark { sc =>
       val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
       val doubleRing = ring ++ ring
       val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId) =>
-        (vtxId, (0L to vtxId).zipWithIndex.toMap.mapValues(_ % 3 == 0))
+        (vtxId, (vtxId.toDouble, vtxId % 2 == 0))
       }))
-      val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
+       val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
         sc.parallelize(doubleRing.map { case (src, dst) =>
-          Edge(src, dst, (src, Array(src.toString, dst.toString)))
+          Edge(src, dst, (src, src.toString + dst.toString)))
         }))
       val graph = Graph(vertices, edges)
 
@@ -54,12 +52,12 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
         val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
         val doubleRing = ring ++ ring
         val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId) =>
-          (vtxId, (0L to vtxId).zipWithIndex.toMap.mapValues(_ % 3 == 0))
+          (vtxId, (vtxId.toDouble, vtxId % 2 == 0))
         }))
-        val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
-          sc.parallelize(doubleRing.map { case (src, dst) =>
-            Edge(src, dst, (src, Array(src.toString, dst.toString)))
-          }))
+       val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
+        sc.parallelize(doubleRing.map { case (src, dst) =>
+          Edge(src, dst, (src, src.toString + dst.toString)))
+        }))
         val dfGraph = DFGraph(vertices, edges)
 
         val path = tempDir.toURI.toString
