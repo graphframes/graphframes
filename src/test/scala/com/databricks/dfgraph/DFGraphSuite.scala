@@ -34,7 +34,7 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
       }))
        val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
         sc.parallelize(doubleRing.map { case (src, dst) =>
-          Edge(src, dst, (src, src.toString + dst.toString)))
+          Edge(src, dst, (src, src.toString + dst.toString))
         }))
       val graph = Graph(vertices, edges)
 
@@ -56,7 +56,7 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
         }))
        val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
         sc.parallelize(doubleRing.map { case (src, dst) =>
-          Edge(src, dst, (src, src.toString + dst.toString)))
+          Edge(src, dst, (src, src.toString + dst.toString))
         }))
         val dfGraph = DFGraph(vertices, edges)
 
