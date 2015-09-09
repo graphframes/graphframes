@@ -1,16 +1,16 @@
 package com.databricks.dfgraph
 
-import java.io.{IOException, File}
+import java.io.{File, IOException}
 import java.util.UUID
 
 import org.apache.commons.lang3.SystemUtils
-import org.apache.hadoop.util.ShutdownHookManager
-import org.apache.spark.graphx.Graph
-import org.apache.spark.sql.SQLContext
 import org.scalatest.FunSuite
 
+import org.apache.spark.graphx.{EdgeRDD, VertexRDD, Edge, Graph}
+import org.apache.spark.sql.SQLContext
+
 class DFGraphSuite extends FunSuite with LocalSparkContext {
-  test("instantiate DFGraph from VertexRDD and EdgeRDD") {
+  test("instantiate DFGraph from VertexRDD and EdgeRDD with VD=int, ED=int") {
     withSpark { sc =>
       val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
       val doubleRing = ring ++ ring
@@ -25,14 +25,42 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
     }
   }
 
+  test("instantiate DFGraph from Graph with VD=Struct(Long, Array[String]), " +
+    "ED=Map[Double,Boolean]") {
+
+    withSpark { sc =>
+      val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
+      val doubleRing = ring ++ ring
+      val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId) =>
+        (vtxId, (0L to vtxId).zipWithIndex.toMap.mapValues(_ % 3 == 0))
+      }))
+      val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
+        sc.parallelize(doubleRing.map { case (src, dst) =>
+          Edge(src, dst, (src, Array(src.toString, dst.toString)))
+        }))
+      val graph = Graph(vertices, edges)
+
+      val graphBuiltFromDFGraph = DFGraph(graph).toGraph()
+
+      assert(graphBuiltFromDFGraph.vertices.count() === graph.vertices.count())
+      assert(graphBuiltFromDFGraph.edges.count() === graph.edges.count())
+    }
+  }
+
   test("import/export") {
     withSpark { sc =>
       val tempDir = createDirectory(System.getProperty("java.io.tmpdir"), "spark")
       try {
         val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
         val doubleRing = ring ++ ring
-        val graph = Graph.fromEdgeTuples(sc.parallelize(doubleRing), 1)
-        val dfGraph = DFGraph(graph)
+        val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId) =>
+          (vtxId, (0L to vtxId).zipWithIndex.toMap.mapValues(_ % 3 == 0))
+        }))
+        val edges = EdgeRDD.fromEdges[(Long, Array[String]), Map[Double, Boolean]](
+          sc.parallelize(doubleRing.map { case (src, dst) =>
+            Edge(src, dst, (src, Array(src.toString, dst.toString)))
+          }))
+        val dfGraph = DFGraph(vertices, edges)
 
         val path = tempDir.toURI.toString
         dfGraph.save(path)
@@ -47,7 +75,7 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
     }
   }
 
-  // TODO: share code with spark.util.Utils
+  // TODO: reuse code from spark.util.Utils
   /**
    * Create a directory inside the given parent directory. The directory is guaranteed to be
    * newly created, and is not marked for automatic deletion.
