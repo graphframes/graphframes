@@ -4,14 +4,54 @@ import java.io.{File, IOException}
 import java.util.UUID
 
 import org.apache.commons.lang3.SystemUtils
-import org.scalatest.FunSuite
+import org.scalatest.{BeforeAndAfter, FunSuite}
 
-import org.apache.spark.graphx.{EdgeRDD, VertexRDD, Edge, Graph}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.graphx.{Edge, EdgeRDD, Graph, VertexRDD}
 import org.apache.spark.sql.SQLContext
 
-class DFGraphSuite extends FunSuite with LocalSparkContext {
+class DFGraphSuite extends FunSuite with BeforeAndAfter {
+
+  var sc: SparkContext = _
+
+  before {
+    val conf = new SparkConf()
+    sc = new SparkContext("local", "test", conf)
+  }
+
+  after {
+    sc.stop()
+  }
+
+  test("import/export") {
+    val tempDir = createDirectory(System.getProperty("java.io.tmpdir"), "spark")
+    try {
+      val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
+      val doubleRing = ring ++ ring
+      val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId: Long) =>
+        (vtxId, (0L to vtxId).map(_.toString))
+      }))
+      val edges = EdgeRDD.fromEdges[Map[Long, (Double, Boolean)], (Double, Array[String])](
+        sc.parallelize(doubleRing.map { case (src, dst) =>
+          Edge(src, dst, (0L until src).map(x => (x, (x.toDouble, false))).toMap)
+        }))
+      val dfGraph = DFGraph(vertices, edges)
+
+      val path = tempDir.toURI.toString
+      dfGraph.save(path)
+
+      val sqlContext = SQLContext.getOrCreate(sc)
+      val loadedDfGraph = DFGraph.load[Int, Int](sqlContext, path)
+
+      assert(loadedDfGraph.vertexDF.collect() === dfGraph.vertexDF.collect())
+      assert(loadedDfGraph.edgeDF.collect() === dfGraph.edgeDF.collect())
+
+    } finally {
+      deleteRecursively(tempDir)
+    }
+  }
+
   test("DFGraph from VertexRDD and EdgeRDD with VD=int, ED=int") {
-    withSpark { sc =>
       val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
       val doubleRing = ring ++ ring
       val graph = Graph.fromEdgeTuples(sc.parallelize(doubleRing), 1)
@@ -22,12 +62,9 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
 
       assert(graphBuiltFromDFGraph.vertices.count() === graph.vertices.count())
       assert(graphBuiltFromDFGraph.edges.count() === graph.edges.count())
-    }
   }
 
   test("DFGraph from Graph with VD=Array[String], ED=Map[Long, (Double, Boolean)]") {
-
-    withSpark { sc =>
       val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
       val doubleRing = ring ++ ring
       val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId: Long) =>
@@ -42,36 +79,6 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
 
       assert(graphBuiltFromDFGraph.vertices.count() === graph.vertices.count())
       assert(graphBuiltFromDFGraph.edges.count() === graph.edges.count())
-    }
-  }
-
-  test("import/export") {
-    val tempDir = createDirectory(System.getProperty("java.io.tmpdir"), "spark")
-    try {
-      withSpark { sc =>
-        val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
-        val doubleRing = ring ++ ring
-        val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId: Long) =>
-          (vtxId, (0L to vtxId).map(_.toString))
-        }))
-        val edges = EdgeRDD.fromEdges[Map[Long, (Double, Boolean)], (Double, Array[String])](
-          sc.parallelize(doubleRing.map { case (src, dst) =>
-            Edge(src, dst, (0L until src).map(x => (x, (x.toDouble, false))).toMap)
-          }))
-        val dfGraph = DFGraph(vertices, edges)
-
-        val path = tempDir.toURI.toString
-        dfGraph.save(path)
-
-        val sqlContext = SQLContext.getOrCreate(sc)
-        val loadedDfGraph = DFGraph.load[Int, Int](sqlContext, path)
-
-        assert(loadedDfGraph.vertexDF.collect() === dfGraph.vertexDF.collect())
-        assert(loadedDfGraph.edgeDF.collect() === dfGraph.edgeDF.collect())
-      }
-    } finally {
-      deleteRecursively(tempDir)
-    }
   }
 
   // TODO: reuse code from spark.util.Utils
