@@ -25,13 +25,13 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
     }
   }
 
-  test("DFGraph from Graph with VD=(Double, Array[String]), ED=Map[Long, (Double, Boolean)]") {
+  test("DFGraph from Graph with VD=Array[String], ED=Map[Long, (Double, Boolean)]") {
 
     withSpark { sc =>
       val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
       val doubleRing = ring ++ ring
       val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId: Long) =>
-        (vtxId, (vtxId.toDouble, (0L to vtxId).map(_.toString)))
+        (vtxId, (0L to vtxId).map(_.toString))
       }))
        val edges = EdgeRDD.fromEdges[Map[Long, (Double, Boolean)], (Double, Array[String])](
         sc.parallelize(doubleRing.map { case (src, dst) =>
@@ -40,23 +40,23 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
       val graph = Graph(vertices, edges)
       val graphBuiltFromDFGraph = DFGraph(graph).toGraph()
 
-//      assert(graphBuiltFromDFGraph.vertices.count() === graph.vertices.count())
-//      assert(graphBuiltFromDFGraph.edges.count() === graph.edges.count())
+      assert(graphBuiltFromDFGraph.vertices.count() === graph.vertices.count())
+      assert(graphBuiltFromDFGraph.edges.count() === graph.edges.count())
     }
   }
 
   test("import/export") {
-    withSpark { sc =>
-      val tempDir = createDirectory(System.getProperty("java.io.tmpdir"), "spark")
-      try {
+    val tempDir = createDirectory(System.getProperty("java.io.tmpdir"), "spark")
+    try {
+      withSpark { sc =>
         val ring = (0L to 100L).zip((1L to 99L) :+ 0L)
         val doubleRing = ring ++ ring
-        val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId) =>
-          (vtxId, (vtxId.toDouble, vtxId % 2 == 0))
+        val vertices = VertexRDD(sc.parallelize((0L to 100L).map { case (vtxId: Long) =>
+          (vtxId, (0L to vtxId).map(_.toString))
         }))
-        val edges = EdgeRDD.fromEdges[(Long, String), (Double, Boolean)](
+        val edges = EdgeRDD.fromEdges[Map[Long, (Double, Boolean)], (Double, Array[String])](
           sc.parallelize(doubleRing.map { case (src, dst) =>
-            Edge(src, dst, (src, src.toString + dst.toString))
+            Edge(src, dst, (0L until src).map(x => (x, (x.toDouble, false))).toMap)
           }))
         val dfGraph = DFGraph(vertices, edges)
 
@@ -65,11 +65,12 @@ class DFGraphSuite extends FunSuite with LocalSparkContext {
 
         val sqlContext = SQLContext.getOrCreate(sc)
         val loadedDfGraph = DFGraph.load[Int, Int](sqlContext, path)
+
         assert(loadedDfGraph.vertexDF.collect() === dfGraph.vertexDF.collect())
         assert(loadedDfGraph.edgeDF.collect() === dfGraph.edgeDF.collect())
-      } finally {
-        deleteRecursively(tempDir)
       }
+    } finally {
+      deleteRecursively(tempDir)
     }
   }
 

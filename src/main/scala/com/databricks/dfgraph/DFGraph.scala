@@ -22,6 +22,11 @@ import org.apache.spark.sql.types.DataType
  * [[ED]] must have implicit [[TypeTag]] (required by [[SQLContext.createDataFrame()]] and
  * [[ClassTag]] (required by [[Graph]]) available, and must correspond to a Spark SQL [[DataType]].
  *
+ * NOTE: [[VD]] and [[ED]] must not contain products (e.g. case classes, tuples) as they will be
+ * stored as StructTypes and `CatalystTypeConverter.StructConverter.toScala` will return them back
+ * as `GenericRowWithSchema`s.
+ * TODO: Support StructTypes for VD and ED to address above NOTE
+ *
  * @param vertexDF the [[DataFrame]] holding vertex information
  * @param edgeDF the [[DataFrame]] holding edge information
  * @tparam VD the type of vertex attributes
