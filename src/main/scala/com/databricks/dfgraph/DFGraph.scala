@@ -42,14 +42,12 @@ class DFGraph[VD: TypeTag:ClassTag, ED: TypeTag:ClassTag] protected (
    * @return a [[Graph]] with vertices specified by [[vertexDF]] and edges specified by [[edgeDF]]
    */
   def toGraph(): Graph[VD, ED] = {
-    val vertices = VertexRDD(vertexDF.select(VERTEX_ID_COLNAME, VERTEX_ATTR_COLNAME).map {
+    val vertices = vertexDF.select(VERTEX_ID_COLNAME, VERTEX_ATTR_COLNAME).map {
       case Row(id: Long, attr) => (id, attr.asInstanceOf[VD])
-    })
-    val edges = EdgeRDD.fromEdges[ED, VD](
-      edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).map {
-        case Row(src: Long, dst: Long, attr) => Edge(src, dst, attr.asInstanceOf[ED])
-      }
-    )
+    }
+    val edges = edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).map {
+      case Row(src: Long, dst: Long, attr) => Edge(src, dst, attr.asInstanceOf[ED])
+    }
     Graph(vertices, edges)
   }
 
