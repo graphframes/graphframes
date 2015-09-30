@@ -1,117 +1,74 @@
 package com.databricks.dfgraph
 
-import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.hadoop.fs.Path
-import org.json4s.DefaultFormats
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
-
-import org.apache.spark.SparkContext
-import org.apache.spark.graphx.{Edge, EdgeRDD, Graph, VertexRDD}
+import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.LongType
 
 /**
- * Wraps a [[Graph]] inside a [[DataFrame]]. This makes it easy to implement a Python API,
- * import/export, and other features. The schema of [[vertexDF]] must contain columns with names
- * and types "vtxID" (Long) and "vtxAttr" (VD). The schema of [[edgeDF]] must contain columns
- * with names and types "edgeSrcId" (Long), "edgeTgtId" (Long), "edgeAttr" (ED). Types [[VD]] and
- * [[ED]] must have implicit [[TypeTag]] (required by [[SQLContext.createDataFrame()]] and
- * [[ClassTag]] (required by [[Graph]]) available, and must correspond to a Spark SQL [[DataType]].
+ * Represents a [[Graph]] with vertices and edges stored as [[DataFrame]]s.
+ * [[vertices]] must contain a column named "id" that stores unique vertex IDs (long type).
+ * [[edges]] must contain two columns "src_id" and "dst_id" that store source vertex IDs and target
+ * vertex IDs of edges, respectively.
  *
- * NOTE: [[VD]] and [[ED]] must not contain products (e.g. case classes, tuples) as they will be
- * stored as StructTypes and `CatalystTypeConverter.StructConverter.toScala` will return them back
- * as `GenericRowWithSchema`s.
- * TODO: Support StructTypes for VD and ED to address above NOTE
- *
- * @param vertexDF the [[DataFrame]] holding vertex information
- * @param edgeDF the [[DataFrame]] holding edge information
- * @tparam VD the type of vertex attributes
- * @tparam ED the type of edge attributes
+ * @param vertices the [[DataFrame]] holding vertex information
+ * @param edges the [[DataFrame]] holding edge information
  */
-class DFGraph[VD: TypeTag:ClassTag, ED: TypeTag:ClassTag] protected (
-    @transient val vertexDF: DataFrame,
-    @transient val edgeDF: DataFrame) extends Serializable {
-  import DFGraph._
-  private val _sqlContext: SQLContext = vertexDF.sqlContext
+class DFGraph(
+    @transient val vertices: DataFrame,
+    @transient val edges: DataFrame) extends Serializable {
 
-  /** Default constructor is provided to support serialization */
-  protected def this() = this(null, null)
+  import DFGraph._
+
+  require(vertices.columns.contains(ID) && vertices.schema(ID).dataType == LongType)
+  require(edges.columns.contains(SRC_ID) && edges.schema(SRC_ID).dataType == LongType &&
+    edges.columns.contains(DST_ID) && edges.schema(SRC_ID).dataType == LongType)
+
+  def sqlContext: SQLContext = vertices.sqlContext
 
   /**
-   * Converts the data wrapped in [[DataFrame]]s back into a [[Graph]].
-   *
-   * @return a [[Graph]] with vertices specified by [[vertexDF]] and edges specified by [[edgeDF]]
+   * Converts this [[DFGraph]] instance to a GraphX [[Graph]].
+   * Vertex and edge attributes are the original rows in [[vertices]] and [[edges]], respectively.
    */
-  def toGraph(): Graph[VD, ED] = {
-    val vertices = vertexDF.select(VERTEX_ID_COLNAME, VERTEX_ATTR_COLNAME).map {
-      case Row(id: Long, attr) => (id, attr.asInstanceOf[VD])
+  def toGraphX: Graph[Row, Row] = {
+    val vv = vertices.select(col(ID), struct("*")).map { case Row(id: Long, attr: Row) =>
+      (id, attr)
     }
-    val edges = edgeDF.select(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME).map {
-      case Row(src: Long, dst: Long, attr) => Edge(src, dst, attr.asInstanceOf[ED])
+    val ee = edges.select(col(SRC_ID), col(DST_ID), struct("*")).map {
+      case Row(srcId: Long, dstId: Long, attr: Row) =>
+        Edge(srcId, dstId, attr)
     }
-    Graph(vertices, edges)
+    Graph(vv, ee)
   }
 
   /**
    * Saves the [[DFGraph]] instance to the specified path in Parquet format.
-   *
-   * @param path the location to write to
    */
-  def save(path: String): Unit = DFGraph.save(_sqlContext, vertexDF, edgeDF, path)
+  def save(path: String): Unit = {
+    vertices.write.parquet(path + "/" + VERTICES)
+    edges.write.parquet(path + "/" + EDGES)
+  }
 }
 
 object DFGraph {
-  val VERTEX_ID_COLNAME = "vtxID"
-  val VERTEX_ATTR_COLNAME = "vtxAttr"
-  val EDGE_SRC_ID_COLNAME = "edgeSrcId"
-  val EDGE_TGT_ID_COLNAME = "edgeTgtId"
-  val EDGE_ATTR_COLNAME = "edgeAttr"
 
-  private val thisClassName = "com.databricks.dfgraph.DFGraph"
-  private val thisFormatVersion = "1.0"
-  private val VERTEX_DF_FILENAME = "vtxDF"
-  private val EDGE_DF_FILENAME= "edgeDF"
-
-  /**
-   * Instantiates a [[DFGraph]] from a [[VertexRDD]] and [[EdgeRDD]].
-   */
-  def apply[VD: TypeTag:ClassTag, ED: TypeTag:ClassTag](
-      vertexRDD: VertexRDD[VD], edgeRDD: EdgeRDD[ED]): DFGraph[VD, ED] = {
-    new DFGraph(vertexRDDToDF(vertexRDD), edgeRDDToDF(edgeRDD))
-  }
+  val ID: String = "id"
+  val ATTR: String = "attr"
+  val SRC_ID: String = "src_id"
+  val DST_ID: String = "dst_id"
+  val VERTICES: String = "vertices"
+  val EDGES: String = "edges"
 
   /**
    * Instantiates a [[DFGraph]] from an existing [[Graph]] instance.
    */
-  def apply[VD: TypeTag:ClassTag, ED: TypeTag:ClassTag](graph: Graph[VD, ED]): DFGraph[VD, ED] = {
-    this.apply(graph.vertices, graph.edges)
-  }
-
-  private def vertexRDDToDF[VD: TypeTag:ClassTag](vtx: VertexRDD[VD]): DataFrame = {
-    val sqlContext = SQLContext.getOrCreate(vtx.sparkContext)
-    sqlContext.createDataFrame(vtx).toDF(VERTEX_ID_COLNAME, VERTEX_ATTR_COLNAME)
-  }
-
-  private def edgeRDDToDF[ED: TypeTag:ClassTag](edge: EdgeRDD[ED]): DataFrame = {
-    val sqlContext = SQLContext.getOrCreate(edge.sparkContext)
-    sqlContext.createDataFrame(edge)
-      .toDF(EDGE_SRC_ID_COLNAME, EDGE_TGT_ID_COLNAME, EDGE_ATTR_COLNAME)
-  }
-
-  private def save(sqlContext: SQLContext, vertexDF: DataFrame, edgeDF: DataFrame, path: String): Unit = {
-    val metadata = compact(render
-      (("class" -> thisClassName) ~ ("version" -> thisFormatVersion)))
-    sqlContext.sparkContext.parallelize(Seq(metadata), 1).saveAsTextFile(metadataPath(path))
-
-    val verticesPath = new Path(dataPath(path), VERTEX_DF_FILENAME).toUri.toString
-    vertexDF.write.parquet(verticesPath)
-
-    val edgesPath = new Path(dataPath(path), EDGE_DF_FILENAME).toUri.toString
-    edgeDF.write.parquet(edgesPath)
+  def fromGraphX[VD : TypeTag, ED : TypeTag](graph: Graph[VD, ED]): DFGraph = {
+    val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
+    val vv = sqlContext.createDataFrame(graph.vertices).toDF(ID, ATTR)
+    val ee = sqlContext.createDataFrame(graph.edges).toDF(SRC_ID, DST_ID, ATTR)
+    new DFGraph(vv, ee)
   }
 
   /**
@@ -120,36 +77,10 @@ object DFGraph {
    * @param sqlContext the sql context in which to instantiate this [[DFGraph]]'s backing
    *                   [[DataFrame]]s
    * @param path the path to load the data from
-   * @tparam VD the vertex attribute type
-   * @tparam ED the edge attribute type
    */
-  def load[VD:TypeTag:ClassTag, ED:TypeTag:ClassTag](
-      sqlContext: SQLContext, path: String): DFGraph[VD, ED] = {
-    // TODO: can we store VD, ED in metadata and check for available implicit TypeTags on load?
-    val (loadedClassName, loadedVersion, _) = loadMetadata(sqlContext.sparkContext, path)
-    assert(thisClassName == loadedClassName,
-      s"DFGraph.load expected className to be $thisClassName but got $loadedClassName")
-    assert(thisFormatVersion == loadedVersion,
-      s"DFGraph.load expected format verion to be $thisFormatVersion but got $loadedVersion")
-
-    val vertexDataPath = new Path(dataPath(path), VERTEX_DF_FILENAME).toUri.toString
-    val edgeDataPath = new Path(dataPath(path), EDGE_DF_FILENAME).toUri.toString
-
-    val vtxDF = sqlContext.read.parquet(vertexDataPath)
-    val edgeDF = sqlContext.read.parquet(edgeDataPath)
-    new DFGraph(vtxDF, edgeDF)
-  }
-
-  // TODO: reuse mllib.util.modelSaveLoad
-  private def metadataPath(path: String): String = new Path(path, "metadata").toUri.toString
-
-  private def dataPath(path: String): String = new Path(path, "data").toUri.toString
-
-  private def loadMetadata(sc: SparkContext, path: String): (String, String, JValue) = {
-    implicit val formats = DefaultFormats
-    val metadata = parse(sc.textFile(metadataPath(path)).first())
-    val clazz = (metadata \ "class").extract[String]
-    val version = (metadata \ "version").extract[String]
-    (clazz, version, metadata)
+  def load(sqlContext: SQLContext, path: String): DFGraph = {
+    val vertices = sqlContext.read.parquet(path + "/" + VERTICES)
+    val edges = sqlContext.read.parquet(path + "/" + EDGES)
+    new DFGraph(vertices, edges)
   }
 }
