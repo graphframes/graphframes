@@ -1,22 +1,35 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.databricks.dfgraph
 
 import java.io.File
 
 import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
 
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.graphx.{Edge, Graph}
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions._
 
-class DFGraphSuite extends FunSuite with BeforeAndAfterAll {
+class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
   import DFGraphSuite._
 
-  var sc: SparkContext = _
-  var sqlContext: SQLContext = _
   var vertices: DataFrame = _
   val localVertices = Map(1L -> "A", 2L -> "B", 3L -> "C")
   val localEdges = Map((1L, 2L) -> "love", (2L, 1L) -> "hate", (2L, 3L) -> "follow")
@@ -25,28 +38,20 @@ class DFGraphSuite extends FunSuite with BeforeAndAfterAll {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val conf = new SparkConf()
-      .setAppName(this.getClass.getName)
-      .setMaster("local[2]")
-    sc = SparkContext.getOrCreate(conf)
-    sqlContext = SQLContext.getOrCreate(sc)
     tempDir = Files.createTempDir()
     vertices = sqlContext.createDataFrame(localVertices.toSeq).toDF("id", "name")
     edges = sqlContext.createDataFrame(localEdges.toSeq.map { case ((srcId, dstId), action) =>
       (srcId, dstId, action)
-    }).toDF("src_id", "dst_id", "action")
+    }).toDF("src", "dst", "action")
   }
 
   override def afterAll(): Unit = {
-    sqlContext = null
-    sc.stop()
-    sc = null
     FileUtils.deleteQuietly(tempDir)
     super.afterAll()
   }
 
   test("construction from DataFrame") {
-    val g = new DFGraph(vertices, edges)
+    val g = DFGraph(vertices, edges)
     g.vertices.collect().foreach { case Row(id: Long, name: String) =>
       assert(localVertices(id) === name)
     }
@@ -55,15 +60,15 @@ class DFGraphSuite extends FunSuite with BeforeAndAfterAll {
     }
     intercept[IllegalArgumentException] {
       val badVertices = vertices.select(col("id").as("uid"), col("name"))
-      new DFGraph(badVertices, edges)
+      DFGraph(badVertices, edges)
     }
     intercept[IllegalArgumentException] {
-      val badEdges = edges.select(col("src_id").as("srcId"), col("dst_id"), col("action"))
-      new DFGraph(vertices, badEdges)
+      val badEdges = edges.select(col("src").as("srcId"), col("dst"), col("action"))
+      DFGraph(vertices, badEdges)
     }
     intercept[IllegalArgumentException] {
-      val badEdges = edges.select(col("src_id"), col("dst_id").as("dstId"), col("action"))
-      new DFGraph(vertices, badEdges)
+      val badEdges = edges.select(col("src"), col("dst").as("dstId"), col("action"))
+      DFGraph(vertices, badEdges)
     }
   }
 
@@ -86,7 +91,7 @@ class DFGraphSuite extends FunSuite with BeforeAndAfterAll {
   }
 
   test("convert to GraphX") {
-    val dfg = new DFGraph(vertices, edges)
+    val dfg = DFGraph(vertices, edges)
     val g = dfg.toGraphX
     g.vertices.collect().foreach { case (id0, Row(id1: Long, name: String)) =>
       assert(id0 === id1)
@@ -100,6 +105,7 @@ class DFGraphSuite extends FunSuite with BeforeAndAfterAll {
     }
   }
 
+  /*
   test("save/load") {
     val g0 = new DFGraph(vertices, edges)
     val output = tempDir.getPath + "/graph"
@@ -112,10 +118,10 @@ class DFGraphSuite extends FunSuite with BeforeAndAfterAll {
       assert(localEdges((srcId, dstId)) === action)
     }
   }
+  */
 }
 
 object DFGraphSuite {
   case class VertexAttr(name: String)
   case class EdgeAttr(action: String)
 }
-
