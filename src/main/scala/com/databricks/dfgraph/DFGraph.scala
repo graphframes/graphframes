@@ -33,30 +33,24 @@ import com.databricks.dfgraph.pattern._
  *
  * @param vertices the [[DataFrame]] holding vertex information
  * @param edges the [[DataFrame]] holding edge information
- * @param idCol Column name for vertex IDs in [[vertices]]
- * @param srcCol Column name for source vertex IDs in [[edges]]
- * @param dstCol Column name for destination vertex IDs in [[edges]]
  */
 class DFGraph protected (
     @transient val vertices: DataFrame,
-    @transient val edges: DataFrame,
-    val idCol: String,
-    val srcCol: String,
-    val dstCol: String) extends Serializable {
-
-  require(vertices.columns.contains(idCol),
-    s"Vertex ID column '$idCol' missing from vertex DataFrame.")
-  require(edges.columns.contains(srcCol),
-    s"Source vertex ID column '$srcCol' missing from edge DataFrame.")
-  require(edges.columns.contains(dstCol),
-    s"Destination vertex ID column '$dstCol' missing from edge DataFrame.")
+    @transient val edges: DataFrame) extends Serializable {
 
   import DFGraph._
+
+  require(vertices.columns.contains(ID),
+    s"Vertex ID column '$ID' missing from vertex DataFrame.")
+  require(edges.columns.contains(SRC_ID),
+    s"Source vertex ID column '$SRC_ID' missing from edge DataFrame.")
+  require(edges.columns.contains(DST_ID),
+    s"Destination vertex ID column '$DST_ID' missing from edge DataFrame.")
 
   private def sqlContext: SQLContext = vertices.sqlContext
 
   /** Default constructor is provided to support serialization */
-  protected def this() = this(null, null, DFGraph.ID, DFGraph.SRC_ID, DFGraph.DST_ID)
+  protected def this() = this(null, null)
 
   // ============================ Motif finding ========================================
 
@@ -94,9 +88,9 @@ class DFGraph protected (
 
   // Helper methods defining column naming conventions for motif finding
   private def prefixWithName(name: String, col: String): String = name + "_" + col
-  private def vId(name: String): String = prefixWithName(name, "id")
-  private def eSrcId(name: String): String = prefixWithName(name, "src")
-  private def eDstId(name: String): String = prefixWithName(name, "dst")
+  private def vId(name: String): String = prefixWithName(name, ID)
+  private def eSrcId(name: String): String = prefixWithName(name, SRC_ID)
+  private def eDstId(name: String): String = prefixWithName(name, DST_ID)
   private def pfxE(name: String): DataFrame = renameAll(edges, prefixWithName(name, _))
   private def pfxV(name: String): DataFrame = renameAll(vertices, prefixWithName(name, _))
 
@@ -232,10 +226,10 @@ class DFGraph protected (
    * TODO: Handle non-Long vertex IDs.
    */
   def toGraphX: Graph[Row, Row] = {
-    val vv = vertices.select(col(idCol), struct("*")).map { case Row(id: Long, attr: Row) =>
+    val vv = vertices.select(col(ID), struct("*")).map { case Row(id: Long, attr: Row) =>
       (id, attr)
     }
-    val ee = edges.select(col(srcCol), col(dstCol), struct("*")).map {
+    val ee = edges.select(col(SRC_ID), col(DST_ID), struct("*")).map {
       case Row(srcId: Long, dstId: Long, attr: Row) =>
         Edge(srcId, dstId, attr)
     }
@@ -245,13 +239,14 @@ class DFGraph protected (
 
 object DFGraph {
 
-  // Default names for vertex ID, source ID, and destination ID columns.
-  private val ID: String = "id"
-  private val SRC_ID: String = "src"
-  private val DST_ID: String = "dst"
+  /** Column name for vertex IDs in [[DFGraph.vertices]] */
+  val ID: String = "id"
 
-  // val VERTICES: String = "vertices"
-  // val EDGES: String = "edges"
+  /** Column name for source vertex IDs in [[DFGraph.edges]] */
+  val SRC_ID: String = "src"
+
+  /** Column name for destination vertex IDs in [[DFGraph.edges]] */
+  val DST_ID: String = "dst"
 
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
   private val ATTR: String = "attr"
@@ -267,33 +262,17 @@ object DFGraph {
    * @return  New [[DFGraph]] instance
    */
   def apply(v: DataFrame, e: DataFrame): DFGraph = {
-    new DFGraph(v, e, ID, SRC_ID, DST_ID)
-  }
-
-  /**
-   * Create a new [[DFGraph]] from vertex and edge [[DataFrame]]s, using user-chosen vertex ID
-   * column names.
-   * @param v  Vertex DataFrame.  This must include a column containing unique vertex IDs.
-   *           All other columns are treated as vertex attributes.
-   * @param e  Edge DataFrame.  This must include columns containing source and
-   *           destination vertex IDs.  All other columns are treated as edge attributes.
-   * @param idCol  Column name in vertex DataFrame for vertex IDs
-   * @param srcCol  Column name in edge DataFrame for source vertex IDs
-   * @param dstCol  Column name in edge DataFrame for destination vertex IDs
-   * @return  New [[DFGraph]] instance
-   */
-  def apply(v: DataFrame, e: DataFrame, idCol: String, srcCol: String, dstCol: String): DFGraph = {
-    new DFGraph(v, e, idCol, srcCol, dstCol)
+    new DFGraph(v, e)
   }
 
   /*
   // TODO: Add version with uniqueKey, foreignKey from Ankur's branch?
   def apply(v: DataFrame, e: DataFrame): DFGraph = {
-    require(v.columns.contains("id"))
-    require(e.columns.contains("src") && e.columns.contains("dst"))
-    val vK = v.uniqueKey("id")
+    require(v.columns.contains(ID))
+    require(e.columns.contains(SRC_ID) && e.columns.contains(DST_ID))
+    val vK = v.uniqueKey(ID)
     vK.registerTempTable("vK")
-    val eK = e.foreignKey("src", "vK.id").foreignKey("dst", "vK.id")
+    val eK = e.foreignKey("src", "vK." + ID).foreignKey("dst", "vK." + ID)
     new DFGraph(vK, eK)
   }
   */
@@ -305,7 +284,7 @@ object DFGraph {
    * schema inference.
    * TODO: Add version which takes explicit schemas.
    *
-   * Vertex ID column names will default to "id" for the vertex DataFrame,
+   * Vertex ID column names will be converted to "id" for the vertex DataFrame,
    * and to "src" and "dst" for the edge DataFrame.
    */
   def fromGraphX[VD : TypeTag, ED : TypeTag](graph: Graph[VD, ED]): DFGraph = {
