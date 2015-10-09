@@ -17,7 +17,6 @@
 
 package com.databricks.dfgraph
 
-// scalastyle:off
 import org.scalatest.{FunSuite, Outcome}
 
 import org.apache.spark.Logging
@@ -26,7 +25,6 @@ import org.apache.spark.Logging
  * Base abstract class for all unit tests in Spark for handling common functionality.
  */
 private[dfgraph] abstract class SparkFunSuite extends FunSuite with Logging {
-  // scalastyle:on
 
   /**
    * Log the suite name and the test name before and after each test.

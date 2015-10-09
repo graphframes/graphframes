@@ -23,6 +23,8 @@ import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
 
 import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.{StringType, IntegerType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions._
 
@@ -34,19 +36,20 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
   val localVertices = Map(1L -> "A", 2L -> "B", 3L -> "C")
   val localEdges = Map((1L, 2L) -> "love", (2L, 1L) -> "hate", (2L, 3L) -> "follow")
   var edges: DataFrame = _
-  var tempDir: File = _
+  // var tempDir: File = _  // add back for serialization test
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    tempDir = Files.createTempDir()
-    vertices = sqlContext.createDataFrame(localVertices.toSeq).toDF("id", "name")
-    edges = sqlContext.createDataFrame(localEdges.toSeq.map { case ((srcId, dstId), action) =>
-      (srcId, dstId, action)
+    // tempDir = Files.createTempDir()
+    vertices = sqlContext.createDataFrame(sc.parallelize(localVertices.toSeq)).toDF("id", "name")
+    edges = sqlContext.createDataFrame(sc.parallelize(localEdges.toSeq).map {
+      case ((src, dst), action) =>
+        (src, dst, action)
     }).toDF("src", "dst", "action")
   }
 
   override def afterAll(): Unit = {
-    FileUtils.deleteQuietly(tempDir)
+    // FileUtils.deleteQuietly(tempDir)
     super.afterAll()
   }
 
@@ -55,8 +58,8 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     g.vertices.collect().foreach { case Row(id: Long, name: String) =>
       assert(localVertices(id) === name)
     }
-    g.edges.collect().foreach { case Row(srcId: Long, dstId: Long, action: String) =>
-      assert(localEdges((srcId, dstId)) === action)
+    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
+      assert(localEdges((src, dst)) === action)
     }
     intercept[IllegalArgumentException] {
       val badVertices = vertices.select(col("id").as("uid"), col("name"))
@@ -73,24 +76,24 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
   }
 
   test("construction from GraphX") {
-    val vv = vertices.map { case Row(id: Long, name: String) =>
-      (id, VertexAttr(name))
+    val vv: RDD[(Long, String)] = vertices.map { case Row(id: Long, name: String) =>
+      (id, name)
     }
-    val ee = edges.map { case Row(srcId: Long, dstId: Long, action: String) =>
-      Edge(srcId, dstId, EdgeAttr(action))
+    val ee: RDD[Edge[String]] = edges.map { case Row(src: Long, dst: Long, action: String) =>
+      Edge(src, dst, action)
     }
     val g = Graph(vv, ee)
     val dfg = DFGraph.fromGraphX(g)
-    dfg.vertices.collect().foreach { case Row(id: Long, Row(name: String)) =>
+    dfg.vertices.select("id", "attr").collect().foreach { case Row(id: Long, name: String) =>
       assert(localVertices(id) === name)
     }
-    dfg.edges.collect().foreach {
-      case Row(srcId: Long, dstId: Long, Row(action: String)) =>
-        assert(localEdges((srcId, dstId)) === action)
+    dfg.edges.select("src", "dst", "attr").collect().foreach {
+      case Row(src: Long, dst: Long, action: String) =>
+        assert(localEdges((src, dst)) === action)
     }
   }
 
-  test("convert to GraphX") {
+  test("convert to GraphX: Long IDs") {
     val dfg = DFGraph(vertices, edges)
     val g = dfg.toGraphX
     g.vertices.collect().foreach { case (id0, Row(id1: Long, name: String)) =>
@@ -98,10 +101,73 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
       assert(localVertices(id0) === name)
     }
     g.edges.collect().foreach {
-      case Edge(srcId0, dstId0, Row(srcId1: Long, dstId1: Long, action: String)) =>
-        assert(srcId0 === srcId1)
-        assert(dstId0 === dstId1)
-        assert(localEdges((srcId0, dstId0)) === action)
+      case Edge(src0, dst0, Row(src1: Long, dst1: Long, action: String)) =>
+        assert(src0 === src1)
+        assert(dst0 === dst1)
+        assert(localEdges((src0, dst0)) === action)
+    }
+  }
+
+  test("convert to GraphX: Int IDs") {
+    val vv = vertices.select(col("id").cast(IntegerType).as("id"), col("name"))
+    val ee = edges.select(col("src").cast(IntegerType).as("src"),
+      col("dst").cast(IntegerType).as("dst"), col("action"))
+    val dfg = DFGraph(vv, ee)
+    val g = dfg.toGraphX
+    // Int IDs should be directly cast to Long, so ID values should match.
+    val vCols = dfg.toGraphXVertexSchema.zipWithIndex.toMap
+    val eCols = dfg.toGraphXEdgeSchema.zipWithIndex.toMap
+    g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
+      val id1 = attr.getInt(vCols("id"))
+      val name = attr.getString(vCols("name"))
+      assert(id0 === id1)
+      assert(localVertices(id0) === name)
+    }
+    g.edges.collect().foreach {
+      case Edge(src0: Long, dst0: Long, attr: Row) =>
+        val src1 = attr.getInt(eCols("src"))
+        val dst1 = attr.getInt(eCols("dst"))
+        val action = attr.getString(eCols("action"))
+        assert(src0 === src1)
+        assert(dst0 === dst1)
+        assert(localEdges((src0, dst0)) === action)
+    }
+  }
+
+  test("convert to GraphX: String IDs") {
+    try {
+      val vv = vertices.select(col("id").cast(StringType).as("id"), col("name"))
+      val ee = edges.select(col("src").cast(StringType).as("src"),
+        col("dst").cast(StringType).as("dst"), col("action"))
+      val dfg = DFGraph(vv, ee)
+      val g = dfg.toGraphX
+      // String IDs will be re-indexed, so ID values may not match.
+      val vCols = dfg.toGraphXVertexSchema.zipWithIndex.toMap
+      val eCols = dfg.toGraphXEdgeSchema.zipWithIndex.toMap
+      // First, get index.
+      val new2oldID: Map[Long, String] = g.vertices.map { case (id: Long, attr: Row) =>
+        (id, attr.getString(vCols("id")))
+      }.collect().toMap
+      // Same as in test with Int IDs, but with re-indexing
+      g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
+        val id1 = attr.getString(vCols("id"))
+        val name = attr.getString(vCols("name"))
+        assert(new2oldID(id0) === id1)
+        assert(localVertices(new2oldID(id0).toInt) === name)
+      }
+      g.edges.collect().foreach {
+        case Edge(src0: Long, dst0: Long, attr: Row) =>
+          val src1 = attr.getString(eCols("src"))
+          val dst1 = attr.getString(eCols("dst"))
+          val action = attr.getString(eCols("action"))
+          assert(new2oldID(src0) === src1)
+          assert(new2oldID(dst0) === dst1)
+          assert(localEdges((new2oldID(src0).toInt, new2oldID(dst0).toInt)) === action)
+      }
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        throw e
     }
   }
 
@@ -114,8 +180,8 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     g1.vertices.collect().foreach { case Row(id: Long, name: String) =>
       assert(localVertices(id) === name)
     }
-    g1.edges.collect().foreach { case Row(srcId: Long, dstId: Long, action: String) =>
-      assert(localEdges((srcId, dstId)) === action)
+    g1.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
+      assert(localEdges((src, dst)) === action)
     }
   }
   */

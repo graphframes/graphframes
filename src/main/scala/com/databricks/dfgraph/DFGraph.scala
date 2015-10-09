@@ -20,6 +20,7 @@ package com.databricks.dfgraph
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.sql.types.{LongType, ByteType, ShortType, IntegerType}
 import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext}
 import org.apache.spark.sql.functions._
 
@@ -41,11 +42,14 @@ class DFGraph protected (
   import DFGraph._
 
   require(vertices.columns.contains(ID),
-    s"Vertex ID column '$ID' missing from vertex DataFrame.")
-  require(edges.columns.contains(SRC_ID),
-    s"Source vertex ID column '$SRC_ID' missing from edge DataFrame.")
-  require(edges.columns.contains(DST_ID),
-    s"Destination vertex ID column '$DST_ID' missing from edge DataFrame.")
+    s"Vertex ID column '$ID' missing from vertex DataFrame, which has columns: "
+      + vertices.columns.mkString(","))
+  require(edges.columns.contains(SRC),
+    s"Source vertex ID column '$SRC' missing from edge DataFrame, which has columns: "
+      + edges.columns.mkString(","))
+  require(edges.columns.contains(DST),
+    s"Destination vertex ID column '$DST' missing from edge DataFrame, which has columns: "
+      + edges.columns.mkString(","))
 
   private def sqlContext: SQLContext = vertices.sqlContext
 
@@ -89,8 +93,8 @@ class DFGraph protected (
   // Helper methods defining column naming conventions for motif finding
   private def prefixWithName(name: String, col: String): String = name + "_" + col
   private def vId(name: String): String = prefixWithName(name, ID)
-  private def eSrcId(name: String): String = prefixWithName(name, SRC_ID)
-  private def eDstId(name: String): String = prefixWithName(name, DST_ID)
+  private def eSrcId(name: String): String = prefixWithName(name, SRC)
+  private def eDstId(name: String): String = prefixWithName(name, DST)
   private def pfxE(name: String): DataFrame = renameAll(edges, prefixWithName(name, _))
   private def pfxV(name: String): DataFrame = renameAll(vertices, prefixWithName(name, _))
 
@@ -223,18 +227,61 @@ class DFGraph protected (
    * Converts this [[DFGraph]] instance to a GraphX [[Graph]].
    * Vertex and edge attributes are the original rows in [[vertices]] and [[edges]], respectively.
    *
-   * TODO: Handle non-Long vertex IDs.
+   * Note that vertex (and edge) attributes include vertex IDs (and source, destination IDs)
+   * in order to support non-Long vertex IDs.  If the vertex IDs are not convertible to Long values,
+   * then the values are indexed in order to generate corresponding Long vertex IDs (which is an
+   * expensive operation).
+   *
+   * The column ordering of the returned [[Graph]] vertex and edge attributes are specified by
+   * [[toGraphXVertexSchema]] and [[toGraphXEdgeSchema]], respectively.
    */
   def toGraphX: Graph[Row, Row] = {
-    val vv = vertices.select(col(ID), struct("*")).map { case Row(id: Long, attr: Row) =>
-      (id, attr)
+    val integralIDs: Boolean = vertices.schema(ID).dataType match {
+      case _ @ (ByteType | IntegerType | LongType | ShortType) => true
+      case _ => false
     }
-    val ee = edges.select(col(SRC_ID), col(DST_ID), struct("*")).map {
-      case Row(srcId: Long, dstId: Long, attr: Row) =>
-        Edge(srcId, dstId, attr)
+    val vSchema = toGraphXVertexSchema.map(col)
+    val eSchema = toGraphXEdgeSchema.map(col)
+    if (integralIDs) {
+      val vv = vertices.select(col(ID).cast(LongType), struct(vSchema: _*))
+        .map { case Row(id: Long, attr: Row) => (id, attr) }
+      val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), struct(eSchema: _*))
+        .map { case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr) }
+      Graph(vv, ee)
+    } else {
+      // Compute Long vertex IDs
+      val indexedVertices =
+        vertices.select(monotonicallyIncreasingId().as("new_id"), struct(vSchema: _*).as(ATTR))
+      val newIndex = indexedVertices.select(col("new_id"), col(ATTR + "." + ID).as("old_id"))
+      val vv = indexedVertices.map { case Row(id: Long, attr: Row) => (id, attr) }
+      val indexedSourceEdges =
+        edges.select(col(SRC), col(DST), struct(eSchema: _*).as(ATTR))
+          .join(newIndex).where(edges(SRC) === newIndex("old_id"))
+          .select(newIndex("new_id").as(SRC), col(DST), col(ATTR))
+      val indexedEdges =
+        indexedSourceEdges.select(SRC, DST, ATTR)
+          .join(newIndex).where(edges(DST) === newIndex("old_id"))
+          .select(col(SRC), newIndex("new_id").as(DST), col(ATTR))
+      val ee = indexedEdges.map { case Row(src: Long, dst: Long, attr: Row) =>
+        Edge(src, dst, attr)
+      }
+      Graph(vv, ee)
     }
-    Graph(vv, ee)
   }
+
+  /**
+   * Helper method for [[toGraphX]] which specifies the schema of vertex attributes.
+   * The vertex attributes of the returned [[Graph.vertices]] are given as a [[Row]], and this method
+   * defines the column ordering in that [[Row]].
+   */
+  def toGraphXVertexSchema: Array[String] = vertices.columns
+
+  /**
+   * Helper method for [[toGraphX]] which specifies the schema of edge attributes.
+   * The edge attributes of the returned [[Graph.edges]] are given as a [[Row]], and this method
+   * defines the column ordering in that [[Row]].
+   */
+  def toGraphXEdgeSchema: Array[String] = edges.columns
 }
 
 object DFGraph {
@@ -243,10 +290,10 @@ object DFGraph {
   val ID: String = "id"
 
   /** Column name for source vertex IDs in [[DFGraph.edges]] */
-  val SRC_ID: String = "src"
+  val SRC: String = "src"
 
   /** Column name for destination vertex IDs in [[DFGraph.edges]] */
-  val DST_ID: String = "dst"
+  val DST: String = "dst"
 
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
   private val ATTR: String = "attr"
@@ -290,15 +337,16 @@ object DFGraph {
   def fromGraphX[VD : TypeTag, ED : TypeTag](graph: Graph[VD, ED]): DFGraph = {
     val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
     val vv = sqlContext.createDataFrame(graph.vertices).toDF(ID, ATTR)
-    val ee = sqlContext.createDataFrame(graph.edges).toDF(SRC_ID, DST_ID, ATTR)
+    val ee = sqlContext.createDataFrame(graph.edges).toDF(SRC, DST, ATTR)
     DFGraph(vv, ee)
   }
 
   // ============================ DataFrame utilities ========================================
 
   /** Drop all given columns from the DataFrame */
-  private def dropAll(df: DataFrame, columns: Seq[String]): DataFrame =
+  private def dropAll(df: DataFrame, columns: Seq[String]): DataFrame = {
     columns.foldLeft(df) { (df, col) => df.drop(col) }
+  }
 
   /** Rename all columns within a DataFrame using the given method */
   private def renameAll(df: DataFrame, f: String => String): DataFrame = {
@@ -310,5 +358,8 @@ object DFGraph {
   }
 }
 
-// TODO: Make this public?  Or catch somewhere?
-private class InvalidPatternException() extends Exception()
+/**
+ * Exception thrown when a parsed pattern for motif finding cannot be translated into a DataFrame
+ * query.
+ */
+class InvalidPatternException() extends Exception()

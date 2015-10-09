@@ -46,7 +46,13 @@ private[dfgraph] object PatternParser extends RegexParsers {
 private[dfgraph] object Pattern {
   def parse(s: String): Seq[Pattern] = {
     import PatternParser._
-    parseAll(patterns, s).get
+    parseAll(patterns, s) match {
+      case result: Success[_] =>
+        result.asInstanceOf[Success[Seq[Pattern]]].get
+      case result: NoSuccess =>
+        throw new InvalidParseException(
+          s"Failed to parse bad motif string: '$s'.  Returned message: ${result.msg}")
+    }
   }
 }
 
@@ -65,3 +71,8 @@ private[dfgraph] sealed trait Edge extends Pattern
 private[dfgraph] case class AnonymousEdge(src: Vertex, dst: Vertex) extends Edge
 
 private[dfgraph] case class NamedEdge(name: String, src: Vertex, dst: Vertex) extends Edge
+
+/**
+ * Exception thrown when a pattern String for motif finding cannot be parsed.
+ */
+class InvalidParseException(message: String) extends Exception(message)

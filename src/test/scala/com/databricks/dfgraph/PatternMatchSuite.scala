@@ -48,6 +48,11 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
     super.afterAll()
   }
 
+  test("empty query should return nothing") {
+    val emptiness = g.find("")
+    assert(emptiness.count() === 0)
+  }
+
   test("triangles") {
     val triangles = g.find("(a)-[]->(b); (b)-[]->(c); (c)-[]->(a)")
       .select("a_id", "b_id", "c_id")
@@ -85,6 +90,13 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
       .select("u_id", "v_id", "w_id")
 
     assert(fof.collect().toSet === Set(Row(1L, 2L, 3L)))
+  }
+
+  test("named edges") {
+    // edges whose destination leads nowhere
+    val edges = g.find("()-[e]->(v); !(v)-[]->()")
+      .select("e_src", "e_dst")
+    assert(edges.collect().toSet === Set(Row(2L, 3L)))
   }
 
   /*
