@@ -21,7 +21,7 @@ import com.databricks.dfgraph.SparkFunSuite
 
 class PatternSuite extends SparkFunSuite {
 
-  test("parser") {
+  test("good parses") {
     assert(Pattern.parse("(abc)") === Seq(NamedVertex("abc")))
 
     assert(Pattern.parse("()") === Seq(AnonymousVertex))
@@ -41,5 +41,22 @@ class PatternSuite extends SparkFunSuite {
         AnonymousEdge(NamedVertex("v"), NamedVertex("w")),
         Negation(
           AnonymousEdge(NamedVertex("u"), NamedVertex("w")))))
+  }
+
+  test("bad parses") {
+    withClue("Failed to catch parse error") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(")
+      }
+    }
+    withClue("Failed to catch parse error") {
+      intercept[InvalidParseException] {
+        Pattern.parse("->(a)")
+      }
+    }
+  }
+
+  test("empty pattern should be parsable") {
+    Pattern.parse("")
   }
 }
