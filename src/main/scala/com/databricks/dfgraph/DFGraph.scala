@@ -56,6 +56,35 @@ class DFGraph protected (
   /** Default constructor is provided to support serialization */
   protected def this() = this(null, null)
 
+  // ============================ Degree metrics =======================================
+
+  /**
+   * The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
+   * "id" storing vertex IDs and "outDeg" (int) storing out-degrees.
+   * Note that vertices with no out-degrees are not returned in the result.
+   */
+  @transient lazy val outDegrees: DataFrame = {
+    edges.groupBy(edges(SRC).as(ID)).agg(count("*").cast("int").as("outDeg"))
+  }
+
+  /**
+   * The in-degree of each vertex in the graph, returned as a DataFame with two columns:
+   * "id" storing vertex IDs and "inDeg" (int) storing out-degrees.
+   * Note that vertices with no in-degrees are not returned in the result.
+   */
+  @transient lazy val inDegrees: DataFrame = {
+    edges.groupBy(edges(DST).as(ID)).agg(count("*").cast("int").as("inDeg"))
+  }
+
+  /**
+   * The degree of each vertex in the graph, returned as a DataFarme with two columns:
+   * "id" storing vertex IDs and "deg" (int) storing degrees.
+   * Note that vertices with no degrees are not returned in the result.
+   */
+  @transient lazy val degrees: DataFrame = {
+    edges.select(explode(array(SRC, DST)).as(ID)).groupBy(ID).agg(count("*").cast("int").as("deg"))
+  }
+
   // ============================ Motif finding ========================================
 
   /**
