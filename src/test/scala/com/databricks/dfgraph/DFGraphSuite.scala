@@ -185,6 +185,28 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     }
   }
   */
+
+  test("degree metrics") {
+    val g = DFGraph(vertices, edges)
+
+    assert(g.outDegrees.columns === Seq("id", "outDeg"))
+    val outDegrees = g.outDegrees.collect().map { case Row(id: Long, outDeg: Int) =>
+      (id, outDeg)
+    }.toMap
+    assert(outDegrees === Map(1L -> 1, 2L -> 2))
+
+    assert(g.inDegrees.columns === Seq("id", "inDeg"))
+    val inDegrees = g.inDegrees.collect().map { case Row(id: Long, inDeg: Int) =>
+      (id, inDeg)
+    }.toMap
+    assert(inDegrees === Map(1L -> 1, 2L -> 1, 3L -> 1))
+
+    assert(g.degrees.columns === Seq("id", "deg"))
+    val degrees = g.degrees.collect().map { case Row(id: Long, deg: Int) =>
+      (id, deg)
+    }.toMap
+    assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
+  }
 }
 
 object DFGraphSuite {
