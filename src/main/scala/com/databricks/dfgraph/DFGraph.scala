@@ -20,7 +20,7 @@ package com.databricks.dfgraph
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.graphx.{Edge, Graph}
-import org.apache.spark.sql.types.{LongType, ByteType, ShortType, IntegerType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext}
 import org.apache.spark.sql.functions._
 
@@ -120,12 +120,14 @@ class DFGraph protected (
   }
 
   // Helper methods defining column naming conventions for motif finding
-  private def prefixWithName(name: String, col: String): String = name + "_" + col
+  private def prefixWithName(name: String, col: String): String = name + "." + col // name + "_" + col
   private def vId(name: String): String = prefixWithName(name, ID)
   private def eSrcId(name: String): String = prefixWithName(name, SRC)
   private def eDstId(name: String): String = prefixWithName(name, DST)
-  private def pfxE(name: String): DataFrame = renameAll(edges, prefixWithName(name, _))
-  private def pfxV(name: String): DataFrame = renameAll(vertices, prefixWithName(name, _))
+  //private def pfxE(name: String): DataFrame = renameAll(edges, prefixWithName(name, _))
+  //private def pfxV(name: String): DataFrame = renameAll(vertices, prefixWithName(name, _))
+  private def nestE(name: String): DataFrame = edges.select(nestAsCol(edges, name))
+  private def nestV(name: String): DataFrame = vertices.select(nestAsCol(vertices, name))
 
   private def maybeJoin(aOpt: Option[DataFrame], b: DataFrame): DataFrame = {
     aOpt match {
@@ -178,34 +180,35 @@ class DFGraph protected (
 
     case v @ NamedVertex(name) =>
       if (seen(v, prevPatterns)) {
-        for (prev <- prev) assert(prev.columns.toSet.contains(vId(name)))
+        // for (prev <- prev) assert(prev.columns.toSet.contains(vId(name)))
+        for (prev <- prev) assert(prev.columns.toSet.contains(name))
         prev
       } else {
-        Some(maybeJoin(prev, pfxV(name)))
+        Some(maybeJoin(prev, nestV(name)))
       }
 
     case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
-      val eRen = pfxE(name)
+      val eRen = nestE(name)
       Some(maybeJoin(prev, eRen))
 
     case NamedEdge(name, AnonymousVertex, dst @ NamedVertex(dstName)) =>
       if (seen(dst, prevPatterns)) {
-        val eRen = pfxE(name)
+        val eRen = nestE(name)
         Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName))))
       } else {
-        val eRen = pfxE(name)
-        val dstV = pfxV(dstName)
+        val eRen = nestE(name)
+        val dstV = nestV(dstName)
         Some(maybeJoin(prev, eRen)
           .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)), "left_outer"))
       }
 
     case NamedEdge(name, src @ NamedVertex(srcName), AnonymousVertex) =>
       if (seen(src, prevPatterns)) {
-        val eRen = pfxE(name)
+        val eRen = nestE(name)
         Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName))))
       } else {
-        val eRen = pfxE(name)
-        val srcV = pfxV(srcName)
+        val eRen = nestE(name)
+        val srcV = nestV(srcName)
         Some(maybeJoin(prev, eRen)
           .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName))))
       }
@@ -213,26 +216,26 @@ class DFGraph protected (
     case NamedEdge(name, src @ NamedVertex(srcName), dst @ NamedVertex(dstName)) =>
       (seen(src, prevPatterns), seen(dst, prevPatterns)) match {
         case (true, true) =>
-          val eRen = pfxE(name)
+          val eRen = nestE(name)
           Some(maybeJoin(prev, eRen, prev =>
             eRen(eSrcId(name)) === prev(vId(srcName)) && eRen(eDstId(name)) === prev(vId(dstName))))
 
         case (true, false) =>
-          val eRen = pfxE(name)
-          val dstV = pfxV(dstName)
+          val eRen = nestE(name)
+          val dstV = nestV(dstName)
           Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName)))
             .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName))))
 
         case (false, true) =>
-          val eRen = pfxE(name)
-          val srcV = pfxV(srcName)
+          val eRen = nestE(name)
+          val srcV = nestV(srcName)
           Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName)))
             .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName))))
 
         case (false, false) =>
-          val eRen = pfxE(name)
-          val srcV = pfxV(srcName)
-          val dstV = pfxV(dstName)
+          val eRen = nestE(name)
+          val srcV = nestV(srcName)
+          val dstV = nestV(dstName)
           Some(maybeJoin(prev, eRen)
             .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))
             .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName))))
@@ -242,7 +245,8 @@ class DFGraph protected (
     case AnonymousEdge(src, dst) =>
       val tmpName = "__tmp"
       val result = findIncremental(prevPatterns, prev, NamedEdge(tmpName, src, dst))
-      result.map(dropAll(_, edges.columns.map(col => prefixWithName(tmpName, col))))
+      result.map(_.drop(tmpName))
+      //result.map(dropAll(_, edges.columns.map(col => prefixWithName(tmpName, col))))
 
     case Negation(edge) => prev match {
       case Some(p) => findIncremental(prevPatterns, Some(p), edge).map(result => p.except(result))
@@ -262,15 +266,15 @@ class DFGraph protected (
    * expensive operation).
    *
    * The column ordering of the returned [[Graph]] vertex and edge attributes are specified by
-   * [[toGraphXVertexSchema]] and [[toGraphXEdgeSchema]], respectively.
+   * [[vertexSchema]] and [[edgeSchema]], respectively.
    */
   def toGraphX: Graph[Row, Row] = {
     val integralIDs: Boolean = vertices.schema(ID).dataType match {
       case _ @ (ByteType | IntegerType | LongType | ShortType) => true
       case _ => false
     }
-    val vSchema = toGraphXVertexSchema.map(col)
-    val eSchema = toGraphXEdgeSchema.map(col)
+    val vSchema = vertexSchema.map(col)
+    val eSchema = edgeSchema.map(col)
     if (integralIDs) {
       val vv = vertices.select(col(ID).cast(LongType), struct(vSchema: _*))
         .map { case Row(id: Long, attr: Row) => (id, attr) }
@@ -300,17 +304,27 @@ class DFGraph protected (
 
   /**
    * Helper method for [[toGraphX]] which specifies the schema of vertex attributes.
-   * The vertex attributes of the returned [[Graph.vertices]] are given as a [[Row]], and this method
-   * defines the column ordering in that [[Row]].
+   * The vertex attributes of the returned [[Graph.vertices]] are given as a [[Row]],
+   * and this method defines the column ordering in that [[Row]].
    */
-  def toGraphXVertexSchema: Array[String] = vertices.columns
+  lazy val vertexSchema: Array[String] = vertices.columns
+
+  /**
+   * Version of [[vertexSchema]] which maps column names to indices in the Rows.
+   */
+  lazy val vertexSchemaMap: Map[String, Int] = vertexSchema.zipWithIndex.toMap
 
   /**
    * Helper method for [[toGraphX]] which specifies the schema of edge attributes.
-   * The edge attributes of the returned [[Graph.edges]] are given as a [[Row]], and this method
-   * defines the column ordering in that [[Row]].
+   * The edge attributes of the returned [[Graph.edges]] are given as a [[Row]],
+   * and this method defines the column ordering in that [[Row]].
    */
-  def toGraphXEdgeSchema: Array[String] = edges.columns
+  lazy val edgeSchema: Array[String] = edges.columns
+
+  /**
+   * Version of [[edgeSchema]] which maps column names to indices in the Rows.
+   */
+  lazy val edgeSchemaMap: Map[String, Int] = edgeSchema.zipWithIndex.toMap
 }
 
 object DFGraph {
@@ -372,18 +386,59 @@ object DFGraph {
 
   // ============================ DataFrame utilities ========================================
 
+  /*
   /** Drop all given columns from the DataFrame */
   private def dropAll(df: DataFrame, columns: Seq[String]): DataFrame = {
-    columns.foldLeft(df) { (df, col) => df.drop(col) }
+    // columns.foldLeft(df) { (df, col) => df.drop(col) }
+    columns.foldLeft(df) { (df, col) =>
+      // This is NOT robust to columns with periods in the names.
+      val splitCol = col.split("\\.")
+      dropCol(df, splitCol)
+    }
   }
 
+  /**
+   * Drop a column which may be nested.
+   * E.g. dropping "a.src" will remove the "src" field from the struct column "a" but will
+   * not drop the entire "a" column.
+   */
+  private def dropCol(df: DataFrame, splitCol: Array[String]): DataFrame = {
+    // Identify if the column is nested.
+    val col = splitCol.head
+    if (splitCol.length == 1) {
+      df.drop(col)
+    } else {
+      df.schema(col).dataType match {
+        case s: StructType =>
+          println("df schema: " + df.schema.fieldNames.mkString(", "))
+          println(s"df.${col} fields: " + s.fieldNames.mkString(", "))
+          val colDF = df.select(s.fieldNames.map(f => df(col + "." + f)) :_*)
+          colDF.show()
+          val droppedDF = dropCol(colDF, splitCol.slice(1, splitCol.length))
+          droppedDF.show()
+          df.drop(col).withColumn(col, nestAsCol(droppedDF, col))
+        case other =>
+          throw new RuntimeException(s"Unknown error in DFGraph. Expected column $col to be" +
+            s" StructType, but found type: $other")
+      }
+    }
+  }
+  */
+
   /** Rename all columns within a DataFrame using the given method */
+  /*
   private def renameAll(df: DataFrame, f: String => String): DataFrame = {
     val colNames = df.schema.map { field =>
       val name = field.name
-      new Column(name).as(f(name))
+      col(name).as(f(name))
     }
     df.select(colNames : _*)
+  }
+  */
+
+  /** Nest all columns within a single StructType column with the given name */
+  private def nestAsCol(df: DataFrame, name: String): Column = {
+    struct(df.columns.map(c => df(c)) :_*).as(name)
   }
 }
 
