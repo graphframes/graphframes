@@ -54,20 +54,14 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
   }
 
   test("triangles") {
-    try {
-      val triangles = g.find("(a)-[]->(b); (b)-[]->(c); (c)-[]->(a)")
-        .select("a.id", "b.id", "c.id")
+    val triangles = g.find("(a)-[]->(b); (b)-[]->(c); (c)-[]->(a)")
+      .select("a.id", "b.id", "c.id")
 
-      assert(triangles.collect().toSet === Set(
-        Row(0L, 1L, 2L),
-        Row(2L, 0L, 1L),
-        Row(1L, 2L, 0L)
-      ))
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-        throw e
-    }
+    assert(triangles.collect().toSet === Set(
+      Row(0L, 1L, 2L),
+      Row(2L, 0L, 1L),
+      Row(1L, 2L, 0L)
+    ))
   }
 
   test("vertex queries") {

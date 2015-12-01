@@ -120,12 +120,10 @@ class DFGraph protected (
   }
 
   // Helper methods defining column naming conventions for motif finding
-  private def prefixWithName(name: String, col: String): String = name + "." + col // name + "_" + col
+  private def prefixWithName(name: String, col: String): String = name + "." + col
   private def vId(name: String): String = prefixWithName(name, ID)
   private def eSrcId(name: String): String = prefixWithName(name, SRC)
   private def eDstId(name: String): String = prefixWithName(name, DST)
-  //private def pfxE(name: String): DataFrame = renameAll(edges, prefixWithName(name, _))
-  //private def pfxV(name: String): DataFrame = renameAll(vertices, prefixWithName(name, _))
   private def nestE(name: String): DataFrame = edges.select(nestAsCol(edges, name))
   private def nestV(name: String): DataFrame = vertices.select(nestAsCol(vertices, name))
 
@@ -180,7 +178,6 @@ class DFGraph protected (
 
     case v @ NamedVertex(name) =>
       if (seen(v, prevPatterns)) {
-        // for (prev <- prev) assert(prev.columns.toSet.contains(vId(name)))
         for (prev <- prev) assert(prev.columns.toSet.contains(name))
         prev
       } else {
@@ -246,7 +243,6 @@ class DFGraph protected (
       val tmpName = "__tmp"
       val result = findIncremental(prevPatterns, prev, NamedEdge(tmpName, src, dst))
       result.map(_.drop(tmpName))
-      //result.map(dropAll(_, edges.columns.map(col => prefixWithName(tmpName, col))))
 
     case Negation(edge) => prev match {
       case Some(p) => findIncremental(prevPatterns, Some(p), edge).map(result => p.except(result))
@@ -386,6 +382,8 @@ object DFGraph {
 
   // ============================ DataFrame utilities ========================================
 
+  // I'm keeping these for now since they might be useful at some point, but they should be
+  // reviewed if ever used.
   /*
   /** Drop all given columns from the DataFrame */
   private def dropAll(df: DataFrame, columns: Seq[String]): DataFrame = {
@@ -422,17 +420,6 @@ object DFGraph {
             s" StructType, but found type: $other")
       }
     }
-  }
-  */
-
-  /** Rename all columns within a DataFrame using the given method */
-  /*
-  private def renameAll(df: DataFrame, f: String => String): DataFrame = {
-    val colNames = df.schema.map { field =>
-      val name = field.name
-      col(name).as(f(name))
-    }
-    df.select(colNames : _*)
   }
   */
 
