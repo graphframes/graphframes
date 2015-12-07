@@ -262,35 +262,33 @@ class DFGraph protected (
    * expensive operation).
    *
    * The column ordering of the returned [[Graph]] vertex and edge attributes are specified by
-   * [[vertexSchema]] and [[edgeSchema]], respectively.
+   * [[vCols]] and [[eCols]], respectively.
    */
   def toGraphX: Graph[Row, Row] = {
     val integralIDs: Boolean = vertices.schema(ID).dataType match {
       case _ @ (ByteType | IntegerType | LongType | ShortType) => true
       case _ => false
     }
-    val vSchema = vertexSchema.map(col)
-    val eSchema = edgeSchema.map(col)
+    val vStruct = struct(vCols.map(col): _*)
+    val eStruct = struct(eCols.map(col): _*)
     if (integralIDs) {
-      val vv = vertices.select(col(ID).cast(LongType), struct(vSchema: _*))
+      val vv = vertices.select(col(ID).cast(LongType), vStruct)
         .map { case Row(id: Long, attr: Row) => (id, attr) }
-      val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), struct(eSchema: _*))
+      val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), eStruct)
         .map { case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr) }
       Graph(vv, ee)
     } else {
       // Compute Long vertex IDs
       val indexedVertices =
-        vertices.select(monotonicallyIncreasingId().as("new_id"), struct(vSchema: _*).as(ATTR))
+        vertices.select(monotonicallyIncreasingId().as("new_id"), vStruct.as(ATTR))
       val newIndex = indexedVertices.select(col("new_id"), col(ATTR + "." + ID).as("old_id"))
       val vv = indexedVertices.map { case Row(id: Long, attr: Row) => (id, attr) }
-      val indexedSourceEdges =
-        edges.select(col(SRC), col(DST), struct(eSchema: _*).as(ATTR))
-          .join(newIndex).where(edges(SRC) === newIndex("old_id"))
-          .select(newIndex("new_id").as(SRC), col(DST), col(ATTR))
-      val indexedEdges =
-        indexedSourceEdges.select(SRC, DST, ATTR)
-          .join(newIndex).where(edges(DST) === newIndex("old_id"))
-          .select(col(SRC), newIndex("new_id").as(DST), col(ATTR))
+      val indexedSourceEdges = edges.select(col(SRC), col(DST), eStruct.as(ATTR))
+        .join(newIndex).where(edges(SRC) === newIndex("old_id"))
+        .select(newIndex("new_id").as(SRC), col(DST), col(ATTR))
+      val indexedEdges = indexedSourceEdges.select(SRC, DST, ATTR)
+        .join(newIndex).where(edges(DST) === newIndex("old_id"))
+        .select(col(SRC), newIndex("new_id").as(DST), col(ATTR))
       val ee = indexedEdges.map { case Row(src: Long, dst: Long, attr: Row) =>
         Edge(src, dst, attr)
       }
@@ -303,24 +301,24 @@ class DFGraph protected (
    * The vertex attributes of the returned [[Graph.vertices]] are given as a [[Row]],
    * and this method defines the column ordering in that [[Row]].
    */
-  lazy val vertexSchema: Array[String] = vertices.columns
+  lazy val vCols: Array[String] = vertices.columns
 
   /**
-   * Version of [[vertexSchema]] which maps column names to indices in the Rows.
+   * Version of [[vCols]] which maps column names to indices in the Rows.
    */
-  lazy val vertexSchemaMap: Map[String, Int] = vertexSchema.zipWithIndex.toMap
+  lazy val vColsMap: Map[String, Int] = vCols.zipWithIndex.toMap
 
   /**
    * Helper method for [[toGraphX]] which specifies the schema of edge attributes.
    * The edge attributes of the returned [[Graph.edges]] are given as a [[Row]],
    * and this method defines the column ordering in that [[Row]].
    */
-  lazy val edgeSchema: Array[String] = edges.columns
+  lazy val eCols: Array[String] = edges.columns
 
   /**
-   * Version of [[edgeSchema]] which maps column names to indices in the Rows.
+   * Version of [[eCols]] which maps column names to indices in the Rows.
    */
-  lazy val edgeSchemaMap: Map[String, Int] = edgeSchema.zipWithIndex.toMap
+  lazy val eColsMap: Map[String, Int] = eCols.zipWithIndex.toMap
 }
 
 object DFGraph {
@@ -408,8 +406,6 @@ object DFGraph {
     } else {
       df.schema(col).dataType match {
         case s: StructType =>
-          println("df schema: " + df.schema.fieldNames.mkString(", "))
-          println(s"df.${col} fields: " + s.fieldNames.mkString(", "))
           val colDF = df.select(s.fieldNames.map(f => df(col + "." + f)) :_*)
           colDF.show()
           val droppedDF = dropCol(colDF, splitCol.slice(1, splitCol.length))
