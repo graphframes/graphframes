@@ -55,7 +55,7 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
   test("triangles") {
     val triangles = g.find("(a)-[]->(b); (b)-[]->(c); (c)-[]->(a)")
-      .select("a_id", "b_id", "c_id")
+      .select("a.id", "b.id", "c.id")
 
     assert(triangles.collect().toSet === Set(
       Row(0L, 1L, 2L),
@@ -66,8 +66,8 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
   test("vertex queries") {
     val vertices = g.find("(a)")
-    assert(vertices.columns === Array("a_id", "a_attr"))
-    assert(vertices.collect().toSet === v.collect().toSet)
+    assert(vertices.columns === Array("a"))
+    assert(vertices.select("a.id", "a.attr").collect().toSet === v.collect().toSet)
 
     val empty = g.find("()")
     assert(empty.collect() === Array.empty)
@@ -76,8 +76,8 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
   test("triplets") {
     val triplets = g.find("(u)-[]->(v)")
 
-    assert(triplets.columns === Array("u_id", "u_attr", "v_id", "v_attr"))
-    assert(triplets.collect().toSet === Set(
+    assert(triplets.columns === Array("u", "v"))
+    assert(triplets.select("u.id", "u.attr", "v.id", "v.attr").collect().toSet === Set(
       Row(0L, "a", 1L, "b"),
       Row(1L, "b", 2L, "c"),
       Row(2L, "c", 3L, "d"),
@@ -87,7 +87,7 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
   test("negation") {
     val fof = g.find("(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w); !(w)-[]->(u)")
-      .select("u_id", "v_id", "w_id")
+      .select("u.id", "v.id", "w.id")
 
     assert(fof.collect().toSet === Set(Row(1L, 2L, 3L)))
   }
@@ -95,7 +95,7 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
   test("named edges") {
     // edges whose destination leads nowhere
     val edges = g.find("()-[e]->(v); !(v)-[]->()")
-      .select("e_src", "e_dst")
+      .select("e.src", "e.dst")
     assert(edges.collect().toSet === Set(Row(2L, 3L)))
   }
 

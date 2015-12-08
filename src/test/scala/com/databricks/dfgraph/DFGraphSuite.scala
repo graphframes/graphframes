@@ -21,6 +21,7 @@ import java.io.File
 
 import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
+import org.apache.hadoop.fs.Path
 
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.rdd.RDD
@@ -30,17 +31,15 @@ import org.apache.spark.sql.functions._
 
 class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
-  import DFGraphSuite._
-
   var vertices: DataFrame = _
   val localVertices = Map(1L -> "A", 2L -> "B", 3L -> "C")
   val localEdges = Map((1L, 2L) -> "love", (2L, 1L) -> "hate", (2L, 3L) -> "follow")
   var edges: DataFrame = _
-  // var tempDir: File = _  // add back for serialization test
+  var tempDir: File = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    // tempDir = Files.createTempDir()
+    tempDir = Files.createTempDir()
     vertices = sqlContext.createDataFrame(sc.parallelize(localVertices.toSeq)).toDF("id", "name")
     edges = sqlContext.createDataFrame(sc.parallelize(localEdges.toSeq).map {
       case ((src, dst), action) =>
@@ -49,7 +48,7 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
   }
 
   override def afterAll(): Unit = {
-    // FileUtils.deleteQuietly(tempDir)
+    FileUtils.deleteQuietly(tempDir)
     super.afterAll()
   }
 
@@ -115,8 +114,8 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     val dfg = DFGraph(vv, ee)
     val g = dfg.toGraphX
     // Int IDs should be directly cast to Long, so ID values should match.
-    val vCols = dfg.toGraphXVertexSchema.zipWithIndex.toMap
-    val eCols = dfg.toGraphXEdgeSchema.zipWithIndex.toMap
+    val vCols = dfg.vColsMap
+    val eCols = dfg.eColsMap
     g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
       val id1 = attr.getInt(vCols("id"))
       val name = attr.getString(vCols("name"))
@@ -142,8 +141,8 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
       val dfg = DFGraph(vv, ee)
       val g = dfg.toGraphX
       // String IDs will be re-indexed, so ID values may not match.
-      val vCols = dfg.toGraphXVertexSchema.zipWithIndex.toMap
-      val eCols = dfg.toGraphXEdgeSchema.zipWithIndex.toMap
+      val vCols = dfg.vColsMap
+      val eCols = dfg.eColsMap
       // First, get index.
       val new2oldID: Map[Long, String] = g.vertices.map { case (id: Long, attr: Row) =>
         (id, attr.getString(vCols("id")))
@@ -171,12 +170,17 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     }
   }
 
-  /*
   test("save/load") {
-    val g0 = new DFGraph(vertices, edges)
-    val output = tempDir.getPath + "/graph"
-    g0.save(output)
-    val g1 = DFGraph.load(sqlContext, output)
+    val g0 = DFGraph(vertices, edges)
+    val vPath = new Path(tempDir.getPath, "vertices").toString
+    val ePath = new Path(tempDir.getPath, "edges").toString
+    g0.vertices.write.parquet(vPath)
+    g0.edges.write.parquet(ePath)
+
+    val v1 = sqlContext.read.parquet(vPath)
+    val e1 = sqlContext.read.parquet(ePath)
+    val g1 = DFGraph(v1, e1)
+
     g1.vertices.collect().foreach { case Row(id: Long, name: String) =>
       assert(localVertices(id) === name)
     }
@@ -184,7 +188,6 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
       assert(localEdges((src, dst)) === action)
     }
   }
-  */
 
   test("degree metrics") {
     val g = DFGraph(vertices, edges)
@@ -207,9 +210,4 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     }.toMap
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
   }
-}
-
-object DFGraphSuite {
-  case class VertexAttr(name: String)
-  case class EdgeAttr(action: String)
 }
