@@ -114,8 +114,8 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     val dfg = DFGraph(vv, ee)
     val g = dfg.toGraphX
     // Int IDs should be directly cast to Long, so ID values should match.
-    val vCols = dfg.vCols.zipWithIndex.toMap
-    val eCols = dfg.eCols.zipWithIndex.toMap
+    val vCols = dfg.vColsMap
+    val eCols = dfg.eColsMap
     g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
       val id1 = attr.getInt(vCols("id"))
       val name = attr.getString(vCols("name"))
@@ -141,8 +141,8 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
       val dfg = DFGraph(vv, ee)
       val g = dfg.toGraphX
       // String IDs will be re-indexed, so ID values may not match.
-      val vCols = dfg.vCols.zipWithIndex.toMap
-      val eCols = dfg.eCols.zipWithIndex.toMap
+      val vCols = dfg.vColsMap
+      val eCols = dfg.eColsMap
       // First, get index.
       val new2oldID: Map[Long, String] = g.vertices.map { case (id: Long, attr: Row) =>
         (id, attr.getString(vCols("id")))
