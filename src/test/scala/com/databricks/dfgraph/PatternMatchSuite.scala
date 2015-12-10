@@ -18,6 +18,9 @@
 package com.databricks.dfgraph
 
 import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.functions.{lit, udf, when}
+
+import DFGImplicits._
 
 class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
@@ -29,15 +32,15 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
     super.beforeAll()
 
     v = sqlContext.createDataFrame(List(
-      (0L, "a"),
-      (1L, "b"),
-      (2L, "c"),
-      (3L, "d"))).toDF("id", "attr")
+      (0L, "a", "f"),
+      (1L, "b", "m"),
+      (2L, "c", "m"),
+      (3L, "d", "f"))).toDF("id", "attr", "gender")
     e = sqlContext.createDataFrame(List(
-      (0L, 1L),
-      (1L, 2L),
-      (2L, 3L),
-      (2L, 0L))).toDF("src", "dst")
+      (0L, 1L, "friend"),
+      (1L, 2L, "friend"),
+      (2L, 3L, "follow"),
+      (2L, 0L, "unknown"))).toDF("src", "dst", "relationship")
     g = DFGraph(v, e)
   }
 
@@ -67,7 +70,8 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
   test("vertex queries") {
     val vertices = g.find("(a)")
     assert(vertices.columns === Array("a"))
-    assert(vertices.select("a.id", "a.attr").collect().toSet === v.collect().toSet)
+    assert(vertices.select("a.id", "a.attr").collect().toSet
+      === v.select("id", "attr").collect().toSet)
 
     val empty = g.find("()")
     assert(empty.collect() === Array.empty)
@@ -97,6 +101,33 @@ class PatternMatchSuite extends SparkFunSuite with DFGraphTestSparkContext {
     val edges = g.find("()-[e]->(v); !(v)-[]->()")
       .select("e.src", "e.dst")
     assert(edges.collect().toSet === Set(Row(2L, 3L)))
+  }
+
+  test("stateful predicates via UDFs") {
+    val chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
+
+    // Using DataFrame operations, but not really operating in a stateful manner
+    val chain4with2friends = chain4.where(
+      Seq("ab", "bc", "cd")
+        .field("relationship")
+        .map(f => when(f === "friend", 1).otherwise(0))
+        .reduce(_ + _) >= 2)
+
+    assert(chain4with2friends.count() === 4)
+    chain4with2friends.select("ab.relationship", "bc.relationship", "cd.relationship").collect()
+      .foreach { case Row(ab: String, bc: String, cd: String) =>
+        val numFriends = Seq(ab, bc, cd).map(r => if (r == "friend") 1 else 0).reduce(_ + _)
+        assert(numFriends >= 2)
+      }
+
+    // Operating in a stateful manner, where cnt is the state.
+    val sumFriends =
+      udf((cnt: Int, relationship: String) => if (relationship == "friend") cnt + 1 else cnt)
+    val chain4with2friends2 = chain4.where(
+      Seq("ab", "bc", "cd").field("relationship")
+        .foldLeft(lit(0))((cnt, rel) => sumFriends(cnt, rel)) >= 2)
+
+    assert(chain4with2friends.collect().toSet === chain4with2friends2.collect().toSet)
   }
 
   /*
