@@ -27,9 +27,9 @@ import org.apache.spark.sql.functions._
 import com.databricks.dfgraph.pattern._
 
 /**
- * Represents a [[Graph]] with vertices and edges stored as [[DataFrame]]s.
- * [[vertices]] must contain a column named "id" that stores unique vertex IDs.
- * [[edges]] must contain two columns "src" and "dst" that store source vertex IDs and target
+ * Represents a graph with vertices and edges stored as [[DataFrame]]s.
+ * [[vertices]] must contain a column named "id" storing unique vertex IDs.
+ * [[edges]] must contain two columns "src" and "dst" storing source vertex IDs and destination
  * vertex IDs of edges, respectively.
  *
  * @param vertices the [[DataFrame]] holding vertex information
