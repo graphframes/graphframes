@@ -40,6 +40,10 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
   override def beforeAll(): Unit = {
     super.beforeAll()
     tempDir = Files.createTempDir()
+    // Note: We use non-local DataFrames because of a bug in Spark 1.4 which prevents us from
+    //       using monotonicallyIncreasingID: SPARK-9020
+    //       This fix in 1.5 will not be backported to 1.4, but we could fix it by having two
+    //       implementations of indexing in DFGraph.toGraphX.
     vertices = sqlContext.createDataFrame(sc.parallelize(localVertices.toSeq)).toDF("id", "name")
     edges = sqlContext.createDataFrame(sc.parallelize(localEdges.toSeq).map {
       case ((src, dst), action) =>
