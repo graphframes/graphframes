@@ -35,22 +35,6 @@ class DFGraph(object):
     >>> v = sqlContext.createDataFrame(localVertices, ["id", "name"])
     >>> e = sqlContext.createDataFrame(localEdges, ["src", "dst", "action"])
     >>> g = DFGraph(v, e)
-    >>> g.vertices.select("id").show()
-    +--+
-    |id|
-    +--+
-    | 1|
-    | 2|
-    | 3|
-    +--+
-    >>> g.edges.select("action").show()
-    +------+
-    |action|
-    +------+
-    |  love|
-    |  hate|
-    |follow|
-    +------+
     """
     def __init__(self, v, e):
         self._vertices = v
