@@ -14,7 +14,7 @@ Contents:
 
 
 Core classes:
----------------
+-------------
 
     :class:`dfgraph.DFGraph`
 
