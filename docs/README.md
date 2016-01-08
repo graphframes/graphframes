@@ -39,6 +39,8 @@ You can modify the default Jekyll build as follows:
     # Build the site with extra features used on the live page
     $ PRODUCTION=1 jekyll build
 
+Note that `SPARK_HOME` must be set to your local Spark installation in order to generate the docs.
+
 ## Pygments
 
 We also use pygments (http://pygments.org) for syntax highlighting in documentation markdown pages,
