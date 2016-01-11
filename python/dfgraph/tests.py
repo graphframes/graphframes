@@ -29,7 +29,7 @@ else:
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 
-from dfgraph import DFGraph
+from .dfgraph import DFGraph
 
 
 class DFGraphTestCase(unittest.TestCase):
@@ -61,7 +61,3 @@ class DFGraphTest(DFGraphTestCase):
         assert sorted(vertexIDs) == [1, 2, 3]
         edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
         assert sorted(edgeActions) == ["follow", "hate", "love"]
-
-
-if __name__ == "__main__":
-    unittest.main()

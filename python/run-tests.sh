@@ -35,7 +35,7 @@ export PYTHONPATH=$PYTHONPATH:dfgraph
 
 # Run test suites
 
-nosetests
+nosetests -v --all-modules
 
 
 # Run doc tests

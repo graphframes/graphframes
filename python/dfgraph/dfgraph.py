@@ -19,14 +19,13 @@ from pyspark import SparkContext
 from pyspark.sql import SQLContext
 
 class DFGraph(object):
-
     """
     Represents a graph with vertices and edges stored as DataFrames.
 
-    :param vertices:  [[DataFrame]] holding vertex information.
+    :param vertices:  :class:`DataFrame` holding vertex information.
                       Must contain a column named "id" that stores unique
                       vertex IDs.
-    :param edges:  [[DataFrame]] holding edge information.
+    :param edges:  :class:`DataFrame` holding edge information.
                    Must contain two columns "src" and "dst" storing source
                    vertex IDs and destination vertex IDs of edges, respectively.
 
@@ -36,6 +35,7 @@ class DFGraph(object):
     >>> e = sqlContext.createDataFrame(localEdges, ["src", "dst", "action"])
     >>> g = DFGraph(v, e)
     """
+
     def __init__(self, v, e):
         self._vertices = v
         self._edges = e
@@ -60,7 +60,7 @@ class DFGraph(object):
     @property
     def vertices(self):
         """
-        [[DataFrame]] holding vertex information, with unique column "id"
+        :class:`DataFrame` holding vertex information, with unique column "id"
         for vertex IDs.
         """
         return self._vertices
@@ -68,7 +68,7 @@ class DFGraph(object):
     @property
     def edges(self):
         """
-        [[DataFrame]] holding edge information, with unique columns "src" and
+        :class:`DataFrame` holding edge information, with unique columns "src" and
         "dst" storing source vertex IDs and destination vertex IDs of edges,
         respectively.
         """
