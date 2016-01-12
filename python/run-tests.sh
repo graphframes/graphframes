@@ -29,7 +29,11 @@ for lib in "$SPARK_HOME/python/lib"/*zip ; do
   LIBS=$LIBS:$lib
 done
 
-export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python$LIBS:.
+JAR_PATH="`pwd`/../target/scala-2.10/spark-df-graph-assembly-0.0.1-SNAPSHOT.jar"
+
+export PYSPARK_SUBMIT_ARGS="--jars $JAR_PATH pyspark-shell"
+
+export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS:.
 
 export PYTHONPATH=$PYTHONPATH:dfgraph
 

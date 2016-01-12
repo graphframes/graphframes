@@ -18,6 +18,7 @@
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 
+
 class DFGraph(object):
     """
     Represents a graph with vertices and edges stored as DataFrames.
@@ -42,10 +43,19 @@ class DFGraph(object):
         self._sqlContext = v.sql_ctx
         self._sc = self._sqlContext._sc
 
-        self.ID = "id"
-        self.SRC = "src"
-        self.DST = "dst"
-        self._ATTR = "attr"
+        self._sc._jvm.org.apache.spark.ml.feature.Tokenizer()
+
+        javaClassName = "com.databricks.dfgraph.DFGraphPythonAPI"
+        self._jvm_dfgraph_api = \
+            self._sc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName)\
+                .newInstance()
+
+        self._jvm_dfgraph = self._jvm_dfgraph_api.createGraph(v._jdf, e._jdf)
+
+        self.ID = self._jvm_dfgraph_api.ID()
+        self.SRC = self._jvm_dfgraph_api.SRC()
+        self.DST = self._jvm_dfgraph_api.DST()
+        self._ATTR = self._jvm_dfgraph_api.ATTR()
 
         assert self.ID in v.columns,\
             "Vertex ID column '%s' missing from vertex DataFrame, which has columns: %s" %\
@@ -73,6 +83,13 @@ class DFGraph(object):
         respectively.
         """
         return self._edges
+
+    def find(self, pattern):
+        """
+        Motif finding.
+        TODO: Copy doc from Scala
+        """
+        return self._jvm_dfgraph.find(pattern)
 
 
 def _test():

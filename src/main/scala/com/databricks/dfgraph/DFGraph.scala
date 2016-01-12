@@ -333,7 +333,7 @@ object DFGraph {
   val DST: String = "dst"
 
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
-  private val ATTR: String = "attr"
+  private[dfgraph] val ATTR: String = "attr"
 
   // ============================ Constructors and converters =================================
 
