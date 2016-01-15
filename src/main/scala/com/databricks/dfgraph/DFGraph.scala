@@ -20,9 +20,10 @@ package com.databricks.dfgraph
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.graphx.{Edge, Graph}
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext}
+import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.SqlParser
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
 
 import com.databricks.dfgraph.pattern._
 
@@ -250,6 +251,108 @@ class DFGraph protected (
     }
   }
 
+  // ======================== Other queries ===================================
+
+  /**
+   * Breadth-first search (BFS)
+   *
+   * This method returns a DataFrame of valid shortest paths from vertices matching `fromExpr`
+   * to vertices matching `toExpr`.  If multiple paths are valid and have the same length,
+   * the DataFrame will return one Row for each path.  If no paths are valid, the DataFrame will
+   * be empty.
+   *
+   * The returned DataFrame will have the following columns:
+   *  - from: start vertex of path
+   *  - e[i]: edge i in the path, indexed from 0
+   *  - v[i]: intermediate vertex i in the path, indexed from 0
+   *  - to: end vertex of path
+   * Each of these columns is a StructType whose fields are the same as the columns of [[vertices]]
+   * or [[edges]].
+   * There is one exception: If one or more vertices match both the from and to conditions,
+   * then there is a 0-hop path.  The returned DataFrame will have a single column "from" limited
+   * to the matching vertices.
+   *
+   * {{{
+   *   // Search from vertex "Joe" to find the closet vertices with attribute job = CEO.
+   *   bfs(col("id") === "Joe", col("job") === "CEO")
+   *
+   *   // If we found a path of 3 edges, each row would have schema:
+   *   from | e0 | v0 | e1 | v1 | e2 | to
+   * }}}
+   *
+   * If there are ties, then each of the equal paths will be returned as a separate Row.
+   *
+   * @param fromExpr  Spark SQL expression specifying valid starting vertices for the BFS.
+   *                  This condition will be matched against each vertex's id or attributes.
+   *                  To start from a specific vertex, this could be "id = [start vertex id]".
+   *                  To start from multiple valid vertices, this can operate on vertex attributes.
+   * @param toExpr  Spark SQL expression specifying valid target vertices for the BFS.
+   *                This condition will be matched against each vertex's id or attributes.
+   * @return  DataFrame of valid shortest paths found in the BFS
+   */
+  def bfs(fromExpr: Column, toExpr: Column): DataFrame = {
+    val fromDF = vertices.filter(fromExpr)
+    val toDF = vertices.filter(toExpr)
+    if (fromDF.take(1).length == 0 || toDF.take(1).length == 0) {
+      // Return empty DataFrame
+      return sqlContext.createDataFrame(
+        vertices.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
+        vertices.schema)
+    }
+
+    val fromEqualsToDF = fromDF.filter(toExpr)
+    if (fromEqualsToDF.take(1).length > 0) {
+      // from == to, so return matching vertices
+      return fromEqualsToDF.select(nestAsCol(fromEqualsToDF, "from"))
+    }
+
+    // We handled edge cases above, so now we do BFS.
+
+    // Edges a->b, to be reused for each iteration
+    val a2b = find("(a)-[e]->(b)")
+
+    // DataFrame of current search paths
+    val MAX_ITER = 3 // TODO: Make an optional parameter
+    var paths = a2b.select("*", colStar(a2b, "a") : _*)  // expand fields of "a" to apply fromExpr
+      .filter(fromExpr)  // ensure sources match fromExpr
+      .filter(col("a.id") !== col("b.id"))  // remove self-loops
+    vCols.foreach(c => paths = paths.drop(c))  // DataFrame.drop with varargs does not work.
+    paths =
+      paths.withColumnRenamed("a", "from").withColumnRenamed("e", "e0").withColumnRenamed("b", "v0")
+    var iter = 0
+    var foundPath = false
+    println("BEFORE ITERATING, paths:")
+    paths.show()
+    while (iter < MAX_ITER && !foundPath) {
+      val prevVertex = s"v$iter"
+      val foundPathDF = paths.select("*", colStar(paths, prevVertex) : _*).filter(toExpr)
+      if (foundPathDF.take(1).length != 0) {
+        // Found path
+        paths = foundPathDF.withColumnRenamed(prevVertex, "to")
+        vCols.foreach(c => paths = paths.drop(c))
+        foundPath = true
+      } else {
+        // Take another step
+        val nextVertex = s"v${iter + 1}"
+        val nextEdge = s"e${iter + 1}"
+        val nextLinks = a2b.withColumnRenamed("a", prevVertex).withColumnRenamed("e", nextEdge)
+          .withColumnRenamed("b", nextVertex)
+        paths = paths.join(nextLinks, paths(prevVertex + ".id") === nextLinks(prevVertex + ".id"))
+          .drop(paths(prevVertex))
+        // Make sure we are not backtracking within each path.
+        // TODO: Avoid crossing paths; i.e., touch each vertex at most once.
+        val previousVertexChecks = Range(0, iter)
+          .map(i => paths(s"v$i.id") !== paths(nextVertex + ".id"))
+          .foldLeft(lit(true))((c1, c2) => c1 && c2)
+        paths = paths.filter(previousVertexChecks)
+      }
+      println(s"ITERATION $iter, paths:")
+      paths.show()
+      iter += 1
+    }
+    paths
+  }
+
   // ============================ Conversions ========================================
 
   /**
@@ -319,7 +422,11 @@ class DFGraph protected (
    * Version of [[eCols]] which maps column names to indices in the Rows.
    */
   lazy val eColsMap: Map[String, Int] = eCols.zipWithIndex.toMap
+
+  // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
+  private def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
 }
+
 
 object DFGraph {
 
@@ -418,6 +525,17 @@ object DFGraph {
     }
   }
   */
+
+  /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
+  private def colStar(df: DataFrame, col: String): Seq[String] = {
+    df.schema(col).dataType match {
+      case s: StructType =>
+        s.fieldNames.map(f => col + "." + f)
+      case other =>
+        throw new RuntimeException(s"Unknown error in DFGraph. Expected column $col to be" +
+          s" StructType, but found type: $other")
+    }
+  }
 
   /** Nest all columns within a single StructType column with the given name */
   private def nestAsCol(df: DataFrame, name: String): Column = {
