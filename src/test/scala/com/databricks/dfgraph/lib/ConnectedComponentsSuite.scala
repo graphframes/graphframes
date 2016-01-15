@@ -1,7 +1,9 @@
 package com.databricks.dfgraph.lib
 
 import com.databricks.dfgraph.{DFGraph, DFGraphTestSparkContext, SparkFunSuite}
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{Row, DataFrame}
+
+import scala.collection.generic.SeqFactory
 
 class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContext {
   @transient var v: DataFrame = _
@@ -31,8 +33,32 @@ class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContex
     super.afterAll()
   }
 
-  test("empty query should return nothing") {
-    val emptiness = g.find("")
-    assert(emptiness.count() === 0)
+  test("simple toy example") {
+    val v = sqlContext.createDataFrame(List(
+      (0L, "a", "b"))).toDF("id", "attr", "gender")
+    // Create an empty dataframe with the proper columns.
+    val e = sqlContext.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test").filter("src > 10")
+    val g = DFGraph(v, e)
+    val comps = ConnectedComponents.run(g)
+    assert(comps.vertices.count() === 1)
+    assert(comps.edges.count() === 0)
+    // We loose all the attributes for now, due to a limitation of the graphx implementation
+    assert(comps.vertices.collect() === Seq(Row(0L, 0L)))
   }
+
+  test("simple connected toy example") {
+    val v = sqlContext.createDataFrame(List(
+      (0L, "a0", "b0"),
+      (1L, "a1", "b1"))).toDF("id", "A", "B")
+    val e = sqlContext.createDataFrame(List(
+      (0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
+    val g = DFGraph(v, e)
+    val comps = ConnectedComponents.run(g)
+    assert(comps.vertices.count() === 2)
+    assert(comps.edges.count() === 1)
+    // We loose all the attributes for now, due to a limitation of the graphx implementation
+    assert(List(Row(0L, 1L, "a01", "b01")) === comps.edges.collect())
+    assert(List(Row(0L, 0L), Row(1L, 0L)) === comps.vertices.collect())
+  }
+
 }

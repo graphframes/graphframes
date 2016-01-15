@@ -384,15 +384,29 @@ object DFGraph {
     DFGraph(vv, ee)
   }
 
-  // TODO(tjh, jkbradley) this should later be fixed by passing the StructType of the sql DFs
-  // We loose the metadata in the conversion, which may be important for applications (mllib, etc.)
+  /**
+   * Converts the dataframes (encoded as RDDs of Row objects) and transforms them back into an [[DFGraph]], preserving
+   * all the metadata attributes in the process.
+   *
+   * This is an internal method to act as a bridge between graphX and non-native DFGraph algorithms.
+   *
+   * It is assumed that the Row objects contain the necessary attributes (id, src, dst, etc.), as they are dropped from
+   * the VertexRDD and the EdgeRDD.
+   *
+   * @param graph the graph to convert
+   * @param edgeSchema the edge schema
+   * @param vertexSchema the vertex schema
+   * @return an equivalent [[DFGraph]] object
+   */
   private[dfgraph] def fromRowGraphX(
       graph: Graph[Row, Row],
-      edgeColNames: Seq[String],
-      vertexColNames: Seq[String]): DFGraph = {
+      edgeSchema: StructType,
+      vertexSchema: StructType): DFGraph = {
     val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
-    val vv = sqlContext.createDataFrame(graph.vertices).toDF(vertexColNames: _*)
-    val ee = sqlContext.createDataFrame(graph.edges).toDF(edgeColNames: _*)
+    val vertices = graph.vertices.map(_._2)
+    val edges = graph.edges.map(_.attr)
+    val vv = sqlContext.createDataFrame(vertices, vertexSchema)
+    val ee = sqlContext.createDataFrame(edges, edgeSchema)
     DFGraph(vv, ee)
   }
 
