@@ -288,9 +288,12 @@ class DFGraph protected (
    *                  To start from multiple valid vertices, this can operate on vertex attributes.
    * @param toExpr  Spark SQL expression specifying valid target vertices for the BFS.
    *                This condition will be matched against each vertex's id or attributes.
+   * @param maxPathLength  Limit on the length of paths.  If no valid paths of length
+   *                       <= maxPathLength are found, then the BFS is terminated.
+   *                       (default = 10)
    * @return  DataFrame of valid shortest paths found in the BFS
    */
-  def bfs(fromExpr: Column, toExpr: Column): DataFrame = {
+  def bfs(fromExpr: Column, toExpr: Column, maxPathLength: Int): DataFrame = {
     val fromDF = vertices.filter(fromExpr)
     val toDF = vertices.filter(toExpr)
     if (fromDF.take(1).length == 0 || toDF.take(1).length == 0) {
@@ -312,29 +315,25 @@ class DFGraph protected (
     val a2b = find("(a)-[e]->(b)")
 
     // DataFrame of current search paths
-    val MAX_ITER = 3 // TODO: Make an optional parameter
-    var paths = a2b.select("*", colStar(a2b, "a") : _*)  // expand fields of "a" to apply fromExpr
-      .filter(fromExpr)  // ensure sources match fromExpr
-      .filter(col("a.id") !== col("b.id"))  // remove self-loops
-    vCols.foreach(c => paths = paths.drop(c))  // DataFrame.drop with varargs does not work.
-    paths =
-      paths.withColumnRenamed("a", "from").withColumnRenamed("e", "e0").withColumnRenamed("b", "v0")
+    var paths: DataFrame = a2b  // set to garbage, to be fixed on first iteration
+
     var iter = 0
     var foundPath = false
-    println("BEFORE ITERATING, paths:")
-    paths.show()
-    while (iter < MAX_ITER && !foundPath) {
-      val prevVertex = s"v$iter"
-      val foundPathDF = paths.select("*", colStar(paths, prevVertex) : _*).filter(toExpr)
-      if (foundPathDF.take(1).length != 0) {
-        // Found path
-        paths = foundPathDF.withColumnRenamed(prevVertex, "to")
-        vCols.foreach(c => paths = paths.drop(c))
-        foundPath = true
+    while (iter < maxPathLength && !foundPath) {
+      val nextVertex = s"v$iter"
+      val nextEdge = s"e$iter"
+      // Take another step
+      if (iter == 0) {
+        // Note: We could avoid this special case by initializing paths with just 1 "from" column,
+        // but that would create a longer lineage for the result DataFrame.
+        paths = a2b.select("*", colStar(a2b, "a") : _*)  // expand fields of "a" to apply fromExpr
+          .filter(fromExpr)  // ensure sources match fromExpr
+          .filter(col("a.id") !== col("b.id"))  // remove self-loops
+        vCols.foreach(c => paths = paths.drop(c))  // DataFrame.drop with varargs does not work.
+        paths = paths.withColumnRenamed("a", "from").withColumnRenamed("e", nextEdge)
+          .withColumnRenamed("b", nextVertex)
       } else {
-        // Take another step
-        val nextVertex = s"v${iter + 1}"
-        val nextEdge = s"e${iter + 1}"
+        val prevVertex = s"v${iter - 1}"
         val nextLinks = a2b.withColumnRenamed("a", prevVertex).withColumnRenamed("e", nextEdge)
           .withColumnRenamed("b", nextVertex)
         paths = paths.join(nextLinks, paths(prevVertex + ".id") === nextLinks(prevVertex + ".id"))
@@ -346,12 +345,28 @@ class DFGraph protected (
           .foldLeft(lit(true))((c1, c2) => c1 && c2)
         paths = paths.filter(previousVertexChecks)
       }
-      println(s"ITERATION $iter, paths:")
-      paths.show()
+      // Check if done
+      val foundPathDF = paths.select("*", colStar(paths, nextVertex) : _*).filter(toExpr)
+      if (foundPathDF.take(1).length != 0) {
+        // Found path
+        paths = foundPathDF.withColumnRenamed(nextVertex, "to")
+        vCols.foreach(c => paths = paths.drop(c))
+        foundPath = true
+      }
       iter += 1
     }
-    paths
+    if (foundPath) {
+      paths
+    } else {
+      // Return empty DataFrame
+      sqlContext.createDataFrame(
+        vertices.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
+        vertices.schema)
+    }
   }
+
+  /** Version of [[bfs()]] using a default max path length of 10 */
+  def bfs(fromExpr: Column, toExpr: Column): DataFrame = bfs(fromExpr, toExpr, 10)
 
   // ============================ Conversions ========================================
 
