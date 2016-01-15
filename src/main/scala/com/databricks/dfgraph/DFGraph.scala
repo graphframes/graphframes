@@ -85,7 +85,13 @@ class DFGraph protected (
     edges.select(explode(array(SRC, DST)).as(ID)).groupBy(ID).agg(count("*").cast("int").as("deg"))
   }
 
+  /**
+   * A cached conversion of this graph to the GraphX structure (using data represented in the SQL row format).
+   */
+  @transient lazy private[dfgraph] val cachedGraphX: Graph[Row, Row] = toGraphX
+
   // ============================ Motif finding ========================================
+
 
   /**
    * Motif finding.
@@ -375,6 +381,18 @@ object DFGraph {
     val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
     val vv = sqlContext.createDataFrame(graph.vertices).toDF(ID, ATTR)
     val ee = sqlContext.createDataFrame(graph.edges).toDF(SRC, DST, ATTR)
+    DFGraph(vv, ee)
+  }
+
+  // TODO(tjh, jkbradley) this should later be fixed by passing the StructType of the sql DFs
+  // We loose the metadata in the conversion, which may be important for applications (mllib, etc.)
+  private[dfgraph] def fromRowGraphX(
+      graph: Graph[Row, Row],
+      edgeColNames: Seq[String],
+      vertexColNames: Seq[String]): DFGraph = {
+    val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
+    val vv = sqlContext.createDataFrame(graph.vertices).toDF(vertexColNames: _*)
+    val ee = sqlContext.createDataFrame(graph.edges).toDF(edgeColNames: _*)
     DFGraph(vv, ee)
   }
 
