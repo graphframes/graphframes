@@ -61,3 +61,9 @@ class DFGraphTest(DFGraphTestCase):
         assert sorted(vertexIDs) == [1, 2, 3]
         edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
         assert sorted(edgeActions) == ["follow", "hate", "love"]
+
+    def test_motif_finding(self):
+        g = self.g
+        motifs = g.find("(a)-[e]->(b)")
+        assert motifs.count() == 3
+        assert sorted(motifs.columns) == ["a", "e", "b"]
