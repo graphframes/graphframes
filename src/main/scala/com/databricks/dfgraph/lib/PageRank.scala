@@ -1,6 +1,6 @@
 package com.databricks.dfgraph.lib
 
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphx.{lib => graphxlib, Graph}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{StructField, DoubleType, StructType}
 
@@ -73,19 +73,9 @@ object PageRank {
       numIter: Int,
       resetProb: Double = 0.15,
       srcId: Any = null): DFGraph = {
-    // TODO(tjh) figure out the srcId
+    // TODO(tjh) figure out the srcId issues
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedGraphX, numIter, resetProb, None)
-    val fullGx = gx.mapVertices { case (vid, w) =>
-      Row(vid, w)
-    } .mapEdges( e => Row(e.srcId, e.dstId, e.attr))
-    val vStruct = StructType(List(
-      graph.vertices.schema(DFGraph.ID),
-      field))
-    val eStruct = StructType(List(
-      graph.edges.schema(DFGraph.SRC),
-      graph.edges.schema(DFGraph.DST),
-      field))
-    DFGraph.fromRowGraphX(fullGx, eStruct, vStruct)
+    buildGraph(gx, graph)
   }
 
   /**
@@ -103,8 +93,31 @@ object PageRank {
   def runUntilConvergence(
       graph: DFGraph,
       tol: Double,
-      resetProb: Double = 0.15, srcId: Any = null): DFGraph = ???
+      resetProb: Double = 0.15, srcId: Any = null): DFGraph = {
+    // TODO(tjh) figure out the srcId issues
+    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedGraphX, tol, resetProb, None)
+    buildGraph(gx, graph)
+  }
 
+  // Performs the graph conversion.
+  private def buildGraph(gx: Graph[Double, Double], graph: DFGraph): DFGraph = {
+    val fullGx = gx.mapVertices { case (vid, w) =>
+      Row(vid, w)
+    } .mapEdges( e => Row(e.srcId, e.dstId, e.attr))
+    val vStruct = StructType(List(
+      graph.vertices.schema(DFGraph.ID),
+      field))
+    val eStruct = StructType(List(
+      graph.edges.schema(DFGraph.SRC),
+      graph.edges.schema(DFGraph.DST),
+      field))
+    DFGraph.fromRowGraphX(fullGx, eStruct, vStruct)
+
+  }
+
+  /**
+   * Default name for the weight column.
+   */
   val WEIGHT = "weight"
   private val field = StructField(WEIGHT, DoubleType, nullable = false)
 }

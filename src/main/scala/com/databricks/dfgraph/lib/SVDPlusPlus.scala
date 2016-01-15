@@ -1,0 +1,94 @@
+package com.databricks.dfgraph.lib
+
+import org.apache.spark.graphx.{lib => graphxlib, Edge, Graph}
+import com.databricks.dfgraph.DFGraph
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.{StructType, ArrayType, DoubleType, StructField}
+
+/**
+ * Implementation of the SVD++ algorithm, based on "Factorization Meets the Neighborhood:
+ * a Multifaceted Collaborative Filtering Model",
+ * available at [[http://public.research.att.com/~volinsky/netflix/kdd08koren.pdf]].
+ */
+object SVDPlusPlus {
+
+  /**
+   * Implement SVD++ based on "Factorization Meets the Neighborhood:
+   * a Multifaceted Collaborative Filtering Model",
+   * available at [[http://public.research.att.com/~volinsky/netflix/kdd08koren.pdf]].
+   *
+   * The prediction rule is rui = u + bu + bi + qi*(pu + |N(u)|^^-0.5^^*sum(y)),
+   * see the details on page 6.
+   *
+   * @param conf SVDPlusPlus parameters
+   *
+   * @return a graph with vertex attributes containing the trained model
+   */
+  def run(graph: DFGraph, conf: Conf): (DFGraph, Double) = {
+    val edges = graph.edges.select(DFGraph.SRC, DFGraph.DST, COLUMN_WEIGHT).map {
+      case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
+    }
+    val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf.toGraphXConf)
+    val fullGx = gx.mapVertices { case (vid, w) =>
+      Row(vid, w)
+    } .mapEdges( e => Row(e.srcId, e.dstId, e.attr))
+    val vStruct = StructType(List(
+      graph.vertices.schema(DFGraph.ID),
+      vField1))
+    val eStruct = StructType(List(
+      graph.edges.schema(DFGraph.SRC),
+      graph.edges.schema(DFGraph.DST),
+      field1, field2, field3, field4))
+    (DFGraph.fromRowGraphX(fullGx, eStruct, vStruct), res)
+  }
+
+  /**
+   * Configuration parameters for SVD++
+   * @param rank
+   * @param maxIters
+   * @param minVal
+   * @param maxVal
+   * @param gamma1
+   * @param gamma2
+   * @param gamma6
+   * @param gamma7
+   */
+  case class Conf(
+      rank: Int,
+      maxIters: Int,
+      minVal: Double,
+      maxVal: Double,
+      gamma1: Double,
+      gamma2: Double,
+      gamma6: Double,
+      gamma7: Double) extends Serializable {
+
+    /**
+     * Convenience conversion method.
+     */
+    private[dfgraph] def toGraphXConf: graphxlib.SVDPlusPlus.Conf = ???
+
+  }
+
+  object Conf {
+    /**
+     * Convenience conversion method for users of GraphX.
+     * @param conf
+     */
+    def buildFrom(conf: graphxlib.SVDPlusPlus.Conf): Conf = ???
+  }
+
+  val COLUMN_WEIGHT = "weight"
+
+  val COLUMN1 = "column1"
+  val COLUMN2 = "column2"
+  val COLUMN3 = "column3"
+  val COLUMN4 = "column4"
+  val VCOLUMN1 = "vcolumn1"
+
+  private val field1 = StructField(COLUMN1, ArrayType(DoubleType), nullable = false)
+  private val field2 = StructField(COLUMN2, ArrayType(DoubleType), nullable = false)
+  private val field3 = StructField(COLUMN3, DoubleType, nullable = false)
+  private val field4 = StructField(COLUMN4, DoubleType, nullable = false)
+  private val vField1 = StructField(VCOLUMN1, DoubleType, nullable = false)
+}
