@@ -3,7 +3,7 @@
 
 scalaVersion := "2.10.4"
 
-sparkVersion := "1.4.1"
+sparkVersion := "1.4.0"
 
 spName := "databricks/spark-df-graph"
 

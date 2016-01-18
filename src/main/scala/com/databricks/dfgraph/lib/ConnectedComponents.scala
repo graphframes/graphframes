@@ -23,18 +23,15 @@ object ConnectedComponents {
    *    for this component.
    * All the other columns from the vertices are dropped.
    *
-   * @param g the graph for which to compute the connected components
+   * @param graph the graph for which to compute the connected components
    *
    * @return a graph with vertex attributes containing the smallest vertex in each
    *         connected component
    */
-  def run(g: DFGraph): DFGraph = {
-    val gx = graphxlib.ConnectedComponents.run(g.cachedGraphX).mapVertices { case (vid, componentId) =>
-      Row(vid, componentId)
-    }
-    val s = g.vertices.schema(DFGraph.ID)
-    val vStruct = StructType(List(s, s.copy(name = COMPONENT_ID)))
-    DFGraph.fromRowGraphX(gx, g.edges.schema, vStruct)
+  def run(graph: DFGraph): DFGraph = {
+    GraphXConversions.checkVertexId(graph)
+    val gx = graphxlib.ConnectedComponents.run(graph.cachedGraphX)
+    GraphXConversions.fromVertexGraphX(gx, graph, COMPONENT_ID)
   }
 
   val COMPONENT_ID = "component"

@@ -55,6 +55,8 @@ import com.databricks.dfgraph.DFGraph
  *  - weight (double): the normalized weight (page rank) of this vertex.
  * All the other columns are dropped.
  */
+// TODO: srcID's type should be checked. The most futureproof check would be : Encoder, because it is compatible with
+// Datasets after that.
 object PageRank {
   /**
    * Run PageRank for a fixed number of iterations returning a graph
@@ -73,7 +75,8 @@ object PageRank {
       numIter: Int,
       resetProb: Double = 0.15,
       srcId: Any = null): DFGraph = {
-    // TODO(tjh) figure out the srcId issues
+    // TODO(tjh) use encoder on srcId
+    GraphXConversions.checkVertexId(graph)
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedGraphX, numIter, resetProb, None)
     buildGraph(gx, graph)
   }
@@ -111,13 +114,12 @@ object PageRank {
       graph.edges.schema(DFGraph.SRC),
       graph.edges.schema(DFGraph.DST),
       field))
-    DFGraph.fromRowGraphX(fullGx, eStruct, vStruct)
-
+    GraphXConversions.fromRowGraphX(fullGx, eStruct, vStruct)
   }
 
   /**
    * Default name for the weight column.
    */
-  val WEIGHT = "weight"
+  private val WEIGHT = "weight"
   private val field = StructField(WEIGHT, DoubleType, nullable = false)
 }

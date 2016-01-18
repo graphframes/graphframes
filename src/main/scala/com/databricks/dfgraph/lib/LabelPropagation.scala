@@ -1,8 +1,6 @@
 package com.databricks.dfgraph.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StructType
 
 import com.databricks.dfgraph.DFGraph
 
@@ -36,12 +34,9 @@ object LabelPropagation {
    * @return a graph with vertex attributes containing the label of community affiliation.
    */
   def run(graph: DFGraph, maxSteps: Int): DFGraph = {
-    val gx = graphxlib.LabelPropagation.run(graph.cachedGraphX, maxSteps).mapVertices { case (vid, componentId) =>
-      Row(vid, componentId)
-    }
-    val s = graph.vertices.schema(DFGraph.ID)
-    val vStruct = StructType(List(s, s.copy(name = LABEL_ID)))
-    DFGraph.fromRowGraphX(gx, graph.edges.schema, vStruct)
+    GraphXConversions.checkVertexId(graph)
+    val gx = graphxlib.LabelPropagation.run(graph.cachedGraphX, maxSteps)
+    GraphXConversions.fromVertexGraphX(gx, graph, LABEL_ID)
   }
 
   val LABEL_ID = "label"
