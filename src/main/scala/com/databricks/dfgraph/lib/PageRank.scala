@@ -74,7 +74,7 @@ object PageRank {
       graph: DFGraph,
       numIter: Int,
       resetProb: Double = 0.15,
-      srcId: Any = null): DFGraph = {
+      srcId: Option[Long] = None): DFGraph = {
     // TODO(tjh) use encoder on srcId
     GraphXConversions.checkVertexId(graph)
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedGraphX, numIter, resetProb, None)
@@ -96,7 +96,7 @@ object PageRank {
   def runUntilConvergence(
       graph: DFGraph,
       tol: Double,
-      resetProb: Double = 0.15, srcId: Any = null): DFGraph = {
+      resetProb: Double = 0.15, srcId: Option[Long] = None): DFGraph = {
     // TODO(tjh) figure out the srcId issues
     val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedGraphX, tol, resetProb, None)
     buildGraph(gx, graph)

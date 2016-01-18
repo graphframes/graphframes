@@ -32,7 +32,7 @@ object ShortestPaths {
     val s = graph.vertices.schema(DFGraph.ID)
     val vStruct = StructType(List(
       s,
-      StructField(DISTANCE_ID, MapType(s.dataType,DoubleType))))
+      StructField(DISTANCE_ID, MapType(s.dataType, IntegerType))))
     GraphXConversions.fromRowGraphX(rowGx, graph.edges.schema, vStruct)
   }
 

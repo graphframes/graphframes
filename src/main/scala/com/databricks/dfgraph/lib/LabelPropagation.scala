@@ -39,5 +39,5 @@ object LabelPropagation {
     GraphXConversions.fromVertexGraphX(gx, graph, LABEL_ID)
   }
 
-  val LABEL_ID = "label"
+  private val LABEL_ID = "label"
 }

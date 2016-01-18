@@ -1,8 +1,6 @@
 package com.databricks.dfgraph.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StructType
 
 import com.databricks.dfgraph.DFGraph
 
@@ -34,5 +32,5 @@ object ConnectedComponents {
     GraphXConversions.fromVertexGraphX(gx, graph, COMPONENT_ID)
   }
 
-  val COMPONENT_ID = "component"
+  private val COMPONENT_ID = "component"
 }
