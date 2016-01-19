@@ -26,4 +26,17 @@ object StronglyConnectedComponents {
   }
 
   private[dfgraph] val COMPONENT_ID = "component"
+
+  class Builder private[dfgraph] (graph: DFGraph) extends Arguments {
+    private var numIters: Option[Int] = None
+
+    def setNumIterations(iterations: Int): this.type = {
+      numIters = Some(iterations)
+      this
+    }
+
+    def run(): DFGraph = {
+      StronglyConnectedComponents.run(graph, check(numIters, "numIterations"))
+    }
+  }
 }

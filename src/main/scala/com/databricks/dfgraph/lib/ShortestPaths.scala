@@ -6,6 +6,8 @@ import org.apache.spark.graphx.{Edge, lib => graphxlib}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
+import scala.reflect._
+
 /**
  * Computes shortest paths to the given set of landmark vertices, returning a graph where each
  * vertex attribute is a map containing the shortest-path distance to each reachable landmark.
@@ -37,4 +39,19 @@ object ShortestPaths {
   }
 
   private val DISTANCE_ID = "distance"
+
+  class Builder private[dfgraph] (graph: DFGraph) extends Arguments {
+    private var lmarks: Option[Seq[Long]] = None
+
+    def setLandmarks[VertexType: ClassTag](landmarks: Seq[VertexType]): this.type = {
+      val ct = implicitly[ClassTag[VertexType]]
+      require(ct == classTag[Long], "Only long are supported for now")
+      lmarks = Some(landmarks.map(_.asInstanceOf[Long]))
+      this
+    }
+
+    def run(): DFGraph = {
+      ShortestPaths.run(graph, check(lmarks, "landmarks"))
+    }
+  }
 }

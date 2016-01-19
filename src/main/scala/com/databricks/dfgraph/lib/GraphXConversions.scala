@@ -79,3 +79,9 @@ t   *
   }
 
 }
+
+private[lib] trait Arguments {
+  private[lib] def check[A](a: Option[A], name: String): A = {
+    a.getOrElse(throw new IllegalArgumentException)
+  }
+}

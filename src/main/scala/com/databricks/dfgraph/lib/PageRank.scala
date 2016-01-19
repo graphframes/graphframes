@@ -6,6 +6,9 @@ import org.apache.spark.sql.types.{StructField, DoubleType, StructType}
 
 import com.databricks.dfgraph.DFGraph
 
+import scala.reflect.ClassTag
+import scala.reflect.classTag
+
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank implemented.
  *
@@ -122,4 +125,44 @@ object PageRank {
    */
   private val WEIGHT = "weight"
   private val field = StructField(WEIGHT, DoubleType, nullable = false)
+
+  class Builder private[dfgraph] (
+      graph: DFGraph) extends Arguments {
+
+    private var tol: Option[Double] = None
+    private var resetProb: Option[Double] = Some(0.15)
+    private var numIters: Option[Int] = None
+    private var srcId: Option[Long] = None
+
+    def setSourceId[A : ClassTag](srcId_ : A): this.type = {
+      val ct = implicitly[ClassTag[A]]
+      require(ct == classTag[Long], "Only long are supported for now")
+      srcId = Some(srcId_.asInstanceOf[Long])
+      this
+    }
+
+    def setResetProbability(p: Double): this.type = {
+      resetProb = Some(p)
+      this
+    }
+
+    def untilConvergence(tolerance: Double): this.type = {
+      tol = Some(tolerance)
+      this
+    }
+
+    def fixedIterations(i: Int): this.type = {
+      numIters = Some(i)
+      this
+    }
+
+    def run(): DFGraph = {
+      tol match {
+        case Some(t) =>
+          PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
+        case None =>
+          PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId)
+      }
+    }
+  }
 }

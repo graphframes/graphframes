@@ -40,4 +40,19 @@ object LabelPropagation {
   }
 
   private val LABEL_ID = "label"
+
+  class Builder private[dfgraph] (graph: DFGraph) extends Arguments {
+    private var maxSteps: Option[Int] = None
+
+    def setMaxSteps(i: Int): this.type = {
+      maxSteps = Some(i)
+      this
+    }
+
+    def run(): DFGraph = {
+      LabelPropagation.run(
+        graph,
+        check(maxSteps, "maxSteps"))
+    }
+  }
 }

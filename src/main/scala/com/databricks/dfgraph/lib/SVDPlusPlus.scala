@@ -10,14 +10,14 @@ import com.databricks.dfgraph.DFGraph
 /**
  * Implementation of the SVD++ algorithm, based on "Factorization Meets the Neighborhood:
  * a Multifaceted Collaborative Filtering Model",
- * available at [[http://public.research.att.com/~volinsky/netflix/kdd08koren.pdf]].
+ * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
  */
 object SVDPlusPlus {
 
   /**
    * Implement SVD++ based on "Factorization Meets the Neighborhood:
    * a Multifaceted Collaborative Filtering Model",
-   * available at [[http://public.research.att.com/~volinsky/netflix/kdd08koren.pdf]].
+   * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
    *
    * The prediction rule is rui = u + bu + bi + qi*(pu + |N(u)|^^-0.5^^*sum(y)),
    * see the details on page 6.
@@ -125,4 +125,25 @@ object SVDPlusPlus {
   private val field3 = StructField(COLUMN3, DoubleType, nullable = false)
   private val field4 = StructField(COLUMN4, DoubleType, nullable = false)
   private val vField1 = StructField(VCOLUMN1, DoubleType, nullable = false)
+
+  class Builder private[dfgraph] (graph: DFGraph) extends Arguments {
+    private var conf: Option[Conf] = None
+    private var _loss: Option[Double] = None
+
+    def setConf(c: Conf): this.type = {
+      conf = Some(c)
+      this
+    }
+
+    def run(): DFGraph = {
+      val (g, l) = SVDPlusPlus.run(graph, check(conf, "conf"))
+      _loss = Some(l)
+      g
+    }
+
+    def loss: Double = {
+      // We could use types instead to make sure that it is never accessed before being run.
+      _loss.getOrElse(throw new Exception("The algorithm has not been run yet"))
+    }
+  }
 }

@@ -17,6 +17,9 @@
 
 package com.databricks.dfgraph
 
+import com.databricks.dfgraph.lib.PageRank.Builder
+import com.databricks.dfgraph.lib._
+
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.graphx.{Edge, Graph}
@@ -325,6 +328,22 @@ class DFGraph protected (
    * Version of [[eCols]] which maps column names to indices in the Rows.
    */
   lazy val eColsMap: Map[String, Int] = eCols.zipWithIndex.toMap
+
+  // **** Standard library ****
+
+  def connectedComponents(): DFGraph = ConnectedComponents.run(this)
+
+  def labelPropagation(): LabelPropagation.Builder = new LabelPropagation.Builder(this)
+
+  def pageRank(): PageRank.Builder = new PageRank.Builder(this)
+
+  def shortestPaths(): ShortestPaths.Builder = new ShortestPaths.Builder(this)
+
+  def stronglyConnectedComponents(): StronglyConnectedComponents.Builder = new StronglyConnectedComponents.Builder(this)
+
+  def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
+
+  def triangleCounts(): DFGraph = TriangleCount.run(this)
 }
 
 object DFGraph {
