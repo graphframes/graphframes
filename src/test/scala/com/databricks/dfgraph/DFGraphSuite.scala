@@ -216,13 +216,13 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
   }
 
-  test("aggregateMessages") {
+  ignore("aggregateMessages") {
     val n = 5
     val agg = PageRankSuite.starGraph(sqlContext, n).aggregateMessages[Int](
       ctx => {
         if (ctx.destinationVertex != null) {
           throw new Exception(
-            "expected ctx.dstAttr to be null due to TripletFields, but it was " +
+            "expected ctx.destinationVertex to be null due to TripletFields, but it was " +
               ctx.destinationVertex)
         }
         val f = ctx.sourceVertex.getAs[Int]("v_attr1")
