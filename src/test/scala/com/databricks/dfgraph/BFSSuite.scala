@@ -95,8 +95,9 @@ class BFSSuite extends SparkFunSuite with DFGraphTestSparkContext {
   test("0 hops, aka from=to") {
     val paths = g.bfs(col("id") === "a", col("id") === "a")
     assert(paths.count() === 1)
-    assert(paths.columns === Array("from"))
+    assert(paths.columns.sorted === Array("from", "to"))
     assert(paths.select("from.id").head().getString(0) === "a")
+    assert(paths.select("to.id").head().getString(0) === "a")
   }
 
   test("1 hop, aka single edge paths") {

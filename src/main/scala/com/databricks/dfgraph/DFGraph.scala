@@ -19,9 +19,11 @@ package com.databricks.dfgraph
 
 import scala.reflect.runtime.universe.TypeTag
 
+import org.apache.spark.Logging
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.SqlParser
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
@@ -38,7 +40,7 @@ import com.databricks.dfgraph.pattern._
  */
 class DFGraph protected (
     @transient val vertices: DataFrame,
-    @transient val edges: DataFrame) extends Serializable {
+    @transient val edges: DataFrame) extends Logging with Serializable {
 
   import DFGraph._
 
@@ -260,6 +262,9 @@ class DFGraph protected (
    * to vertices matching `toExpr`.  If multiple paths are valid and have the same length,
    * the DataFrame will return one Row for each path.  If no paths are valid, the DataFrame will
    * be empty.
+   * Note: "Shortest" means globally shortest path.  I.e., if the shortest path between two vertices
+   * matching `fromExpr` and `toExpr` is length 5 (edges) but no path is shorter than 5, then all
+   * paths returned by BFS will have length 5.
    *
    * The returned DataFrame will have the following columns:
    *  - from: start vertex of path
@@ -268,9 +273,6 @@ class DFGraph protected (
    *  - to: end vertex of path
    * Each of these columns is a StructType whose fields are the same as the columns of [[vertices]]
    * or [[edges]].
-   * There is one exception: If one or more vertices match both the from and to conditions,
-   * then there is a 0-hop path.  The returned DataFrame will have a single column "from" limited
-   * to the matching vertices.
    *
    * {{{
    *   // Search from vertex "Joe" to find the closet vertices with attribute job = CEO.
@@ -281,6 +283,11 @@ class DFGraph protected (
    * }}}
    *
    * If there are ties, then each of the equal paths will be returned as a separate Row.
+   *
+   * If one or more vertices match both the from and to conditions, then there is a 0-hop path.
+   * The returned DataFrame will have the "from" and "to" columns (as above); however,
+   * the "from" and "to" columns will be exactly the same.  There will be one row for each vertex
+   * in [[vertices]] matching both `fromExpr` and `toExpr`.
    *
    * @param fromExpr  Spark SQL expression specifying valid starting vertices for the BFS.
    *                  This condition will be matched against each vertex's id or attributes.
@@ -306,7 +313,8 @@ class DFGraph protected (
     val fromEqualsToDF = fromDF.filter(toExpr)
     if (fromEqualsToDF.take(1).length > 0) {
       // from == to, so return matching vertices
-      return fromEqualsToDF.select(nestAsCol(fromEqualsToDF, "from"))
+      return fromEqualsToDF.select(
+        nestAsCol(fromEqualsToDF, "from"), nestAsCol(fromEqualsToDF, "to"))
     }
 
     // We handled edge cases above, so now we do BFS.
@@ -314,8 +322,13 @@ class DFGraph protected (
     // Edges a->b, to be reused for each iteration
     val a2b = find("(a)-[e]->(b)")
 
+    // We will always apply fromExpr to column "a"
+    val fromAExpr = new Column(SQLHelpers.getExpr(fromExpr) transform {
+      case UnresolvedAttribute(nameParts) => UnresolvedAttribute("a" +: nameParts)
+    })
+
     // DataFrame of current search paths
-    var paths: DataFrame = a2b  // set to garbage, to be fixed on first iteration
+    var paths: DataFrame = null
 
     var iter = 0
     var foundPath = false
@@ -326,11 +339,9 @@ class DFGraph protected (
       if (iter == 0) {
         // Note: We could avoid this special case by initializing paths with just 1 "from" column,
         // but that would create a longer lineage for the result DataFrame.
-        paths = a2b.select("*", colStar(a2b, "a") : _*)  // expand fields of "a" to apply fromExpr
-          .filter(fromExpr)  // ensure sources match fromExpr
+        paths = a2b.filter(fromAExpr)
           .filter(col("a.id") !== col("b.id"))  // remove self-loops
-        vCols.foreach(c => paths = paths.drop(c))  // DataFrame.drop with varargs does not work.
-        paths = paths.withColumnRenamed("a", "from").withColumnRenamed("e", nextEdge)
+          .withColumnRenamed("a", "from").withColumnRenamed("e", nextEdge)
           .withColumnRenamed("b", nextVertex)
       } else {
         val prevVertex = s"v${iter - 1}"
@@ -345,19 +356,23 @@ class DFGraph protected (
           .foldLeft(lit(true))((c1, c2) => c1 && c2)
         paths = paths.filter(previousVertexChecks)
       }
-      // Check if done
-      val foundPathDF = paths.select("*", colStar(paths, nextVertex) : _*).filter(toExpr)
+      // Check if done by applying toExpr to column nextVertex
+      val toVExpr = new Column(SQLHelpers.getExpr(toExpr) transform {
+        case UnresolvedAttribute(nameParts) => UnresolvedAttribute(nextVertex +: nameParts)
+      })
+      val foundPathDF = paths.filter(toVExpr)
       if (foundPathDF.take(1).length != 0) {
         // Found path
         paths = foundPathDF.withColumnRenamed(nextVertex, "to")
-        vCols.foreach(c => paths = paths.drop(c))
         foundPath = true
       }
       iter += 1
     }
     if (foundPath) {
+      logInfo(s"DFGraph.bfs found path of length $iter.")
       paths
     } else {
+      logInfo(s"DFGraph.bfs failed to find a path of length <= $maxPathLength.")
       // Return empty DataFrame
       sqlContext.createDataFrame(
         vertices.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
