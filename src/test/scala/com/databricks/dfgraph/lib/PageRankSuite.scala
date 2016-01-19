@@ -2,9 +2,10 @@ package com.databricks.dfgraph.lib
 
 import com.databricks.dfgraph.{DFGraph, DFGraphTestSparkContext, SparkFunSuite}
 
-class PageRankSuite extends SparkFunSuite with DFGraphTestSparkContext  {
+class PageRankSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
   val n = 100
+
   def starGraph(): DFGraph  = {
     val vertices = sqlContext.createDataFrame(Seq((0, "root")) ++ (1 to n).map { i =>
       (i, s"node-$i")
