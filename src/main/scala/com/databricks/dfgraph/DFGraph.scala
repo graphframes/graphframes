@@ -20,12 +20,14 @@ package com.databricks.dfgraph
 import com.databricks.dfgraph.lib.PageRank.Builder
 import com.databricks.dfgraph.lib._
 
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.graphx.{TripletFields, Edge, Graph}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext}
 import org.apache.spark.sql.functions._
+import org.apache.spark.graphx
 
 import com.databricks.dfgraph.pattern._
 
@@ -328,6 +330,54 @@ class DFGraph protected (
    * Version of [[eCols]] which maps column names to indices in the Rows.
    */
   lazy val eColsMap: Map[String, Int] = eCols.zipWithIndex.toMap
+
+  /**
+   *
+   * Aggregates values from the neighboring edges and vertices of each vertex. The user-supplied
+   * `sendMsg` function is invoked on each edge of the graph, generating 0 or more messages to be
+   * sent to either vertex in the edge. The `mergeMsg` function is then used to combine all messages
+   * destined to the same vertex.
+   *
+   * @tparam A the type of message to be sent to each vertex
+   *
+   * @param sendMsg runs on each edge, sending messages to neighboring vertices using the
+   *   [[EdgeContext]].
+   *   The first iterable collection is the collection of messages sent to the SOURCE.
+   *   The second iterable collection is the collection of messages sent to the DESTINATION.
+   * @param aggregate used to combine messages from `sendMsg` destined to the same vertex. This
+   *   combiner should be commutative and associative.
+   * @param selectedFields which fields should be included in the [[EdgeContext]] passed to the
+   *   `sendMsg` function. If not all fields are needed, specifying this can improve performance.
+   *
+   * @example We can use this function to compute the in-degree of each
+   * vertex
+   * {{{
+   * val rawGraph: Graph[_, _] = Graph.textFile("twittergraph")
+   * val inDeg: RDD[(VertexId, Int)] =
+   *   rawGraph.aggregateMessages(ctx => Seq(1) -> Seq.empty, _ + _)
+   * }}}
+   *
+   * It returns a dataframe with the following columns:
+   *  - id: the vertex ID
+   *  - all the other columns that were created by using type A.
+   */
+  def aggregateMessages[A : ClassTag](
+      sendMsg: EdgeContext => (Iterable[A], Iterable[A]),
+      aggregate: (A, A) => A,
+      selectedFields: TripletFields = TripletFields.All): DataFrame = {
+    def send(ec: graphx.EdgeContext[Row, Row, A]): Unit = {
+      val ec2: EdgeContext = new EdgeContextImpl(ec.srcId, ec.dstId, ec.srcAttr, ec.dstAttr, ec.attr)
+      val (src, dst) = sendMsg(ec2)
+      src.foreach(ec.sendToSrc)
+      dst.foreach(ec.sendToDst)
+    }
+    val gx = cachedGraphX.aggregateMessages(send, aggregate, selectedFields)
+    val df = sqlContext.createDataFrame(gx)
+    dotStar(df)
+  }
+
+  // TODO(tjh) depends on Joseph's implementation here.
+  private def dotStar(df: DataFrame): DataFrame = ???
 
   // **** Standard library ****
 
