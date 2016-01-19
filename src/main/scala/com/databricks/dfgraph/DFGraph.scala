@@ -557,6 +557,7 @@ object DFGraph {
   */
 
   /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
+  /*
   private def colStar(df: DataFrame, col: String): Seq[String] = {
     df.schema(col).dataType match {
       case s: StructType =>
@@ -566,6 +567,7 @@ object DFGraph {
           s" StructType, but found type: $other")
     }
   }
+  */
 
   /** Nest all columns within a single StructType column with the given name */
   private def nestAsCol(df: DataFrame, name: String): Column = {
