@@ -19,11 +19,12 @@ package com.databricks.dfgraph
 
 import java.io.File
 
+import com.databricks.dfgraph.lib.PageRankSuite
 import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.graphx.{TripletFields, Edge, Graph}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{StringType, IntegerType}
 import org.apache.spark.sql.{DataFrame, Row}
@@ -213,5 +214,20 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
       (id, deg)
     }.toMap
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
+  }
+
+  test("aggregateMessages") {
+    val n = 5
+    val agg = PageRankSuite.starGraph(sqlContext, n).aggregateMessages[Int](
+      ctx => {
+        if (ctx.destinationVertex != null) {
+          throw new Exception(
+            "expected ctx.dstAttr to be null due to TripletFields, but it was " +
+              ctx.destinationVertex)
+        }
+        val f = ctx.sourceVertex.getAs[Int]("v_attr1")
+        Seq(f) -> Nil
+      }, _ + _, TripletFields.Src)
+    assert(agg.collect().toSet === (1 to n).map(x => Row(x: Long, "v")).toSet)
   }
 }

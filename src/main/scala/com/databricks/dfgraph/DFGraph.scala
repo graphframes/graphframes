@@ -19,6 +19,7 @@ package com.databricks.dfgraph
 
 import com.databricks.dfgraph.lib.PageRank.Builder
 import com.databricks.dfgraph.lib._
+import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
@@ -361,7 +362,7 @@ class DFGraph protected (
    *  - id: the vertex ID
    *  - all the other columns that were created by using type A.
    */
-  def aggregateMessages[A : ClassTag](
+  def aggregateMessages[A : ClassTag : TypeTag](
       sendMsg: EdgeContext => (Iterable[A], Iterable[A]),
       aggregate: (A, A) => A,
       selectedFields: TripletFields = TripletFields.All): DataFrame = {
@@ -371,7 +372,7 @@ class DFGraph protected (
       src.foreach(ec.sendToSrc)
       dst.foreach(ec.sendToDst)
     }
-    val gx = cachedGraphX.aggregateMessages(send, aggregate, selectedFields)
+    val gx: RDD[(Long, A)] = cachedGraphX.aggregateMessages(send, aggregate, selectedFields)
     val df = sqlContext.createDataFrame(gx)
     dotStar(df)
   }
