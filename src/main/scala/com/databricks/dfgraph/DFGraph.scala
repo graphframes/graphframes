@@ -17,7 +17,6 @@
 
 package com.databricks.dfgraph
 
-import com.databricks.dfgraph.lib.PageRank.Builder
 import com.databricks.dfgraph.lib._
 import org.apache.spark.rdd.RDD
 
