@@ -428,19 +428,48 @@ class DFGraph protected (
     } else {
       // Compute Long vertex IDs
       val indexedVertices =
-        vertices.select(monotonicallyIncreasingId().as("new_id"), vStruct.as(ATTR))
-      val newIndex = indexedVertices.select(col("new_id"), col(ATTR + "." + ID).as("old_id"))
+        vertices.select(monotonicallyIncreasingId().as(LONG_ID), vStruct.as(ATTR))
+      val newIndex = indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ORIGINAL_ID))
       val vv = indexedVertices.map { case Row(id: Long, attr: Row) => (id, attr) }
       val indexedSourceEdges = edges.select(col(SRC), col(DST), eStruct.as(ATTR))
-        .join(newIndex).where(edges(SRC) === newIndex("old_id"))
-        .select(newIndex("new_id").as(SRC), col(DST), col(ATTR))
+        .join(newIndex).where(edges(SRC) === newIndex(ORIGINAL_ID))
+        .select(newIndex(LONG_ID).as(SRC), col(DST), col(ATTR))
       val indexedEdges = indexedSourceEdges.select(SRC, DST, ATTR)
-        .join(newIndex).where(edges(DST) === newIndex("old_id"))
-        .select(col(SRC), newIndex("new_id").as(DST), col(ATTR))
+        .join(newIndex).where(edges(DST) === newIndex(ORIGINAL_ID))
+        .select(col(SRC), newIndex(LONG_ID).as(DST), col(ATTR))
       val ee = indexedEdges.map { case Row(src: Long, dst: Long, attr: Row) =>
         Edge(src, dst, attr)
       }
       Graph(vv, ee)
+    }
+  }
+
+  /**
+   * True if the id type can be cast to Long.
+   *
+   * This is important for performance reasons. The underlying graphx
+   * implementation only deals with Long types.
+   */
+  private[dfgraph] lazy val hasIntegralIdType: Boolean = {
+    vertices.schema(ID).dataType match {
+      case _ @ (ByteType | IntegerType | LongType | ShortType) => true
+      case _ => false
+    }
+  }
+
+  /**
+   * If the id type is not integral, it is the translation table that maps the original ids to the integral ids.
+   * 
+   * Columns:
+   *  - $LONG_ID: the new ID
+   *  - $ORIGINAL_ID: the ID provided by the user
+   *  - $ATTR: all the original attributes
+   */
+  private[dfgraph] lazy val indexedVertices: Option[DataFrame] = {
+    if (hasIntegralIdType) { None } else {
+      val vStruct = struct(vCols.map(col): _*)
+      val indexedVertices = vertices.select(monotonicallyIncreasingId().as(LONG_ID), vStruct.as(ATTR))
+      Some(indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ORIGINAL_ID), col(ATTR)))
     }
   }
 
@@ -552,6 +581,15 @@ object DFGraph {
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
   private[dfgraph] val ATTR: String = "attr"
 
+  /**
+   * The integral id that is used as a surrogate id when using graphX implementation
+   */
+  private[dfgraph] val LONG_ID: String = "new_id"
+  /**
+   * The original id.
+   */
+  private[dfgraph] val ORIGINAL_ID: String = "old_id"
+
   // ============================ Constructors and converters =================================
 
   /**
@@ -564,6 +602,20 @@ object DFGraph {
    */
   def apply(v: DataFrame, e: DataFrame): DFGraph = {
     new DFGraph(v, e)
+  }
+
+  /**
+   * Given an index for the edge IDs, maps the src and dest back to
+   * @param indexDF
+   * @param edges
+   * @return
+   */
+  private[dfgraph] def longifyVertexDF(indexDF: DataFrame, edges: DataFrame): DataFrame = {
+    ???
+  }
+
+  private[dfgraph] def unlongifyVertexDF(indexDF: DataFrame, longEdges: DataFrame): DataFrame = {
+    ???
   }
 
   /*
