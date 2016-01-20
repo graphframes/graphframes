@@ -3,9 +3,9 @@
 # DFGraph: DataFrame-based Graphs
 
 This is a prototype package for DataFrame-based graphs in Spark.
-By replacing RDDs (in GraphX) with DataFrames (in this package), the user gains a much
-more powerful API for making expressive queries.  The user also benefit from DataFrame
-optimization such as the Catalyst optimizer and Tungsten.
+Users can write highly expressive queries by leveraging the DataFrame API, combined with a new
+API for motif finding.  The user also benefits from DataFrame performance optimizations
+within the Spark SQL engine.
 
 **Collaboration and prototyping**: This package is based on the GraphFrames project led by
 [Ankur Dave](http://ankurdave.com/).  The goals of this package are (a) to provide this
@@ -14,13 +14,7 @@ to help the GraphFrames project.
 
 **Merging with Spark**: The ultimate goal is to provide DataFrame-based graphs in Spark itself.
 This package will provide a public API for this work, until the time when this work can be
-merged into Spark itself.  At that time, we expect to use the name `GraphFrame` instead of
-`DFGraph`.
-
-## WIP
-
-This is an early version of this package.  We expect to update it rapidly and possibly break APIs,
-until the expected release date of a stable version in February 2016.
+merged into Spark itself.
 
 ## Building and running unit tests
 

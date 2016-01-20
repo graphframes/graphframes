@@ -18,15 +18,15 @@
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 
-class DFGraph(object):
 
+class DFGraph(object):
     """
     Represents a graph with vertices and edges stored as DataFrames.
 
-    :param vertices:  [[DataFrame]] holding vertex information.
+    :param vertices:  :class:`DataFrame` holding vertex information.
                       Must contain a column named "id" that stores unique
                       vertex IDs.
-    :param edges:  [[DataFrame]] holding edge information.
+    :param edges:  :class:`DataFrame` holding edge information.
                    Must contain two columns "src" and "dst" storing source
                    vertex IDs and destination vertex IDs of edges, respectively.
 
@@ -36,16 +36,26 @@ class DFGraph(object):
     >>> e = sqlContext.createDataFrame(localEdges, ["src", "dst", "action"])
     >>> g = DFGraph(v, e)
     """
+
     def __init__(self, v, e):
         self._vertices = v
         self._edges = e
         self._sqlContext = v.sql_ctx
         self._sc = self._sqlContext._sc
 
-        self.ID = "id"
-        self.SRC = "src"
-        self.DST = "dst"
-        self._ATTR = "attr"
+        self._sc._jvm.org.apache.spark.ml.feature.Tokenizer()
+
+        javaClassName = "com.databricks.dfgraph.DFGraphPythonAPI"
+        self._jvm_dfgraph_api = \
+            self._sc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName)\
+                .newInstance()
+
+        self._jvm_dfgraph = self._jvm_dfgraph_api.createGraph(v._jdf, e._jdf)
+
+        self.ID = self._jvm_dfgraph_api.ID()
+        self.SRC = self._jvm_dfgraph_api.SRC()
+        self.DST = self._jvm_dfgraph_api.DST()
+        self._ATTR = self._jvm_dfgraph_api.ATTR()
 
         assert self.ID in v.columns,\
             "Vertex ID column '%s' missing from vertex DataFrame, which has columns: %s" %\
@@ -60,7 +70,7 @@ class DFGraph(object):
     @property
     def vertices(self):
         """
-        [[DataFrame]] holding vertex information, with unique column "id"
+        :class:`DataFrame` holding vertex information, with unique column "id"
         for vertex IDs.
         """
         return self._vertices
@@ -68,11 +78,18 @@ class DFGraph(object):
     @property
     def edges(self):
         """
-        [[DataFrame]] holding edge information, with unique columns "src" and
+        :class:`DataFrame` holding edge information, with unique columns "src" and
         "dst" storing source vertex IDs and destination vertex IDs of edges,
         respectively.
         """
         return self._edges
+
+    def find(self, pattern):
+        """
+        Motif finding.
+        TODO: Copy doc from Scala
+        """
+        return self._jvm_dfgraph.find(pattern)
 
 
 def _test():
