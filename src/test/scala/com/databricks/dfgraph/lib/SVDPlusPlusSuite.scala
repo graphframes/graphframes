@@ -20,6 +20,7 @@ class SVDPlusPlusSuite extends SparkFunSuite with DFGraphTestSparkContext {
 
     val conf = SVDPlusPlus.Conf(10, 2, 0.0, 5.0, 0.007, 0.007, 0.005, 0.015) // 2 iterations
     val (g2, _) = SVDPlusPlus.run(g, conf)
+    LabelPropagationSuite.testSchemaInvariants(g, g2)
     val err = g2.vertices.map { case Row(vid: Long, (_, _, _, vd: Double)) =>
       if (vid % 2 == 1) vd else 0.0
     }.reduce(_ + _) / g.edges.count()

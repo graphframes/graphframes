@@ -22,10 +22,44 @@ class LabelPropagationSuite extends SparkFunSuite with DFGraphTestSparkContext {
   test("Toy example") {
     val g = create()
     val labels = LabelPropagation.run(g, 4 * n)
+    LabelPropagationSuite.testSchemaInvariants(g, labels)
     val clique1 = labels.vertices.filter(s"id < $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique1.size === 1)
     val clique2 = labels.vertices.filter(s"id >= $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique2.size === 1)
     assert(clique1 !== clique2)
+  }
+}
+
+object LabelPropagationSuite {
+  import DFGraph._
+  def testSchemaInvariant(g: DFGraph): Unit = {
+    // The ID should be present
+    val vs = g.vertices.schema
+    val es = g.vertices.schema
+    vs(ID)
+    es(SRC)
+    es(DST)
+  }
+  // Runs some tests on a transform of the DFGraph
+  def testSchemaInvariants(before: DFGraph, after: DFGraph): Unit = {
+    testSchemaInvariant(before)
+    testSchemaInvariant(after)
+    // The IDs, source and destination columns should be of the same type
+    // with the same metadata.
+    assert(before.vertices.schema(ID) == after.vertices.schema(ID))
+    assert(before.edges.schema(SRC) == after.vertices.schema(SRC))
+    assert(before.edges.schema(DST) == after.vertices.schema(DST))
+    // All the columns before should be found after (with some extra columns,
+    // potentially).
+    for (f <- before.vertices.schema.iterator) {
+      assert(before.vertices.schema(f.name) == after.vertices.schema(f.name),
+      s"${before.vertices.schema} != ${after.vertices.schema}")
+    }
+
+    for (f <- before.edges.schema.iterator) {
+      assert(before.edges.schema(f.name) == after.edges.schema(f.name),
+        s"${before.edges.schema} != ${after.edges.schema}")
+    }
   }
 }

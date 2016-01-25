@@ -11,6 +11,7 @@ class TriangleCountSuite extends SparkFunSuite with DFGraphTestSparkContext {
     val vertices = sqlContext.createDataFrame(Seq((0L, ""), (1L, ""), (2L, ""))).toDF("id", "v_attr1")
     val g = DFGraph(vertices, edges)
     val g2 = TriangleCount.run(g)
+    LabelPropagationSuite.testSchemaInvariants(g, g2)
     g2.vertices.collect().foreach { case Row(vid: Long, count: Int) => assert(count === 1) }
   }
 

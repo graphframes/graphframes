@@ -1,7 +1,7 @@
 package com.databricks.dfgraph.lib
 
 import com.databricks.dfgraph.DFGraph
-import com.sun.javaws.exceptions.InvalidArgumentException
+
 import org.apache.spark.graphx.{Graph, VertexId}
 import org.apache.spark.sql.{DataFrame, SQLContext, Row}
 import org.apache.spark.sql.types.{Metadata, StructField, LongType, StructType}
@@ -140,7 +140,7 @@ t   *
    * @param skip a set of attributes to skip when deconstructing. They should NOT include the "attrs." suffix.
    * @return
    */
-  @throws[InvalidArgumentException]("if argument names are clashing")
+  @throws[Exception]("if argument names are clashing")
   private def destructAttributes(df: DataFrame): DataFrame = {
     // The mapping (in order) of the original columns to the final, flattened columns.
     val cols: Seq[(String, StructField)] = df.schema.fields.flatMap {
@@ -156,7 +156,7 @@ t   *
     df.select(selection: _*)
   }
 
-  @throws[IllegalArgumentException]("When the vertex id type is not a long")
+  @throws[Exception]("When the vertex id type is not a long")
   def checkVertexId(graph: DFGraph): Unit = {
     val tpe = graph.vertices.schema(DFGraph.ID).dataType
     if (tpe != LongType) {

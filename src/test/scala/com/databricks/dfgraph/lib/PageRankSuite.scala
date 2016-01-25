@@ -11,7 +11,8 @@ class PageRankSuite extends SparkFunSuite with DFGraphTestSparkContext {
     val g = PageRankSuite.starGraph(sqlContext, n)
     val resetProb = 0.15
     val errorTol = 1.0e-5
-    PageRank.runUntilConvergence(g, errorTol, resetProb)
+    val pr = PageRank.runUntilConvergence(g, errorTol, resetProb)
+    LabelPropagationSuite.testSchemaInvariants(g, pr)
   }
 }
 

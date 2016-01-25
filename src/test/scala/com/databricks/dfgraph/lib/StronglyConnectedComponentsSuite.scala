@@ -10,6 +10,7 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSpa
     val edges = sqlContext.createDataFrame(Seq.empty[(Long, Long)]).toDF("src", "dst")
     val graph = DFGraph(vertices, edges)
     val c = StronglyConnectedComponents.run(graph, 5)
+    LabelPropagationSuite.testSchemaInvariants(graph, c)
     for (Row(id: Long, scc: Long) <- c.vertices.collect()) {
       assert(id === scc)
     }

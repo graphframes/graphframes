@@ -40,6 +40,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContex
     val e = sqlContext.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test").filter("src > 10")
     val g = DFGraph(v, e)
     val comps = ConnectedComponents.run(g)
+    LabelPropagationSuite.testSchemaInvariants(g, comps)
     assert(comps.vertices.count() === 1)
     assert(comps.edges.count() === 0)
     // We loose all the attributes for now, due to a limitation of the graphx implementation
@@ -54,6 +55,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContex
       (0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
     val g = DFGraph(v, e)
     val comps = ConnectedComponents.run(g)
+    LabelPropagationSuite.testSchemaInvariants(g, comps)
     assert(comps.vertices.count() === 2)
     assert(comps.edges.count() === 1)
     // We loose all the attributes for now, due to a limitation of the graphx implementation
