@@ -36,7 +36,7 @@ object LabelPropagationSuite {
   def testSchemaInvariant(g: DFGraph): Unit = {
     // The ID should be present
     val vs = g.vertices.schema
-    val es = g.vertices.schema
+    val es = g.edges.schema
     vs(ID)
     es(SRC)
     es(DST)
@@ -48,8 +48,8 @@ object LabelPropagationSuite {
     // The IDs, source and destination columns should be of the same type
     // with the same metadata.
     assert(before.vertices.schema(ID) == after.vertices.schema(ID))
-    assert(before.edges.schema(SRC) == after.vertices.schema(SRC))
-    assert(before.edges.schema(DST) == after.vertices.schema(DST))
+    assert(before.edges.schema(SRC) == after.edges.schema(SRC))
+    assert(before.edges.schema(DST) == after.edges.schema(DST))
     // All the columns before should be found after (with some extra columns,
     // potentially).
     for (f <- before.vertices.schema.iterator) {

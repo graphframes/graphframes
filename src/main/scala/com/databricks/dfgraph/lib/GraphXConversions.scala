@@ -36,13 +36,14 @@ private[dfgraph] object GraphXConversions {
       graph: Graph[VertexId, Row],
       originalGraph: DFGraph,
       vertexColumnName: String): DFGraph = {
-    val gx = graph.mapVertices { case (vid, vlabel) =>
+    val gx = graph.mapVertices { case (vid: Long, vlabel: Long) =>
       Row(vid, vlabel)
     }
     val s = originalGraph.vertices.schema(DFGraph.ID)
+    val gxVId = s.copy(name = LONG_ID, dataType = LongType)
     val vStruct = StructType(List(
-      s,
-      s.copy(name = vertexColumnName, metadata = Metadata.empty)))
+      gxVId,
+      gxVId.copy(name = vertexColumnName, metadata = Metadata.empty)))
     fromGraphX(originalGraph, gx, originalGraph.edges.schema, vStruct)
   }
 
@@ -107,6 +108,8 @@ t   *
       graph: Graph[Row, Row],
       edgeSchema: StructType,
       vertexSchema: StructType): DFGraph = {
+    System.err.println(s"fromGraphX: original: ${original.vertices.schema}")
+    System.err.println(s"fromGraphX: vertexSchema: ${vertexSchema}")
     val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
     // The dataframe of the gx data:
     val vRows = graph.vertices.map(_._2)
@@ -116,10 +119,11 @@ t   *
     // TODO(tjh) check that the attributes are empty, so that we do not need to do this join?
     val vJoinColName = if (original.indexedVertices.isDefined) { LONG_ID } else { ID }
     val vJoinDF = original.indexedVertices.getOrElse(original.vertices)
-    val fullVDF = gxVertices.join(vJoinDF).where(gxVertices(ID) === vJoinDF(vJoinColName))
+    val fullVDF = gxVertices.join(vJoinDF).where(gxVertices(LONG_ID) === vJoinDF(vJoinColName))
 
     // Strip all the extra columns introduced by using surrogate ids.
     // This dataframe contains the ID, all the attributes added by GraphX and all the previous attributes
+    System.err.println(s"fullVDF: ${fullVDF.schema}")
     val vertexDF = destructAttributes(fullVDF)
 
     // Edges
@@ -164,6 +168,15 @@ t   *
         s"Vertex column ${DFGraph.ID} has type $tpe. This type is not supported for this algorithm. " +
         s"Use type Long instead for this column")
     }
+  }
+
+  /**
+   * The format used by graphX to carry the ID.
+   * @param schema
+   * @return
+   */
+  private[lib] def longId(schema: StructType): StructField = {
+    schema(ID).copy(name = LONG_ID, dataType = LongType)
   }
 
 }
