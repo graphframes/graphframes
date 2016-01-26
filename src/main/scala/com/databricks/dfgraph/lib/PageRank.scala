@@ -2,7 +2,7 @@ package com.databricks.dfgraph.lib
 
 import org.apache.spark.graphx.{lib => graphxlib, Graph}
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{StructField, DoubleType, StructType}
+import org.apache.spark.sql.types.{LongType, StructField, DoubleType, StructType}
 
 import com.databricks.dfgraph.DFGraph
 
@@ -111,13 +111,13 @@ object PageRank {
       Row(vid, w)
     } .mapEdges( e => Row(e.srcId, e.dstId, e.attr))
     val vStruct = StructType(List(
-      graph.vertices.schema(DFGraph.ID),
+      graph.vertices.schema(DFGraph.ID).copy(name = DFGraph.LONG_ID, dataType = LongType),
       field))
     val eStruct = StructType(List(
       graph.edges.schema(DFGraph.SRC),
       graph.edges.schema(DFGraph.DST),
       field))
-    GraphXConversions.fromRowGraphX(fullGx, eStruct, vStruct)
+    GraphXConversions.fromRowGraphX(graph, fullGx, eStruct, vStruct)
   }
 
   /**

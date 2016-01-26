@@ -76,24 +76,25 @@ t   *
    * @return an equivalent [[DFGraph]] object
    */
   def fromRowGraphX(
+      originalGraph: DFGraph,
       graph: Graph[Row, Row],
       edgeSchema: StructType,
       vertexSchema: StructType): DFGraph = {
-    val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
-    val vertices = graph.vertices.map(_._2)
-    val edges = graph.edges.map(_.attr)
-    val vv = sqlContext.createDataFrame(vertices, vertexSchema)
-    // Transform the vertex schema to recover the missing columns:
-    //  - the original columns may be present and packed in attr -> we need to unpack them
-    //  - the original columns may have been dropped -> we need to join them back
-    //  - some extra columns may have been added
-    //  - the vertex id may have been translated -> bring it back
+    // Because we may at least filter out some edges, we still need to filter out the edges that are not relevant
+    // anymore.
+    // There may be some more efficient mechanisms, but this one is the most correct.
+    val eStruct = {
+      val s = originalGraph.edges.schema
+      val src = s(SRC)
+      val dst = s(DST)
+      StructType(List(
+        src.copy(name = LONG_SRC, dataType = LongType),
+        dst.copy(name = LONG_DST, dataType = LongType),
+        StructField(GX_ATTR, s, nullable = true)))
+    }
 
-    val ee = sqlContext.createDataFrame(edges, edgeSchema)
-    // Transform the edge schema:
-    //  - unlike vertices, we assume for now the attribute is still here
-    //  - the edge src/dst may have been translated -> bring them back
-    DFGraph(vv, ee)
+    val gx = graph.mapEdges { e => Row(e.srcId, e.dstId, e.attr) }
+    fromGraphX(originalGraph, gx, eStruct, vertexSchema)
   }
 
   /**

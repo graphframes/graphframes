@@ -31,8 +31,7 @@ object TriangleCount {
    * The vertices of the resulting graph have the following schema:
    *  - id: the id of the vertex
    *  - count (int): the count of triangles
-   *
-   * All other columns are dropped from the vertices.
+   *  - the other columns that were part of the vertex dataframe.
    *
    * @param graph
    * @return
@@ -46,9 +45,9 @@ object TriangleCount {
 
     val s = graph.vertices.schema(DFGraph.ID)
     val vStruct = StructType(List(
-      s,
+      s.copy(name = DFGraph.LONG_ID),
       StructField(COUNT_ID, IntegerType, nullable = false)))
-    GraphXConversions.fromRowGraphX(gx, graph.edges.schema, vStruct)
+    GraphXConversions.fromRowGraphX(graph, gx, graph.edges.schema, vStruct)
   }
 
   private val COUNT_ID = "count"
