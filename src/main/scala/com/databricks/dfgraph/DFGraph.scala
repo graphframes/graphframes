@@ -25,12 +25,12 @@ import org.apache.spark.graphx.{Edge, Graph, TripletFields}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.SqlParser
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
 import com.databricks.dfgraph.lib._
 import com.databricks.dfgraph.pattern._
+
 
 /**
  * Represents a graph with vertices and edges stored as [[DataFrame]]s.
@@ -273,133 +273,8 @@ class DFGraph protected (
 
   // ======================== Other queries ===================================
 
-  /**
-   * Breadth-first search (BFS)
-   *
-   * This method returns a DataFrame of valid shortest paths from vertices matching `fromExpr`
-   * to vertices matching `toExpr`.  If multiple paths are valid and have the same length,
-   * the DataFrame will return one Row for each path.  If no paths are valid, the DataFrame will
-   * be empty.
-   * Note: "Shortest" means globally shortest path.  I.e., if the shortest path between two vertices
-   * matching `fromExpr` and `toExpr` is length 5 (edges) but no path is shorter than 5, then all
-   * paths returned by BFS will have length 5.
-   *
-   * The returned DataFrame will have the following columns:
-   *  - from: start vertex of path
-   *  - e[i]: edge i in the path, indexed from 0
-   *  - v[i]: intermediate vertex i in the path, indexed from 0
-   *  - to: end vertex of path
-   * Each of these columns is a StructType whose fields are the same as the columns of [[vertices]]
-   * or [[edges]].
-   *
-   * {{{
-   *   // Search from vertex "Joe" to find the closet vertices with attribute job = CEO.
-   *   bfs(col("id") === "Joe", col("job") === "CEO")
-   *
-   *   // If we found a path of 3 edges, each row would have schema:
-   *   from | e0 | v0 | e1 | v1 | e2 | to
-   * }}}
-   *
-   * If there are ties, then each of the equal paths will be returned as a separate Row.
-   *
-   * If one or more vertices match both the from and to conditions, then there is a 0-hop path.
-   * The returned DataFrame will have the "from" and "to" columns (as above); however,
-   * the "from" and "to" columns will be exactly the same.  There will be one row for each vertex
-   * in [[vertices]] matching both `fromExpr` and `toExpr`.
-   *
-   * @param fromExpr  Spark SQL expression specifying valid starting vertices for the BFS.
-   *                  This condition will be matched against each vertex's id or attributes.
-   *                  To start from a specific vertex, this could be "id = [start vertex id]".
-   *                  To start from multiple valid vertices, this can operate on vertex attributes.
-   * @param toExpr  Spark SQL expression specifying valid target vertices for the BFS.
-   *                This condition will be matched against each vertex's id or attributes.
-   * @param maxPathLength  Limit on the length of paths.  If no valid paths of length
-   *                       <= maxPathLength are found, then the BFS is terminated.
-   *                       (default = 10)
-   * @return  DataFrame of valid shortest paths found in the BFS
-   */
-  def bfs(fromExpr: Column, toExpr: Column, maxPathLength: Int): DataFrame = {
-    val fromDF = vertices.filter(fromExpr)
-    val toDF = vertices.filter(toExpr)
-    if (fromDF.take(1).length == 0 || toDF.take(1).length == 0) {
-      // Return empty DataFrame
-      return sqlContext.createDataFrame(
-        vertices.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
-        vertices.schema)
-    }
-
-    val fromEqualsToDF = fromDF.filter(toExpr)
-    if (fromEqualsToDF.take(1).length > 0) {
-      // from == to, so return matching vertices
-      return fromEqualsToDF.select(
-        nestAsCol(fromEqualsToDF, "from"), nestAsCol(fromEqualsToDF, "to"))
-    }
-
-    // We handled edge cases above, so now we do BFS.
-
-    // Edges a->b, to be reused for each iteration
-    val a2b = find("(a)-[e]->(b)")
-
-    // We will always apply fromExpr to column "a"
-    val fromAExpr = new Column(SQLHelpers.getExpr(fromExpr) transform {
-      case UnresolvedAttribute(nameParts) => UnresolvedAttribute("a" +: nameParts)
-    })
-
-    // DataFrame of current search paths
-    var paths: DataFrame = null
-
-    var iter = 0
-    var foundPath = false
-    while (iter < maxPathLength && !foundPath) {
-      val nextVertex = s"v$iter"
-      val nextEdge = s"e$iter"
-      // Take another step
-      if (iter == 0) {
-        // Note: We could avoid this special case by initializing paths with just 1 "from" column,
-        // but that would create a longer lineage for the result DataFrame.
-        paths = a2b.filter(fromAExpr)
-          .filter(col("a.id") !== col("b.id"))  // remove self-loops
-          .withColumnRenamed("a", "from").withColumnRenamed("e", nextEdge)
-          .withColumnRenamed("b", nextVertex)
-      } else {
-        val prevVertex = s"v${iter - 1}"
-        val nextLinks = a2b.withColumnRenamed("a", prevVertex).withColumnRenamed("e", nextEdge)
-          .withColumnRenamed("b", nextVertex)
-        paths = paths.join(nextLinks, paths(prevVertex + ".id") === nextLinks(prevVertex + ".id"))
-          .drop(paths(prevVertex))
-        // Make sure we are not backtracking within each path.
-        // TODO: Avoid crossing paths; i.e., touch each vertex at most once.
-        val previousVertexChecks = Range(0, iter)
-          .map(i => paths(s"v$i.id") !== paths(nextVertex + ".id"))
-          .foldLeft(lit(true))((c1, c2) => c1 && c2)
-        paths = paths.filter(previousVertexChecks)
-      }
-      // Check if done by applying toExpr to column nextVertex
-      val toVExpr = new Column(SQLHelpers.getExpr(toExpr) transform {
-        case UnresolvedAttribute(nameParts) => UnresolvedAttribute(nextVertex +: nameParts)
-      })
-      val foundPathDF = paths.filter(toVExpr)
-      if (foundPathDF.take(1).length != 0) {
-        // Found path
-        paths = foundPathDF.withColumnRenamed(nextVertex, "to")
-        foundPath = true
-      }
-      iter += 1
-    }
-    if (foundPath) {
-      logInfo(s"DFGraph.bfs found path of length $iter.")
-      paths
-    } else {
-      logInfo(s"DFGraph.bfs failed to find a path of length <= $maxPathLength.")
-      // Return empty DataFrame
-      sqlContext.createDataFrame(
-        vertices.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
-        vertices.schema)
-    }
-  }
-
-  /** Version of [[bfs()]] using a default max path length of 10 */
-  def bfs(fromExpr: Column, toExpr: Column): DataFrame = bfs(fromExpr, toExpr, 10)
+  /** Breadth-first search (BFS) */
+  def bfs(from: Column, to: Column): BFS.Builder = new BFS.Builder(this, from, to)
 
   // ============================ Conversions ========================================
 
@@ -565,7 +440,6 @@ class DFGraph protected (
 
   // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
   private def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
-
 }
 
 
@@ -690,7 +564,7 @@ object DFGraph {
   }
 
   /** Nest all columns within a single StructType column with the given name */
-  private def nestAsCol(df: DataFrame, name: String): Column = {
+  private[dfgraph] def nestAsCol(df: DataFrame, name: String): Column = {
     struct(df.columns.map(c => df(c)) :_*).as(name)
   }
 }

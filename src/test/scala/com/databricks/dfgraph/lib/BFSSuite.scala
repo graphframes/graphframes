@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-package com.databricks.dfgraph
+package com.databricks.dfgraph.lib
 
-import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.{DataFrame, Row}
+
+import com.databricks.dfgraph.{DFGraph, DFGraphTestSparkContext, SparkFunSuite}
 
 
 class BFSSuite extends SparkFunSuite with DFGraphTestSparkContext {
@@ -86,14 +88,14 @@ class BFSSuite extends SparkFunSuite with DFGraphTestSparkContext {
   }
 
   test("unmatched queries should return nothing") {
-    val badStart = g.bfs(col("id") === "howdy", col("id") === "a")
+    val badStart = g.bfs(col("id") === "howdy", col("id") === "a").run()
     assert(badStart.count() === 0)
-    val badEnd = g.bfs(col("id") === "a", col("id") === "howdy")
+    val badEnd = g.bfs(col("id") === "a", col("id") === "howdy").run()
     assert(badEnd.count() === 0)
   }
 
   test("0 hops, aka from=to") {
-    val paths = g.bfs(col("id") === "a", col("id") === "a")
+    val paths = g.bfs(col("id") === "a", col("id") === "a").run()
     assert(paths.count() === 1)
     assert(paths.columns.sorted === Array("from", "to"))
     assert(paths.select("from.id").head().getString(0) === "a")
@@ -101,14 +103,14 @@ class BFSSuite extends SparkFunSuite with DFGraphTestSparkContext {
   }
 
   test("1 hop, aka single edge paths") {
-    val paths = g.bfs(col("id") === "a", col("id") === "b")
+    val paths = g.bfs(col("id") === "a", col("id") === "b").run()
     assert(paths.count() === 1)
     assert(paths.columns.sorted === Array("e0", "from", "to"))
     assert(paths.select("from.id", "to.id").head() === Row("a", "b"))
   }
 
   test("ties") {
-    val paths = g.bfs(col("id") === "e", col("id") === "b")
+    val paths = g.bfs(col("id") === "e", col("id") === "b").run()
     assert(paths.count() === 2)
     val expectedPathLength = 3
     assert(paths.columns.length === expectedPathLength * 2 + 1)
@@ -118,16 +120,16 @@ class BFSSuite extends SparkFunSuite with DFGraphTestSparkContext {
   }
 
   test("maxPathLength: length 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "f", maxPathLength = 1)
+    val paths = g.bfs(col("id") === "e", col("id") === "f").setMaxPathLength(1).run()
     assert(paths.count() === 1)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "f", maxPathLength = 0)
+    val paths0 = g.bfs(col("id") === "e", col("id") === "f").setMaxPathLength(0).run()
     assert(paths0.count() === 0)
   }
 
   test("maxPathLength: length > 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "b", maxPathLength = 3)
+    val paths = g.bfs(col("id") === "e", col("id") === "b").setMaxPathLength(3).run()
     assert(paths.count() === 2)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "b", maxPathLength = 2)
+    val paths0 = g.bfs(col("id") === "e", col("id") === "b").setMaxPathLength(2).run()
     assert(paths0.count() === 0)
   }
 }
