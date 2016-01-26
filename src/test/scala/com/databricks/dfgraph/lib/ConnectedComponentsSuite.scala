@@ -1,36 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.databricks.dfgraph.lib
 
-import com.databricks.dfgraph.{DFGraph, DFGraphTestSparkContext, SparkFunSuite}
-import org.apache.spark.sql.{Row}
+import org.apache.spark.sql.Row
 
+import com.databricks.dfgraph.{DFGraph, DFGraphTestSparkContext, SparkFunSuite}
 
 class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContext {
-//  @transient var v: DataFrame = _
-//  @transient var e: DataFrame = _
-//  @transient var g: DFGraph = _
-//
-//  override def beforeAll(): Unit = {
-//    super.beforeAll()
-//
-//    v = sqlContext.createDataFrame(List(
-//      (0L, "a", "f"),
-//      (1L, "b", "m"),
-//      (2L, "c", "m"),
-//      (3L, "d", "f"))).toDF("id", "attr", "gender")
-//    e = sqlContext.createDataFrame(List(
-//      (0L, 1L, "friend"),
-//      (1L, 2L, "friend"),
-//      (2L, 3L, "follow"),
-//      (2L, 0L, "unknown"))).toDF("src", "dst", "relationship")
-//    g = DFGraph(v, e)
-//  }
-//
-//  override def afterAll(): Unit = {
-//    v = null
-//    e = null
-//    g = null
-//    super.afterAll()
-//  }
 
   test("simple toy example") {
     val v = sqlContext.createDataFrame(List(

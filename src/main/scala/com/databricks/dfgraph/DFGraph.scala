@@ -17,25 +17,19 @@
 
 package com.databricks.dfgraph
 
-import com.databricks.dfgraph.lib._
-import org.apache.spark.rdd.RDD
-
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.graphx.{TripletFields, Edge, Graph}
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext}
-import org.apache.spark.sql.functions._
-import org.apache.spark.graphx
-import org.apache.spark.Logging
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.{Logging, graphx}
+import org.apache.spark.graphx.{Edge, Graph, TripletFields}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.SqlParser
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
+import com.databricks.dfgraph.lib._
 import com.databricks.dfgraph.pattern._
 
 /**
