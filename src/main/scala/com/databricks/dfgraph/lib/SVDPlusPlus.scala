@@ -27,7 +27,6 @@ object SVDPlusPlus {
    * @return a graph with vertex attributes containing the trained model
    */
   def run(graph: DFGraph, conf: Conf): (DFGraph, Double) = {
-    GraphXConversions.checkVertexId(graph)
     val edges = graph.edges.select(DFGraph.SRC, DFGraph.DST, COLUMN_WEIGHT).map {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
     }

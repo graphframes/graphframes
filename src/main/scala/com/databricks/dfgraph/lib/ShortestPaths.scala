@@ -26,7 +26,6 @@ object ShortestPaths {
    */
   // TODO(tjh) the vertexId should be checked with an encoder instead
   def run(graph: DFGraph, landmarks: Seq[Long]): DFGraph = {
-    GraphXConversions.checkVertexId(graph)
     val gx = graphxlib.ShortestPaths.run(graph.cachedGraphX, landmarks)
     val rowGx = gx.mapVertices { case (vid, distances) =>
         Row(vid, distances)

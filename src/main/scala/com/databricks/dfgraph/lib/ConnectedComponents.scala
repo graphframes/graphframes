@@ -27,7 +27,6 @@ object ConnectedComponents {
    *         connected component
    */
   def run(graph: DFGraph): DFGraph = {
-    GraphXConversions.checkVertexId(graph)
     val gx = graphxlib.ConnectedComponents.run(graph.cachedGraphX)
     GraphXConversions.fromVertexGraphX(gx, graph, COMPONENT_ID)
   }

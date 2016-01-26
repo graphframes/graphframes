@@ -1,9 +1,8 @@
 package com.databricks.dfgraph.lib
 
 import com.databricks.dfgraph.{DFGraph, DFGraphTestSparkContext, SparkFunSuite}
-import org.apache.spark.sql.{Row, DataFrame}
+import org.apache.spark.sql.{Row}
 
-import scala.collection.generic.SeqFactory
 
 class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContext {
 //  @transient var v: DataFrame = _

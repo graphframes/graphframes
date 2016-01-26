@@ -37,7 +37,6 @@ object TriangleCount {
    * @return
    */
   def run(graph: DFGraph): DFGraph = {
-    GraphXConversions.checkVertexId(graph)
     val gx = graphxlib.TriangleCount.run(graph.cachedGraphX)
       .mapVertices { case (vid, vlabel) =>
         Row(vid, vlabel)

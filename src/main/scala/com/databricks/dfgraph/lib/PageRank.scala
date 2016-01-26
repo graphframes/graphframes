@@ -79,7 +79,6 @@ object PageRank {
       resetProb: Double = 0.15,
       srcId: Option[Long] = None): DFGraph = {
     // TODO(tjh) use encoder on srcId
-    GraphXConversions.checkVertexId(graph)
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedGraphX, numIter, resetProb, None)
     buildGraph(gx, graph)
   }
