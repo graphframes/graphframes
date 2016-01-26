@@ -3,7 +3,7 @@ package com.databricks.dfgraph.lib
 
 import org.apache.spark.graphx.{Edge, lib => graphxlib}
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{ArrayType, DoubleType, StructField, StructType}
+import org.apache.spark.sql.types._
 
 import com.databricks.dfgraph.DFGraph
 
@@ -32,17 +32,19 @@ object SVDPlusPlus {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
     }
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf.toGraphXConf)
-    val fullGx = gx.mapVertices { case (vid, w) =>
-      Row(vid, w)
+    val fullGx = gx.mapVertices { case (vid, (v1, v2, s1, s2)) =>
+      Row(vid, v1, v2, s1, s2)
     } .mapEdges( e => Row(e.srcId, e.dstId, e.attr))
+
     val vStruct = StructType(List(
-      graph.vertices.schema(DFGraph.ID),
-      vField1))
-    val eStruct = StructType(List(
-      graph.edges.schema(DFGraph.SRC),
-      graph.edges.schema(DFGraph.DST),
+      graph.vertices.schema(DFGraph.ID).copy(name = DFGraph.LONG_ID, dataType = LongType),
       field1, field2, field3, field4))
-    (GraphXConversions.fromRowGraphX(fullGx, eStruct, vStruct), res)
+
+    val eStruct = StructType(List(
+      graph.edges.schema(DFGraph.SRC).copy(name = DFGraph.LONG_SRC, dataType = LongType),
+      graph.edges.schema(DFGraph.DST).copy(name = DFGraph.LONG_DST, dataType = LongType),
+      eField1))
+    (GraphXConversions.fromGraphX(graph, fullGx, eStruct, vStruct), res)
   }
 
   /**
@@ -118,13 +120,13 @@ object SVDPlusPlus {
   private val COLUMN2 = "column2"
   private val COLUMN3 = "column3"
   private val COLUMN4 = "column4"
-  private val VCOLUMN1 = "vcolumn1"
+  private val ECOLUMN1 = "ecolumn1"
 
   private val field1 = StructField(COLUMN1, ArrayType(DoubleType), nullable = false)
   private val field2 = StructField(COLUMN2, ArrayType(DoubleType), nullable = false)
   private val field3 = StructField(COLUMN3, DoubleType, nullable = false)
   private val field4 = StructField(COLUMN4, DoubleType, nullable = false)
-  private val vField1 = StructField(VCOLUMN1, DoubleType, nullable = false)
+  private val eField1 = StructField(ECOLUMN1, DoubleType, nullable = false)
 
   class Builder private[dfgraph] (graph: DFGraph) extends Arguments {
     private var conf: Option[Conf] = None

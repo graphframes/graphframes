@@ -36,15 +36,29 @@ private[dfgraph] object GraphXConversions {
       graph: Graph[VertexId, Row],
       originalGraph: DFGraph,
       vertexColumnName: String): DFGraph = {
-    val gx = graph.mapVertices { case (vid: Long, vlabel: Long) =>
-      Row(vid, vlabel)
+    val gx = graph.mapVertices { case (vid: Long, vlabel: Long) => Row(vid, vlabel) }
+      .mapEdges { e => Row(e.srcId, e.dstId, e.attr) }
+    val vStruct = {
+      val s = originalGraph.vertices.schema(DFGraph.ID)
+      val gxVId = s.copy(name = LONG_ID, dataType = LongType)
+      StructType(List(
+        gxVId,
+        gxVId.copy(name = vertexColumnName, metadata = Metadata.empty)))
     }
-    val s = originalGraph.vertices.schema(DFGraph.ID)
-    val gxVId = s.copy(name = LONG_ID, dataType = LongType)
-    val vStruct = StructType(List(
-      gxVId,
-      gxVId.copy(name = vertexColumnName, metadata = Metadata.empty)))
-    fromGraphX(originalGraph, gx, originalGraph.edges.schema, vStruct)
+
+    // Because we may at least filter out some edges, we still need to filter out the edges that are not relevant
+    // anymore.
+    // There may be some more efficient mechanisms, but this one is the most correct.
+    val eStruct = {
+      val s = originalGraph.edges.schema
+      val src = s(SRC)
+      val dst = s(DST)
+      StructType(List(
+        src.copy(name = LONG_SRC, dataType = LongType),
+        dst.copy(name = LONG_DST, dataType = LongType),
+        StructField(GX_ATTR, s, nullable = true)))
+    }
+    fromGraphX(originalGraph, gx, eStruct, vStruct)
   }
 
   /**
@@ -110,29 +124,67 @@ t   *
       vertexSchema: StructType): DFGraph = {
     System.err.println(s"fromGraphX: original: ${original.vertices.schema}")
     System.err.println(s"fromGraphX: vertexSchema: ${vertexSchema}")
+    System.err.println(s"fromGraphX: edgeSchema: ${edgeSchema}")
     val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
     // The dataframe of the gx data:
-    val vRows = graph.vertices.map(_._2)
-    val gxVertices = sqlContext.createDataFrame(vRows, vertexSchema)
-    // TODO(tjh) check the $ID column
-    // If necessary, join with the original dataframe to recover the original attributes
-    // TODO(tjh) check that the attributes are empty, so that we do not need to do this join?
-    val vJoinColName = if (original.indexedVertices.isDefined) { LONG_ID } else { ID }
-    val vJoinDF = original.indexedVertices.getOrElse(original.vertices)
-    val fullVDF = gxVertices.join(vJoinDF).where(gxVertices(LONG_ID) === vJoinDF(vJoinColName))
 
-    // Strip all the extra columns introduced by using surrogate ids.
-    // This dataframe contains the ID, all the attributes added by GraphX and all the previous attributes
-    System.err.println(s"fullVDF: ${fullVDF.schema}")
-    val vertexDF = destructAttributes(fullVDF)
+    // Packs all the attributes together from the graphX data:
+    val gxVertices = {
+      val vRows = graph.vertices.map(_._2)
+      val df = sqlContext.createDataFrame(vRows, vertexSchema)
+      val extraGxVCols = vertexSchema.filterNot(f => f.name == LONG_ID).map(f => col(f.name))
+      val eGxStruct = struct(extraGxVCols: _*)
+      val packedVertices = df.select(col(LONG_ID), eGxStruct.as(GX_ATTR))
+      packedVertices
+    }
+    // We need to join against the original attributes.
+    val fullVertices = gxVertices.join(original.indexedVertices, LONG_ID).select(col(ID), col(ATTR), col(GX_ATTR))
+    val vertexDF = destructAttributes(fullVertices)
 
-    // Edges
-    // We assume that the edges have attributes and that we do not need to join against the original graph to
-    // recover the attributes.
-    val eRows = graph.edges.map(_.attr)
-    val gxEdges = sqlContext.createDataFrame(eRows, edgeSchema)
-    val edgeDF = destructAttributes(gxEdges)
+    // Edges: some algorithms such as SVD manipulate the edges, so we also need to join and destruct the edges.
+
+    // A dataframe containing the graphx data. If the data has already been packed, we reuse it.
+    val gxEdges = if (isPackedEdge(edgeSchema)) {
+      val eRows = graph.edges.map(_.attr)
+      sqlContext.createDataFrame(eRows, edgeSchema)
+    } else {
+      val eRows = graph.edges.map(_.attr)
+      val df = sqlContext.createDataFrame(eRows, edgeSchema)
+      val extraGxECols = edgeSchema.filterNot(f => f.name == LONG_SRC || f.name == LONG_DST).map(f => col(f.name))
+      val eGxStruct = struct(extraGxECols: _*)
+      val packedEdges = df.select(col(LONG_SRC), col(LONG_DST), eGxStruct.as(GX_ATTR))
+      packedEdges
+    }
+    // Join against the original edge data
+    val fullEdges = {
+      val indexedEdges = original.indexedEdges
+      val gxe = gxEdges.select(col(LONG_SRC).as("GX_LONG_SRC"), col(LONG_DST).as("GX_LONG_DST"), col(GX_ATTR))
+      val join0 = gxe.join(indexedEdges,
+        (gxe("GX_LONG_SRC") === indexedEdges(LONG_SRC)) && (gxe("GX_LONG_DST") === indexedEdges(LONG_DST)) )
+        .select(col(SRC), col(DST), col(GX_ATTR), col(ATTR))
+//      System.err.println("gxe")
+//      gxe.printSchema()
+//      System.err.println("indexedEdges")
+//      indexedEdges.printSchema()
+      System.err.println("join0")
+      join0.printSchema()
+//      val srcJoin = gxEdges.join(indexedEdges, LONG_SRC)
+//      System.err.println("srcJoin")
+//      srcJoin.printSchema()
+//      val srcJoin2 = srcJoin.select(srcJoin(SRC), srcJoin(LONG_DST), srcJoin(DST), srcJoin(GX_ATTR), srcJoin(ATTR))
+//      val join = srcJoin2.join(indexedEdges.select(indexedEdges(LONG_DST)), LONG_DST)
+//        .select(col(SRC), col(DST), col(GX_ATTR), col(ATTR))
+      join0
+    }
+
+    val edgeDF = destructAttributes(fullEdges)
     DFGraph(vertexDF, edgeDF)
+  }
+
+  private def isPackedEdge(s: StructType): Boolean = {
+    val fieldNames = s.map(_.name).sorted
+    System.err.println(s"isPackedEdge: $fieldNames")
+    fieldNames == Seq(GX_ATTR, LONG_DST, LONG_SRC)
   }
 
   /**
@@ -146,17 +198,30 @@ t   *
    */
   @throws[Exception]("if argument names are clashing")
   private def destructAttributes(df: DataFrame): DataFrame = {
+    // It first puts the new graphX attributes, and then the original attributes
+    // (without the ones overwritten by graphx).
     // The mapping (in order) of the original columns to the final, flattened columns.
-    val cols: Seq[(String, StructField)] = df.schema.fields.flatMap {
+    // old name -> new name
+    val graphxCols = df.schema.fields.flatMap {
+      case StructField(name, t: StructType, _, _) if name == GX_ATTR && t.nonEmpty =>
+        t.map { f =>
+          val newName = f.name.stripPrefix(s"$GX_ATTR.")
+          s"$GX_ATTR.${f.name}" -> newName
+        }
+      case _ => None
+    }
+    val origCols: Seq[(String, String)] = df.schema.fields.flatMap {
       case StructField(name, t: StructType, _, _) if name == ATTR && t.nonEmpty =>
         t.map { f =>
-          val newName = f.name.stripPrefix(s"$ATTR.")
-          f.name -> f.copy(name = newName)
+          s"$ATTR.${f.name}" -> f.name.stripPrefix(s"$ATTR.")
         }
-      case f if f.name == LONG_ID || f.name == ORIGINAL_ID => None
-      case f => Some(f.name -> f)
+      case _ => None
     }
-    val selection = cols.map { case (oldName, s) => col(oldName).as(s.name) }
+    val graphxColNames = graphxCols.map { case (oldName, newName) => newName }.toSet
+    val usedOrigCols = origCols.filterNot { case (oldName, newName) => graphxColNames.contains(newName) }
+    val selection = (graphxCols ++ usedOrigCols).map { case (oldName, newName) => col(oldName).as(newName) } .toSeq
+    System.err.println(s"destructAttributes: ${df.schema} -> $selection")
+    df.printSchema()
     df.select(selection: _*)
   }
 

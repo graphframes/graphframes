@@ -47,19 +47,36 @@ object LabelPropagationSuite {
     testSchemaInvariant(after)
     // The IDs, source and destination columns should be of the same type
     // with the same metadata.
-    assert(before.vertices.schema(ID) == after.vertices.schema(ID))
-    assert(before.edges.schema(SRC) == after.edges.schema(SRC))
-    assert(before.edges.schema(DST) == after.edges.schema(DST))
+    for (colName <- Seq(ID)) {
+      val b = before.vertices.schema(colName)
+      val a = after.vertices.schema(colName)
+      // TODO(tjh) check nullability and metadata
+      assert(a.dataType == b.dataType, (a, b))
+    }
+    for (colName <- Seq(SRC, DST)) {
+      val b = before.edges.schema(colName)
+      val a = after.edges.schema(colName)
+      // TODO(tjh) check nullability and metadata
+      assert(a.dataType == b.dataType, (a, b))
+    }
     // All the columns before should be found after (with some extra columns,
     // potentially).
+    val afterVNames = before.vertices.schema.fields.map(_.name)
     for (f <- before.vertices.schema.iterator) {
+
+      if (!afterVNames.contains(f.name)) {
+        throw new Exception(s"vertex error: ${f.name} should be in ${afterVNames.mkString(", ")}")
+      }
+
       assert(before.vertices.schema(f.name) == after.vertices.schema(f.name),
       s"${before.vertices.schema} != ${after.vertices.schema}")
     }
 
     for (f <- before.edges.schema.iterator) {
-      assert(before.edges.schema(f.name) == after.edges.schema(f.name),
-        s"${before.edges.schema} != ${after.edges.schema}")
+      val a = before.edges.schema(f.name)
+      val b = after.edges.schema(f.name)
+      assert(a.dataType == b.dataType,
+        s"${before.edges.schema} not a subset of ${after.edges.schema}")
     }
   }
 }

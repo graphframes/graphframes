@@ -413,13 +413,9 @@ class DFGraph protected (
    * [[vCols]] and [[eCols]], respectively.
    */
   def toGraphX: Graph[Row, Row] = {
-    val integralIDs: Boolean = vertices.schema(ID).dataType match {
-      case _ @ (ByteType | IntegerType | LongType | ShortType) => true
-      case _ => false
-    }
     val vStruct = struct(vCols.map(col): _*)
     val eStruct = struct(eCols.map(col): _*)
-    if (integralIDs) {
+    if (hasIntegralIdType) {
       val vv = vertices.select(col(ID).cast(LongType), vStruct)
         .map { case Row(id: Long, attr: Row) => (id, attr) }
       val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), eStruct)
@@ -427,18 +423,9 @@ class DFGraph protected (
       Graph(vv, ee)
     } else {
       // Compute Long vertex IDs
-      val indexedVertices =
-        vertices.select(monotonicallyIncreasingId().as(LONG_ID), vStruct.as(ATTR))
-      val newIndex = indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ORIGINAL_ID))
-      val vv = indexedVertices.map { case Row(id: Long, attr: Row) => (id, attr) }
-      val indexedSourceEdges = edges.select(col(SRC), col(DST), eStruct.as(ATTR))
-        .join(newIndex).where(edges(SRC) === newIndex(ORIGINAL_ID))
-        .select(newIndex(LONG_ID).as(SRC), col(DST), col(ATTR))
-      val indexedEdges = indexedSourceEdges.select(SRC, DST, ATTR)
-        .join(newIndex).where(edges(DST) === newIndex(ORIGINAL_ID))
-        .select(col(SRC), newIndex(LONG_ID).as(DST), col(ATTR))
-      val ee = indexedEdges.map { case Row(src: Long, dst: Long, attr: Row) =>
-        Edge(src, dst, attr)
+      val vv = indexedVertices.map { case Row(long_id: Long, _, attr: Row) => (long_id, attr) }
+      val ee = indexedEdges.map { case Row(_, long_src: Long, _, long_dst: Long, attr: Row) =>
+        Edge(long_src, long_dst, attr)
       }
       Graph(vv, ee)
     }
@@ -463,14 +450,35 @@ class DFGraph protected (
    * Columns:
    *  - $LONG_ID: the new ID
    *  - $ORIGINAL_ID: the ID provided by the user
-   *  - $ATTR: all the original attributes
+   *  - $ATTR: all the original vertex attributes
    */
-  private[dfgraph] lazy val indexedVertices: Option[DataFrame] = {
-    if (hasIntegralIdType) { None } else {
-      val vStruct = struct(vCols.map(col): _*)
+  private[dfgraph] lazy val indexedVertices: DataFrame = {
+    val vStruct = struct(vCols.map(col): _*)
+    if (hasIntegralIdType) {
+      val indexedVertices = vertices.select(vStruct.as(ATTR))
+      indexedVertices.select(col(ATTR + "." + ID).as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
+    } else {
       val indexedVertices = vertices.select(monotonicallyIncreasingId().as(LONG_ID), vStruct.as(ATTR))
-      Some(indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ORIGINAL_ID), col(ATTR)))
+      indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     }
+  }
+
+  /**
+   * Columns:
+   *  - $SRC
+   *  - $LONG_SRC
+   *  - $DST
+   *  - $LONG_DST
+   *  - $ATTR
+   */
+  private[dfgraph] lazy val indexedEdges: DataFrame = {
+    val eStruct = struct(eCols.map(col): _*)
+    val packedEdges = edges.select(col(SRC), col(DST), eStruct.as(ATTR))
+    val indexedSourceEdges = packedEdges
+      .join(indexedVertices.select(col(LONG_ID).as(LONG_SRC), col(ID).as(SRC)), SRC)
+    val indexedEdges = indexedSourceEdges.select(SRC, LONG_SRC, DST, ATTR)
+      .join(indexedVertices.select(col(LONG_ID).as(LONG_DST), col(ID).as(DST)), DST)
+    indexedEdges
   }
 
   /**
@@ -585,10 +593,15 @@ object DFGraph {
    * The integral id that is used as a surrogate id when using graphX implementation
    */
   private[dfgraph] val LONG_ID: String = "new_id"
+
+  private[dfgraph] val LONG_SRC: String = "new_src"
+  private[dfgraph] val LONG_DST: String = "new_dst"
+  private[dfgraph] val GX_ATTR: String = "graphx_attr"
+
   /**
    * The original id.
    */
-  private[dfgraph] val ORIGINAL_ID: String = "old_id"
+  private val ORIGINAL_ID: String = "old_id"
 
   // ============================ Constructors and converters =================================
 
