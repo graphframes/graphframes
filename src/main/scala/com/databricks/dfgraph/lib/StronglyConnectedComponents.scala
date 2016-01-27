@@ -38,8 +38,8 @@ object StronglyConnectedComponents {
    * @return a graph with vertex attributes containing the smallest vertex id in each SCC
    */
   def run(graph: DFGraph, numIters: Int): DFGraph = {
-    val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedGraphX, numIters)
-    GraphXConversions.fromVertexGraphX(gx, graph, COMPONENT_ID)
+    val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIters)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
   }
 
   private[dfgraph] val COMPONENT_ID = "component"

@@ -24,6 +24,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
 import com.databricks.dfgraph.DFGraph
+import scala.reflect.runtime.universe._
 
 /**
  * Computes shortest paths to the given set of landmark vertices, returning a graph where each
@@ -42,16 +43,12 @@ object ShortestPaths {
    * each reachable landmark vertex.
    */
   // TODO(tjh) the vertexId should be checked with an encoder instead
-  def run(graph: DFGraph, landmarks: Seq[Long]): DFGraph = {
-    val gx = graphxlib.ShortestPaths.run(graph.cachedGraphX, landmarks)
-    val rowGx = gx.mapVertices { case (vid, distances) =>
-        Row(vid, distances)
-    }
-    val s = graph.vertices.schema(DFGraph.ID)
-    val vStruct = StructType(List(
-      s.copy(name = DFGraph.LONG_ID, dataType = LongType),
-      StructField(DISTANCE_ID, MapType(s.dataType, IntegerType))))
-    GraphXConversions.fromRowGraphX(graph, rowGx, graph.edges.schema, vStruct)
+  def run[VertexId: TypeTag](graph: DFGraph, landmarks: Seq[VertexId]): DFGraph = {
+    // TODO(tjh) Ugly cast for now
+    val gx = graphxlib.ShortestPaths.run(
+      graph.cachedTopologyGraphX,
+      landmarks.map(_.asInstanceOf[Long])).mapVertices { case (_, m) => m.toSeq }
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
   }
 
   private val DISTANCE_ID = "distance"

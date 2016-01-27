@@ -51,8 +51,9 @@ private[dfgraph] object GraphXConversions {
     val (emptyVertex: Boolean, productVertex: Boolean) = {
       val t = typeOf[V]
       val b1 = typeOf[Unit] =:= t
-      val b2 = typeOf[Product] =:= t
-      System.err.println(s"Type of vertex is $t: empty = $b1, product = $b2")
+      // See http://stackoverflow.com/questions/21209006/how-to-check-if-reflected-type-represents-a-tuple
+      val b2 = t.typeSymbol.fullName.startsWith("scala.Tuple")
+      System.err.println(s"Type of vertex is $t: ${t.typeSymbol.fullName} empty = $b1, product = $b2")
       (b1, b2)
     }
     val vertexDF: DataFrame = if (emptyVertex) {
@@ -71,10 +72,11 @@ private[dfgraph] object GraphXConversions {
 
 
     val (emptyEdge: Boolean, productEdge: Boolean) = {
-      val t = typeOf[V]
+      val t = typeOf[E]
       val b1 = typeOf[Unit] =:= t
-      val b2 = typeOf[Product] =:= t
-      System.err.println(s"Type of edge is $t: empty = $b1, product = $b2")
+      // See http://stackoverflow.com/questions/21209006/how-to-check-if-reflected-type-represents-a-tuple
+      val b2 = t.typeSymbol.fullName.startsWith("scala.Tuple")
+      System.err.println(s"Type of edge is $t: ${t.typeSymbol.fullName} empty = $b1, product = $b2")
       (b1, b2)
     }
     val edgeDF: DataFrame = if (emptyEdge) {
@@ -102,23 +104,24 @@ private[dfgraph] object GraphXConversions {
   private def renameStructFields(df: DataFrame, structName: String, fieldNames: Seq[String]): DataFrame = {
     System.err.println(s"renameStructFields: df: $structName -> $fieldNames")
     df.printSchema()
-    // It decompacts everything with a prefix, changes the name, and then reassembles the structure.
+    // It decompacts the struct fields into extra columns and prefixes all the other columns to make sure there is no
+    // collision.
     // TODO(tjh) this looses metadata and other info in the process
     val prefix = "RENAME_STRUCT_"
     val cols = df.schema.flatMap {
       case StructField(fname, dt: StructType, nullable, meta) if fname == structName =>
         assert(dt.length == fieldNames.length, (fname, dt, fieldNames, df.schema))
         dt.iterator.toSeq.zip(fieldNames).map { case (sub, n) =>
-          df(s"$fname.${sub.name}").as(prefix + n)
+          df(s"$fname.${sub.name}").as(n)
         }
-      case f => Seq(df(f.name))
+      case f => Seq(df(f.name).as(prefix + f.name))
     }
     val unpacked = df.select(cols: _*)
     System.err.println(s"renameStructFields: unpacked:")
     unpacked.printSchema()
-    val (groupNames, others) = unpacked.schema.map(_.name).partition(_.startsWith(prefix))
-    val str = struct(groupNames.map(n => col(n).as(n.stripPrefix(prefix))): _*)
-    val rest = others.map(col)
+    val (others, groupNames) = unpacked.schema.map(_.name).partition(_.startsWith(prefix))
+    val str = struct(groupNames.map(n => col(n)): _*).as(structName)
+    val rest = others.map(n => col(n).as(n.stripPrefix(prefix)))
     val res = unpacked.select((rest :+ str): _*)
     System.err.println(s"renameStructFields: res:")
     res.printSchema()
@@ -153,6 +156,8 @@ private[dfgraph] object GraphXConversions {
     System.err.println(s"fromGraphX: vertexDF:")
     vertexDF.printSchema()
 
+    System.err.println(s"fromGraphX: indexedEdges:")
+    originalGraph.indexedEdges.printSchema()
     val packedEdges = {
       val indexedEdges = originalGraph.indexedEdges
       // No need to do that for the original attributes, they contain at least the vertex ids.
@@ -160,14 +165,19 @@ private[dfgraph] object GraphXConversions {
       val gxCol = if (hasVertexGx) { Some(col(GX_ATTR)) } else { None }
       val sel1 = Seq(col(LONG_SRC).as("GX_LONG_SRC"), col(LONG_DST).as("GX_LONG_DST")) ++ gxCol.toSeq
       val gxe = gxEdgeData.select(sel1: _*)
-      val sel2 = Seq(col(SRC), col(DST), col(ATTR)) ++ gxCol.toSeq
+      val sel3 = Seq(col(ATTR)) ++ gxCol.toSeq
+      // Drop the src and dst columns from the index, they are already in the attributes and will be unpacked with
+      // the rest of the user columns.
       // TODO(tjh) 2-step join?
-      val join0 = gxe.join(indexedEdges,
-        (gxe("GX_LONG_SRC") === indexedEdges(LONG_SRC)) && (gxe("GX_LONG_DST") === indexedEdges(LONG_DST)) )
-        .select(sel2: _*)
+      val join0 = gxe.join(
+        indexedEdges.select(indexedEdges(LONG_SRC), indexedEdges(LONG_DST), indexedEdges(ATTR)),
+        (gxe("GX_LONG_SRC") === indexedEdges(LONG_SRC)) && (gxe("GX_LONG_DST") === indexedEdges(LONG_DST)))
+        .select(sel3: _*)
       join0
     }
     val edgeDF = unpackStructFields(drop(packedEdges, LONG_SRC, LONG_DST))
+    System.err.println(s"fromGraphX: edgeDF:")
+    edgeDF.printSchema()
 
     DFGraph(vertexDF, edgeDF)
   }

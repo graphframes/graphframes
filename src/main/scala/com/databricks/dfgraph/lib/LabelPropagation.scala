@@ -51,8 +51,8 @@ object LabelPropagation {
    * @return a graph with vertex attributes containing the label of community affiliation.
    */
   def run(graph: DFGraph, maxSteps: Int): DFGraph = {
-    val gx = graphxlib.LabelPropagation.run(graph.cachedGraphX, maxSteps)
-    GraphXConversions.fromVertexGraphX(gx, graph, LABEL_ID)
+    val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxSteps)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID))
   }
 
   private val LABEL_ID = "label"

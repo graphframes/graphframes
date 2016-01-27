@@ -27,8 +27,8 @@ object ConnectedComponents {
    *         connected component
    */
   def run(graph: DFGraph): DFGraph = {
-    val gx = graphxlib.ConnectedComponents.run(graph.cachedGraphX)
-    GraphXConversions.fromVertexGraphX(gx, graph, COMPONENT_ID)
+    val gx = graphxlib.ConnectedComponents.run(graph.cachedTopologyGraphX)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
   }
 
   private val COMPONENT_ID = "component"

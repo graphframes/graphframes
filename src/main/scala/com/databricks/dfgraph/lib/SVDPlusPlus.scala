@@ -48,19 +48,10 @@ object SVDPlusPlus {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
     }
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf.toGraphXConf)
-    val fullGx = gx.mapVertices { case (vid, (v1, v2, s1, s2)) =>
-      Row(vid, v1, v2, s1, s2)
-    } .mapEdges( e => Row(e.srcId, e.dstId, e.attr))
-
-    val vStruct = StructType(List(
-      graph.vertices.schema(DFGraph.ID).copy(name = DFGraph.LONG_ID, dataType = LongType),
-      field1, field2, field3, field4))
-
-    val eStruct = StructType(List(
-      graph.edges.schema(DFGraph.SRC).copy(name = DFGraph.LONG_SRC, dataType = LongType),
-      graph.edges.schema(DFGraph.DST).copy(name = DFGraph.LONG_DST, dataType = LongType),
-      eField1))
-    (GraphXConversions.fromGraphX(graph, fullGx, eStruct, vStruct), res)
+    val dfg = GraphXConversions.fromGraphX(graph, gx,
+      vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4),
+      edgeName = Seq(ECOLUMN1))
+    (dfg, res)
   }
 
   /**

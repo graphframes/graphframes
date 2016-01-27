@@ -25,6 +25,7 @@ import com.databricks.dfgraph.DFGraph
 
 import scala.reflect.ClassTag
 import scala.reflect.classTag
+import scala.reflect.runtime.universe._
 
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank implemented.
@@ -90,14 +91,14 @@ object PageRank {
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
-  def run(
+  def run[VertexId : TypeTag](
       graph: DFGraph,
       numIter: Int,
       resetProb: Double = 0.15,
-      srcId: Option[Long] = None): DFGraph = {
+      srcId: Option[VertexId] = None): DFGraph = {
     // TODO(tjh) use encoder on srcId
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedGraphX, numIter, resetProb, None)
-    buildGraph(gx, graph)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeName = Seq(WEIGHT))
   }
 
   /**
@@ -112,35 +113,20 @@ object PageRank {
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
-  def runUntilConvergence(
+  def runUntilConvergence[VertexId : TypeTag](
       graph: DFGraph,
       tol: Double,
-      resetProb: Double = 0.15, srcId: Option[Long] = None): DFGraph = {
-    // TODO(tjh) figure out the srcId issues
-    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedGraphX, tol, resetProb, None)
-    buildGraph(gx, graph)
+      resetProb: Double = 0.15, srcId: Option[VertexId] = None): DFGraph = {
+    // TODO(tjh) use the same type as the ID in the DFGRaph using a typetag.
+    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, None)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeName = Seq(WEIGHT))
   }
 
-  // Performs the graph conversion.
-  private def buildGraph(gx: Graph[Double, Double], graph: DFGraph): DFGraph = {
-    val fullGx = gx.mapVertices { case (vid, w) =>
-      Row(vid, w)
-    } .mapEdges( e => Row(e.srcId, e.dstId, e.attr))
-    val vStruct = StructType(List(
-      graph.vertices.schema(DFGraph.ID).copy(name = DFGraph.LONG_ID, dataType = LongType),
-      field))
-    val eStruct = StructType(List(
-      graph.edges.schema(DFGraph.SRC),
-      graph.edges.schema(DFGraph.DST),
-      field))
-    GraphXConversions.fromRowGraphX(graph, fullGx, eStruct, vStruct)
-  }
 
   /**
    * Default name for the weight column.
    */
   private val WEIGHT = "weight"
-  private val field = StructField(WEIGHT, DoubleType, nullable = false)
 
   class Builder private[dfgraph] (
       graph: DFGraph) extends Arguments {

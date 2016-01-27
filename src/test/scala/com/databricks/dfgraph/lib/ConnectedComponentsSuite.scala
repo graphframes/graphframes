@@ -25,7 +25,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContex
 
   test("simple toy example") {
     val v = sqlContext.createDataFrame(List(
-      (0L, "a", "b"))).toDF("id", "attr", "gender")
+      (0L, "a", "b"))).toDF("id", "vattr", "gender")
     // Create an empty dataframe with the proper columns.
     val e = sqlContext.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test").filter("src > 10")
     val g = DFGraph(v, e)
@@ -34,10 +34,11 @@ class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContex
     assert(comps.vertices.count() === 1)
     assert(comps.edges.count() === 0)
     // We loose all the attributes for now, due to a limitation of the graphx implementation
-    assert(comps.vertices.collect() === Seq(Row(0L, 0L, "a", "b")))
+    assert(comps.vertices.select("id", "component", "vattr", "gender").collect() === Seq(Row(0L, 0L, "a", "b")))
   }
 
   test("simple connected toy example") {
+    System.err.println("*************************")
     val v = sqlContext.createDataFrame(List(
       (0L, "a0", "b0"),
       (1L, "a1", "b1"))).toDF("id", "A", "B")
