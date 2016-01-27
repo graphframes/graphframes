@@ -1,12 +1,12 @@
 package com.databricks.dfgraph.lib
 
-import com.databricks.dfgraph.DFGraph.nestAsCol
-import com.databricks.dfgraph.DFGraph
-
 import org.apache.spark.Logging
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame, Row, SQLHelpers}
+
+import com.databricks.dfgraph.DFGraph
+import com.databricks.dfgraph.DFGraph.{expr, nestAsCol}
 
 
 /**
@@ -175,6 +175,8 @@ object BFS extends Logging {
       edgeFilter = Some(value)
       this
     }
+
+    def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
 
     def run(): DataFrame = {
       BFS.run(graph, from, to, maxPathLength, edgeFilter)

@@ -276,6 +276,9 @@ class DFGraph protected (
   /** Breadth-first search (BFS) */
   def bfs(from: Column, to: Column): BFS.Builder = new BFS.Builder(this, from, to)
 
+  /** Breadth-first search (BFS) */
+  def bfs(from: String, to: String): BFS.Builder = new BFS.Builder(this, expr(from), expr(to))
+
   // ============================ Conversions ========================================
 
   /**
@@ -567,6 +570,9 @@ object DFGraph {
   private[dfgraph] def nestAsCol(df: DataFrame, name: String): Column = {
     struct(df.columns.map(c => df(c)) :_*).as(name)
   }
+
+  // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
+  private[dfgraph] def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
 }
 
 /**
