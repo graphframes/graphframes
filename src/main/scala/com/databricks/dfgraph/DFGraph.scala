@@ -274,10 +274,11 @@ class DFGraph protected (
   // ======================== Other queries ===================================
 
   /** Breadth-first search (BFS) */
-  def bfs(from: Column, to: Column): BFS.Builder = new BFS.Builder(this, from, to)
+  def bfs(fromExpr: Column, toExpr: Column): BFS.Builder = new BFS.Builder(this, fromExpr, toExpr)
 
   /** Breadth-first search (BFS) */
-  def bfs(from: String, to: String): BFS.Builder = new BFS.Builder(this, expr(from), expr(to))
+  def bfs(fromExpr: String, toExpr: String): BFS.Builder =
+    new BFS.Builder(this, expr(fromExpr), expr(toExpr))
 
   // ============================ Conversions ========================================
 

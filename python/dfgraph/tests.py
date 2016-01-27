@@ -27,7 +27,7 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import SQLContext
+from pyspark.sql import DataFrame, SQLContext
 
 from .dfgraph import DFGraph
 
@@ -67,3 +67,16 @@ class DFGraphTest(DFGraphTestCase):
         motifs = g.find("(a)-[e]->(b)")
         assert motifs.count() == 3
         assert sorted(motifs.columns) == ["a", "e", "b"]
+
+    def test_bfs(self):
+        g = self.g
+        paths = g.bfs("name='A'", "name='C'")
+        assert isinstance(paths, DataFrame)
+        assert paths.count() == 1
+        assert paths.select("e0").head().dst == 'B'
+        paths = g.bfs("name='A'", "name='C'", maxPathLength=1)
+        assert paths.count() == 0
+        paths = g.bfs("name='A'", "name='C'", edgeFilter="action!='follow'")
+        assert paths.count() == 0
+        paths = g.bfs("name='A'", "name='C'", edgeFilter="action!='hate'")
+        assert paths.count() == 1

@@ -159,7 +159,8 @@ object BFS extends Logging {
     }
   }
 
-  class Builder private[dfgraph] (graph: DFGraph, from: Column, to: Column) extends Arguments {
+  class Builder private[dfgraph] (graph: DFGraph, fromExpr: Column, toExpr: Column)
+    extends Arguments {
 
     private var maxPathLength: Int = 10
 
@@ -179,7 +180,7 @@ object BFS extends Logging {
     def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
 
     def run(): DataFrame = {
-      BFS.run(graph, from, to, maxPathLength, edgeFilter)
+      BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)
     }
   }
 }
