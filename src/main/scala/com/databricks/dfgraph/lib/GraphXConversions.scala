@@ -23,7 +23,6 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{LongType, Metadata, StructField, StructType}
 import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext}
 
-import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 /**
  * Convenience functions to map graphX graphs to DFGraphs, checking for the types expected by GraphX.
@@ -32,6 +31,16 @@ private[dfgraph] object GraphXConversions {
 
   import DFGraph._
 
+  /**
+   * Takes a graphx structure and merges it with the corresponding subset of a graph.
+   * @param originalGraph
+   * @param graph
+   * @param vertexNames
+   * @param edgeName
+   * @tparam V the type of the vertex data
+   * @tparam E the type of the edge data
+   * @return
+   */
   def fromGraphX[V : TypeTag, E : TypeTag](
       originalGraph: DFGraph,
       graph: Graph[V, E],
@@ -61,17 +70,22 @@ private[dfgraph] object GraphXConversions {
     }
 
 
-    val emptyEdge: Boolean = {
-      val t = typeOf[E]
-      val b = typeOf[Unit] =:= t
-      System.err.println(s"Type of edge is $b $t")
-      b
+    val (emptyEdge: Boolean, productEdge: Boolean) = {
+      val t = typeOf[V]
+      val b1 = typeOf[Unit] =:= t
+      val b2 = typeOf[Product] =:= t
+      System.err.println(s"Type of edge is $t: empty = $b1, product = $b2")
+      (b1, b2)
     }
     val edgeDF: DataFrame = if (emptyEdge) {
       val edgeData = graph.edges.map { e => (e.srcId, e.dstId) }
       sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST)
-    } else {
+    } else if (productEdge) {
       val edgeData = graph.edges.map { e => (e.srcId, e.dstId, e.attr) }
+      val edgeDF0 = sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST, GX_ATTR)
+      renameStructFields(edgeDF0, GX_ATTR, edgeName)
+    } else {
+      val edgeData = graph.edges.map { e => (e.srcId, e.dstId, Tuple1(e.attr)) }
       val edgeDF0 = sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST, GX_ATTR)
       renameStructFields(edgeDF0, GX_ATTR, edgeName)
     }
