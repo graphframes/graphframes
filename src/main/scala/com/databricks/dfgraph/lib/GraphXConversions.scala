@@ -21,14 +21,142 @@ import com.databricks.dfgraph.DFGraph
 import org.apache.spark.graphx.{Graph, VertexId}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{LongType, Metadata, StructField, StructType}
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext}
 
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 /**
  * Convenience functions to map graphX graphs to DFGraphs, checking for the types expected by GraphX.
  */
 private[dfgraph] object GraphXConversions {
 
   import DFGraph._
+
+  def fromGraphX[V : TypeTag, E : TypeTag](
+      originalGraph: DFGraph,
+      graph: Graph[V, E],
+      vertexNames: Seq[String] = Nil,
+      edgeName: Seq[String] = Nil): DFGraph = {
+    val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
+    // catalyst does not like the unit type, make sure to filter it first.
+    val (emptyVertex: Boolean, productVertex: Boolean) = {
+      val t = typeOf[V]
+      val b1 = typeOf[Unit] =:= t
+      val b2 = typeOf[Product] =:= t
+      System.err.println(s"Type of vertex is $t: empty = $b1, product = $b2")
+      (b1, b2)
+    }
+    val vertexDF: DataFrame = if (emptyVertex) {
+      val vertexData = graph.vertices.map { case (vid, data) => Tuple1(vid) }
+      sqlContext.createDataFrame(vertexData).toDF(LONG_ID)
+    } else if (productVertex) {
+      val vertexData = graph.vertices.map { case (vid, data) => (vid, data) }
+      val vertexDF0 = sqlContext.createDataFrame(vertexData).toDF(LONG_ID, GX_ATTR)
+      renameStructFields(vertexDF0, GX_ATTR, vertexNames)
+    } else {
+      // Assume it is just one field, and pack it in a tuple to have a structure.
+      val vertexData = graph.vertices.map { case (vid, data) =>  (vid, Tuple1(data)) }
+      val vertexDF0 = sqlContext.createDataFrame(vertexData).toDF(LONG_ID, GX_ATTR)
+      renameStructFields(vertexDF0, GX_ATTR, vertexNames)
+    }
+
+
+    val emptyEdge: Boolean = {
+      val t = typeOf[E]
+      val b = typeOf[Unit] =:= t
+      System.err.println(s"Type of edge is $b $t")
+      b
+    }
+    val edgeDF: DataFrame = if (emptyEdge) {
+      val edgeData = graph.edges.map { e => (e.srcId, e.dstId) }
+      sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST)
+    } else {
+      val edgeData = graph.edges.map { e => (e.srcId, e.dstId, e.attr) }
+      val edgeDF0 = sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST, GX_ATTR)
+      renameStructFields(edgeDF0, GX_ATTR, edgeName)
+    }
+    fromGraphX(originalGraph, vertexDF, edgeDF)
+  }
+
+  /**
+   * Given the name of a column (assumed to contain a struct), renames all the fields of this struct.
+   * @param df
+   * @param structName
+   * @param fieldNames
+   * @return
+   */
+  private def renameStructFields(df: DataFrame, structName: String, fieldNames: Seq[String]): DataFrame = {
+    System.err.println(s"renameStructFields: df: $structName -> $fieldNames")
+    df.printSchema()
+    // It decompacts everything with a prefix, changes the name, and then reassembles the structure.
+    // TODO(tjh) this looses metadata and other info in the process
+    val prefix = "RENAME_STRUCT_"
+    val cols = df.schema.flatMap {
+      case StructField(fname, dt: StructType, nullable, meta) if fname == structName =>
+        assert(dt.length == fieldNames.length, (fname, dt, fieldNames, df.schema))
+        dt.iterator.toSeq.zip(fieldNames).map { case (sub, n) =>
+          df(s"$fname.${sub.name}").as(prefix + n)
+        }
+      case f => Seq(df(f.name))
+    }
+    val unpacked = df.select(cols: _*)
+    System.err.println(s"renameStructFields: unpacked:")
+    unpacked.printSchema()
+    val (groupNames, others) = unpacked.schema.map(_.name).partition(_.startsWith(prefix))
+    val str = struct(groupNames.map(n => col(n).as(n.stripPrefix(prefix))): _*)
+    val rest = others.map(col)
+    val res = unpacked.select((rest :+ str): _*)
+    System.err.println(s"renameStructFields: res:")
+    res.printSchema()
+    res
+  }
+
+  private def drop(df: DataFrame, cols: String*): DataFrame = {
+    val remainingCols = df.schema.map(_.name).filterNot(cols.contains).map(n => df(n))
+    df.select(remainingCols: _*)
+  }
+
+
+  private def unpackStructFields(df: DataFrame): DataFrame = {
+
+    val cols = df.schema.flatMap {
+      case StructField(fname, dt: StructType, nullable, meta) =>
+        dt.iterator.map(sub => col(s"$fname.${sub.name}").as(sub.name.stripPrefix(fname)))
+      case f => Seq(col(f.name))
+    }
+    df.select(cols: _*)
+  }
+
+  // Joins all the data from the original columns against the new data. Assumes the columns are not going to conflict.
+  def fromGraphX(originalGraph: DFGraph, gxVertexData: DataFrame, gxEdgeData: DataFrame): DFGraph = {
+    System.err.println(s"fromGraphX: gxVertexData:")
+    gxVertexData.printSchema()
+    System.err.println(s"fromGraphX: indexedVertices:")
+    originalGraph.indexedVertices.printSchema()
+    // The ID is going to be unpacked from the attr field
+    val packedVertices = drop(originalGraph.indexedVertices, ID).join(gxVertexData, LONG_ID)
+    val vertexDF = unpackStructFields(drop(packedVertices, LONG_ID))
+    System.err.println(s"fromGraphX: vertexDF:")
+    vertexDF.printSchema()
+
+    val packedEdges = {
+      val indexedEdges = originalGraph.indexedEdges
+      // No need to do that for the original attributes, they contain at least the vertex ids.
+      val hasVertexGx = gxEdgeData.schema.exists(_.name == GX_ATTR)
+      val gxCol = if (hasVertexGx) { Some(col(GX_ATTR)) } else { None }
+      val sel1 = Seq(col(LONG_SRC).as("GX_LONG_SRC"), col(LONG_DST).as("GX_LONG_DST")) ++ gxCol.toSeq
+      val gxe = gxEdgeData.select(sel1: _*)
+      val sel2 = Seq(col(SRC), col(DST), col(ATTR)) ++ gxCol.toSeq
+      // TODO(tjh) 2-step join?
+      val join0 = gxe.join(indexedEdges,
+        (gxe("GX_LONG_SRC") === indexedEdges(LONG_SRC)) && (gxe("GX_LONG_DST") === indexedEdges(LONG_DST)) )
+        .select(sel2: _*)
+      join0
+    }
+    val edgeDF = unpackStructFields(drop(packedEdges, LONG_SRC, LONG_DST))
+
+    DFGraph(vertexDF, edgeDF)
+  }
 
   /**
    * Takes a graph built through some graphX algorithm by transforming 'originalGraph',

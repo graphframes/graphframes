@@ -92,9 +92,17 @@ class DFGraph protected (
   }
 
   /**
-   * A cached conversion of this graph to the GraphX structure (using data represented in the SQL row format).
+   * A cached conversion of this graph to the GraphX structure. All the data is stripped away.
    */
-  @transient lazy private[dfgraph] val cachedGraphX: Graph[Row, Row] = toGraphX
+  @transient lazy private[dfgraph] val cachedTopologyGraphX: Graph[Unit, Unit] = {
+    toGraphX.mapVertices((_, _) => ()).mapEdges(e => ())
+  }
+
+  /**
+   * A cached conversion of this graph to the GraphX structure, with the data stored for each edge and vertex.
+   */
+  // TODO(tjh) private
+  @transient lazy val cachedGraphX: Graph[Row, Row] = { toGraphX }
 
   // ============================ Motif finding ========================================
 

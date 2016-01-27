@@ -54,16 +54,18 @@ object TriangleCount {
    * @return
    */
   def run(graph: DFGraph): DFGraph = {
-    val gx = graphxlib.TriangleCount.run(graph.cachedGraphX)
-      .mapVertices { case (vid, vlabel) =>
-        Row(vid, vlabel)
-      }
-
-    val s = graph.vertices.schema(DFGraph.ID)
-    val vStruct = StructType(List(
-      s.copy(name = DFGraph.LONG_ID),
-      StructField(COUNT_ID, IntegerType, nullable = false)))
-    GraphXConversions.fromRowGraphX(graph, gx, graph.edges.schema, vStruct)
+    val gx = graphxlib.TriangleCount.run(graph.cachedTopologyGraphX)
+    GraphXConversions.fromGraphX(graph, gx, Seq(COUNT_ID), Nil)
+//
+//      .mapVertices { case (vid, vlabel) =>
+//        Row(vid, vlabel)
+//      }
+//
+//    val s = graph.vertices.schema(DFGraph.ID)
+//    val vStruct = StructType(List(
+//      s.copy(name = DFGraph.LONG_ID),
+//      StructField(COUNT_ID, IntegerType, nullable = false)))
+//    GraphXConversions.fromRowGraphX(graph, gx, graph.edges.schema, vStruct)
   }
 
   private val COUNT_ID = "count"
