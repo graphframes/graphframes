@@ -54,12 +54,12 @@ class BFSSuite extends SparkFunSuite with DFGraphTestSparkContext {
     )).toDF("id", "gender")
     e = sqlContext.createDataFrame(List(
       ("a", "b", "friend"),
-      ("b", "c", "friend"),
-      ("c", "b", "friend"),
+      ("b", "c", "follow"),
+      ("c", "b", "follow"),
       ("f", "c", "follow"),
       ("e", "f", "follow"),
       ("e", "d", "friend"),
-      ("d", "a", "follow"),
+      ("d", "a", "friend"),
       ("f", "f", "self")
     )).toDF("src", "dst", "relationship")
     g = DFGraph(v, e)
@@ -131,5 +131,19 @@ class BFSSuite extends SparkFunSuite with DFGraphTestSparkContext {
     assert(paths.count() === 2)
     val paths0 = g.bfs(col("id") === "e", col("id") === "b").setMaxPathLength(2).run()
     assert(paths0.count() === 0)
+  }
+
+  test("edge filter") {
+    val paths1 = g.bfs(col("id") === "e", col("id") === "b").setEdgeFilter(col("src") !== "d").run()
+    assert(paths1.count() === 1)
+    paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
+      assert(id === "f")
+    }
+    val paths2 = g.bfs(col("id") === "e", col("id") === "b")
+      .setEdgeFilter(col("relationship") === "friend").run()
+    assert(paths2.count() === 1)
+    paths2.select("e0.dst").collect().foreach { case Row(id: String) =>
+      assert(id === "d")
+    }
   }
 }

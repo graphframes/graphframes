@@ -48,20 +48,29 @@ object BFS extends Logging {
    * the "from" and "to" columns will be exactly the same.  There will be one row for each vertex
    * in [[DFGraph.vertices]] matching both `fromExpr` and `toExpr`.
    *
-   * @param fromExpr  Spark SQL expression specifying valid starting vertices for the BFS.
+   * @param from  Spark SQL expression specifying valid starting vertices for the BFS.
    *                  This condition will be matched against each vertex's id or attributes.
    *                  To start from a specific vertex, this could be "id = [start vertex id]".
    *                  To start from multiple valid vertices, this can operate on vertex attributes.
-   * @param toExpr  Spark SQL expression specifying valid target vertices for the BFS.
+   * @param to  Spark SQL expression specifying valid target vertices for the BFS.
    *                This condition will be matched against each vertex's id or attributes.
    * @param maxPathLength  Limit on the length of paths.  If no valid paths of length
    *                       <= maxPathLength are found, then the BFS is terminated.
    *                       (default = 10)
+   * @param edgeFilter  Spark SQL expression specifying edges which may be used in the search.
+   *                    This allows the user to disallow crossing certain edges.  Such filters
+   *                    can be applied post-hoc after BFS, run specifying the filter here is more
+   *                    efficient.
    * @return  DataFrame of valid shortest paths found in the BFS
    */
-  def run(g: DFGraph, fromExpr: Column, toExpr: Column, maxPathLength: Int): DataFrame = {
-    val fromDF = g.vertices.filter(fromExpr)
-    val toDF = g.vertices.filter(toExpr)
+  private[dfgraph] def run(
+      g: DFGraph,
+      from: Column,
+      to: Column,
+      maxPathLength: Int,
+      edgeFilter: Option[Column]): DataFrame = {
+    val fromDF = g.vertices.filter(from)
+    val toDF = g.vertices.filter(to)
     if (fromDF.take(1).length == 0 || toDF.take(1).length == 0) {
       // Return empty DataFrame
       return g.sqlContext.createDataFrame(
@@ -69,7 +78,7 @@ object BFS extends Logging {
         g.vertices.schema)
     }
 
-    val fromEqualsToDF = fromDF.filter(toExpr)
+    val fromEqualsToDF = fromDF.filter(to)
     if (fromEqualsToDF.take(1).length > 0) {
       // from == to, so return matching vertices
       return fromEqualsToDF.select(
@@ -79,10 +88,21 @@ object BFS extends Logging {
     // We handled edge cases above, so now we do BFS.
 
     // Edges a->b, to be reused for each iteration
-    val a2b = g.find("(a)-[e]->(b)")
+    val a2b = {
+      val a2b = g.find("(a)-[e]->(b)")
+      edgeFilter match {
+        case Some(ef) =>
+          val efExpr = new Column(SQLHelpers.getExpr(ef) transform {
+            case UnresolvedAttribute(nameParts) => UnresolvedAttribute("e" +: nameParts)
+          })
+          a2b.filter(efExpr)
+        case None =>
+          a2b
+      }
+    }
 
     // We will always apply fromExpr to column "a"
-    val fromAExpr = new Column(SQLHelpers.getExpr(fromExpr) transform {
+    val fromAExpr = new Column(SQLHelpers.getExpr(from) transform {
       case UnresolvedAttribute(nameParts) => UnresolvedAttribute("a" +: nameParts)
     })
 
@@ -116,7 +136,7 @@ object BFS extends Logging {
         paths = paths.filter(previousVertexChecks)
       }
       // Check if done by applying toExpr to column nextVertex
-      val toVExpr = new Column(SQLHelpers.getExpr(toExpr) transform {
+      val toVExpr = new Column(SQLHelpers.getExpr(to) transform {
         case UnresolvedAttribute(nameParts) => UnresolvedAttribute(nextVertex +: nameParts)
       })
       val foundPathDF = paths.filter(toVExpr)
@@ -149,8 +169,15 @@ object BFS extends Logging {
       this
     }
 
+    private var edgeFilter: Option[Column] = None
+
+    def setEdgeFilter(value: Column): this.type = {
+      edgeFilter = Some(value)
+      this
+    }
+
     def run(): DataFrame = {
-      BFS.run(graph, from, to, maxPathLength)
+      BFS.run(graph, from, to, maxPathLength, edgeFilter)
     }
   }
 }
