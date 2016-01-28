@@ -126,7 +126,7 @@ private[dfgraph] object GraphXConversions {
     val cols = df.schema.flatMap {
       case StructField(fname, dt: StructType, nullable, meta) =>
         // TODO: Do we need stripPrefix here?
-        dt.iterator.map(sub => col(s"$fname.${sub.name}").as(sub.name.stripPrefix(fname)))
+        dt.iterator.map(sub => col(s"$fname.${sub.name}").as(sub.name))
       case f => Seq(col(f.name))
     }
     df.select(cols: _*)
@@ -156,8 +156,8 @@ private[dfgraph] object GraphXConversions {
       val sel1 = Seq(col(LONG_SRC), col(LONG_DST)) ++ gxCol
       val gxe = gxEdgeData.select(sel1: _*)
       val sel3 = Seq(col(ATTR)) ++ gxCol
-      // Drop the src and dst columns from the index, they are already in the attributes
-      // and will be unpacked with the rest of the user columns.
+      // TODO: CHECK IN UNIT TESTS: Drop the src and dst columns from the index, they are already
+      // in the attributes and will be unpacked with the rest of the user columns.
       // TODO(tjh) 2-step join?
       gxe.join(
         indexedEdges.select(indexedEdges(LONG_SRC), indexedEdges(LONG_DST), indexedEdges(ATTR)),
