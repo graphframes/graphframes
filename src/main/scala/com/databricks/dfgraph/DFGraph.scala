@@ -57,7 +57,7 @@ class DFGraph protected (
     s"Destination vertex ID column '$DST' missing from edge DataFrame, which has columns: "
       + edges.columns.mkString(","))
 
-  private def sqlContext: SQLContext = vertices.sqlContext
+  private[dfgraph] def sqlContext: SQLContext = vertices.sqlContext
 
   /** Default constructor is provided to support serialization */
   protected def this() = this(null, null)
@@ -95,7 +95,7 @@ class DFGraph protected (
    * A cached conversion of this graph to the GraphX structure. All the data is stripped away.
    */
   @transient lazy private[dfgraph] val cachedTopologyGraphX: Graph[Unit, Unit] = {
-    toGraphX.mapVertices((_, _) => ()).mapEdges(e => ())
+    cachedGraphX.mapVertices((_, _) => ()).mapEdges(e => ())
   }
 
   /**
@@ -109,7 +109,8 @@ class DFGraph protected (
   /**
    * Motif finding.
    * TODO: Describe possible motifs.
-   * @param pattern  Pattern specifying a motif to search for.
+    *
+    * @param pattern  Pattern specifying a motif to search for.
    * @return  [[DataFrame]] containing all instances of the motif.
    *          TODO: Describe column naming patterns.
    */
@@ -182,7 +183,8 @@ class DFGraph protected (
 
   /**
    * Augment the given DataFrame based on a pattern.
-   * @param prevPatterns  Patterns which have contributed to the given DataFrame
+    *
+    * @param prevPatterns  Patterns which have contributed to the given DataFrame
    * @param prev  Given DataFrame
    * @param pattern  Pattern to search for
    * @return  DataFrame augmented with the current search pattern
@@ -510,8 +512,7 @@ class DFGraph protected (
    * destined to the same vertex.
    *
    * @tparam A the type of message to be sent to each vertex
-   *
-   * @param sendMsg runs on each edge, sending messages to neighboring vertices using the
+    * @param sendMsg runs on each edge, sending messages to neighboring vertices using the
    *   [[EdgeContext]].
    *   The first iterable collection is the collection of messages sent to the SOURCE.
    *   The second iterable collection is the collection of messages sent to the DESTINATION.
@@ -519,8 +520,7 @@ class DFGraph protected (
    *   combiner should be commutative and associative.
    * @param selectedFields which fields should be included in the [[EdgeContext]] passed to the
    *   `sendMsg` function. If not all fields are needed, specifying this can improve performance.
-   *
-   * @example We can use this function to compute the in-degree of each
+    * @example We can use this function to compute the in-degree of each
    * vertex
    * {{{
    * val rawGraph: Graph[_, _] = Graph.textFile("twittergraph")
@@ -596,7 +596,8 @@ object DFGraph {
 
   /**
    * Create a new [[DFGraph]] from vertex and edge [[DataFrame]]s.
-   * @param v  Vertex DataFrame.  This must include a column "id" containing unique vertex IDs.
+    *
+    * @param v  Vertex DataFrame.  This must include a column "id" containing unique vertex IDs.
    *           All other columns are treated as vertex attributes.
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
@@ -677,16 +678,16 @@ object DFGraph {
   }
   */
 
-//  /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
-//  private def colStar(df: DataFrame, col: String): Seq[String] = {
-//    df.schema(col).dataType match {
-//      case s: StructType =>
-//        s.fieldNames.map(f => col + "." + f)
-//      case other =>
-//        throw new RuntimeException(s"Unknown error in DFGraph. Expected column $col to be" +
-//          s" StructType, but found type: $other")
-//    }
-//  }
+  /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
+ private[dfgraph] def colStar(df: DataFrame, col: String): Seq[String] = {
+    df.schema(col).dataType match {
+      case s: StructType =>
+        s.fieldNames.map(f => col + "." + f)
+      case other =>
+        throw new RuntimeException(s"Unknown error in DFGraph. Expected column $col to be" +
+          s" StructType, but found type: $other")
+    }
+  }
 
   /** Nest all columns within a single StructType column with the given name */
   private def nestAsCol(df: DataFrame, name: String): Column = {
