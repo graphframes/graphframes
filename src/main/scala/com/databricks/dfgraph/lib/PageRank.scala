@@ -17,15 +17,11 @@
 
 package com.databricks.dfgraph.lib
 
-import org.apache.spark.graphx.{lib => graphxlib, Graph}
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{LongType, StructField, DoubleType, StructType}
+import scala.reflect.runtime.universe._
+
+import org.apache.spark.graphx.{lib => graphxlib}
 
 import com.databricks.dfgraph.DFGraph
-
-import scala.reflect.ClassTag
-import scala.reflect.classTag
-import scala.reflect.runtime.universe._
 
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank implemented.
@@ -96,8 +92,7 @@ object PageRank {
       numIter: Int,
       resetProb: Double = 0.15,
       srcId: Option[VertexId] = None): DFGraph = {
-    // TODO(tjh) use encoder on srcId
-    val gx = graphxlib.PageRank.runWithOptions(graph.cachedGraphX, numIter, resetProb, None)
+    val gx = graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, None)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeName = Seq(WEIGHT))
   }
 
@@ -117,7 +112,6 @@ object PageRank {
       graph: DFGraph,
       tol: Double,
       resetProb: Double = 0.15, srcId: Option[VertexId] = None): DFGraph = {
-    // TODO(tjh) use the same type as the ID in the DFGRaph using a typetag.
     val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, None)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeName = Seq(WEIGHT))
   }
@@ -136,9 +130,11 @@ object PageRank {
     private var numIters: Option[Int] = None
     private var srcId: Option[Long] = None
 
-    def setSourceId[A : ClassTag](srcId_ : A): this.type = {
-      val ct = implicitly[ClassTag[A]]
-      require(ct == classTag[Long], "Only long are supported for now")
+    def setSourceId[VertexId : TypeTag](srcId_ : VertexId): this.type = {
+      // TODO(tjh) This should to the conversion to the Long id.
+
+      val t = typeOf[VertexId]
+      require(typeOf[Long] =:= t, s"Only long are supported for now, type was ${t}")
       srcId = Some(srcId_.asInstanceOf[Long])
       this
     }

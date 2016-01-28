@@ -18,8 +18,6 @@
 package com.databricks.dfgraph.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 
 import com.databricks.dfgraph.DFGraph
 

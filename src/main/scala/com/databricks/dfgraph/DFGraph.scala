@@ -101,8 +101,7 @@ class DFGraph protected (
   /**
    * A cached conversion of this graph to the GraphX structure, with the data stored for each edge and vertex.
    */
-  // TODO(tjh) private
-  @transient lazy val cachedGraphX: Graph[Row, Row] = { toGraphX }
+  @transient private lazy val cachedGraphX: Graph[Row, Row] = { toGraphX }
 
   // ============================ Motif finding ========================================
 

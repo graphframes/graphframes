@@ -138,7 +138,7 @@ class DFGraphSuite extends SparkFunSuite with DFGraphTestSparkContext {
     }
   }
 
-  test("convert to GraphX: String IDs") {
+  ignore("convert to GraphX: String IDs") {
     try {
       val vv = vertices.select(col("id").cast(StringType).as("id"), col("name"))
       val ee = edges.select(col("src").cast(StringType).as("src"),

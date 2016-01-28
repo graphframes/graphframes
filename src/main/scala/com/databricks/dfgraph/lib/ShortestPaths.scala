@@ -18,13 +18,11 @@
 package com.databricks.dfgraph.lib
 
 import scala.reflect._
+import scala.reflect.runtime.universe._
 
 import org.apache.spark.graphx.{lib => graphxlib}
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types._
 
 import com.databricks.dfgraph.DFGraph
-import scala.reflect.runtime.universe._
 
 /**
  * Computes shortest paths to the given set of landmark vertices, returning a graph where each
@@ -42,9 +40,10 @@ object ShortestPaths {
    * @return a graph where each vertex attribute is a map containing the shortest-path distance to
    * each reachable landmark vertex.
    */
-  // TODO(tjh) the vertexId should be checked with an encoder instead
   def run[VertexId: TypeTag](graph: DFGraph, landmarks: Seq[VertexId]): DFGraph = {
     // TODO(tjh) Ugly cast for now
+    val t = typeOf[VertexId]
+    require(typeOf[Long] =:= t, s"Only long are supported for now, type was ${t}")
     val gx = graphxlib.ShortestPaths.run(
       graph.cachedTopologyGraphX,
       landmarks.map(_.asInstanceOf[Long])).mapVertices { case (_, m) => m.toSeq }
