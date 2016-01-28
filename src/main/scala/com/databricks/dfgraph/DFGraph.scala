@@ -414,12 +414,10 @@ class DFGraph protected (
    * [[vCols]] and [[eCols]], respectively.
    */
   def toGraphX: Graph[Row, Row] = {
-    val vStruct = struct(vCols.map(col): _*)
-    val eStruct = struct(eCols.map(col): _*)
     if (hasIntegralIdType) {
-      val vv = vertices.select(col(ID).cast(LongType), vStruct)
+      val vv = vertices.select(col(ID).cast(LongType), nestAsCol(vertices, ATTR))
         .map { case Row(id: Long, attr: Row) => (id, attr) }
-      val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), eStruct)
+      val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), nestAsCol(edges, ATTR))
         .map { case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr) }
       Graph(vv, ee)
     } else {
@@ -454,12 +452,11 @@ class DFGraph protected (
    *  - $ATTR: all the original vertex attributes
    */
   private[dfgraph] lazy val indexedVertices: DataFrame = {
-    val vStruct = struct(vCols.map(col): _*)
     if (hasIntegralIdType) {
-      val indexedVertices = vertices.select(vStruct.as(ATTR))
+      val indexedVertices = vertices.select(nestAsCol(vertices, ATTR))
       indexedVertices.select(col(ATTR + "." + ID).as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     } else {
-      val indexedVertices = vertices.select(monotonicallyIncreasingId().as(LONG_ID), vStruct.as(ATTR))
+      val indexedVertices = vertices.select(monotonicallyIncreasingId().as(LONG_ID), nestAsCol(vertices, ATTR))
       indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     }
   }
@@ -473,8 +470,7 @@ class DFGraph protected (
    *  - $ATTR
    */
   private[dfgraph] lazy val indexedEdges: DataFrame = {
-    val eStruct = struct(eCols.map(col): _*)
-    val packedEdges = edges.select(col(SRC), col(DST), eStruct.as(ATTR))
+    val packedEdges = edges.select(col(SRC), col(DST), nestAsCol(edges, ATTR))
     val indexedSourceEdges = packedEdges
       .join(indexedVertices.select(col(LONG_ID).as(LONG_SRC), col(ID).as(SRC)), SRC)
     val indexedEdges = indexedSourceEdges.select(SRC, LONG_SRC, DST, ATTR)
@@ -547,16 +543,13 @@ class DFGraph protected (
       dst.foreach(ec.sendToDst)
     }
     val gx: RDD[(Long, A)] = cachedGraphX.aggregateMessages(send, aggregate, selectedFields)
-    val df = sqlContext.createDataFrame(gx)
-    dotStar(df)
+    val df = sqlContext.createDataFrame(gx).toDF(ID, ATTR)
+    df
   }
-
-  // TODO(tjh) depends on Joseph's implementation here.
-  private def dotStar(df: DataFrame): DataFrame = ???
 
   // **** Standard library ****
 
-  def connectedComponents(): DFGraph = ConnectedComponents.run(this)
+  def connectedComponents(): ConnectedComponents.Builder = new ConnectedComponents.Builder(this)
 
   def labelPropagation(): LabelPropagation.Builder = new LabelPropagation.Builder(this)
 
@@ -568,7 +561,7 @@ class DFGraph protected (
 
   def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
 
-  def triangleCount(): DFGraph = TriangleCount.run(this)
+  def triangleCount(): TriangleCount.Builder = new TriangleCount.Builder(this)
 
   // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
   private def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
@@ -684,18 +677,16 @@ object DFGraph {
   }
   */
 
-  /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
-  /*
-  private def colStar(df: DataFrame, col: String): Seq[String] = {
-    df.schema(col).dataType match {
-      case s: StructType =>
-        s.fieldNames.map(f => col + "." + f)
-      case other =>
-        throw new RuntimeException(s"Unknown error in DFGraph. Expected column $col to be" +
-          s" StructType, but found type: $other")
-    }
-  }
-  */
+//  /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
+//  private def colStar(df: DataFrame, col: String): Seq[String] = {
+//    df.schema(col).dataType match {
+//      case s: StructType =>
+//        s.fieldNames.map(f => col + "." + f)
+//      case other =>
+//        throw new RuntimeException(s"Unknown error in DFGraph. Expected column $col to be" +
+//          s" StructType, but found type: $other")
+//    }
+//  }
 
   /** Nest all columns within a single StructType column with the given name */
   private def nestAsCol(df: DataFrame, name: String): Column = {

@@ -57,4 +57,12 @@ object TriangleCount {
   }
 
   private val COUNT_ID = "count"
+
+  class Builder private[dfgraph] (graph: DFGraph) extends Arguments {
+
+    def run(): DFGraph = {
+      TriangleCount.run(graph)
+    }
+  }
+
 }

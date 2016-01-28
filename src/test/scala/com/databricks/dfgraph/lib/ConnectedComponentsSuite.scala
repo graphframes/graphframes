@@ -38,7 +38,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with DFGraphTestSparkContex
   }
 
   test("simple connected toy example") {
-    System.err.println("*************************")
     val v = sqlContext.createDataFrame(List(
       (0L, "a0", "b0"),
       (1L, "a1", "b1"))).toDF("id", "A", "B")

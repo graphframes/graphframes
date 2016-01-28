@@ -32,4 +32,12 @@ object ConnectedComponents {
   }
 
   private val COMPONENT_ID = "component"
+
+  class Builder private[dfgraph] (graph: DFGraph) extends Arguments {
+
+    def run(): DFGraph = {
+      ConnectedComponents.run(graph)
+    }
+  }
+
 }
