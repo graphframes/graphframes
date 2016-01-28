@@ -424,8 +424,8 @@ class DFGraph protected (
       Graph(vv, ee)
     } else {
       // Compute Long vertex IDs
-      val vv = indexedVertices.map { case Row(long_id: Long, _, attr: Row) => (long_id, attr) }
-      val ee = indexedEdges.map { case Row(_, long_src: Long, _, long_dst: Long, attr: Row) =>
+      val vv = indexedVertices.select(LONG_ID, ATTR).map { case Row(long_id: Long, attr: Row) => (long_id, attr) }
+      val ee = indexedEdges.select(LONG_SRC, LONG_DST, ATTR).map { case Row(long_src: Long, long_dst: Long, attr: Row) =>
         Edge(long_src, long_dst, attr)
       }
       Graph(vv, ee)
@@ -479,7 +479,7 @@ class DFGraph protected (
       .join(indexedVertices.select(col(LONG_ID).as(LONG_SRC), col(ID).as(SRC)), SRC)
     val indexedEdges = indexedSourceEdges.select(SRC, LONG_SRC, DST, ATTR)
       .join(indexedVertices.select(col(LONG_ID).as(LONG_DST), col(ID).as(DST)), DST)
-    indexedEdges
+    indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
   }
 
   /**
@@ -568,7 +568,7 @@ class DFGraph protected (
 
   def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
 
-  def triangleCounts(): DFGraph = TriangleCount.run(this)
+  def triangleCount(): DFGraph = TriangleCount.run(this)
 
   // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
   private def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
@@ -599,11 +599,6 @@ object DFGraph {
   private[dfgraph] val LONG_DST: String = "new_dst"
   private[dfgraph] val GX_ATTR: String = "graphx_attr"
 
-  /**
-   * The original id.
-   */
-  private val ORIGINAL_ID: String = "old_id"
-
   // ============================ Constructors and converters =================================
 
   /**
@@ -618,19 +613,6 @@ object DFGraph {
     new DFGraph(v, e)
   }
 
-  /**
-   * Given an index for the edge IDs, maps the src and dest back to
-   * @param indexDF
-   * @param edges
-   * @return
-   */
-  private[dfgraph] def longifyVertexDF(indexDF: DataFrame, edges: DataFrame): DataFrame = {
-    ???
-  }
-
-  private[dfgraph] def unlongifyVertexDF(indexDF: DataFrame, longEdges: DataFrame): DataFrame = {
-    ???
-  }
 
   /*
   // TODO: Add version with uniqueKey, foreignKey from Ankur's branch?

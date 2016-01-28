@@ -55,7 +55,6 @@ private[dfgraph] object GraphXConversions {
       val b1 = typeOf[Unit] =:= t
       // See http://stackoverflow.com/questions/21209006/how-to-check-if-reflected-type-represents-a-tuple
       val b2 = t.typeSymbol.fullName.startsWith("scala.Tuple")
-      System.err.println(s"Type of vertex is $t: ${t.typeSymbol.fullName} empty = $b1, product = $b2")
       (b1, b2)
     }
     val vertexDF: DataFrame = if (emptyVertex) {
@@ -78,7 +77,6 @@ private[dfgraph] object GraphXConversions {
       val b1 = typeOf[Unit] =:= t
       // See http://stackoverflow.com/questions/21209006/how-to-check-if-reflected-type-represents-a-tuple
       val b2 = t.typeSymbol.fullName.startsWith("scala.Tuple")
-      System.err.println(s"Type of edge is $t: ${t.typeSymbol.fullName} empty = $b1, product = $b2")
       (b1, b2)
     }
     val edgeDF: DataFrame = if (emptyEdge) {
@@ -104,8 +102,6 @@ private[dfgraph] object GraphXConversions {
    * @return
    */
   private def renameStructFields(df: DataFrame, structName: String, fieldNames: Seq[String]): DataFrame = {
-    System.err.println(s"renameStructFields: df: $structName -> $fieldNames")
-    df.printSchema()
     // It decompacts the struct fields into extra columns and prefixes all the other columns to make sure there is no
     // collision.
     // TODO(tjh) this looses metadata and other info in the process
@@ -119,14 +115,10 @@ private[dfgraph] object GraphXConversions {
       case f => Seq(df(f.name).as(prefix + f.name))
     }
     val unpacked = df.select(cols: _*)
-    System.err.println(s"renameStructFields: unpacked:")
-    unpacked.printSchema()
     val (others, groupNames) = unpacked.schema.map(_.name).partition(_.startsWith(prefix))
     val str = struct(groupNames.map(n => col(n)): _*).as(structName)
     val rest = others.map(n => col(n).as(n.stripPrefix(prefix)))
     val res = unpacked.select((rest :+ str): _*)
-    System.err.println(s"renameStructFields: res:")
-    res.printSchema()
     res
   }
 
@@ -147,18 +139,10 @@ private[dfgraph] object GraphXConversions {
 
   // Joins all the data from the original columns against the new data. Assumes the columns are not going to conflict.
   private def fromGraphX(originalGraph: DFGraph, gxVertexData: DataFrame, gxEdgeData: DataFrame): DFGraph = {
-    System.err.println(s"fromGraphX: gxVertexData:")
-    gxVertexData.printSchema()
-    System.err.println(s"fromGraphX: indexedVertices:")
-    originalGraph.indexedVertices.printSchema()
     // The ID is going to be unpacked from the attr field
     val packedVertices = drop(originalGraph.indexedVertices, ID).join(gxVertexData, LONG_ID)
     val vertexDF = unpackStructFields(drop(packedVertices, LONG_ID))
-    System.err.println(s"fromGraphX: vertexDF:")
-    vertexDF.printSchema()
 
-    System.err.println(s"fromGraphX: indexedEdges:")
-    originalGraph.indexedEdges.printSchema()
     val packedEdges = {
       val indexedEdges = originalGraph.indexedEdges
       // No need to do that for the original attributes, they contain at least the vertex ids.
@@ -177,8 +161,6 @@ private[dfgraph] object GraphXConversions {
       join0
     }
     val edgeDF = unpackStructFields(drop(packedEdges, LONG_SRC, LONG_DST))
-    System.err.println(s"fromGraphX: edgeDF:")
-    edgeDF.printSchema()
 
     DFGraph(vertexDF, edgeDF)
   }
