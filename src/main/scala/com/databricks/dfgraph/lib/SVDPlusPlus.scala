@@ -50,7 +50,7 @@ object SVDPlusPlus {
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf.toGraphXConf)
     val dfg = GraphXConversions.fromGraphX(graph, gx,
       vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4),
-      edgeName = Seq(ECOLUMN1))
+      edgeNames = Seq(ECOLUMN1))
     (dfg, res)
   }
 

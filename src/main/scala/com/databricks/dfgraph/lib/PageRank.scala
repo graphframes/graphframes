@@ -83,7 +83,6 @@ object PageRank {
    * @param graph the graph on which to compute PageRank
    * @param numIter the number of iterations of PageRank to run
    * @param resetProb the random reset probability (alpha)
-   *
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
@@ -93,7 +92,7 @@ object PageRank {
       resetProb: Double = 0.15,
       srcId: Option[VertexId] = None): DFGraph = {
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, None)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeName = Seq(WEIGHT))
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
   }
 
   /**
@@ -104,7 +103,6 @@ object PageRank {
    * @param tol the tolerance allowed at convergence (smaller => more accurate).
    * @param resetProb the random reset probability (alpha)
    * @param srcId the source vertex for a Personalized Page Rank (optional)
-   *
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
@@ -113,7 +111,7 @@ object PageRank {
       tol: Double,
       resetProb: Double = 0.15, srcId: Option[VertexId] = None): DFGraph = {
     val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, None)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeName = Seq(WEIGHT))
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
   }
 
 
