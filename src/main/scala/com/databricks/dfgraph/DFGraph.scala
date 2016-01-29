@@ -277,8 +277,8 @@ class DFGraph protected (
   def bfs(fromExpr: Column, toExpr: Column): BFS.Builder = new BFS.Builder(this, fromExpr, toExpr)
 
   /** Breadth-first search (BFS) */
-  def bfs(fromExpr: String, toExpr: String): BFS.Builder =
-    new BFS.Builder(this, expr(fromExpr), expr(toExpr))
+  // def bfs(fromExpr: String, toExpr: String): BFS.Builder =
+  //   new BFS.Builder(this, expr(fromExpr), expr(toExpr))
 
   // ============================ Conversions ========================================
 
@@ -441,9 +441,6 @@ class DFGraph protected (
   def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
 
   def triangleCount(): TriangleCount.Builder = new TriangleCount.Builder(this)
-
-  // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
-  private def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
 }
 
 
@@ -573,7 +570,7 @@ object DFGraph {
   }
 
   // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
-  private[dfgraph] def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
+  // private[dfgraph] def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
 }
 
 /**

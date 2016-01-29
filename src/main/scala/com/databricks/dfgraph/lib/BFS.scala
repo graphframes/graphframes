@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame, Row, SQLHelpers}
 
 import com.databricks.dfgraph.DFGraph
-import com.databricks.dfgraph.DFGraph.{expr, nestAsCol}
+import com.databricks.dfgraph.DFGraph.nestAsCol
 
 
 /**
@@ -177,7 +177,7 @@ object BFS extends Logging {
       this
     }
 
-    def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
+    // def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
 
     def run(): DataFrame = {
       BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)

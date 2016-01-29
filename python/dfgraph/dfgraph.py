@@ -20,7 +20,7 @@ if sys.version > '3':
     basestring = str
 
 from pyspark import SparkContext
-from pyspark.sql import SQLContext
+from pyspark.sql import DataFrame, SQLContext
 
 
 class DFGraph(object):
@@ -93,25 +93,8 @@ class DFGraph(object):
         Motif finding.
         TODO: Copy doc from Scala
         """
-        return self._jvm_dfgraph.find(pattern)
-
-    def bfs(self, fromExpr, toExpr, maxPathLength=10, edgeFilter=None):
-        """
-        Breadth-first search (BFS)
-        TODO: Copy doc from Scala
-        """
-        assert isinstance(fromExpr, basestring),\
-            "DFGraph.bfs requires string arguments, but was given fromExpr type: %s"\
-            % type(fromExpr)
-        assert isinstance(toExpr, basestring), \
-            "DFGraph.bfs requires string arguments, but was given toExpr type: %s" % type(toExpr)
-        runner = self._jvm_dfgraph.bfs(fromExpr, toExpr).setMaxPathLength(maxPathLength)
-        if edgeFilter is not None:
-            assert isinstance(edgeFilter, basestring), \
-                "DFGraph.bfs requires string arguments, but was given edgeFilter type: %s"\
-                % type(edgeFilter)
-            runner.setEdgeFilter(edgeFilter)
-        return runner.run()
+        jdf = self._jvm_dfgraph.find(pattern)
+        return DataFrame(jdf, self._sqlContext)
 
 
 def _test():
