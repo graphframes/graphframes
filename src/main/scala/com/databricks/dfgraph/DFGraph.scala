@@ -17,16 +17,19 @@
 
 package com.databricks.dfgraph
 
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.Logging
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.{Logging, graphx}
+import org.apache.spark.graphx.{Edge, Graph, TripletFields}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.SqlParser
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
+import com.databricks.dfgraph.lib._
 import com.databricks.dfgraph.pattern._
 
 /**
@@ -54,7 +57,7 @@ class DFGraph protected (
     s"Destination vertex ID column '$DST' missing from edge DataFrame, which has columns: "
       + edges.columns.mkString(","))
 
-  private def sqlContext: SQLContext = vertices.sqlContext
+  private[dfgraph] def sqlContext: SQLContext = vertices.sqlContext
 
   /** Default constructor is provided to support serialization */
   protected def this() = this(null, null)
@@ -88,11 +91,25 @@ class DFGraph protected (
     edges.select(explode(array(SRC, DST)).as(ID)).groupBy(ID).agg(count("*").cast("int").as("deg"))
   }
 
+  /**
+   * A cached conversion of this graph to the GraphX structure. All the data is stripped away.
+   */
+  @transient lazy private[dfgraph] val cachedTopologyGraphX: Graph[Unit, Unit] = {
+    cachedGraphX.mapVertices((_, _) => ()).mapEdges(e => ())
+  }
+
+  /**
+   * A cached conversion of this graph to the GraphX structure, with the data stored for each edge and vertex.
+   */
+  @transient private lazy val cachedGraphX: Graph[Row, Row] = { toGraphX }
+
   // ============================ Motif finding ========================================
+
 
   /**
    * Motif finding.
    * TODO: Describe possible motifs.
+   *
    * @param pattern  Pattern specifying a motif to search for.
    * @return  [[DataFrame]] containing all instances of the motif.
    *          TODO: Describe column naming patterns.
@@ -166,6 +183,7 @@ class DFGraph protected (
 
   /**
    * Augment the given DataFrame based on a pattern.
+   *
    * @param prevPatterns  Patterns which have contributed to the given DataFrame
    * @param prev  Given DataFrame
    * @param pattern  Pattern to search for
@@ -398,35 +416,68 @@ class DFGraph protected (
    * [[vCols]] and [[eCols]], respectively.
    */
   def toGraphX: Graph[Row, Row] = {
-    val integralIDs: Boolean = vertices.schema(ID).dataType match {
-      case _ @ (ByteType | IntegerType | LongType | ShortType) => true
-      case _ => false
-    }
-    val vStruct = struct(vCols.map(col): _*)
-    val eStruct = struct(eCols.map(col): _*)
-    if (integralIDs) {
-      val vv = vertices.select(col(ID).cast(LongType), vStruct)
+    if (hasIntegralIdType) {
+      val vv = vertices.select(col(ID).cast(LongType), nestAsCol(vertices, ATTR))
         .map { case Row(id: Long, attr: Row) => (id, attr) }
-      val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), eStruct)
+      val ee = edges.select(col(SRC).cast(LongType), col(DST).cast(LongType), nestAsCol(edges, ATTR))
         .map { case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr) }
       Graph(vv, ee)
     } else {
       // Compute Long vertex IDs
-      val indexedVertices =
-        vertices.select(monotonicallyIncreasingId().as("new_id"), vStruct.as(ATTR))
-      val newIndex = indexedVertices.select(col("new_id"), col(ATTR + "." + ID).as("old_id"))
-      val vv = indexedVertices.map { case Row(id: Long, attr: Row) => (id, attr) }
-      val indexedSourceEdges = edges.select(col(SRC), col(DST), eStruct.as(ATTR))
-        .join(newIndex).where(edges(SRC) === newIndex("old_id"))
-        .select(newIndex("new_id").as(SRC), col(DST), col(ATTR))
-      val indexedEdges = indexedSourceEdges.select(SRC, DST, ATTR)
-        .join(newIndex).where(edges(DST) === newIndex("old_id"))
-        .select(col(SRC), newIndex("new_id").as(DST), col(ATTR))
-      val ee = indexedEdges.map { case Row(src: Long, dst: Long, attr: Row) =>
-        Edge(src, dst, attr)
+      val vv = indexedVertices.select(LONG_ID, ATTR).map { case Row(long_id: Long, attr: Row) => (long_id, attr) }
+      val ee = indexedEdges.select(LONG_SRC, LONG_DST, ATTR).map { case Row(long_src: Long, long_dst: Long, attr: Row) =>
+        Edge(long_src, long_dst, attr)
       }
       Graph(vv, ee)
     }
+  }
+
+  /**
+   * True if the id type can be cast to Long.
+   *
+   * This is important for performance reasons. The underlying graphx
+   * implementation only deals with Long types.
+   */
+  private[dfgraph] lazy val hasIntegralIdType: Boolean = {
+    vertices.schema(ID).dataType match {
+      case _ @ (ByteType | IntegerType | LongType | ShortType) => true
+      case _ => false
+    }
+  }
+
+  /**
+   * If the id type is not integral, it is the translation table that maps the original ids to the integral ids.
+   * 
+   * Columns:
+   *  - $LONG_ID: the new ID
+   *  - $ORIGINAL_ID: the ID provided by the user
+   *  - $ATTR: all the original vertex attributes
+   */
+  private[dfgraph] lazy val indexedVertices: DataFrame = {
+    if (hasIntegralIdType) {
+      val indexedVertices = vertices.select(nestAsCol(vertices, ATTR))
+      indexedVertices.select(col(ATTR + "." + ID).as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
+    } else {
+      val indexedVertices = vertices.select(monotonicallyIncreasingId().as(LONG_ID), nestAsCol(vertices, ATTR))
+      indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
+    }
+  }
+
+  /**
+   * Columns:
+   *  - $SRC
+   *  - $LONG_SRC
+   *  - $DST
+   *  - $LONG_DST
+   *  - $ATTR
+   */
+  private[dfgraph] lazy val indexedEdges: DataFrame = {
+    val packedEdges = edges.select(col(SRC), col(DST), nestAsCol(edges, ATTR))
+    val indexedSourceEdges = packedEdges
+      .join(indexedVertices.select(col(LONG_ID).as(LONG_SRC), col(ID).as(SRC)), SRC)
+    val indexedEdges = indexedSourceEdges.select(SRC, LONG_SRC, DST, ATTR)
+      .join(indexedVertices.select(col(LONG_ID).as(LONG_DST), col(ID).as(DST)), DST)
+    indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
   }
 
   /**
@@ -453,8 +504,68 @@ class DFGraph protected (
    */
   lazy val eColsMap: Map[String, Int] = eCols.zipWithIndex.toMap
 
+  /**
+   *
+   * Aggregates values from the neighboring edges and vertices of each vertex. The user-supplied
+   * `sendMsg` function is invoked on each edge of the graph, generating 0 or more messages to be
+   * sent to either vertex in the edge. The `mergeMsg` function is then used to combine all messages
+   * destined to the same vertex.
+   *
+   * @tparam A the type of message to be sent to each vertex
+   * @param sendMsg runs on each edge, sending messages to neighboring vertices using the
+   *   [[EdgeContext]].
+   *   The first iterable collection is the collection of messages sent to the SOURCE.
+   *   The second iterable collection is the collection of messages sent to the DESTINATION.
+   * @param aggregate used to combine messages from `sendMsg` destined to the same vertex. This
+   *   combiner should be commutative and associative.
+   * @param selectedFields which fields should be included in the [[EdgeContext]] passed to the
+   *   `sendMsg` function. If not all fields are needed, specifying this can improve performance.
+   * @example We can use this function to compute the in-degree of each
+   * vertex
+   * {{{
+   * val rawGraph: Graph[_, _] = Graph.textFile("twittergraph")
+   * val inDeg: RDD[(VertexId, Int)] =
+   *   rawGraph.aggregateMessages(ctx => Seq(1) -> Seq.empty, _ + _)
+   * }}}
+   *
+   * It returns a dataframe with the following columns:
+   *  - id: the vertex ID
+   *  - all the other columns that were created by using type A.
+   */
+  def aggregateMessages[A : ClassTag : TypeTag](
+      sendMsg: EdgeContext => (Iterable[A], Iterable[A]),
+      aggregate: (A, A) => A,
+      selectedFields: TripletFields = TripletFields.All): DataFrame = {
+    def send(ec: graphx.EdgeContext[Row, Row, A]): Unit = {
+      val ec2: EdgeContext = new EdgeContextImpl(ec.srcId, ec.dstId, ec.srcAttr, ec.dstAttr, ec.attr)
+      val (src, dst) = sendMsg(ec2)
+      src.foreach(ec.sendToSrc)
+      dst.foreach(ec.sendToDst)
+    }
+    val gx: RDD[(Long, A)] = cachedGraphX.aggregateMessages(send, aggregate, selectedFields)
+    val df = sqlContext.createDataFrame(gx).toDF(ID, ATTR)
+    df
+  }
+
+  // **** Standard library ****
+
+  def connectedComponents(): ConnectedComponents.Builder = new ConnectedComponents.Builder(this)
+
+  def labelPropagation(): LabelPropagation.Builder = new LabelPropagation.Builder(this)
+
+  def pageRank(): PageRank.Builder = new PageRank.Builder(this)
+
+  def shortestPaths(): ShortestPaths.Builder = new ShortestPaths.Builder(this)
+
+  def stronglyConnectedComponents(): StronglyConnectedComponents.Builder = new StronglyConnectedComponents.Builder(this)
+
+  def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
+
+  def triangleCount(): TriangleCount.Builder = new TriangleCount.Builder(this)
+
   // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
   private def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
+
 }
 
 
@@ -472,10 +583,20 @@ object DFGraph {
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
   private[dfgraph] val ATTR: String = "attr"
 
+  /**
+   * The integral id that is used as a surrogate id when using graphX implementation
+   */
+  private[dfgraph] val LONG_ID: String = "new_id"
+
+  private[dfgraph] val LONG_SRC: String = "new_src"
+  private[dfgraph] val LONG_DST: String = "new_dst"
+  private[dfgraph] val GX_ATTR: String = "graphx_attr"
+
   // ============================ Constructors and converters =================================
 
   /**
    * Create a new [[DFGraph]] from vertex and edge [[DataFrame]]s.
+   *
    * @param v  Vertex DataFrame.  This must include a column "id" containing unique vertex IDs.
    *           All other columns are treated as vertex attributes.
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
@@ -485,6 +606,7 @@ object DFGraph {
   def apply(v: DataFrame, e: DataFrame): DFGraph = {
     new DFGraph(v, e)
   }
+
 
   /*
   // TODO: Add version with uniqueKey, foreignKey from Ankur's branch?
@@ -557,8 +679,7 @@ object DFGraph {
   */
 
   /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
-  /*
-  private def colStar(df: DataFrame, col: String): Seq[String] = {
+  private[dfgraph] def colStar(df: DataFrame, col: String): Seq[String] = {
     df.schema(col).dataType match {
       case s: StructType =>
         s.fieldNames.map(f => col + "." + f)
@@ -567,7 +688,6 @@ object DFGraph {
           s" StructType, but found type: $other")
     }
   }
-  */
 
   /** Nest all columns within a single StructType column with the given name */
   private def nestAsCol(df: DataFrame, name: String): Column = {
