@@ -42,7 +42,7 @@ object BFS extends Logging {
    * The returned DataFrame will have the following columns:
    *  - from: start vertex of path
    *  - e[i]: edge i in the path, indexed from 0
-   *  - v[i]: intermediate vertex i in the path, indexed from 0
+   *  - v[i]: intermediate vertex i in the path, indexed from 1
    *  - to: end vertex of path
    * Each of these columns is a StructType whose fields are the same as the columns of
    * [[DFGraph.vertices]] or [[DFGraph.edges]].
@@ -54,8 +54,8 @@ object BFS extends Logging {
    *   g.bfs(col("id") === "Joe", col("job") === "CEO").run()
    * }}}
    * If we found a path of 3 edges, each row would have columns:
-   * {{{from | e0 | v0 | e1 | v1 | e2 | to}}}
-   * In the above row, each vertex column (from, v0, v1, to) would have fields "id" and "job"
+   * {{{from | e0 | v1 | e1 | v2 | e2 | to}}}
+   * In the above row, each vertex column (from, v1, v2, to) would have fields "id" and "job"
    * (just like g.vertices).
    * Each edge column (e0, e1, e2) would have fields "src", "dst", and "relation".
    *
@@ -126,7 +126,7 @@ object BFS extends Logging {
     var iter = 0
     var foundPath = false
     while (iter < maxPathLength && !foundPath) {
-      val nextVertex = s"v$iter"
+      val nextVertex = s"v${iter + 1}"
       val nextEdge = s"e$iter"
       // Take another step
       if (iter == 0) {
@@ -137,16 +137,16 @@ object BFS extends Logging {
           .withColumnRenamed("a", "from").withColumnRenamed("e", nextEdge)
           .withColumnRenamed("b", nextVertex)
       } else {
-        val prevVertex = s"v${iter - 1}"
+        val prevVertex = s"v$iter"
         val nextLinks = a2b.withColumnRenamed("a", prevVertex).withColumnRenamed("e", nextEdge)
           .withColumnRenamed("b", nextVertex)
         paths = paths.join(nextLinks, paths(prevVertex + ".id") === nextLinks(prevVertex + ".id"))
           .drop(paths(prevVertex))
         // Make sure we are not backtracking within each path.
         // TODO: Avoid crossing paths; i.e., touch each vertex at most once.
-        val previousVertexChecks = Range(0, iter)
+        val previousVertexChecks = Range(1, iter + 1)
           .map(i => paths(s"v$i.id") !== paths(nextVertex + ".id"))
-          .foldLeft(lit(true))((c1, c2) => c1 && c2)
+          .foldLeft(paths(s"from.id") !== paths(nextVertex + ".id"))((c1, c2) => c1 && c2)
         paths = paths.filter(previousVertexChecks)
       }
       // Check if done by applying toExpr to column nextVertex
