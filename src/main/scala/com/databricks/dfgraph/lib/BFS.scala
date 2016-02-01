@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.databricks.dfgraph.lib
 
 import org.apache.spark.Logging
@@ -9,9 +26,6 @@ import com.databricks.dfgraph.DFGraph
 import com.databricks.dfgraph.DFGraph.nestAsCol
 
 
-/**
-  * Created by josephkb on 1/19/16.
-  */
 object BFS extends Logging {
 
   /**
@@ -33,13 +47,17 @@ object BFS extends Logging {
    * Each of these columns is a StructType whose fields are the same as the columns of
    * [[DFGraph.vertices]] or [[DFGraph.edges]].
    *
+   * For example, suppose we have a graph g.  Say the vertices DataFrame of g has columns "id" and
+   * "job", and the edges DataFrame of g has columns "src", "dst", and "relation".
    * {{{
    *   // Search from vertex "Joe" to find the closet vertices with attribute job = CEO.
-   *   bfs(col("id") === "Joe", col("job") === "CEO")
-   *
-   *   // If we found a path of 3 edges, each row would have schema:
-   *   from | e0 | v0 | e1 | v1 | e2 | to
+   *   g.bfs(col("id") === "Joe", col("job") === "CEO").run()
    * }}}
+   * If we found a path of 3 edges, each row would have columns:
+   * {{{from | e0 | v0 | e1 | v1 | e2 | to}}}
+   * In the above row, each vertex column (from, v0, v1, to) would have fields "id" and "job"
+   * (just like g.vertices).
+   * Each edge column (e0, e1, e2) would have fields "src", "dst", and "relation".
    *
    * If there are ties, then each of the equal paths will be returned as a separate Row.
    *
@@ -71,7 +89,7 @@ object BFS extends Logging {
       edgeFilter: Option[Column]): DataFrame = {
     val fromDF = g.vertices.filter(from)
     val toDF = g.vertices.filter(to)
-    if (fromDF.take(1).length == 0 || toDF.take(1).length == 0) {
+    if (fromDF.take(1).isEmpty || toDF.take(1).isEmpty) {
       // Return empty DataFrame
       return g.sqlContext.createDataFrame(
         g.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
@@ -79,7 +97,7 @@ object BFS extends Logging {
     }
 
     val fromEqualsToDF = fromDF.filter(to)
-    if (fromEqualsToDF.take(1).length > 0) {
+    if (fromEqualsToDF.take(1).nonEmpty) {
       // from == to, so return matching vertices
       return fromEqualsToDF.select(
         nestAsCol(fromEqualsToDF, "from"), nestAsCol(fromEqualsToDF, "to"))
@@ -88,13 +106,11 @@ object BFS extends Logging {
     // We handled edge cases above, so now we do BFS.
 
     // Edges a->b, to be reused for each iteration
-    val a2b = {
+    val a2b: DataFrame = {
       val a2b = g.find("(a)-[e]->(b)")
       edgeFilter match {
         case Some(ef) =>
-          val efExpr = new Column(SQLHelpers.getExpr(ef) transform {
-            case UnresolvedAttribute(nameParts) => UnresolvedAttribute("e" +: nameParts)
-          })
+          val efExpr = applyExprToCol(ef, "e")
           a2b.filter(efExpr)
         case None =>
           a2b
@@ -102,9 +118,7 @@ object BFS extends Logging {
     }
 
     // We will always apply fromExpr to column "a"
-    val fromAExpr = new Column(SQLHelpers.getExpr(from) transform {
-      case UnresolvedAttribute(nameParts) => UnresolvedAttribute("a" +: nameParts)
-    })
+    val fromAExpr = applyExprToCol(from, "a")
 
     // DataFrame of current search paths
     var paths: DataFrame = null
@@ -136,11 +150,9 @@ object BFS extends Logging {
         paths = paths.filter(previousVertexChecks)
       }
       // Check if done by applying toExpr to column nextVertex
-      val toVExpr = new Column(SQLHelpers.getExpr(to) transform {
-        case UnresolvedAttribute(nameParts) => UnresolvedAttribute(nextVertex +: nameParts)
-      })
+      val toVExpr = applyExprToCol(to, nextVertex)
       val foundPathDF = paths.filter(toVExpr)
-      if (foundPathDF.take(1).length != 0) {
+      if (foundPathDF.take(1).nonEmpty) {
         // Found path
         paths = foundPathDF.withColumnRenamed(nextVertex, "to")
         foundPath = true
@@ -182,5 +194,18 @@ object BFS extends Logging {
     def run(): DataFrame = {
       BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)
     }
+  }
+
+  /**
+   * Apply the given SQL expression (such as `id = 3`) to the field in a column,
+   * rather than to the column itself.
+   * @param expr  SQL expression, such as `id = 3`
+   * @param colName  Column name, such as `myVertex`
+   * @return  SQL expression applied to the column fields, such as `myVertex.id = 3`
+   */
+  private def applyExprToCol(expr: Column, colName: String) = {
+    new Column(SQLHelpers.getExpr(expr).transform {
+      case UnresolvedAttribute(nameParts) => UnresolvedAttribute(colName +: nameParts)
+    })
   }
 }
