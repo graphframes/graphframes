@@ -27,7 +27,7 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import SQLContext
+from pyspark.sql import DataFrame, SQLContext
 
 from .dfgraph import DFGraph
 
@@ -66,4 +66,4 @@ class DFGraphTest(DFGraphTestCase):
         g = self.g
         motifs = g.find("(a)-[e]->(b)")
         assert motifs.count() == 3
-        assert sorted(motifs.columns) == ["a", "e", "b"]
+        self.assertSetEqual(set(motifs.columns), {"a", "e", "b"})

@@ -16,7 +16,7 @@
 #
 
 from pyspark import SparkContext
-from pyspark.sql import SQLContext
+from pyspark.sql import DataFrame, SQLContext
 
 
 class DFGraph(object):
@@ -89,7 +89,8 @@ class DFGraph(object):
         Motif finding.
         TODO: Copy doc from Scala
         """
-        return self._jvm_dfgraph.find(pattern)
+        jdf = self._jvm_dfgraph.find(pattern)
+        return DataFrame(jdf, self._sqlContext)
 
 
 def _test():
