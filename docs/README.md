@@ -1,15 +1,15 @@
-Welcome to the DFGraph Spark Package documentation!
+Welcome to the GraphFrames Spark Package documentation!
 
-This readme will walk you through navigating and building the DFGraph documentation, which is
+This readme will walk you through navigating and building the GraphFrames documentation, which is
 included here with the source code.
 
 Read on to learn more about viewing documentation in plain text (i.e., markdown) or building the
 documentation yourself. Why build it yourself? So that you have the docs that correspond to
-whichever version of DFGraph you currently have checked out of revision control.
+whichever version of GraphFrames you currently have checked out of revision control.
 
 ## Generating the Documentation HTML
 
-We include the DFGraph documentation as part of the source (as opposed to using a hosted wiki, such as
+We include the GraphFrames documentation as part of the source (as opposed to using a hosted wiki, such as
 the github wiki, as the definitive documentation) to enable the documentation to evolve along with
 the source code and be captured by revision control (currently git). This way the code automatically
 includes the version of the documentation that is relevant regardless of which version or release
@@ -61,10 +61,10 @@ We use Sphinx to generate Python API docs, so you will need to install it by run
 
 ## API Docs (Scaladoc, Sphinx)
 
-You can build just the scaladoc by running `build/sbt unidoc` from the DFGRAPH_PROJECT_ROOT directory.
+You can build just the scaladoc by running `build/sbt unidoc` from the GRAPHFRAMES_PROJECT_ROOT directory.
 
 Similarly, you can build just the Python docs by running `make html` from the
-DFGRAPH_PROJECT_ROOT/python/docs directory. Documentation is only generated for classes that are listed as
+GRAPHFRAMES_PROJECT_ROOT/python/docs directory. Documentation is only generated for classes that are listed as
 public in `__init__.py`.
 
 When you run `jekyll` in the `docs` directory, it will also copy over the scaladoc for the various
