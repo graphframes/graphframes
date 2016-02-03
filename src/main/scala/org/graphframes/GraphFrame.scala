@@ -475,7 +475,7 @@ object GraphFrame {
    *           All other columns are treated as vertex attributes.
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
-   * @return New [[GraphFrame]] instance
+   * @return  New [[GraphFrame]] instance
    */
   def apply(v: DataFrame, e: DataFrame): GraphFrame = {
     new GraphFrame(v, e)

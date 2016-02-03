@@ -36,7 +36,7 @@ object ShortestPaths {
    * @param graph the graph for which to compute the shortest paths
    * @param landmarks the list of landmark vertex ids. Shortest paths will be computed to each
    * landmark.
-    * @return a graph where each vertex attribute is a map containing the shortest-path distance to
+   * @return a graph where each vertex attribute is a map containing the shortest-path distance to
    * each reachable landmark vertex.
    */
   def run[VertexId: TypeTag](graph: GraphFrame, landmarks: Seq[VertexId]): GraphFrame = {

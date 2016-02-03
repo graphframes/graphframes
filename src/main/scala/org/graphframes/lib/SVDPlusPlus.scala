@@ -39,7 +39,7 @@ object SVDPlusPlus {
    * see the details on page 6.
    *
    * @param conf SVDPlusPlus parameters
-    * @return a graph with vertex attributes containing the trained model
+   * @return a graph with vertex attributes containing the trained model
    */
   def run(graph: GraphFrame, conf: Conf): (GraphFrame, Double) = {
     val edges = graph.edges.select(GraphFrame.SRC, GraphFrame.DST, COLUMN_WEIGHT).map {
@@ -55,7 +55,7 @@ object SVDPlusPlus {
   /**
    * Configuration parameters for SVD++.
    *
-    * @param rank
+   * @param rank
    * @param maxIters
    * @param minVal
    * @param maxVal

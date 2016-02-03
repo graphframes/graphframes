@@ -19,8 +19,8 @@ package org.graphframes
 
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SQLContext
 
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sc: SparkContext = _

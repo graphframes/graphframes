@@ -59,10 +59,10 @@ private[graphframes] object GraphXConversions {
    * @return original graph augmented with vertex and column attributes from the GraphX graph
    */
   def fromGraphX[V : TypeTag, E : TypeTag](
-                                            originalGraph: GraphFrame,
-                                            graph: Graph[V, E],
-                                            vertexNames: Seq[String] = Nil,
-                                            edgeNames: Seq[String] = Nil): GraphFrame = {
+      originalGraph: GraphFrame,
+      graph: Graph[V, E],
+      vertexNames: Seq[String] = Nil,
+      edgeNames: Seq[String] = Nil): GraphFrame = {
     val sqlContext = originalGraph.sqlContext
     // catalyst does not like the unit type, make sure to filter it first.
     val vertexDF: DataFrame = if (isUnitType[V]) {
@@ -141,9 +141,9 @@ private[graphframes] object GraphXConversions {
    *                    [[GX_ATTR]]
    */
   private def fromGraphX(
-                          originalGraph: GraphFrame,
-                          gxVertexData: DataFrame,
-                          gxEdgeData: DataFrame): GraphFrame = {
+      originalGraph: GraphFrame,
+      gxVertexData: DataFrame,
+      gxEdgeData: DataFrame): GraphFrame = {
     // The ID is going to be unpacked from the attr field
     val packedVertices = drop(originalGraph.indexedVertices, ID).join(gxVertexData, LONG_ID)
     val vertexDF = unpackStructFields(drop(packedVertices, LONG_ID))

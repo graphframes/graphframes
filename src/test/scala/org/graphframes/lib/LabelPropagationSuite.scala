@@ -19,9 +19,6 @@ package org.graphframes.lib
 
 import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
 
-import GraphFrame.{DST, ID, SRC}
-
-
 class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   val n = 5
@@ -52,6 +49,9 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
 }
 
 object LabelPropagationSuite {
+
+  import GraphFrame.{DST, ID, SRC}
+
   def testSchemaInvariant(g: GraphFrame): Unit = {
     // The ID should be present
     val vs = g.vertices.schema

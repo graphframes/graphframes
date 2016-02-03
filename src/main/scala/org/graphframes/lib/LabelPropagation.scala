@@ -47,7 +47,8 @@ object LabelPropagation {
    * @param graph the graph for which to compute the community affiliation
    * @param maxSteps the number of supersteps of LPA to be performed. Because this is a static
    * implementation, the algorithm will run for exactly this many supersteps.
-    * @return a graph with vertex attributes containing the label of community affiliation.
+   *
+   * @return a graph with vertex attributes containing the label of community affiliation.
    */
   def run(graph: GraphFrame, maxSteps: Int): GraphFrame = {
     val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxSteps)

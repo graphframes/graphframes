@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# GraphFrame-Python Documentation build configuration file, created by
+# GraphFrames-Python Documentation build configuration file, created by
 # sphinx-quickstart on Thu Aug 28 15:17:47 2014.
 #
 # This file is execfile()d with the current directory set to its

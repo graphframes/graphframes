@@ -82,11 +82,11 @@ object BFS extends Logging {
    * @return  DataFrame of valid shortest paths found in the BFS
    */
   private[graphframes] def run(
-                            g: GraphFrame,
-                            from: Column,
-                            to: Column,
-                            maxPathLength: Int,
-                            edgeFilter: Option[Column]): DataFrame = {
+      g: GraphFrame,
+      from: Column,
+      to: Column,
+      maxPathLength: Int,
+      edgeFilter: Option[Column]): DataFrame = {
     val fromDF = g.vertices.filter(from)
     val toDF = g.vertices.filter(to)
     if (fromDF.take(1).isEmpty || toDF.take(1).isEmpty) {
@@ -199,8 +199,8 @@ object BFS extends Logging {
   /**
    * Apply the given SQL expression (such as `id = 3`) to the field in a column,
    * rather than to the column itself.
-    *
-    * @param expr  SQL expression, such as `id = 3`
+   *
+   * @param expr  SQL expression, such as `id = 3`
    * @param colName  Column name, such as `myVertex`
    * @return  SQL expression applied to the column fields, such as `myVertex.id = 3`
    */

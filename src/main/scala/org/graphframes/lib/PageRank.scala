@@ -87,10 +87,10 @@ object PageRank {
    *         containing the normalized weight.
    */
   def run[VertexId : TypeTag](
-                               graph: GraphFrame,
-                               numIter: Int,
-                               resetProb: Double = 0.15,
-                               srcId: Option[VertexId] = None): GraphFrame = {
+      graph: GraphFrame,
+      numIter: Int,
+      resetProb: Double = 0.15,
+      srcId: Option[VertexId] = None): GraphFrame = {
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, None)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
   }
@@ -107,9 +107,9 @@ object PageRank {
    *         containing the normalized weight.
    */
   def runUntilConvergence[VertexId : TypeTag](
-                                               graph: GraphFrame,
-                                               tol: Double,
-                                               resetProb: Double = 0.15, srcId: Option[VertexId] = None): GraphFrame = {
+      graph: GraphFrame,
+      tol: Double,
+      resetProb: Double = 0.15, srcId: Option[VertexId] = None): GraphFrame = {
     val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, None)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
   }

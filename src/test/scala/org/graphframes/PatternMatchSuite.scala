@@ -17,8 +17,8 @@
 
 package org.graphframes
 
-import org.apache.spark.sql.functions.{lit, udf, when}
 import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.functions.{lit, udf, when}
 
 import org.graphframes.GFImplicits._
 

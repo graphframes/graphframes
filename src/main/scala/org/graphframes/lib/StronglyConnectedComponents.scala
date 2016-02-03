@@ -34,7 +34,7 @@ object StronglyConnectedComponents {
    *  - weight (double): the normalized weight (page rank) of this vertex.
    *
    * @param graph the graph for which to compute the SCC
-    * @return a graph with vertex attributes containing the smallest vertex id in each SCC
+   * @return a graph with vertex attributes containing the smallest vertex id in each SCC
    */
   def run(graph: GraphFrame, numIters: Int): GraphFrame = {
     val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIters)

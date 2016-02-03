@@ -39,7 +39,7 @@ object ConnectedComponents {
    * All the other columns from the vertices are dropped.
    *
    * @param graph the graph for which to compute the connected components
-    * @return a graph with vertex attributes containing the smallest vertex in each
+   * @return a graph with vertex attributes containing the smallest vertex in each
    *         connected component
    */
   def run(graph: GraphFrame): GraphFrame = {
