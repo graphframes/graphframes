@@ -29,13 +29,13 @@ for lib in "$SPARK_HOME/python/lib"/*zip ; do
   LIBS=$LIBS:$lib
 done
 
-JAR_PATH="`pwd`/../target/scala-2.10/spark-df-graph-assembly-0.0.1-SNAPSHOT.jar"
+JAR_PATH="`pwd`/../target/scala-2.10/graphframes-assembly-0.0.1-SNAPSHOT.jar"
 
 export PYSPARK_SUBMIT_ARGS="--jars $JAR_PATH pyspark-shell"
 
 export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS:.
 
-export PYTHONPATH=$PYTHONPATH:dfgraph
+export PYTHONPATH=$PYTHONPATH:graphframes
 
 # Run test suites
 
@@ -47,4 +47,4 @@ nosetests -v --all-modules
 FWDIR="$(cd "`dirname $0`"/..; pwd)"
 cd "$FWDIR"
 
-exec python -u ./python/dfgraph/dfgraph.py "$@"
+exec python -u ./python/graphframes/graphframe.py "$@"

@@ -1,11 +1,11 @@
 ---
 layout: global
-displayTitle: DFGraph Overview
+displayTitle: GraphFrames Overview
 title: Overview
-description: DFGraph DFGRAPH_VERSION documentation homepage
+description: GraphFrames GRAPHFRAMES_VERSION documentation homepage
 ---
 
-DFGraph is a package for Apache Spark which provides DataFrame-based Graphs.
+GraphFrames is a package for Apache Spark which provides DataFrame-based Graphs.
 It provides high-level APIs in Scala, Java, and Python.
 It aims to provide both the functionality of GraphX and extended functionality taking advantage
 of Spark DataFrames.  This extended functionality includes motif finding, DataFrame-based
@@ -13,24 +13,24 @@ serialization, and highly expressive graph queries.
 
 # Downloading
 
-Get DFGraph from the [Spark Packages website](http://spark-packages.org).
-This documentation is for DFGraph version {{site.DFGRAPH_VERSION}}.
-DFGraph depends on Apacke Spark, which is available for download from the
+Get GraphFrames from the [Spark Packages website](http://spark-packages.org).
+This documentation is for GraphFrames version {{site.GRAPHFRAMES_VERSION}}.
+GraphFrames depends on Apache Spark, which is available for download from the
 [Apache Spark website](http://spark.apache.org).
 
-DFGraph should be compatible with any platform which runs Spark.
+GraphFrames should be compatible with any platform which runs Spark.
 Refer to the [Spark documentation](http://spark.apache.org/docs/latest) for more information.
 
-DFGraph is compatible with Spark 1.4+.  However, later versions of Spark include major improvements
-to DataFrames, so DFGraph may be more efficient when running on more recent Spark versions.
+GraphFrames is compatible with Spark 1.4+.  However, later versions of Spark include major improvements
+to DataFrames, so GraphFrames may be more efficient when running on more recent Spark versions.
 
 # Running the Examples and Shell
 
 **TODO: UPDATE THIS SECTION**
 
-DFGraph comes with several sample programs.  Scala, Java, and Python examples are in the
+GraphFrames comes with several sample programs.  Scala, Java, and Python examples are in the
 `examples/src/main` directory. To run one of the Java or Scala sample programs, use
-`bin/run-example <class> [params]` in the top-level DFGraph directory. (Behind the scenes, this
+`bin/run-example <class> [params]` in the top-level GraphFrames directory. (Behind the scenes, this
 invokes the more general
 [`spark-submit` script](submitting-applications.html) for
 launching applications). For example,
@@ -76,14 +76,14 @@ Example applications are also provided in R. For example,
 
 **Programming Guides:**
 
-* [Quick Start](quick-start.html): a quick introduction to the DFGraph API; start here!
-* [DFGraph Programming Guide](programming-guide.html): detailed overview of DFGraph
+* [Quick Start](quick-start.html): a quick introduction to the GraphFrames API; start here!
+* [GraphFrames Programming Guide](programming-guide.html): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
 
 **API Docs:**
 
-* [DFGraph Scala API (Scaladoc)](api/scala/index.html#com.databricks.dfgraph.package)
-* [DFGraph Python API (Sphinx)](api/python/index.html)
+* [GraphFrames Scala API (Scaladoc)](api/scala/index.html#org.graphframes.package)
+* [GraphFrames Python API (Sphinx)](api/python/index.html)
 
 **Other Documents:**
 
