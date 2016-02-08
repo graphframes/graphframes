@@ -92,6 +92,17 @@ class GraphFrame(object):
         jdf = self._jvm_graph.find(pattern)
         return DataFrame(jdf, self._sqlContext)
 
+    def bfs(self, fromExpr, toExpr, edgeFilter=None, maxPathLength=10):
+        """
+        Breadth-first search (BFS)
+        """
+        print "BFS: " + "\n".join(dir(self._jvm_graph))
+        builder = self._jvm_graph.bfs(fromExpr, toExpr).setMaxPathLength(maxPathLength)
+        if edgeFilter is not None:
+            builder.setEdgeFilter(edgeFilter)
+        jdf = builder.run()
+        return DataFrame(jdf, self._sqlContext)
+
 
 def _test():
     import doctest

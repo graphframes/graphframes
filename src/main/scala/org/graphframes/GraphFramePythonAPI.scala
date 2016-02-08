@@ -11,5 +11,4 @@ private[graphframes] class GraphFramePythonAPI {
   val SRC: String = GraphFrame.SRC
   val DST: String = GraphFrame.DST
   val ATTR: String = GraphFrame.ATTR
-
 }

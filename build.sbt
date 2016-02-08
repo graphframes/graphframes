@@ -3,7 +3,7 @@
 
 scalaVersion := "2.10.4"
 
-sparkVersion := "1.4.1"
+sparkVersion := "1.5.3-SNAPSHOT" // "1.4.1"
 
 spName := "graphframes/graphframes"
 
@@ -26,3 +26,6 @@ sparkComponents ++= Seq("graphx", "sql")
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % "test"
 
 parallelExecution := false
+
+unmanagedSourceDirectories in Compile ++=
+  Seq(baseDirectory.value / "src" / "main" / (if (sparkVersion.value.substring(0, 3) == "1.4") "spark-1.4" else "spark-x"))
