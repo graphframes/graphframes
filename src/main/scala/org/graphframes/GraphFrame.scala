@@ -22,8 +22,9 @@ import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.graphx.{Edge, Graph, TripletFields}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.{array, col, count, explode, monotonicallyIncreasingId, struct}
 import org.apache.spark.sql.types._
 import org.apache.spark.{Logging, graphx}
 
@@ -276,8 +277,8 @@ class GraphFrame protected(
   def bfs(fromExpr: Column, toExpr: Column): BFS.Builder = new BFS.Builder(this, fromExpr, toExpr)
 
   /** Breadth-first search (BFS) */
-  // def bfs(fromExpr: String, toExpr: String): BFS.Builder =
-  //   new BFS.Builder(this, expr(fromExpr), expr(toExpr))
+  def bfs(fromExpr: String, toExpr: String): BFS.Builder =
+    new BFS.Builder(this, expr(fromExpr), expr(toExpr))
 
   // ============================ Conversions ========================================
 
@@ -443,7 +444,7 @@ class GraphFrame protected(
 }
 
 
-object GraphFrame {
+object GraphFrame extends Serializable {
 
   /** Column name for vertex IDs in [[GraphFrame.vertices]] */
   val ID: String = "id"
@@ -567,9 +568,6 @@ object GraphFrame {
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
     struct(df.columns.map(c => df(c)) :_*).as(name)
   }
-
-  // TODO: Use conditional compilation to only include this (in a separate file) for Spark 1.4
-  // private[graphframes] def expr(expr: String): Column = new Column(new SqlParser().parseExpression(expr))
 }
 
 /**

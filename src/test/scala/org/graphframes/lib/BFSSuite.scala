@@ -145,4 +145,12 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       assert(id === "d")
     }
   }
+
+  test("string expressions") {
+    val paths1 = g.bfs("id = 'e'", "id = 'b'").setEdgeFilter("src != 'd'").run()
+    assert(paths1.count() === 1)
+    paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
+      assert(id === "f")
+    }
+  }
 }

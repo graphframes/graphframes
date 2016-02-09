@@ -18,15 +18,16 @@
 package org.graphframes.lib
 
 import org.apache.spark.Logging
+import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{Column, DataFrame, Row, SQLHelpers}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.{Column, DataFrame, Row}
 
 import org.graphframes.GraphFrame
 import GraphFrame.nestAsCol
 
 
-object BFS extends Logging {
+object BFS extends Logging with Serializable {
 
   /**
    * Breadth-first search (BFS)
@@ -172,7 +173,7 @@ object BFS extends Logging {
   }
 
   class Builder private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Column)
-    extends Arguments {
+    extends Arguments with Serializable {
 
     private var maxPathLength: Int = 10
 
@@ -189,7 +190,7 @@ object BFS extends Logging {
       this
     }
 
-    // def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
+    def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
 
     def run(): DataFrame = {
       BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)
@@ -205,7 +206,7 @@ object BFS extends Logging {
    * @return  SQL expression applied to the column fields, such as `myVertex.id = 3`
    */
   private def applyExprToCol(expr: Column, colName: String) = {
-    new Column(SQLHelpers.getExpr(expr).transform {
+    new Column(getExpr(expr).transform {
       case UnresolvedAttribute(nameParts) => UnresolvedAttribute(colName +: nameParts)
     })
   }

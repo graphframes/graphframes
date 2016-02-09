@@ -17,8 +17,11 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.catalyst.SqlParser
 import org.apache.spark.sql.catalyst.expressions.Expression
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
+
+  def expr(e: String): Column = new Column(new SqlParser().parseExpression(e))
 }
