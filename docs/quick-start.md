@@ -40,13 +40,11 @@ $ ./bin/spark-shell --master local[4] --jars graphframes.jar
 
 <div data-lang="python"  markdown="1">
 
-**TODO: THIS DOES NOT WORK YET.  INCLUDE PYTHON FILES IN JAR...**
-
-If you have GraphFrames available as a JAR `graphframes.jar`, you can add the JAR to the shell
-classpath:
+If you have GraphFrames available as a JAR `graphframes.jar`, you can make GraphFrames available
+by passing the JAR to the pyspark shell script as follows:
 
 {% highlight bash %}
-$ ./bin/pyspark --master local[4] --jars graphframes.jar
+$ ./bin/pyspark --master local[4] --py-files graphframes.jar --jars graphframes.jar
 {% endhighlight %}
 
 {:/TODO: maven coordinates when published}

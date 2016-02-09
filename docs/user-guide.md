@@ -57,6 +57,12 @@ val e = sqlContext.createDataFrame(List(
 // Create a GraphFrame
 val g = GraphFrame(v, e)
 {% endhighlight %}
+
+The GraphFrame constructed above is available in the GraphFrames package:
+{% highlight scala %}
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends
+{% endhighlight %}
 </div>
 
 <div data-lang="python"  markdown="1">
@@ -69,7 +75,7 @@ v = sqlContext.createDataFrame([
   ("d", "David", 29),
   ("e", "Esther", 32),
   ("f", "Fanny", 36)
-]).toDF("id", "name", "age")
+], ["id", "name", "age"])
 # Edge DataFrame
 e = sqlContext.createDataFrame([
   ("a", "b", "friend"),
@@ -79,9 +85,15 @@ e = sqlContext.createDataFrame([
   ("e", "f", "follow"),
   ("e", "d", "friend"),
   ("d", "a", "friend")
-]).toDF("src", "dst", "relationship")
+], ["src", "dst", "relationship"])
 # Create a GraphFrame
 g = GraphFrame(v, e)
+{% endhighlight %}
+
+The GraphFrame constructed above is available in the GraphFrames package:
+{% highlight python %}
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()
 {% endhighlight %}
 </div>
 
@@ -99,16 +111,41 @@ as `vertices` and `edges` fields in the GraphFrame.
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-import org.apache.spark.sql.functions._
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
+
+// Display the vertex and edge DataFrames
+g.vertices.show()
+// +--+-------+---+
+// |id|   name|age|
+// +--+-------+---+
+// | a|  Alice| 34|
+// | b|    Bob| 36|
+// | c|Charlie| 30|
+// | d|  David| 29|
+// | e| Esther| 32|
+// | f|  Fanny| 36|
+// +--+-------+---+
+
+g.edges.show()
+// +---+---+------------+
+// |src|dst|relationship|
+// +---+---+------------+
+// |  a|  b|      friend|
+// |  b|  c|      follow|
+// |  c|  b|      follow|
+// |  f|  c|      follow|
+// |  e|  f|      follow|
+// |  e|  d|      friend|
+// |  d|  a|      friend|
+// +---+---+------------+
 
 // Get a DataFrame with columns "id" and "inDeg" (in-degree)
 val vertexInDegrees: DataFrame = g.inDegrees
 
-// Find the youngest user in the graph.
+// Find the youngest user's age in the graph.
 // This queries the vertex DataFrame.
-val youngest = g.vertices.select(min("age"), "name")
-youngest.show()
+g.vertices.groupBy().min("age").show()
 
 // Count the number of "follows" in the graph.
 // This queries the edge DataFrame.
@@ -118,9 +155,45 @@ val numFollows = g.edges.filter("relationship = 'follow'").count()
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+# Display the vertex and edge DataFrames
+g.vertices.show()
+# +--+-------+---+
+# |id|   name|age|
+# +--+-------+---+
+# | a|  Alice| 34|
+# | b|    Bob| 36|
+# | c|Charlie| 30|
+# | d|  David| 29|
+# | e| Esther| 32|
+# | f|  Fanny| 36|
+# +--+-------+---+
+
+g.edges.show()
+# +---+---+------------+
+# |src|dst|relationship|
+# +---+---+------------+
+# |  a|  b|      friend|
+# |  b|  c|      follow|
+# |  c|  b|      follow|
+# |  f|  c|      follow|
+# |  e|  f|      follow|
+# |  e|  d|      friend|
+# |  d|  a|      friend|
+# +---+---+------------+
+
+# Get a DataFrame with columns "id" and "inDeg" (in-degree)
+# TODO: vertexInDegrees = g.inDegrees
+
+# Find the youngest user's age in the graph.
+# This queries the vertex DataFrame.
+g.vertices.groupBy().min("age").show()
+
+# Count the number of "follows" in the graph.
+# This queries the edge DataFrame.
+numFollows = g.edges.filter("relationship = 'follow'").count()
 {% endhighlight %}
 </div>
 
@@ -132,7 +205,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -140,7 +214,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -150,21 +225,87 @@ TODO
 
 # Subgraphs
 
+In GraphX, the `subgraph()` method takes an edge triplet (edge, src vertex, and dst vertex, plus
+attributes) and allows the user to select a subgraph based on triplet and vertex filters.
+
+GraphFrames provide an even more powerful way to select subgraphs based on a combination of
+motif finding and DataFrame filters.
+
+**Simple subgraph: vertex and edge filters**:
+The following example shows how to select a subgraph based upon vertex and edge filters.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends
 
-TODO
+// Select subgraph of users older than 30, and edges of type "friend"
+val v2 = g.vertices.filter("age > 30")
+val e2 = g.edges.filter("relationship = 'friend'")
+val g2 = GraphFrame(v2, e2)
 {% endhighlight %}
 </div>
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+# Select subgraph of users older than 30, and edges of type "friend"
+v2 = g.vertices.filter("age > 30")
+e2 = g.edges.filter("relationship = 'friend'")
+g2 = GraphFrame(v2, e2)
+{% endhighlight %}
+</div>
+
+</div>
+
+**Complex subgraph: triplet filters**:
+The following example shows how to select a subgraph based upon triplet filters which
+operate on an edge and its src and dst vertices.  This example could be extended to go beyond
+triplets by using more complex motifs.
+
+<div class="codetabs">
+
+<div data-lang="scala"  markdown="1">
+{% highlight scala %}
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
+
+// Select subgraph based on edges "e" of type "follow"
+// pointing from a younger user "a" to an older user "b".
+val paths = g.find("(a)-[e]->(b)")
+  .filter("e.relationship = 'follow'")
+  .filter("a.age < b.age")
+// "paths" contains vertex info. Extract the edges.
+val e2 = paths.select("e.src", "e.dst", "e.relationship")
+// In Spark 1.5+, the user may simplify this call:
+//  val e2 = paths.select("e.*")
+
+// Construct the subgraph
+val g2 = GraphFrame(g.vertices, e2)
+{% endhighlight %}
+</div>
+
+<div data-lang="python"  markdown="1">
+{% highlight python %}
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
+
+# Select subgraph based on edges "e" of type "follow"
+# pointing from a younger user "a" to an older user "b".
+paths = g.find("(a)-[e]->(b)")\
+  .filter("e.relationship = 'follow'")\
+  .filter("a.age < b.age")
+# "paths" contains vertex info. Extract the edges.
+e2 = paths.select("e.src", "e.dst", "e.relationship")
+# In Spark 1.5+, the user may simplify this call:
+#  val e2 = paths.select("e.*")
+
+# Construct the subgraph
+g2 = GraphFrame(g.vertices, e2)
 {% endhighlight %}
 </div>
 
@@ -187,7 +328,8 @@ The following code snippets search for people connected to the user "Bob."
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Search from "Bob" for users of age <= 30.
 val paths: DataFrame = g.bfs("name = 'Bob'", "age <= 30").run()
@@ -203,7 +345,8 @@ g.bfs("name = 'Bob'", "age <= 30")
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 # Search from "Bob" for users of age <= 30.
 paths = g.bfs("name = 'Bob'", "age <= 30")
@@ -223,7 +366,8 @@ g.bfs("name = 'Bob'", "age <= 30",\
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -231,7 +375,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -245,7 +390,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -253,7 +399,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -267,7 +414,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -275,7 +423,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -289,7 +438,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -297,7 +447,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -311,7 +462,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -319,7 +471,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -333,7 +486,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -341,7 +495,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -355,7 +510,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -363,7 +519,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -377,7 +534,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -385,7 +543,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -401,7 +560,8 @@ TODO
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -409,7 +569,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
@@ -427,7 +588,8 @@ aggregateMessages
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-val g: GraphFrame = ...  // Create a GraphFrame
+import org.graphframes.examples
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 TODO
 {% endhighlight %}
@@ -435,7 +597,8 @@ TODO
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-g = ...  # Create a GraphFrame
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
 
 TODO
 {% endhighlight %}
