@@ -8,7 +8,7 @@ description: GraphFrames GRAPHFRAMES_VERSION user guide
 This page gives examples of how to use GraphFrames for basic queries, motif finding, and
 general graph algorithms.  This includes code examples in Scala and Python.
 
-* Table of contents
+* Table of contents (This text will be scraped.)
 {:toc}
 
 *Note: Most examples use the GraphFrame from the first subsection:
@@ -17,6 +17,7 @@ general graph algorithms.  This includes code examples in Scala and Python.
 # Creating GraphFrames
 
 Users can create GraphFrames from vertex and edge DataFrames.
+
 * *Vertex DataFrame*: A vertex DataFrame should contain a special column named "id" which specifies
   unique IDs for each vertex in the graph.
 * *Edge DataFrame*: An edge DataFrame should contain two special columns: "src" (source vertex ID
@@ -25,8 +26,8 @@ Users can create GraphFrames from vertex and edge DataFrames.
 Both DataFrames can have arbitrary other columns.  Those columns can represent vertex and edge
 attributes.
 
-A GraphFrame can also be constructed from edge DataFrame, without a vertex DataFrame specified.
-A default vertex DataFrame will be created.
+A GraphFrame can also be constructed from a single DataFrame containing edge information.
+The vertices will be inferred from the sources and destinations of the edges.
 
 <div class="codetabs">
 

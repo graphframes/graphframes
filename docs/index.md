@@ -18,7 +18,8 @@ serialization, and highly expressive graph queries.
 GraphFrames represent graphs: vertices (e.g., users) and edges (e.g., relationships between users).
 If you are familiar with [GraphX](http://spark.apache.org/docs/latest/graphx-programming-guide.html),
 then GraphFrames will be easy to learn.  The key difference is that GraphFrames are based upon
-[Spark DataFrames](http://spark.apache.org/docs/latest/sql-programming-guide.html), rather than RDDs.
+[Spark DataFrames](http://spark.apache.org/docs/latest/sql-programming-guide.html),
+rather than [RDDs](http://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds).
 
 GraphFrames also provide powerful tools for running queries and standard graph algorithms.
 With GraphFrames, you can easily search for patterns within graphs, find important vertices, and more.
