@@ -58,7 +58,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     super.afterAll()
   }
 
-  test("construction from DataFrame") {
+  test("construction from DataFrames") {
     val g = GraphFrame(vertices, edges)
     g.vertices.collect().foreach { case Row(id: Long, name: String) =>
       assert(localVertices(id) === name)
@@ -78,6 +78,18 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       val badEdges = edges.select(col("src"), col("dst").as("dstId"), col("action"))
       GraphFrame(vertices, badEdges)
     }
+  }
+
+  test("construction from edge DataFrame") {
+    val g = GraphFrame.fromEdges(edges)
+    assert(g.vertices.columns === Array("id"))
+    val idsFromVertices = g.vertices.select("id").map(_.getLong(0)).collect()
+    val idsFromVerticesSet = idsFromVertices.toSet
+    assert(idsFromVertices.length === idsFromVerticesSet.size)
+    val idsFromEdgesSet = g.edges.select("src", "dst").flatMap { case Row(src: Long, dst: Long) =>
+      Seq(src, dst)
+    }.collect().toSet
+    assert(idsFromVerticesSet === idsFromEdgesSet)
   }
 
   test("construction from GraphX") {
