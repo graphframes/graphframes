@@ -482,6 +482,20 @@ object GraphFrame extends Serializable {
     new GraphFrame(v, e)
   }
 
+  /**
+   * Create a new [[GraphFrame]] from an edge [[DataFrame]].
+   * The resulting [[GraphFrame]] will have [[GraphFrame.vertices]] with a single "id" column.
+   *
+   * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
+   *           destination vertex IDs.  All other columns are treated as edge attributes.
+   * @return  New [[GraphFrame]] instance
+   */
+  def fromEdges(e: DataFrame): GraphFrame = {
+    val srcs = e.select(e("src").as("id"))
+    val dsts = e.select(e("dst").as("id"))
+    val v = srcs.unionAll(dsts).distinct
+    apply(v, e)
+  }
 
   /*
   // TODO: Add version with uniqueKey, foreignKey from Ankur's branch?
