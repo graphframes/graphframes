@@ -111,7 +111,6 @@ as `vertices` and `edges` fields in the GraphFrame.
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-import org.apache.spark.sql.functions.min
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
@@ -144,12 +143,9 @@ g.edges.show()
 // Get a DataFrame with columns "id" and "inDeg" (in-degree)
 val vertexInDegrees: DataFrame = g.inDegrees
 
-// Find the youngest user in the graph.
+// Find the youngest user's age in the graph.
 // This queries the vertex DataFrame.
-
-// TODO: How can we retain the name column?
-// val youngest = g.vertices.select(min("age"), "name")
-// youngest.show()
+g.vertices.groupBy().min("age").show()
 
 // Count the number of "follows" in the graph.
 // This queries the edge DataFrame.
@@ -159,7 +155,6 @@ val numFollows = g.edges.filter("relationship = 'follow'").count()
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-from org.apache.spark.sql.functions import min
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
@@ -195,9 +190,6 @@ g.edges.show()
 # Find the youngest user's age in the graph.
 # This queries the vertex DataFrame.
 g.vertices.groupBy().min("age").show()
-# TODO: How can we retain the name column?
-#youngest = g.vertices.select(min("age"), "name")
-#youngest.show()
 
 # Count the number of "follows" in the graph.
 # This queries the edge DataFrame.
