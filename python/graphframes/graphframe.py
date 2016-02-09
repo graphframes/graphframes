@@ -96,7 +96,6 @@ class GraphFrame(object):
         """
         Breadth-first search (BFS)
         """
-        print "BFS: " + "\n".join(dir(self._jvm_graph))
         builder = self._jvm_graph.bfs(fromExpr, toExpr).setMaxPathLength(maxPathLength)
         if edgeFilter is not None:
             builder.setEdgeFilter(edgeFilter)
