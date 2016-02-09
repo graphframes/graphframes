@@ -274,12 +274,12 @@ triplets by using more complex motifs.
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-// Select subgraph based on edges of type "follow"
-// pointing from a younger user to an older user.
+// Select subgraph based on edges "e" of type "follow"
+// pointing from a younger user "a" to an older user "b".
 val paths = g.find("(a)-[e]->(b)")
   .filter("e.relationship = 'follow'")
   .filter("a.age < b.age")
-// "paths"" contains vertex info. Extract the edges.
+// "paths" contains vertex info. Extract the edges.
 val e2 = paths.select("e.src", "e.dst", "e.relationship")
 // In Spark 1.5+, the user may simplify this call:
 //  val e2 = paths.select("e.*")
@@ -294,8 +294,8 @@ val g2 = GraphFrame(g.vertices, e2)
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-# Select subgraph based on edges of type "follow"
-# pointing from a younger user to an older user.
+# Select subgraph based on edges "e" of type "follow"
+# pointing from a younger user "a" to an older user "b".
 paths = g.find("(a)-[e]->(b)")\
   .filter("e.relationship = 'follow'")\
   .filter("a.age < b.age")
