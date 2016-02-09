@@ -146,8 +146,10 @@ val vertexInDegrees: DataFrame = g.inDegrees
 
 // Find the youngest user in the graph.
 // This queries the vertex DataFrame.
-val youngest = g.vertices.select(min("age"), "name")
-youngest.show()
+
+// TODO: How can we retain the name column?
+// val youngest = g.vertices.select(min("age"), "name")
+// youngest.show()
 
 // Count the number of "follows" in the graph.
 // This queries the edge DataFrame.
@@ -157,10 +159,49 @@ val numFollows = g.edges.filter("relationship = 'follow'").count()
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
+from org.apache.spark.sql.functions import min
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+# Display the vertex and edge DataFrames
+g.vertices.show()
+# +--+-------+---+
+# |id|   name|age|
+# +--+-------+---+
+# | a|  Alice| 34|
+# | b|    Bob| 36|
+# | c|Charlie| 30|
+# | d|  David| 29|
+# | e| Esther| 32|
+# | f|  Fanny| 36|
+# +--+-------+---+
+
+g.edges.show()
+# +---+---+------------+
+# |src|dst|relationship|
+# +---+---+------------+
+# |  a|  b|      friend|
+# |  b|  c|      follow|
+# |  c|  b|      follow|
+# |  f|  c|      follow|
+# |  e|  f|      follow|
+# |  e|  d|      friend|
+# |  d|  a|      friend|
+# +---+---+------------+
+
+# Get a DataFrame with columns "id" and "inDeg" (in-degree)
+# TODO: vertexInDegrees = g.inDegrees
+
+# Find the youngest user's age in the graph.
+# This queries the vertex DataFrame.
+g.vertices.groupBy().min("age").show()
+# TODO: How can we retain the name column?
+#youngest = g.vertices.select(min("age"), "name")
+#youngest.show()
+
+# Count the number of "follows" in the graph.
+# This queries the edge DataFrame.
+numFollows = g.edges.filter("relationship = 'follow'").count()
 {% endhighlight %}
 </div>
 
