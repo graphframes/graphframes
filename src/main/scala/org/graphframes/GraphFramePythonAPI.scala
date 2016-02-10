@@ -64,8 +64,7 @@ private[graphframes] class ExampleImpl {
    */
   def ALSSyntheticData(sqlContext: SQLContext): GraphFrame = {
     val sc = sqlContext.sparkContext
-    val file = getClass.getResource("/als-test.data").getFile
-    val data = sc.textFile(file).map { line =>
+    val data = sc.parallelize(als_data).map { line =>
       val fields = line.split(",")
       (fields(0).toLong * 2, fields(1).toLong * 2 + 1, fields(2).toDouble)
     }
@@ -74,6 +73,26 @@ private[graphframes] class ExampleImpl {
     val vertices = sqlContext.createDataFrame(vs).toDF("id")
     GraphFrame(vertices, edges)
   }
+
+  private lazy val als_data =
+    """
+      |1,1,5.0
+      |1,2,1.0
+      |1,3,5.0
+      |1,4,1.0
+      |2,1,5.0
+      |2,2,1.0
+      |2,3,5.0
+      |2,4,1.0
+      |3,1,1.0
+      |3,2,5.0
+      |3,3,1.0
+      |3,4,5.0
+      |4,1,1.0
+      |4,2,5.0
+      |4,3,1.0
+      |4,4,5.0
+    """.stripMargin.split("\n").map(_.trim).filterNot(_.isEmpty)
 }
 
 private[graphframes] object Examples extends ExampleImpl

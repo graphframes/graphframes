@@ -146,6 +146,6 @@ object SVDPlusPlus {
       _loss.getOrElse(throw new Exception("The algorithm has not been run yet"))
     }
 
-    private[graphframes] def defaultConf: Conf = defaultConf
+    private[graphframes] def defaultConf: Conf = Conf.default
   }
 }
