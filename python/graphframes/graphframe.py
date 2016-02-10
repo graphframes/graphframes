@@ -189,13 +189,17 @@ class GraphFrame(object):
         # TODO(tjh) build the configuration object.
         builder = self._jvm_graph.svdPlusPlus()
         jconf = builder.defaultConf()
-        full_dct = {}
-        for key in ["rank", "maxIters", "minVal", "maxVal", "gamma1", "gamma2", "gamma6", "gamma7"]:
+        all_args = []
+        # The order is important, it determines the order of arguments in the java call.
+        # Check the order of the arguments in SVDPlusPlus.Conf
+        args = [("rank", int), ("maxIters", int)] + [(key, float) for key in ["minVal", "maxVal", "gamma1", "gamma2", "gamma6", "gamma7"]]
+        for key, constructor in args:
             if key in conf_dict:
-                full_dct[key] = conf_dict[key]
+                all_args.append(conf_dict[key])
             else:
-                full_dct[key] = getattr(jconf, key)()
-        jconf2 = jconf.copy(**full_dct)
+                all_args.append(getattr(jconf, key)())
+
+        jconf2 = jconf.copy(*all_args)
         builder = builder.setConf(jconf2)
         jgf = builder.run()
         loss = builder.loss()
