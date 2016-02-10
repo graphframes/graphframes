@@ -26,6 +26,7 @@ import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.{array, col, count, explode, monotonicallyIncreasingId, struct}
 import org.apache.spark.sql.types._
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Logging, graphx}
 
 import org.graphframes.lib._
@@ -486,6 +487,8 @@ object GraphFrame extends Serializable {
    * Create a new [[GraphFrame]] from an edge [[DataFrame]].
    * The resulting [[GraphFrame]] will have [[GraphFrame.vertices]] with a single "id" column.
    *
+   * Note: The [[GraphFrame.vertices]] DataFrame will be persisted at level
+   *       [[StorageLevel.MEMORY_AND_DISK]].
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
    * @return  New [[GraphFrame]] instance
@@ -494,6 +497,7 @@ object GraphFrame extends Serializable {
     val srcs = e.select(e("src").as("id"))
     val dsts = e.select(e("dst").as("id"))
     val v = srcs.unionAll(dsts).distinct
+    v.persist(StorageLevel.MEMORY_AND_DISK)
     apply(v, e)
   }
 
