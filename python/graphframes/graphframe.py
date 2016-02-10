@@ -151,7 +151,53 @@ class GraphFrame(object):
                parameter is ignored.
         :return:
         """
+        builder = self._jvm_graph.pageRank().setResetProbability(reset_prob)
+        if source_id is not None:
+            builder = builder.setSourceId(source_id)
+        if fixed_num_iter is not None:
+            builder = builder.fixedIterations(fixed_num_iter)
+        if tolerance is not None:
+            assert fixed_num_iter is None
+            builder = builder.untilConvergence(tolerance)
+        jgf = builder.run()
+        return _from_java_gf(jgf, self._sqlContext)
 
+    def shortest_paths(self, landmark_ids):
+        """
+        Runs the shortest path algorithm from a set of landmark vertices in the graph.
+        :param landmark_ids: a set of landmarks
+        :return:
+        """
+        jgf = self._jvm_graph.shortestPaths().setLandmarks(landmark_ids).run()
+        return _from_java_gf(jgf, self._sqlContext)
+
+    def strongly_connected_components(self, num_iterations):
+        """
+        Runs the strongly connected components algorithm on this graph.
+        :param num_iterations: the number of iterations to run.
+        :return:
+        """
+        jgf = self._jvm_graph.stronglyConnectedComponents().setNumIterations(num_iterations).run()
+        return _from_java_gf(jgf, self._sqlContext)
+
+    def svd_plus_plus(self, conf_dict):
+        """
+        Runs the SVD++ algorithm.
+        :param conf:
+        :return:
+        """
+        # This call is actually useless, because one needs to build the configuration first...
+        # TODO(tjh) build the configuration object.
+        jgf = self._jvm_graph.svdPlusPlus().setNumIterations(None).run()
+        return _from_java_gf(jgf, self._sqlContext)
+
+    def triangle_count(self):
+        """
+        Counts the number of triangles passing through each vertex in this graph.
+        :return:
+        """
+        jgf = self._jvm_graph.triangleCount().run()
+        return _from_java_gf(jgf, self._sqlContext)
 
 
 def _test():

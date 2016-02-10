@@ -231,7 +231,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   ignore("aggregateMessages") {
     val n = 5
-    val agg = PageRankSuite.starGraph(sqlContext, n).aggregateMessages[Int](
+    val agg = Examples.star(sqlContext, n).aggregateMessages[Int](
       ctx => {
         if (ctx.destinationVertex != null) {
           throw new Exception(

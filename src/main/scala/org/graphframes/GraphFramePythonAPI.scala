@@ -39,6 +39,23 @@ private[graphframes] class ExampleImpl {
     val v = sqlContext.createDataFrame(vertices).toDF("id", "v_attr1", "v_attr2")
     GraphFrame(v, e)
   }
+
+  /**
+   * A star graph, with a central element indexed 0 (the root) and the n other leaf vertices.
+   * @param sqlContext
+   * @param n the number of leaves
+   * @return
+   */
+  def star(sqlContext: SQLContext, n: Int): GraphFrame = {
+    val vertices = sqlContext.createDataFrame(Seq((0, "root")) ++ (1 to n).map { i =>
+      (i, s"node-$i")
+    }).toDF("id", "v_attr1")
+    val edges = sqlContext.createDataFrame((1 to n).map { i =>
+      (i, 0, s"edge-$i")
+    }).toDF("src", "dst", "e_attr1")
+    GraphFrame(vertices, edges)
+  }
+
 }
 
 private[graphframes] object Examples extends ExampleImpl

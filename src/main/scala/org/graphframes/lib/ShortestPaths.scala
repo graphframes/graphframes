@@ -17,8 +17,10 @@
 
 package org.graphframes.lib
 
-import scala.reflect._
+import java.util
+
 import scala.reflect.runtime.universe._
+import scala.collection.JavaConversions._
 
 import org.apache.spark.graphx.{lib => graphxlib}
 
@@ -40,25 +42,26 @@ object ShortestPaths {
    * each reachable landmark vertex.
    */
   def run[VertexId: TypeTag](graph: GraphFrame, landmarks: Seq[VertexId]): GraphFrame = {
-    // TODO(tjh) Ugly cast for now
-    val t = typeOf[VertexId]
-    require(typeOf[Long] =:= t, s"Only long are supported for now, type was $t")
+    val longLandmarks = landmarks.map(PageRank.integralId(graph, _))
     val gx = graphxlib.ShortestPaths.run(
       graph.cachedTopologyGraphX,
-      landmarks.map(_.asInstanceOf[Long])).mapVertices { case (_, m) => m.toSeq }
+      longLandmarks).mapVertices { case (_, m) => m.toSeq }
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
   }
 
   private val DISTANCE_ID = "distance"
 
   class Builder private[graphframes] (graph: GraphFrame) extends Arguments {
-    private var lmarks: Option[Seq[Long]] = None
+    private var lmarks: Option[Seq[Any]] = None
 
-    def setLandmarks[VertexType: ClassTag](landmarks: Seq[VertexType]): this.type = {
-      val ct = implicitly[ClassTag[VertexType]]
-      require(ct == classTag[Long], "Only long are supported for now")
-      lmarks = Some(landmarks.map(_.asInstanceOf[Long]))
+    def setLandmarks[VertexType](landmarks: Seq[VertexType]): this.type = {
+      // TODO(tjh) do some initial checks here, without running queries.
+      lmarks = Some(landmarks)
       this
+    }
+
+    def setLandmarks[VertexType](landmarks: util.ArrayList[VertexType]): this.type = {
+      setLandmarks(landmarks.toSeq)
     }
 
     def run(): GraphFrame = {

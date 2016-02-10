@@ -84,6 +84,18 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self.sqlContext = self.sql
         self.japi = _java_api(self.sqlContext._sc)
 
+    def _graph(self, name, *args, **kwargs):
+        """
+        Convenience to call one of the example graphs, passing the arguments and wrapping the result back
+        as a python object.
+        :param name: the name of the example graph
+        :param args: all the required arguments, without the initial sql context
+        :return:
+        """
+        examples = self.japi.examples()
+        jgraph = getattr(examples, name)(self.sqlContext._ssql_ctx, *args, **kwargs)
+        return _from_java_gf(jgraph, self.sqlContext)
+
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([
         (0L, "a", "b")], ["id", "vattr", "gender"])
@@ -102,14 +114,49 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self.assertEqual(comps.edges.count(), 1)
 
     def test_label_progagation(self):
-        g = _from_java_gf(self.japi.examples().twoBlobs(self.sqlContext._ssql_ctx, 5), self.sqlContext)
-        labels = g.label_propagation(max_steps=20)
+        n = 5
+        g = self._graph("twoBlobs", n)
+        labels = g.label_propagation(max_steps=4 * n)
         labels1 = labels.vertices.filter("id < 5").select("label").collect()
         all1 = set([x.label for x in labels1])
         self.assertEqual(all1, set([0]))
         labels2 = labels.vertices.filter("id >= 5").select("label").collect()
         all2 = set([x.label for x in labels2])
-        self.assertEqual(all2, set([1]))
+        self.assertEqual(all2, set([n]))
+
+    def test_page_rank(self):
+        n = 100
+        g = self._graph("star", n)
+        resetProb = 0.15
+        errorTol = 1.0e-5
+        pr = g.page_rank(resetProb, tolerance=errorTol)
+
+    def test_shortest_paths(self):
+        edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
+        all_edges = [z for (a, b) in edges for z in [(a, b), (b, a)]]
+        edges = self.sqlContext.createDataFrame(all_edges, ["src", "dst"])
+        vertices = self.sqlContext.createDataFrame([(i,) for i in range(1, 7)], ["id"])
+        g = GraphFrame(vertices, edges)
+        landmarks = [1, 4]
+        g2 = g.shortest_paths(landmarks)
+        rows = g2.vertices.select("id", "distance").collect()
+
+    def test_strongly_connected_components(self):
+        # Simple island test
+        vertices = self.sqlContext.createDataFrame([(i,) for i in range(1, 6)], ["id"])
+        edges = self.sqlContext.createDataFrame([(7, 8)], ["src", "dst"])
+        g = GraphFrame(vertices, edges)
+        c = g.strongly_connected_components(5)
+        for row in c.vertices.collect():
+            self.assertEqual(row.id, row.component)
+
+    def test_triangle_counts(self):
+        edges = self.sqlContext.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
+        vertices = self.sqlContext.createDataFrame([(0,), (1,), (2,)], ["id"])
+        g = GraphFrame(vertices, edges)
+        c = g.triangle_count()
+        for row in c.vertices.select("id", "count").collect():
+            self.assertEqual(row.count, 1)
 
 
 if __name__ == "__main__":

@@ -165,8 +165,6 @@ object PageRank {
   }
 
 
-  private[graphframes] def compatibleId(graph: GraphFrame, vertexId)
-
   /**
    * Given a graph and an object, attempts to get the the corresponding integral id in the
    * internal representation.
