@@ -55,28 +55,28 @@ class GraphFrameTest(GraphFrameTestCase):
         e = self.sql.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
 
-    # def test_construction(self):
-    #     g = self.g
-    #     vertexIDs = map(lambda x: x[0], g.vertices.select("id").collect())
-    #     assert sorted(vertexIDs) == [1, 2, 3]
-    #     edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
-    #     assert sorted(edgeActions) == ["follow", "hate", "love"]
-    #
-    # def test_motif_finding(self):
-    #     g = self.g
-    #     motifs = g.find("(a)-[e]->(b)")
-    #     assert motifs.count() == 3
-    #     self.assertSetEqual(set(motifs.columns), {"a", "e", "b"})
-    #
-    # def test_bfs(self):
-    #     g = self.g
-    #     paths = g.bfs("name='A'", "name='C'")
-    #     self.assertEqual(paths.count(), 1)
-    #     self.assertEqual(paths.select("v1.name").head()[0], "B")
-    #     paths2 = g.bfs("name='A'", "name='C'", edgeFilter="action!='follow'")
-    #     self.assertEqual(paths2.count(), 0)
-    #     paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
-    #     self.assertEqual(paths3.count(), 0)
+    def test_construction(self):
+        g = self.g
+        vertexIDs = map(lambda x: x[0], g.vertices.select("id").collect())
+        assert sorted(vertexIDs) == [1, 2, 3]
+        edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
+        assert sorted(edgeActions) == ["follow", "hate", "love"]
+
+    def test_motif_finding(self):
+        g = self.g
+        motifs = g.find("(a)-[e]->(b)")
+        assert motifs.count() == 3
+        self.assertSetEqual(set(motifs.columns), {"a", "e", "b"})
+
+    def test_bfs(self):
+        g = self.g
+        paths = g.bfs("name='A'", "name='C'")
+        self.assertEqual(paths.count(), 1)
+        self.assertEqual(paths.select("v1.name").head()[0], "B")
+        paths2 = g.bfs("name='A'", "name='C'", edgeFilter="action!='follow'")
+        self.assertEqual(paths2.count(), 0)
+        paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
+        self.assertEqual(paths3.count(), 0)
 
 class GraphFrameLibTest(GraphFrameTestCase):
     def setUp(self):
