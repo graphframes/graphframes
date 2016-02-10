@@ -18,6 +18,21 @@
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SQLContext
 
+def _from_java_gf(jgf, sqlContext):
+    """
+    (internal) creates a python GraphFrame wrapper from a java GraphFrame.
+    :param jgf:
+    :return:
+    """
+    pv = DataFrame(jgf.vertices(), sqlContext)
+    pe = DataFrame(jgf.edges(), sqlContext)
+    return GraphFrame(pv, pe)
+
+def _java_api(jsc):
+    javaClassName = "org.graphframes.GraphFramePythonAPI"
+    return jsc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName) \
+            .newInstance()
+
 
 class GraphFrame(object):
     """
@@ -45,10 +60,10 @@ class GraphFrame(object):
 
         self._sc._jvm.org.apache.spark.ml.feature.Tokenizer()
 
-        javaClassName = "org.graphframes.GraphFramePythonAPI"
-        self._jvm_gf_api = \
-            self._sc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName)\
-                .newInstance()
+        # javaClassName = "org.graphframes.GraphFramePythonAPI"
+        self._jvm_gf_api = _java_api(self._sc)
+            # self._sc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName)\
+            #     .newInstance()
 
         self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
@@ -102,6 +117,41 @@ class GraphFrame(object):
             builder.setEdgeFilter(edgeFilter)
         jdf = builder.run()
         return DataFrame(jdf, self._sqlContext)
+
+    # Standard algorithms
+
+    def connected_components(self):
+        """
+        Computes the connected components of the graph.
+        :return:
+        """
+        jgf = self._jvm_graph.connectedComponents().run()
+        return _from_java_gf(jgf, self._sqlContext)
+
+    def label_propagation(self, max_steps):
+        """
+        Runs static label propagation for detecting communities in networks.
+        :param max_steps: the number of super steps to be performed.
+        :return:
+        """
+        jgf = self._jvm_graph.labelPropagation().setMaxSteps(max_steps).run()
+        return _from_java_gf(jgf, self._sqlContext)
+
+    def page_rank(self,
+                  reset_prob, source_id = None,
+                  fixed_num_iter = None,
+                  tolerance = None):
+        """
+        Runs the PageRank algorithm on the graph.
+        :param reset_prob:
+        :param source_id: (optional) the source vertex for a personalized PageRank.
+        :param fixed_num_iter: if set, the algorithm is run for a fixed number of iterations. In this case, the
+               `tolerance` parameter is ignored.
+        :param tolerance: if set, the algorithm is run until the given tolerance. In this case, the `fixed_num_iter`
+               parameter is ignored.
+        :return:
+        """
+
 
 
 def _test():

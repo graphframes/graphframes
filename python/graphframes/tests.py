@@ -29,7 +29,7 @@ else:
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SQLContext
 
-from .graphframe import GraphFrame
+from .graphframe import GraphFrame, _java_api, _from_java_gf
 
 
 class GraphFrameTestCase(unittest.TestCase):
@@ -55,25 +55,65 @@ class GraphFrameTest(GraphFrameTestCase):
         e = self.sql.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
 
-    def test_construction(self):
-        g = self.g
-        vertexIDs = map(lambda x: x[0], g.vertices.select("id").collect())
-        assert sorted(vertexIDs) == [1, 2, 3]
-        edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
-        assert sorted(edgeActions) == ["follow", "hate", "love"]
+    # def test_construction(self):
+    #     g = self.g
+    #     vertexIDs = map(lambda x: x[0], g.vertices.select("id").collect())
+    #     assert sorted(vertexIDs) == [1, 2, 3]
+    #     edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
+    #     assert sorted(edgeActions) == ["follow", "hate", "love"]
+    #
+    # def test_motif_finding(self):
+    #     g = self.g
+    #     motifs = g.find("(a)-[e]->(b)")
+    #     assert motifs.count() == 3
+    #     self.assertSetEqual(set(motifs.columns), {"a", "e", "b"})
+    #
+    # def test_bfs(self):
+    #     g = self.g
+    #     paths = g.bfs("name='A'", "name='C'")
+    #     self.assertEqual(paths.count(), 1)
+    #     self.assertEqual(paths.select("v1.name").head()[0], "B")
+    #     paths2 = g.bfs("name='A'", "name='C'", edgeFilter="action!='follow'")
+    #     self.assertEqual(paths2.count(), 0)
+    #     paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
+    #     self.assertEqual(paths3.count(), 0)
 
-    def test_motif_finding(self):
-        g = self.g
-        motifs = g.find("(a)-[e]->(b)")
-        assert motifs.count() == 3
-        self.assertSetEqual(set(motifs.columns), {"a", "e", "b"})
+class GraphFrameLibTest(GraphFrameTestCase):
+    def setUp(self):
+        super(GraphFrameLibTest, self).setUp()
+        self.sqlContext = self.sql
+        self.japi = _java_api(self.sqlContext._sc)
 
-    def test_bfs(self):
-        g = self.g
-        paths = g.bfs("name='A'", "name='C'")
-        self.assertEqual(paths.count(), 1)
-        self.assertEqual(paths.select("v1.name").head()[0], "B")
-        paths2 = g.bfs("name='A'", "name='C'", edgeFilter="action!='follow'")
-        self.assertEqual(paths2.count(), 0)
-        paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
-        self.assertEqual(paths3.count(), 0)
+    def test_connected_components(self):
+        v = self.sqlContext.createDataFrame([
+        (0L, "a", "b")], ["id", "vattr", "gender"])
+        e = self.sqlContext.createDataFrame([(0L, 0L, 1L)], ["src", "dst", "test"]).filter("src > 10")
+        g = GraphFrame(v, e)
+        comps = g.connected_components()
+        self.assertEqual(comps.vertices.count(), 1)
+        self.assertEqual(comps.edges.count(), 0)
+
+    def test_connected_components2(self):
+        v = self.sqlContext.createDataFrame([(0L, "a0", "b0"), (1L, "a1", "b1")], ["id", "A", "B"])
+        e = self.sqlContext.createDataFrame([(0L, 1L, "a01", "b01")], ["src", "dst", "A", "B"])
+        g = GraphFrame(v, e)
+        comps = g.connected_components()
+        self.assertEqual(comps.vertices.count(), 2)
+        self.assertEqual(comps.edges.count(), 1)
+
+    def test_label_progagation(self):
+        g = _from_java_gf(self.japi.examples().twoBlobs(self.sqlContext._ssql_ctx, 5), self.sqlContext)
+        labels = g.label_propagation(max_steps=20)
+        labels1 = labels.vertices.filter("id < 5").select("label").collect()
+        all1 = set([x.label for x in labels1])
+        self.assertEqual(all1, set([0]))
+        labels2 = labels.vertices.filter("id >= 5").select("label").collect()
+        all2 = set([x.label for x in labels2])
+        self.assertEqual(all2, set([1]))
+
+
+if __name__ == "__main__":
+    self = __builtin__
+    self.sqlContext = sqlContext
+    from graphframes import *
+
