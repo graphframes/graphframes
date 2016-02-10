@@ -126,12 +126,6 @@ object SVDPlusPlus {
   private val COLUMN4 = "column4"
   private val ECOLUMN1 = "ecolumn1"
 
-  private val field1 = StructField(COLUMN1, ArrayType(DoubleType), nullable = false)
-  private val field2 = StructField(COLUMN2, ArrayType(DoubleType), nullable = false)
-  private val field3 = StructField(COLUMN3, DoubleType, nullable = false)
-  private val field4 = StructField(COLUMN4, DoubleType, nullable = false)
-  private val eField1 = StructField(ECOLUMN1, DoubleType, nullable = false)
-
   class Builder private[graphframes] (graph: GraphFrame) extends Arguments {
     private var conf: Option[Conf] = None
     private var _loss: Option[Double] = None
@@ -151,5 +145,7 @@ object SVDPlusPlus {
       // We could use types instead to make sure that it is never accessed before being run.
       _loss.getOrElse(throw new Exception("The algorithm has not been run yet"))
     }
+
+    private[graphframes] def defaultConf: Conf = defaultConf
   }
 }

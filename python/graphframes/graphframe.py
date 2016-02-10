@@ -188,8 +188,20 @@ class GraphFrame(object):
         """
         # This call is actually useless, because one needs to build the configuration first...
         # TODO(tjh) build the configuration object.
-        jgf = self._jvm_graph.svdPlusPlus().setNumIterations(None).run()
-        return _from_java_gf(jgf, self._sqlContext)
+        builder = self._jvm_graph.svdPlusPlus()
+        jconf = builder.defaultConf()
+        full_dct = {}
+        for key in ["rank", "maxIters", "minVal", "maxVal", "gamma1", "gamma2", "gamma6", "gamma7"]:
+            if key in conf_dict:
+                full_dct[key] = conf_dict[key]
+            else:
+                full_dct[key] = getattr(jconf, key)()
+        jconf2 = jconf.copy(**full_dct)
+        builder = builder.setConf(jconf2)
+        jgf = builder.run()
+        loss = builder.loss()
+        gf = _from_java_gf(jgf, self._sqlContext)
+        return (gf, loss)
 
     def triangle_count(self):
         """

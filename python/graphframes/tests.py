@@ -141,6 +141,10 @@ class GraphFrameLibTest(GraphFrameTestCase):
         g2 = g.shortest_paths(landmarks)
         rows = g2.vertices.select("id", "distance").collect()
 
+    def test_svd_plus_plus(self):
+        g = self._graph("ALSSyntheticData")
+        (g2, cost) = g.svd_plus_plus({})
+
     def test_strongly_connected_components(self):
         # Simple island test
         vertices = self.sqlContext.createDataFrame([(i,) for i in range(1, 6)], ["id"])

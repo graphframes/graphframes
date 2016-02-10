@@ -19,21 +19,14 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
+import org.graphframes.{Examples, GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
 
 class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("Test SVD++ with mean square error on training set") {
 
     val svdppErr = 8.0
-    val data = sc.textFile(getClass.getResource("/als-test.data").getFile).map { line =>
-      val fields = line.split(",")
-      (fields(0).toLong * 2, fields(1).toLong * 2 + 1, fields(2).toDouble)
-    }
-    val edges = sqlContext.createDataFrame(data).toDF("src", "dst", "weight")
-    val vs = data.flatMap(r => r._1 :: r._2 :: Nil).collect().distinct.map(x => Tuple1(x))
-    val vertices = sqlContext.createDataFrame(vs).toDF("id")
-    val g = GraphFrame(vertices, edges)
+    val g = Examples.ALSSyntheticData(sqlContext)
 
     val conf = SVDPlusPlus.Conf(10, 2, 0.0, 5.0, 0.007, 0.007, 0.005, 0.015) // 2 iterations
     val (g2, _) = SVDPlusPlus.run(g, conf)

@@ -56,6 +56,24 @@ private[graphframes] class ExampleImpl {
     GraphFrame(vertices, edges)
   }
 
+  /**
+   * Some synthetic data that sits in spark.
+   *
+   * No description available.
+   * @return
+   */
+  def ALSSyntheticData(sqlContext: SQLContext): GraphFrame = {
+    val sc = sqlContext.sparkContext
+    val file = getClass.getResource("/als-test.data").getFile
+    val data = sc.textFile(file).map { line =>
+      val fields = line.split(",")
+      (fields(0).toLong * 2, fields(1).toLong * 2 + 1, fields(2).toDouble)
+    }
+    val edges = sqlContext.createDataFrame(data).toDF("src", "dst", "weight")
+    val vs = data.flatMap(r => r._1 :: r._2 :: Nil).collect().distinct.map(x => Tuple1(x))
+    val vertices = sqlContext.createDataFrame(vs).toDF("id")
+    GraphFrame(vertices, edges)
+  }
 }
 
 private[graphframes] object Examples extends ExampleImpl
