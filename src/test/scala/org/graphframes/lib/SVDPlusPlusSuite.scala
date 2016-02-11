@@ -27,7 +27,7 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Test SVD++ with mean square error on training set") {
 
     val svdppErr = 8.0
-    val g = Graphs.ALSSyntheticData(sqlContext)
+    val g = Graphs.ALSSyntheticData()
 
     val conf = SVDPlusPlus.Conf(10, 2, 0.0, 5.0, 0.007, 0.007, 0.005, 0.015) // 2 iterations
     val (g2, _) = SVDPlusPlus.run(g, conf)
