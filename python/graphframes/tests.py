@@ -84,7 +84,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self.sqlContext = self.sql
         self.japi = _java_api(self.sqlContext._sc)
 
-    def _graph(self, name, *args, **kwargs):
+    def _graph(self, name, *args):
         """
         Convenience to call one of the example graphs, passing the arguments and wrapping the result back
         as a python object.
@@ -93,7 +93,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         :return:
         """
         examples = self.japi.examples()
-        jgraph = getattr(examples, name)(self.sqlContext._ssql_ctx, *args, **kwargs)
+        jgraph = getattr(examples, name)(*args)
         return _from_java_gf(jgraph, self.sqlContext)
 
     def test_connected_components(self):
@@ -162,9 +162,4 @@ class GraphFrameLibTest(GraphFrameTestCase):
         for row in c.vertices.select("id", "count").collect():
             self.assertEqual(row.count, 1)
 
-
-if __name__ == "__main__":
-    self = __builtin__
-    self.sqlContext = sqlContext
-    from graphframes import *
 

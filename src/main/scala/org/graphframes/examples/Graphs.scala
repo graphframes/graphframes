@@ -17,42 +17,5 @@
 
 package org.graphframes.examples
 
-import org.graphframes.GraphFrame
-
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.SQLContext
-
 /** Example GraphFrames for testing the API */
-object Graphs {
-
-  private lazy val sc: SparkContext = SparkContext.getOrCreate()
-  private lazy val sqlContext: SQLContext = SQLContext.getOrCreate(sc)
-
-  /**
-   * Graph of friends in a social network.
-   */
-  lazy val friends: GraphFrame = {
-    // Vertex DataFrame
-    val v = sqlContext.createDataFrame(List(
-      ("a", "Alice", 34),
-      ("b", "Bob", 36),
-      ("c", "Charlie", 30),
-      ("d", "David", 29),
-      ("e", "Esther", 32),
-      ("f", "Fanny", 36)
-    )).toDF("id", "name", "age")
-    // Edge DataFrame
-    val e = sqlContext.createDataFrame(List(
-      ("a", "b", "friend"),
-      ("b", "c", "follow"),
-      ("c", "b", "follow"),
-      ("f", "c", "follow"),
-      ("e", "f", "follow"),
-      ("e", "d", "friend"),
-      ("d", "a", "friend")
-    )).toDF("src", "dst", "relationship")
-    // Create a GraphFrame
-    GraphFrame(v, e)
-  }
-
-}
+object Graphs extends TestExamples

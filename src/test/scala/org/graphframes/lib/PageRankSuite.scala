@@ -17,14 +17,15 @@
 
 package org.graphframes.lib
 
-import org.graphframes.{Examples, GraphFrameTestSparkContext, SparkFunSuite}
+import org.graphframes.examples.Graphs
+import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
 
 class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   val n = 100
 
   test("Star example") {
-    val g = Examples.star(sqlContext, n)
+    val g = Graphs.star(n)
     val resetProb = 0.15
     val errorTol = 1.0e-5
     val pr = PageRank.runUntilConvergence(g, errorTol, resetProb)

@@ -17,14 +17,15 @@
 
 package org.graphframes.lib
 
-import org.graphframes.{Examples, GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
+import org.graphframes.examples.Graphs
+import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
 
 class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   val n = 5
 
   test("Toy example") {
-    val g = Examples.twoBlobs(sqlContext, n)
+    val g = Graphs.twoBlobs(n)
     val labels = LabelPropagation.run(g, 4 * n)
     LabelPropagationSuite.testSchemaInvariants(g, labels)
     val clique1 = labels.vertices.filter(s"id < $n").select("label").collect().toSeq.map(_.getLong(0)).toSet

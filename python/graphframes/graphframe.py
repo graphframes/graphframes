@@ -57,14 +57,8 @@ class GraphFrame(object):
         self._edges = e
         self._sqlContext = v.sql_ctx
         self._sc = self._sqlContext._sc
-
         self._sc._jvm.org.apache.spark.ml.feature.Tokenizer()
-
-        # javaClassName = "org.graphframes.GraphFramePythonAPI"
         self._jvm_gf_api = _java_api(self._sc)
-            # self._sc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName)\
-            #     .newInstance()
-
         self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
         self.ID = self._jvm_gf_api.ID()
@@ -186,7 +180,6 @@ class GraphFrame(object):
         :return:
         """
         # This call is actually useless, because one needs to build the configuration first...
-        # TODO(tjh) build the configuration object.
         builder = self._jvm_graph.svdPlusPlus()
         jconf = builder.defaultConf()
         all_args = []

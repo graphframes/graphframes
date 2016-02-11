@@ -17,13 +17,9 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StringType
-
-import scala.reflect.runtime.universe._
-
-import org.apache.spark.graphx.{lib => graphxlib}
-
 import org.graphframes.GraphFrame
 
 /**
@@ -89,11 +85,11 @@ object PageRank {
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
-  def run[VertexId](
+  def run(
       graph: GraphFrame,
       numIter: Int,
       resetProb: Double = 0.15,
-      srcId: Option[VertexId] = None): GraphFrame = {
+      srcId: Option[Any] = None): GraphFrame = {
     val longSrcId = srcId.map(integralId(graph, _))
     val gx = graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
@@ -110,11 +106,11 @@ object PageRank {
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
-  def runUntilConvergence[VertexId](
+  def runUntilConvergence(
       graph: GraphFrame,
       tol: Double,
       resetProb: Double = 0.15,
-      srcId: Option[VertexId] = None): GraphFrame = {
+      srcId: Option[Any] = None): GraphFrame = {
     val longSrcId = srcId.map(integralId(graph, _))
     val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))

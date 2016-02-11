@@ -19,12 +19,11 @@ package org.graphframes.lib
 
 import java.util
 
-import scala.reflect.runtime.universe._
 import scala.collection.JavaConversions._
 
-import org.apache.spark.graphx.{lib => graphxlib}
-
 import org.graphframes.GraphFrame
+
+import org.apache.spark.graphx.{lib => graphxlib}
 
 /**
  * Computes shortest paths to the given set of landmark vertices, returning a graph where each
@@ -41,7 +40,7 @@ object ShortestPaths {
    * @return a graph where each vertex attribute is a map containing the shortest-path distance to
    * each reachable landmark vertex.
    */
-  def run[VertexId: TypeTag](graph: GraphFrame, landmarks: Seq[VertexId]): GraphFrame = {
+  def run(graph: GraphFrame, landmarks: Seq[Any]): GraphFrame = {
     val longLandmarks = landmarks.map(PageRank.integralId(graph, _))
     val gx = graphxlib.ShortestPaths.run(
       graph.cachedTopologyGraphX,
