@@ -22,13 +22,16 @@ import org.apache.spark.sql.SQLContext
 import org.graphframes.GraphFrame
 
 class TestExamples {
-  private lazy val sc: SparkContext = SparkContext.getOrCreate()
-  private lazy val sqlContext: SQLContext = SQLContext.getOrCreate(sc)
+  // Note: these cannot be values: we are creating and destroying spark contexts during the tests, and turning
+  // these into vals means we would hold onto a potentially destroyed spark context.
+  private def sc: SparkContext = SparkContext.getOrCreate()
+  private def sqlContext: SQLContext = SQLContext.getOrCreate(sc)
 
   /**
    * Graph of friends in a social network.
    */
-  lazy val friends: GraphFrame = {
+  def friends: GraphFrame = {
+    // For the same reason as above, this cannot be a value.
     // Vertex DataFrame
     val v = sqlContext.createDataFrame(List(
       ("a", "Alice", 34),
