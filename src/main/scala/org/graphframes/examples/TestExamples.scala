@@ -94,7 +94,7 @@ class TestExamples {
    * No description available.
    * @return
    */
-  def ALSSyntheticData(sqlContext: SQLContext): GraphFrame = {
+  def ALSSyntheticData(): GraphFrame = {
     val sc = sqlContext.sparkContext
     val data = sc.parallelize(als_data).map { line =>
       val fields = line.split(",")
