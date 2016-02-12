@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 import org.graphframes.GraphFrame
 
@@ -60,7 +60,7 @@ object ShortestPaths {
     }
 
     def setLandmarks[VertexType](landmarks: util.ArrayList[VertexType]): this.type = {
-      setLandmarks(landmarks.toSeq)
+      setLandmarks(landmarks.asScala)
     }
 
     def run(): GraphFrame = {

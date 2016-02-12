@@ -128,10 +128,10 @@ object PageRank {
     private var tol: Option[Double] = None
     private var resetProb: Option[Double] = Some(0.15)
     private var numIters: Option[Int] = None
-    private var srcId: Option[Any] = None
+    private var srcId_ : Option[Any] = None
 
-    def setSourceId[VertexId](srcId_ : VertexId): this.type = {
-      srcId = Some(srcId_)
+    def setSourceId[VertexId](srcId : VertexId): this.type = {
+      srcId_ = Some(srcId)
       this
     }
 
@@ -153,9 +153,9 @@ object PageRank {
     def run(): GraphFrame = {
       tol match {
         case Some(t) =>
-          PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
+          PageRank.runUntilConvergence(graph, t, resetProb.get, srcId_)
         case None =>
-          PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId)
+          PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId_)
       }
     }
   }

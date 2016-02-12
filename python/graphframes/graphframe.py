@@ -113,7 +113,7 @@ class GraphFrame(object):
 
     # Standard algorithms
 
-    def connected_components(self):
+    def connectedComponents(self):
         """
         Computes the connected components of the graph.
         :return:
@@ -121,7 +121,7 @@ class GraphFrame(object):
         jgf = self._jvm_graph.connectedComponents().run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def label_propagation(self, max_steps):
+    def labelPropagation(self, max_steps):
         """
         Runs static label propagation for detecting communities in networks.
         :param max_steps: the number of super steps to be performed.
@@ -130,8 +130,9 @@ class GraphFrame(object):
         jgf = self._jvm_graph.labelPropagation().setMaxSteps(max_steps).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def page_rank(self,
-                  reset_prob, source_id = None,
+    def pageRank(self,
+                  reset_prob = 0.15,
+                  source_id = None,
                   fixed_num_iter = None,
                   tolerance = None):
         """
@@ -149,13 +150,13 @@ class GraphFrame(object):
             builder = builder.setSourceId(source_id)
         if fixed_num_iter is not None:
             builder = builder.fixedIterations(fixed_num_iter)
-        if tolerance is not None:
-            assert fixed_num_iter is None
+        else:
+            assert tolerance is not None, "either fixed_num_iter or tolerance shoud be set"
             builder = builder.untilConvergence(tolerance)
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def shortest_paths(self, landmark_ids):
+    def shortestPaths(self, landmark_ids):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
         :param landmark_ids: a set of landmarks
@@ -164,7 +165,7 @@ class GraphFrame(object):
         jgf = self._jvm_graph.shortestPaths().setLandmarks(landmark_ids).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def strongly_connected_components(self, num_iterations):
+    def stronglyConnectedComponents(self, num_iterations):
         """
         Runs the strongly connected components algorithm on this graph.
         :param num_iterations: the number of iterations to run.
@@ -173,7 +174,7 @@ class GraphFrame(object):
         jgf = self._jvm_graph.stronglyConnectedComponents().setNumIterations(num_iterations).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def svd_plus_plus(self, conf_dict):
+    def svdPlusPlus(self, conf_dict):
         """
         Runs the SVD++ algorithm.
         :param conf:
@@ -185,7 +186,8 @@ class GraphFrame(object):
         all_args = []
         # The order is important, it determines the order of arguments in the java call.
         # Check the order of the arguments in SVDPlusPlus.Conf
-        args = [("rank", int), ("maxIters", int)] + [(key, float) for key in ["minVal", "maxVal", "gamma1", "gamma2", "gamma6", "gamma7"]]
+        double_args = [(key, float) for key in ["minVal", "maxVal", "gamma1", "gamma2", "gamma6", "gamma7"]]
+        args = [("rank", int), ("maxIters", int)] + double_args
         for key, constructor in args:
             if key in conf_dict:
                 all_args.append(conf_dict[key])
@@ -199,7 +201,7 @@ class GraphFrame(object):
         gf = _from_java_gf(jgf, self._sqlContext)
         return (gf, loss)
 
-    def triangle_count(self):
+    def triangleCount(self):
         """
         Counts the number of triangles passing through each vertex in this graph.
         :return:

@@ -1,8 +1,8 @@
 package org.graphframes
 
-import org.apache.spark.sql.{DataFrame}
-import org.graphframes.examples.{Graphs, TestExamples}
+import org.graphframes.examples.Graphs
 
+import org.apache.spark.sql.DataFrame
 
 private[graphframes] class GraphFramePythonAPI {
 
@@ -13,5 +13,5 @@ private[graphframes] class GraphFramePythonAPI {
   val DST: String = GraphFrame.DST
   val ATTR: String = GraphFrame.ATTR
 
-  lazy val examples: TestExamples = Graphs
+  lazy val examples: Graphs = Graphs
 }
