@@ -427,6 +427,22 @@ class GraphFrame protected(
     df
   }
 
+  lazy val triplets: DataFrame = find(s"($SRC)-[e]->($DST)")
+
+  def aggMess(msgToSrc: Column, msgToDst: Column, agg: Column): DataFrame = {
+    // TODO: Allow not sending to src or dst
+    // TODO: NEED NAME FOR OUTPUT from agg or default
+    val msgsToSrc = triplets.select(msgToSrc.as("MSG"), triplets(SRC))
+    val msgsToDst = triplets.select(msgToDst.as("MSG"), triplets(DST))
+    // Inner joins: only send messages to vertices with edges
+    val sentMsgsToSrc = msgsToSrc.join(vertices, triplets(SRC) === vertices(ID))
+      .select(msgsToSrc("MSG"), vertices(ID))
+    val sentMsgsToDst = msgsToDst.join(vertices, triplets(DST) === vertices(ID))
+      .select(msgsToDst("MSG"), vertices(ID))
+    val aggregatedMsgs = sentMsgsToSrc.unionAll(sentMsgsToDst).groupBy(ID).agg(agg)
+    aggregatedMsgs.join(vertices, ID)
+  }
+
   // **** Standard library ****
 
   def connectedComponents(): ConnectedComponents.Builder = new ConnectedComponents.Builder(this)
@@ -628,6 +644,13 @@ object GraphFrame extends Serializable {
   /** Nest all columns within a single StructType column with the given name */
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
     struct(df.columns.map(c => df(c)) :_*).as(name)
+  }
+
+  object AggMess {
+    def src: Column = col(SRC)
+    def dst: Column = col(DST)
+    def edge: Column = col("e")
+    def msg: Column = col("MSG")
   }
 }
 
