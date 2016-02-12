@@ -130,19 +130,17 @@ class GraphFrame(object):
         jgf = self._jvm_graph.labelPropagation().setMaxSteps(max_steps).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def pageRank(self,
-                  reset_prob = 0.15,
-                  source_id = None,
-                  fixed_num_iter = None,
-                  tolerance = None):
+    def pageRank(self, reset_prob = 0.15, source_id = None, fixed_num_iter = None,
+                 tolerance = None):
         """
         Runs the PageRank algorithm on the graph.
+        Note: Exactly one of fixed_num_iter or tolerance must be set.
         :param reset_prob:
         :param source_id: (optional) the source vertex for a personalized PageRank.
-        :param fixed_num_iter: if set, the algorithm is run for a fixed number of iterations. In this case, the
-               `tolerance` parameter is ignored.
-        :param tolerance: if set, the algorithm is run until the given tolerance. In this case, the `fixed_num_iter`
-               parameter is ignored.
+        :param fixed_num_iter: If set, the algorithm is run for a fixed number
+               of iterations. This may not be set if the `tolerance` parameter is set.
+        :param tolerance: If set, the algorithm is run until the given tolerance.
+               This may not be set if the `fixed_num_iter` parameter is set.
         :return:
         """
         builder = self._jvm_graph.pageRank().setResetProbability(reset_prob)
@@ -150,8 +148,9 @@ class GraphFrame(object):
             builder = builder.setSourceId(source_id)
         if fixed_num_iter is not None:
             builder = builder.fixedIterations(fixed_num_iter)
+            assert tolerance is None, "Exactly one of fixed_num_iter or tolerance shoud be set."
         else:
-            assert tolerance is not None, "either fixed_num_iter or tolerance shoud be set"
+            assert tolerance is not None, "Exactly one of fixed_num_iter or tolerance shoud be set."
             builder = builder.untilConvergence(tolerance)
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)

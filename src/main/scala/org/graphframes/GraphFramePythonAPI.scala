@@ -1,8 +1,8 @@
 package org.graphframes
 
-import org.graphframes.examples.Graphs
-
 import org.apache.spark.sql.DataFrame
+
+import org.graphframes.examples.Graphs
 
 private[graphframes] class GraphFramePythonAPI {
 

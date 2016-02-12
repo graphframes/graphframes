@@ -85,8 +85,8 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self.japi = _java_api(self.sqlContext._sc)
 
     def _hasCols(self, graph, vcols = [], ecols = []):
-        graph.vertices.select(*vcols).collect()
-        graph.edges.select(*ecols).collect()
+        map(lambda c: self.assertIn(c, graph.vertices.columns), vcols)
+        map(lambda c: self.assertIn(c, graph.edges.columns), ecols)
 
     def _graph(self, name, *args):
         """
@@ -106,7 +106,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         e = self.sqlContext.createDataFrame([(0L, 0L, 1L)], ["src", "dst", "test"]).filter("src > 10")
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
-        self._hasCols(comps, vcols=['component', 'vattr', 'gender'])
+        self._hasCols(comps, vcols=['id', 'component', 'vattr', 'gender'])
         self.assertEqual(comps.vertices.count(), 1)
         self.assertEqual(comps.edges.count(), 0)
 
@@ -115,7 +115,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         e = self.sqlContext.createDataFrame([(0L, 1L, "a01", "b01")], ["src", "dst", "A", "B"])
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
-        self._hasCols(comps, vcols=['component', 'A', 'B'])
+        self._hasCols(comps, vcols=['id', 'component', 'A', 'B'])
         self.assertEqual(comps.vertices.count(), 2)
         self.assertEqual(comps.edges.count(), 1)
 
@@ -136,7 +136,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         resetProb = 0.15
         errorTol = 1.0e-5
         pr = g.pageRank(resetProb, tolerance=errorTol)
-        self._hasCols(pr, vcols=['weight'], ecols=['weight'])
+        self._hasCols(pr, vcols=['id', 'weight'], ecols=['src', 'dst', 'weight'])
 
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
@@ -146,13 +146,13 @@ class GraphFrameLibTest(GraphFrameTestCase):
         g = GraphFrame(vertices, edges)
         landmarks = [1, 4]
         g2 = g.shortestPaths(landmarks)
-        rows = g2.vertices.select("id", "distance").collect()
+        self._hasCols(g2, vcols=["id", "distance"])
 
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
         (g2, cost) = g.svdPlusPlus({})
-        self._hasCols(g2, vcols=['column1', 'column2', 'column3'], ecols=['ecolumn1'])
-
+        self._hasCols(g2, vcols=['id', 'column1', 'column2', 'column3'],
+                      ecols=['src', 'dst', 'ecolumn1'])
 
     def test_strongly_connected_components(self):
         # Simple island test
