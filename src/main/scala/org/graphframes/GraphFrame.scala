@@ -489,8 +489,7 @@ object GraphFrame extends Serializable {
    *
    * Note: The [[GraphFrame.vertices]] DataFrame will be persisted at level
    *       [[StorageLevel.MEMORY_AND_DISK]].
-    *
-    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
+   * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
    * @return  New [[GraphFrame]] instance
    */

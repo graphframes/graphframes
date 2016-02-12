@@ -40,15 +40,16 @@ import org.graphframes.GraphFrame
  * The probability distribution P(X) (over all x,,i,,) is parameterized by vertex factors a,,i,,
  * and edge factors b,,ij,,:
  * {{{
- *  P(X) = (1/Z) * [ \prod_i a_i x_i ] * [ \prod_{ij} b_{ij} x_i x_j ]
+ *  P(X) = (1/Z) * exp[ \sum_i a_i x_i + \sum_{ij} b_{ij} x_i x_j ]
  * }}}
+ * where Z is the normalization constant (partition function).
  * See [[https://en.wikipedia.org/wiki/Ising_model Wikipedia]] for more information on Ising models.
  *
  * Belief Propagation (BP) provides marginal probabilities of the values of the variables x,,i,,,
  * i.e., P(x,,i,,) for each i.  This allows a user to understand likely values of variables.
  * See [[https://en.wikipedia.org/wiki/Belief_propagation Wikipedia]] for more information on BP.
  *
- * We use a batch synchronous BP algorithm, where batches of vertices are updated in synchronously.
+ * We use a batch synchronous BP algorithm, where batches of vertices are updated synchronously.
  * We follow the mean field update algorithm in Slide 13 of the
  * [[http://www.eecs.berkeley.edu/~wainwrig/Talks/A_GraphModel_Tutorial  talk slides]] from:
  *  Wainwright. "Graphical models, message-passing algorithms, and convex optimization."
