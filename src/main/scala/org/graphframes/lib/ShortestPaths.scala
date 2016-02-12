@@ -21,10 +21,9 @@ import java.util
 
 import scala.collection.JavaConverters._
 
-import org.graphframes.GraphFrame
-
 import org.apache.spark.graphx.{lib => graphxlib}
 
+import org.graphframes.GraphFrame
 /**
  * Computes shortest paths to the given set of landmark vertices, returning a graph where each
  * vertex attribute is a map containing the shortest-path distance to each reachable landmark.
