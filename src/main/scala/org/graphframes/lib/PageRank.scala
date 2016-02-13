@@ -17,10 +17,9 @@
 
 package org.graphframes.lib
 
-import scala.reflect.runtime.universe._
-
 import org.apache.spark.graphx.{lib => graphxlib}
-
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.StringType
 import org.graphframes.GraphFrame
 
 /**
@@ -86,12 +85,13 @@ object PageRank {
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
-  def run[VertexId : TypeTag](
+  def run(
       graph: GraphFrame,
       numIter: Int,
       resetProb: Double = 0.15,
-      srcId: Option[VertexId] = None): GraphFrame = {
-    val gx = graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, None)
+      srcId: Option[Any] = None): GraphFrame = {
+    val longSrcId = srcId.map(integralId(graph, _))
+    val gx = graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
   }
 
@@ -106,11 +106,13 @@ object PageRank {
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
-  def runUntilConvergence[VertexId : TypeTag](
+  def runUntilConvergence(
       graph: GraphFrame,
       tol: Double,
-      resetProb: Double = 0.15, srcId: Option[VertexId] = None): GraphFrame = {
-    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, None)
+      resetProb: Double = 0.15,
+      srcId: Option[Any] = None): GraphFrame = {
+    val longSrcId = srcId.map(integralId(graph, _))
+    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
   }
 
@@ -126,14 +128,10 @@ object PageRank {
     private var tol: Option[Double] = None
     private var resetProb: Option[Double] = Some(0.15)
     private var numIters: Option[Int] = None
-    private var srcId: Option[Long] = None
+    private var srcId : Option[Any] = None
 
-    def setSourceId[VertexId : TypeTag](srcId_ : VertexId): this.type = {
-      // TODO(tjh) This should to the conversion to the Long id.
-
-      val t = typeOf[VertexId]
-      require(typeOf[Long] =:= t, s"Only long are supported for now, type was $t")
-      srcId = Some(srcId_.asInstanceOf[Long])
+    def setSourceId[VertexId](srcId : VertexId): this.type = {
+      this.srcId = Some(srcId)
       this
     }
 
@@ -160,5 +158,38 @@ object PageRank {
           PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId)
       }
     }
+  }
+
+
+  /**
+   * Given a graph and an object, attempts to get the the corresponding integral id in the
+   * internal representation.
+   *
+   * @param graph
+   * @param vertexId
+   * @return
+   */
+  private[graphframes] def integralId(graph: GraphFrame, vertexId: Any): Long = {
+    // Check if we can directly convert it
+    vertexId match {
+      case x: Int => return x.toLong
+      case x: Long => return x.toLong
+      case x: Short => return x.toLong
+      case x: Byte => return x.toLong
+      case _ =>
+    }
+    // It is a non-integral type such as a string, we need to use the translation table.
+    // Check that the type is compatible.
+    val tpe = graph.vertices.schema(GraphFrame.ID)
+    vertexId match {
+      case _: String => require(tpe.dataType == StringType, s"Type should be string, it is ${tpe.dataType}")
+      case x => throw new Exception(s"Unknown type ${x.getClass}. The only accepted types are the raw SQL types")
+    }
+    val longIdRow = graph.indexedVertices
+      .select(graph.vertices(GraphFrame.ID) === vertexId)
+      .select(GraphFrame.LONG_ID)
+    // TODO(tjh): could do more informative message
+    val Seq(Row(long_id: Long)) = longIdRow.collect().toSeq
+    long_id
   }
 }

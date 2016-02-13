@@ -17,27 +17,15 @@
 
 package org.graphframes.lib
 
+import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
 
 class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   val n = 5
 
-  // A graph with 2 cliques connected by a single link.
-  def create(): GraphFrame = {
-    val edges1 = for (v1 <- 0 until n; v2 <- 0 until n) yield (v1.toLong, v2.toLong, s"$v1-$v2")
-    val edges2 = for {
-      v1 <- n until (2 * n)
-      v2 <- n until (2 * n) } yield (v1.toLong, v2.toLong, s"$v1-$v2")
-    val edges = edges1 ++ edges2 :+ (0L, n.toLong, s"0-$n")
-    val vertices = (0 until (2 * n)).map { v => (v.toLong, s"$v", v) }
-    val e = sqlContext.createDataFrame(edges).toDF("src", "dst", "e_attr1")
-    val v = sqlContext.createDataFrame(vertices).toDF("id", "v_attr1", "v_attr2")
-    GraphFrame(v, e)
-  }
-
   test("Toy example") {
-    val g = create()
+    val g = Graphs.twoBlobs(n)
     val labels = LabelPropagation.run(g, 4 * n)
     LabelPropagationSuite.testSchemaInvariants(g, labels)
     val clique1 = labels.vertices.filter(s"id < $n").select("label").collect().toSeq.map(_.getLong(0)).toSet

@@ -28,8 +28,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.{DataFrame, Row}
+import org.graphframes.examples.Graphs
 
-import org.graphframes.lib.PageRankSuite
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -231,7 +231,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   ignore("aggregateMessages") {
     val n = 5
-    val agg = PageRankSuite.starGraph(sqlContext, n).aggregateMessages[Int](
+    val agg = Graphs.star(n).aggregateMessages[Int](
       ctx => {
         if (ctx.destinationVertex != null) {
           throw new Exception(
