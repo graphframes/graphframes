@@ -19,6 +19,8 @@ package org.graphframes
 
 import java.io.File
 
+import scala.collection.mutable
+
 import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
@@ -247,9 +249,32 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("aggMess") {
-    val n = 5
-    val g = PageRankSuite.starGraph(sqlContext, n)
-    val agg = g.aggMess(AggMess.src("v_attr1"), AggMess.dst("v_attr1"), sum(AggMess.msg))
-    agg.collect().foreach(println)
+    val g = Graphs.friends
+    // For each user, sum the ages of the adjacent users,
+    // plus 1 for the src's sum if the edge is "friend".
+    val msgToSrc = AggMess.dst("age") +
+      when(AggMess.edge("relationship") === "friend", lit(1)).otherwise(0)
+    val msgToDst = AggMess.src("age")
+    val agg = g.aggMess(msgToSrc, msgToDst, sum(AggMess.msg).as("summedAges"))
+    // Convert agg to a Map, and compute the truth via brute force for comparison.
+    import org.apache.spark.sql._
+    val aggMap: Map[String, Long] = agg.select("id", "summedAges").collect().map {
+      case Row(id: String, s: Long) => id -> s
+    }.toMap
+    val trueAgg: Map[String, Int] = {
+      val user2age = g.vertices.select("id", "age").collect().map {
+        case Row(id: String, age: Int) => id -> age
+      }.toMap
+      val a = mutable.HashMap.empty[String, Int]
+      g.edges.select("src", "dst", "relationship").collect().foreach {
+        case Row(src: String, dst: String, relationship: String) =>
+          a.put(src, a.getOrElse(src, 0) + user2age(dst) + (if (relationship == "friend") 1 else 0))
+          a.put(dst, a.getOrElse(dst, 0) + user2age(src))
+      }
+      a.toMap
+    }
+    aggMap.keys.foreach { case user =>
+      assert(aggMap(user) === trueAgg(user), s"Failure on user $user")
+    }
   }
 }

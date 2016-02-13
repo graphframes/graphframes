@@ -427,18 +427,18 @@ class GraphFrame protected(
     df
   }
 
-  lazy val triplets: DataFrame = find(s"($SRC)-[e]->($DST)")
+  lazy val triplets: DataFrame = find(s"($SRC)-[EDGE]->($DST)")
 
   def aggMess(msgToSrc: Column, msgToDst: Column, agg: Column): DataFrame = {
     // TODO: Allow not sending to src or dst
     // TODO: NEED NAME FOR OUTPUT from agg or default
-    val msgsToSrc = triplets.select(msgToSrc.as("MSG"), triplets(SRC))
-    val msgsToDst = triplets.select(msgToDst.as("MSG"), triplets(DST))
+    val msgsToSrc = triplets.select(msgToSrc.as("MSG"), triplets(SRC)(ID).as(ID))
+    val msgsToDst = triplets.select(msgToDst.as("MSG"), triplets(DST)(ID).as(ID))
     // Inner joins: only send messages to vertices with edges
-    val sentMsgsToSrc = msgsToSrc.join(vertices, triplets(SRC) === vertices(ID))
-      .select(msgsToSrc("MSG"), vertices(ID))
-    val sentMsgsToDst = msgsToDst.join(vertices, triplets(DST) === vertices(ID))
-      .select(msgsToDst("MSG"), vertices(ID))
+    val sentMsgsToSrc = msgsToSrc.join(vertices, ID)
+      .select(msgsToSrc("MSG"), col(ID))
+    val sentMsgsToDst = msgsToDst.join(vertices, ID)
+      .select(msgsToDst("MSG"), col(ID))
     val aggregatedMsgs = sentMsgsToSrc.unionAll(sentMsgsToDst).groupBy(ID).agg(agg)
     aggregatedMsgs.join(vertices, ID)
   }
@@ -649,7 +649,7 @@ object GraphFrame extends Serializable {
   object AggMess {
     def src: Column = col(SRC)
     def dst: Column = col(DST)
-    def edge: Column = col("e")
+    def edge: Column = col("EDGE")
     def msg: Column = col("MSG")
   }
 }
