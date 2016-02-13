@@ -19,11 +19,12 @@ package org.graphframes.examples
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
+
 import org.graphframes.GraphFrame
 
 class Graphs {
-  // Note: these cannot be values: we are creating and destroying spark contexts during the tests, and turning
-  // these into vals means we would hold onto a potentially destroyed spark context.
+  // Note: these cannot be values: we are creating and destroying spark contexts during the tests,
+  // and turning these into vals means we would hold onto a potentially destroyed spark context.
   private def sc: SparkContext = SparkContext.getOrCreate()
   private def sqlContext: SQLContext = SQLContext.getOrCreate(sc)
 
