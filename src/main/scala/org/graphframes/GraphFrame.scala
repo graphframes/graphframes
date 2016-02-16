@@ -104,7 +104,6 @@ class GraphFrame protected(
 
   // ============================ Motif finding ========================================
 
-
   /**
    * Motif finding.
    * TODO: Describe possible motifs.

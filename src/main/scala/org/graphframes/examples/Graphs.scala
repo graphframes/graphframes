@@ -184,11 +184,15 @@ class Graphs {
     val allEdges = horizontalEdges.unionAll(verticalEdges)
     //  Add random parameters from a normal distribution
     val edges = allEdges.withColumn("b", randn(seed + 1) * eStd)  // Ising parameter for edge
-    println("EDGES")
-    edges.show()
 
     // Create the GraphFrame
-    GraphFrame(vertices, edges)
+    val g = GraphFrame(vertices, edges)
+
+    // Materialize graph as workaround for SPARK-13333
+    g.vertices.cache().count()
+    g.edges.cache().count()
+
+    g
   }
 
   /** Version of [[gridIsingModel()]] with vStd, eStd set to 1.0. */

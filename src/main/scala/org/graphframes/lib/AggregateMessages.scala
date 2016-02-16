@@ -48,6 +48,9 @@ import org.graphframes.GraphFrame
  *  - [[AggregateMessages.dst]]: column for destination vertex of edge
  *  - [[AggregateMessages.msg]]: message sent to vertex (for aggregation function)
  *
+ * Note: If you use this operation to write an iterative algorithm, you may want to use
+ * [[AggregateMessages.getCachedDataFrame()]] as a workaround for caching issues.
+ *
  * @example We can use this function to compute the in-degree of each vertex
  * {{{
  * val g: GraphFrame = Graph.textFile("twittergraph")
@@ -123,9 +126,6 @@ object AggregateMessages extends Logging with Serializable {
           // Should never happen. Specify this case to avoid compilation warnings.
           throw new RuntimeException("AggregateMessages: No messages were specified to be sent.")
       }
-      unionedMsgs.count()
-      println("AGGREGATE MESSAGES: unionedMsgs")
-      unionedMsgs.show()
       unionedMsgs.groupBy(ID).agg(aggCol)
     }
   }
@@ -141,4 +141,21 @@ object AggregateMessages extends Logging with Serializable {
 
   /** Reference for message column, used for specifying aggregation function */
   def msg: Column = col("MSG")
+
+  /**
+   * Cache a DataFrame, and returned the cached version. For iterative DataFrame-based algorithms.
+   *
+   * WARNING: This is NOT the same as [[DataFrame.cache()]].
+   *          The original DataFrame will NOT be cached.
+   *
+   * This is a workaround for SPARK-13346, which makes it difficult to use DataFrames in iterative
+   * algorithms.  This workaround converts the DataFrame to an RDD, caches the RDD, and creates
+   * a new DataFrame.  This is important for avoiding the creation of extremely complex DataFrame
+   * query plans when using DataFrames in iterative algorithms.
+   */
+  def getCachedDataFrame(df: DataFrame): DataFrame = {
+    val rdd = df.rdd.cache()
+    // rdd.count()
+    df.sqlContext.createDataFrame(rdd, df.schema)
+  }
 }

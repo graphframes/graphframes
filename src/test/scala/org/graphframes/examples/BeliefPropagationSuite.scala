@@ -17,54 +17,44 @@
 
 package org.graphframes.examples
 
-import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite}
+import org.apache.spark.sql.{DataFrame, Row}
+
+import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
 import org.graphframes.examples.BeliefPropagation._
 import org.graphframes.examples.Graphs.gridIsingModel
 
 
 class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  test("BP using GraphX aggregateMessages") {
+  test("BP using GraphX and GraphFrame aggregateMessages") {
+    val n = 3  // graph is n x n
+    val numIter = 5 // iterations of BP
+
     // Create graphical model g.
-    val n = 2
     val g = gridIsingModel(sqlContext, n)
-    println("ORIGINAL MODEL: v")
-    g.vertices.sort("id").show()
-    g.edges.sort("src", "dst").show()
 
-    // Run BP
-    val results = runBP(g, 1)
+    // Run BP using GraphX
+    val gxResults = runBPwithGraphX(g, numIter)
+    // Run BP using GraphFrames
+    val gfResults = runBPwithGraphFrames(g, numIter)
 
-    // Display beliefs.
-    val beliefs = results.vertices.select("id", "belief")
-    beliefs.sort("id").show()
-  }
+    // Check beliefs.
+    def checkResults(v: DataFrame): Unit = {
+      v.select("belief").collect().foreach { case Row(belief: Double) =>
+        assert(belief >= 0.0 && belief <= 1.0,
+          s"Expected belief to be probability in [0,1], but found $belief")
+      }
+    }
+    checkResults(gxResults.vertices)
+    checkResults(gfResults.vertices)
 
-  test("BP using GraphFrame aggregateMessages") {
-    // Create graphical model g.
-    val n = 2
-    val g = gridIsingModel(sqlContext, n)
-    /*
-    val gv = g.vertices.select("id", "a", "i", "j")
-      .map(r => (r.getString(0), r.getDouble(1), r.getInt(2), r.getInt(3)))
-    gv.cache().count()
-    val gv2 = sqlContext.createDataFrame(gv).toDF("id", "a", "i", "j")
-    val ge = g.edges.select("src", "dst", "b")
-      .map(r => (r.getString(0), r.getString(1), r.getDouble(2)))
-    ge.cache().count()
-    val ge2 = sqlContext.createDataFrame(ge).toDF("src", "dst", "b")
-    println("ORIGINAL MODEL: v")
-    gv2.sort("id").show()
-    ge2.sort("src", "dst").show()
-    val finalG = GraphFrame(gv2, ge2)
-*/
-    // Run BP
-    g.vertices.cache().show()
-    g.edges.cache().show()
-    val results = runBP2(g, 1)
-
-    // Display beliefs.
-    val beliefs = results.vertices.select("id", "belief")
-    beliefs.sort("id").show()
+    // Compare beliefs.
+    val gxBeliefs = gxResults.vertices.select("id", "belief")
+    val gfBeliefs = gfResults.vertices.select("id", "belief")
+    gxBeliefs.join(gfBeliefs, "id")
+      .select(gxBeliefs("belief").as("gxBelief"), gfBeliefs("belief").as("gfBelief"))
+      .collect().foreach { case Row(gxBelief: Double, gfBelief: Double) =>
+        assert(math.abs(gxBelief - gfBelief) <= 1e-6)
+    }
   }
 }
