@@ -105,7 +105,7 @@ object BeliefPropagation {
   /**
    * Run Belief Propagation.
    *
-   * This implementation of BP shows how to use GraphX's aggregationMessages method.
+   * This implementation of BP shows how to use GraphX's aggregateMessages method.
    * It is simple to convert to and from GraphX format.  This method does the following:
    *  - Color GraphFrame vertices for BP scheduling.
    *  - Convert GraphFrame to GraphX format.
@@ -136,8 +136,7 @@ object BeliefPropagation {
     }
     // Convert edge attributes to nice case classes.
     val extractEdgeAttr: (GXEdge[Row] => EdgeAttr) = { e =>
-      // Initialize belief at 0.0
-      EdgeAttr(e.attr.getDouble(eColsMap("b")), 0.0)
+      EdgeAttr(e.attr.getDouble(eColsMap("b")))
     }
     var gx: Graph[VertexAttr, EdgeAttr] = gx1.mapEdges(extractEdgeAttr)
 
@@ -169,12 +168,12 @@ object BeliefPropagation {
 
     // Convert back to GraphFrame with a new column "belief" for vertices DataFrame.
     val gxFinal: Graph[Double, Unit] = gx.mapVertices((_, attr) => attr.belief).mapEdges(_ => ())
-    GraphFrame.fromGraphX(g, gxFinal, vertexNames = Seq("belief"))
+    GraphFrame.fromGraphX(colorG, gxFinal, vertexNames = Seq("belief"))
   }
 
   case class VertexAttr(a: Double, belief: Double, color: Int)
 
-  case class EdgeAttr(b: Double, belief: Double)
+  case class EdgeAttr(b: Double)
 
   /** More numerically stable `log(1 + exp(x))` */
   private def log1pExp(x: Double): Double = {
