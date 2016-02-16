@@ -24,15 +24,15 @@ import scala.collection.mutable
 import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-import org.graphframes.GraphFrame.AggMess
 
-import org.apache.spark.graphx.{Edge, Graph, TripletFields}
+import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.{DataFrame, Row}
-import org.graphframes.examples.Graphs
 
+import org.graphframes.examples.Graphs
+import org.graphframes.lib.AggregateMessages
 
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
@@ -233,29 +233,18 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
   }
 
-  ignore("aggregateMessages") {
-    val n = 5
-    val agg = Graphs.star(n).aggregateMessages[Int](
-      ctx => {
-        if (ctx.destinationVertex != null) {
-          throw new Exception(
-            "expected ctx.destinationVertex to be null due to TripletFields, but it was " +
-              ctx.destinationVertex)
-        }
-        val f = ctx.sourceVertex.getAs[Int]("v_attr1")
-        Seq(f) -> Nil
-      }, _ + _, TripletFields.Src)
-    assert(agg.collect().toSet === (1 to n).map(x => Row(x: Long, "v")).toSet)
-  }
-
-  test("aggMess") {
+  test("aggregateMessages") {
+    val AM = AggregateMessages
     val g = Graphs.friends
     // For each user, sum the ages of the adjacent users,
     // plus 1 for the src's sum if the edge is "friend".
-    val msgToSrc = AggMess.dst("age") +
-      when(AggMess.edge("relationship") === "friend", lit(1)).otherwise(0)
-    val msgToDst = AggMess.src("age")
-    val agg = g.aggMess(msgToSrc, msgToDst, sum(AggMess.msg).as("summedAges"))
+    val msgToSrc = AM.dst("age") +
+      when(AM.edge("relationship") === "friend", lit(1)).otherwise(0)
+    val msgToDst = AM.src("age")
+    val agg = g.aggregateMessages
+      .sendToSrc(msgToSrc)
+      .sendToDst(msgToDst)
+      .agg(sum(AM.msg).as("summedAges"))
     // Convert agg to a Map, and compute the truth via brute force for comparison.
     import org.apache.spark.sql._
     val aggMap: Map[String, Long] = agg.select("id", "summedAges").collect().map {

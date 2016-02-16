@@ -150,7 +150,8 @@ class Graphs {
    * @param  eStd  Standard deviation of normal distribution used to generate edge factors "b".
    *               Default of 1.0.
    * @return  GraphFrame.  Vertices have columns "id" and "a".
-   *          Edges have columns "src", "dst", and "b".
+   *          Edges have columns "src", "dst", and "b".  Edges are directed, but they should be
+   *          treated as undirected in any algorithms run on this model.
    *          Vertex IDs are of the form "i,j".  E.g., vertex "1,3" is in the second row and fourth
    *          column of the grid.
    */
@@ -173,20 +174,18 @@ class Graphs {
       .withColumn("a", randn(seed) * vStd)  // Ising parameter for vertex
 
     // Create the edge DataFrame
-    //  Create SQL expression for converting coordinates (i,j+1) and (i+1.j) to string IDs
+    //  Create SQL expression for converting coordinates (i,j+1) and (i+1,j) to string IDs
     val rightIDcol = toIDudf(col("i"), col("j") + 1)
     val downIDcol = toIDudf(col("i") + 1, col("j"))
     val horizontalEdges = coordinates.filter(col("j") !== n - 1)
       .select(vIDcol.as("src"), rightIDcol.as("dst"))
     val verticalEdges = coordinates.filter(col("i") !== n - 1)
       .select(vIDcol.as("src"), downIDcol.as("dst"))
-    val hvEdges = horizontalEdges.unionAll(verticalEdges)
-    //  These edges are directed.  We duplicate and reverse them to create bidirectional edges.
-    val reversedEdges = hvEdges.select(col("src").as("dst"), col("dst").as("src"))
-    //  We union all edges together to get the full set.
-    val allEdges = hvEdges.unionAll(reversedEdges)
+    val allEdges = horizontalEdges.unionAll(verticalEdges)
     //  Add random parameters from a normal distribution
     val edges = allEdges.withColumn("b", randn(seed + 1) * eStd)  // Ising parameter for edge
+    println("EDGES")
+    edges.show()
 
     // Create the GraphFrame
     GraphFrame(vertices, edges)

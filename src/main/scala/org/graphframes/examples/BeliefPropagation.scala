@@ -19,11 +19,12 @@ package org.graphframes.examples
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.graphx.{Edge => GXEdge,VertexRDD, Graph}
-import org.apache.spark.sql.{Row, SQLContext}
-import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.{Column, Row, SQLContext}
+import org.apache.spark.sql.functions.{col, lit, sum, udf, when}
 
 import org.graphframes.GraphFrame
 import org.graphframes.examples.Graphs.gridIsingModel
+import org.graphframes.lib.AggregateMessages
 
 
 /**
@@ -105,7 +106,7 @@ object BeliefPropagation {
   /**
    * Run Belief Propagation.
    *
-   * This implementation of BP shows how to use GraphX's aggregationMessages method.
+   * This implementation of BP shows how to use GraphX's aggregateMessages method.
    * It is simple to convert to and from GraphX format.  This method does the following:
    *  - Color GraphFrame vertices for BP scheduling.
    *  - Convert GraphFrame to GraphX format.
@@ -136,8 +137,7 @@ object BeliefPropagation {
     }
     // Convert edge attributes to nice case classes.
     val extractEdgeAttr: (GXEdge[Row] => EdgeAttr) = { e =>
-      // Initialize belief at 0.0
-      EdgeAttr(e.attr.getDouble(eColsMap("b")), 0.0)
+      EdgeAttr(e.attr.getDouble(eColsMap("b")))
     }
     var gx: Graph[VertexAttr, EdgeAttr] = gx1.mapEdges(extractEdgeAttr)
 
@@ -147,11 +147,17 @@ object BeliefPropagation {
       for (color <- Range(0, numColors)) {
         // Send messages to vertices of the current color.
         val msgs: VertexRDD[Double] = gx.aggregateMessages(
-          ctx => if (ctx.dstAttr.color == color) {
-            val msg = ctx.attr.b * ctx.srcAttr.belief
-            // Only send message if non-zero.
-            if (msg != 0) ctx.sendToDst(msg)
-          },
+          ctx =>
+            // Can send to source or destination since edges are treated as undirected.
+            if (ctx.dstAttr.color == color) {
+              val msg = ctx.attr.b * ctx.srcAttr.belief
+              // Only send message if non-zero.
+              if (msg != 0) ctx.sendToDst(msg)
+            } else if (ctx.srcAttr.color == color) {
+              val msg = ctx.attr.b * ctx.dstAttr.belief
+              // Only send message if non-zero.
+              if (msg != 0) ctx.sendToSrc(msg)
+            },
           _ + _)
         // Receive messages, and update beliefs for vertices of the current color.
         gx = gx.outerJoinVertices(msgs) {
@@ -164,17 +170,156 @@ object BeliefPropagation {
               vAttr
             }
         }
+        println(s"NEW VERTICES for iter=$iter, color=$color")
+        gx.vertices.collect().map(_._2.belief).foreach(println)
       }
     }
 
     // Convert back to GraphFrame with a new column "belief" for vertices DataFrame.
     val gxFinal: Graph[Double, Unit] = gx.mapVertices((_, attr) => attr.belief).mapEdges(_ => ())
-    GraphFrame.fromGraphX(g, gxFinal, vertexNames = Seq("belief"))
+    GraphFrame.fromGraphX(colorG, gxFinal, vertexNames = Seq("belief"))
   }
 
   case class VertexAttr(a: Double, belief: Double, color: Int)
 
-  case class EdgeAttr(b: Double, belief: Double)
+  case class EdgeAttr(b: Double)
+
+  /**
+   * Run Belief Propagation.
+   *
+   * This implementation of BP shows how to use GraphFrame's aggregateMessages method.
+   *  - Color GraphFrame vertices for BP scheduling.
+   *  - Run BP using GraphFrame's aggregateMessages API.
+   *  - Augment the original GraphFrame with the BP results (vertex beliefs).
+   *
+   * @param g  Graphical model created by [[org.graphframes.examples.Graphs.gridIsingModel()]]
+   * @param numIter  Number of iterations of BP to run.  One iteration includes updating each
+   *                 vertex's belief once.
+   * @return  Same graphical model, but with [[GraphFrame.vertices]] augmented with a new column
+   *          "belief" containing P(x,,i,, = +1), the marginal probability of vertex i taking
+   *          value +1 instead of -1.
+   */
+  def runBP2(g: GraphFrame, numIter: Int): GraphFrame = {
+    // Choose colors for vertices for BP scheduling.
+    val colorG = colorGraph(g)
+    val numColors: Int = colorG.vertices.select("color").distinct.count().toInt
+
+    // TODO: Handle vertices without any edges.
+
+    // Initialize vertex beliefs at 0.0.
+    var gx = GraphFrame(colorG.vertices.withColumn("belief", lit(0.0)), colorG.edges)
+
+    // Run BP for numIter iterations.
+    for (iter <- Range(0, numIter)) {
+      // For each color, have that color receive messages from neighbors.
+      for (color <- Range(0, numColors)) {
+        // Send messages to vertices of the current color.
+        val start = System.currentTimeMillis()
+        println(s"COLOR: $color")
+        val AM = AggregateMessages
+        // Can send to source or destination since edges are treated as undirected.
+        val multUDF = udf { (a: Double, b: Double) =>
+          println(s"multUDF($a, $b) = ${a * b}")
+          a * b
+        }
+        //val msgForSrc: Column = when(AM.src("color") === color, AM.edge("b") * AM.dst("belief"))
+        val msgForSrc: Column = when(AM.src("color") === color, multUDF(AM.edge("b"), AM.dst("belief")))
+        //val msgForDst: Column = when(AM.dst("color") === color, AM.edge("b") * AM.src("belief"))
+        val msgForDst: Column = when(AM.dst("color") === color, multUDF(AM.edge("b"), AM.src("belief")))
+        val logistic = udf { (x: Double) =>
+          println(s"logistic UDF computing with x = $x.  result = ${1.0 / (1.0 + math.exp(-x))}")
+          1.0 / (1.0 + math.exp(-x))
+        } //math.exp(-log1pExp(-x)) }
+        val aggregates = gx.aggregateMessages
+          .sendToSrc(msgForSrc)
+          .sendToDst(msgForDst)
+          .agg(sum(AM.msg).as("aggMess"))
+        val v = gx.vertices
+        println(s"VERTICES: " + v.columns.mkString(", "))
+        // Receive messages, and update beliefs for vertices of the current color.
+        val newBeliefCol = when(aggregates("aggMess").isNotNull,
+          logistic(aggregates("aggMess") + v("a")))
+          .otherwise(v("belief"))
+        val tmpA = v
+          .join(aggregates, v("id") === aggregates("id"), "left_outer")  // join messages, vertices
+          .drop(aggregates("id"))  // drop duplicate ID column (from outer join)
+        println("TMP A")
+        tmpA.show()
+        val tmpB = tmpA
+          .withColumn("newBelief", newBeliefCol)  // compute new beliefs
+        println("TMP B")
+        tmpB.show()
+        val tmpC = tmpB
+          .drop("aggMess")  // drop messages
+          .drop("belief")  // drop old beliefs
+          .withColumnRenamed("newBelief", "belief")
+        println("TMP C")
+        tmpC.show()
+        val newVertices = v
+          .join(aggregates, v("id") === aggregates("id"), "left_outer")  // join messages, vertices
+          .drop(aggregates("id"))  // drop duplicate ID column (from outer join)
+          .withColumn("newBelief", newBeliefCol)  // compute new beliefs
+          .drop("aggMess")  // drop messages
+          .drop("belief")  // drop old beliefs
+          .withColumnRenamed("newBelief", "belief")
+        val numV = newVertices.cache().count()
+        val elapsed = (System.currentTimeMillis() - start) / 1000.0
+        println(s"ELAPSED time for iter=$iter, color=$color: $elapsed")
+        println(s"NEW VERTICES of size $numV: ")
+        newVertices.explain()
+        newVertices.show()
+        gx = GraphFrame(newVertices, gx.edges)
+      }
+    }
+
+    // Drop the "color" column from vertices
+    GraphFrame(gx.vertices.drop("color"), gx.edges)
+  }
+
+  def runBP3(g: GraphFrame, numIter: Int): GraphFrame = {
+    // Choose colors for vertices for BP scheduling.
+    val colorG = colorGraph(g)
+    val numColors: Int = colorG.vertices.select("color").distinct.count().toInt
+
+    // Initialize vertex beliefs at 0.0.
+    val edges = colorG.edges
+    var v = colorG.vertices.withColumn("belief", lit(0.0))
+
+    // Run BP for numIter iterations.
+    for (iter <- Range(0, numIter)) {
+      // For each color, have that color receive messages from neighbors.
+      for (color <- Range(0, numColors)) {
+        val gx = GraphFrame(v, edges)
+        // Send messages to vertices of the current color.
+        val start = System.currentTimeMillis()
+        println(s"COLOR: $color")
+        val AM = AggregateMessages
+        val msg: Column = when(AM.dst("color") === color, AM.edge("b") * AM.src("belief"))
+          .otherwise(lit(0.0))
+        val logistic = udf { (x: Double) => math.exp(-log1pExp(-x)) }
+        val aggregates = gx.aggregateMessages.sendToDst(msg).agg(sum(AM.msg).as("aggMess"))
+        println(s"VERTICES: " + v.columns.mkString(", "))
+        // Receive messages, and update beliefs for vertices of the current color.
+        val newBeliefCol = logistic(when(aggregates("aggMess").isNotNull,
+          aggregates("aggMess") + v("a"))
+          .otherwise(v("a")))
+        val newVertices = v.drop("beliefs")  // drop old beliefs
+          .join(aggregates, v("id") === aggregates("id"), "left_outer")  // join messages, vertices
+          .drop(aggregates("id"))  // drop duplicate ID column (from outer join)
+          .withColumn("belief", newBeliefCol)  // compute new beliefs
+          .drop("aggMess")  // drop messages
+        val numV = newVertices.cache().count()
+        val elapsed = (System.currentTimeMillis() - start) / 1000.0
+        println(s"ELAPSED time for iter=$iter, color=$color: $elapsed")
+        println(s"NEW VERTICES of size $numV: " + newVertices.columns.mkString(", "))
+        newVertices.explain()
+        v = newVertices
+      }
+    }
+
+    // Drop the "color" column from vertices
+    GraphFrame(v.drop("color"), edges)
+  }
 
   /** More numerically stable `log(1 + exp(x))` */
   private def log1pExp(x: Double): Double = {

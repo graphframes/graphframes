@@ -17,17 +17,15 @@
 
 package org.graphframes
 
-import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.graphx.{Edge, Graph, TripletFields}
-import org.apache.spark.rdd.RDD
+import org.apache.spark.{Logging}
+import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.{array, col, count, explode, monotonicallyIncreasingId, struct}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{Logging, graphx}
 
 import org.graphframes.lib._
 import org.graphframes.pattern._
@@ -385,63 +383,12 @@ class GraphFrame protected(
   lazy val eColsMap: Map[String, Int] = eCols.zipWithIndex.toMap
 
   /**
-   *
-   * Aggregates values from the neighboring edges and vertices of each vertex. The user-supplied
-   * `sendMsg` function is invoked on each edge of the graph, generating 0 or more messages to be
-   * sent to either vertex in the edge. The `mergeMsg` function is then used to combine all messages
-   * destined to the same vertex.
-   *
-   * @tparam A the type of message to be sent to each vertex
-   * @param sendMsg runs on each edge, sending messages to neighboring vertices using the
-   *   [[EdgeContext]].
-   *   The first iterable collection is the collection of messages sent to the SOURCE.
-   *   The second iterable collection is the collection of messages sent to the DESTINATION.
-   * @param aggregate used to combine messages from `sendMsg` destined to the same vertex. This
-   *   combiner should be commutative and associative.
-   * @param selectedFields which fields should be included in the [[EdgeContext]] passed to the
-   *   `sendMsg` function. If not all fields are needed, specifying this can improve performance.
-   * @example We can use this function to compute the in-degree of each
-   * vertex
-   * {{{
-   * val rawGraph: Graph[_, _] = Graph.textFile("twittergraph")
-   * val inDeg: RDD[(VertexId, Int)] =
-   *   rawGraph.aggregateMessages(ctx => Seq(1) -> Seq.empty, _ + _)
-   * }}}
-   *
-   * It returns a dataframe with the following columns:
-   *  - id: the vertex ID
-   *  - all the other columns that were created by using type A.
+   * Returns triplets: (source vertex)-[edge]->(destination vertex) for all edges in the graph.
+   * The DataFrame returned has 3 columns, with names: [[GraphFrame.SRC]], [[GraphFrame.EDGE]],
+   * and [[GraphFrame.DST]].  The 2 vertex columns have schema matching [[GraphFrame.vertices]],
+   * and the edge column has a schema matching [[GraphFrame.edges]].
    */
-  def aggregateMessages[A : ClassTag : TypeTag](
-      sendMsg: EdgeContext => (Iterable[A], Iterable[A]),
-      aggregate: (A, A) => A,
-      selectedFields: TripletFields = TripletFields.All): DataFrame = {
-    def send(ec: graphx.EdgeContext[Row, Row, A]): Unit = {
-      val ec2: EdgeContext = new EdgeContextImpl(ec.srcId, ec.dstId, ec.srcAttr, ec.dstAttr, ec.attr)
-      val (src, dst) = sendMsg(ec2)
-      src.foreach(ec.sendToSrc)
-      dst.foreach(ec.sendToDst)
-    }
-    val gx: RDD[(Long, A)] = cachedGraphX.aggregateMessages(send, aggregate, selectedFields)
-    val df = sqlContext.createDataFrame(gx).toDF(ID, ATTR)
-    df
-  }
-
-  lazy val triplets: DataFrame = find(s"($SRC)-[EDGE]->($DST)")
-
-  def aggMess(msgToSrc: Column, msgToDst: Column, agg: Column): DataFrame = {
-    // TODO: Allow not sending to src or dst
-    // TODO: NEED NAME FOR OUTPUT from agg or default
-    val msgsToSrc = triplets.select(msgToSrc.as("MSG"), triplets(SRC)(ID).as(ID))
-    val msgsToDst = triplets.select(msgToDst.as("MSG"), triplets(DST)(ID).as(ID))
-    // Inner joins: only send messages to vertices with edges
-    val sentMsgsToSrc = msgsToSrc.join(vertices, ID)
-      .select(msgsToSrc("MSG"), col(ID))
-    val sentMsgsToDst = msgsToDst.join(vertices, ID)
-      .select(msgsToDst("MSG"), col(ID))
-    val aggregatedMsgs = sentMsgsToSrc.unionAll(sentMsgsToDst).groupBy(ID).agg(agg)
-    aggregatedMsgs.join(vertices, ID)
-  }
+  lazy val triplets: DataFrame = find(s"($SRC)-[$EDGE]->($DST)")
 
   // **** Standard library ****
 
@@ -458,6 +405,13 @@ class GraphFrame protected(
   def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
 
   def triangleCount(): TriangleCount.Builder = new TriangleCount.Builder(this)
+
+  /**
+   * This is a primitive for implementing graph algorithms.
+   * This method aggregates values from the neighboring edges and vertices of each vertex.
+   * See [[AggregateMessages]] for detailed documentation.
+   */
+  def aggregateMessages: AggregateMessages.Builder = new AggregateMessages.Builder(this)
 }
 
 
@@ -466,11 +420,14 @@ object GraphFrame extends Serializable {
   /** Column name for vertex IDs in [[GraphFrame.vertices]] */
   val ID: String = "id"
 
-  /** Column name for source vertex IDs in [[GraphFrame.edges]] */
+  /** Column name for source vertex IDs in [[GraphFrame.edges]] and [[GraphFrame.triplets]] */
   val SRC: String = "src"
 
-  /** Column name for destination vertex IDs in [[GraphFrame.edges]] */
+  /** Column name for destination vertex IDs in [[GraphFrame.edges]] and [[GraphFrame.triplets]] */
   val DST: String = "dst"
+
+  /** Column name for edge in [[GraphFrame.triplets]] */
+  val EDGE: String = "edge"
 
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
   private[graphframes] val ATTR: String = "attr"
@@ -644,13 +601,6 @@ object GraphFrame extends Serializable {
   /** Nest all columns within a single StructType column with the given name */
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
     struct(df.columns.map(c => df(c)) :_*).as(name)
-  }
-
-  object AggMess {
-    def src: Column = col(SRC)
-    def dst: Column = col(DST)
-    def edge: Column = col("EDGE")
-    def msg: Column = col("MSG")
   }
 }
 
