@@ -530,6 +530,49 @@ object GraphFrame extends Serializable {
     GraphFrame(vv, ee)
   }
 
+  /**
+   * Given a GraphFrame and a GraphX graph derived from the GraphFrame,
+   * merge attributes from the GraphX graph into the original GraphFrame.
+   *
+   * This method is useful for doing computations using the GraphX API and then merging the results
+   * with a GraphFrame.  For example, given:
+   *  - GraphFrame `gf`
+   *  - GraphX Graph[String, Int] `gx` with a String vertex attribute we want to call "category"
+   *    and an Int edge attribute we want to call "count"
+   * We can call `fromGraphX(gf, gx, Seq("category"), Seq("count"))` to produce a new GraphFrame.
+   * The new GraphFrame will be an augmented version of `gf`, with new [[GraphFrame.vertices]]
+   * column "category" and new [[GraphFrame.edges]] column "count" added.
+   *
+   * See [[org.graphframes.examples.BeliefPropagation]] for example usage.
+   *
+   * @param originalGraph  Original GraphFrame used to compute the GraphX graph.
+   * @param graph  GraphX graph. Vertex and edge attributes, if any, will be merged into
+   *               the original graph as new columns.  If the attributes are [[Product]] types
+   *               such as tuples, then each element of the [[Product]] will be put in a separate
+   *               column.  If the attributes are other types, then the entire GraphX attribute
+   *               will become a single new column.
+   * @param vertexNames  Column name(s) for vertex attributes in the GraphX graph.
+   *                     If there is no vertex attribute, this should be empty.
+   *                     If there is a singleton attribute, this should have a single column name.
+   *                     If the attribute is a [[Product]] type, this should be a list of names
+   *                     matching the order of the attribute elements.
+   * @param edgeNames  Column name(s) for edge attributes in the GraphX graph.
+   *                     If there is no edge attribute, this should be empty.
+   *                     If there is a singleton attribute, this should have a single column name.
+   *                     If the attribute is a [[Product]] type, this should be a list of names
+   *                     matching the order of the attribute elements.
+   * @tparam V the type of the vertex data
+   * @tparam E the type of the edge data
+   * @return original graph augmented with vertex and column attributes from the GraphX graph
+   */
+  def fromGraphX[V : TypeTag, E : TypeTag](
+      originalGraph: GraphFrame,
+      graph: Graph[V, E],
+      vertexNames: Seq[String] = Nil,
+      edgeNames: Seq[String] = Nil): GraphFrame = {
+    GraphXConversions.fromGraphX[V, E](originalGraph, graph, vertexNames, edgeNames)
+  }
+
   // ============================ DataFrame utilities ========================================
 
   // I'm keeping these for now since they might be useful at some point, but they should be

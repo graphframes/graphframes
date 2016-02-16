@@ -47,17 +47,7 @@ private[graphframes] object GraphXConversions {
     t.typeSymbol.fullName.startsWith("scala.Tuple")
   }
 
-  /**
-   * Takes a GraphX structure and merges it with the corresponding subset of a graph.
-   *
-   * @param originalGraph  Original GraphFrame used to compute the GraphX graph.
-   * @param graph  GraphX graph which may or may not have vertex and/or edge attributes
-   * @param vertexNames  Field names for vertex attributes in the GraphX graph, in order
-   * @param edgeNames  Field names for edge attributes in the GraphX graph, in order
-   * @tparam V the type of the vertex data
-   * @tparam E the type of the edge data
-   * @return original graph augmented with vertex and column attributes from the GraphX graph
-   */
+  /** See [[GraphFrame.fromGraphX()]] for documentation */
   def fromGraphX[V : TypeTag, E : TypeTag](
       originalGraph: GraphFrame,
       graph: Graph[V, E],
