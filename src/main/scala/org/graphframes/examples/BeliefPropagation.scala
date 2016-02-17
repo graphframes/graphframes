@@ -216,9 +216,11 @@ object BeliefPropagation {
     for (iter <- Range(0, numIter)) {
       // For each color, have that color receive messages from neighbors.
       for (color <- Range(0, numColors)) {
-        // Send messages to vertices of the current color.
+        // Define "AM" for shorthand for referring to the src, dst, edge, and msg fields.
+        // (See usage below.)
         val AM = AggregateMessages
-        // Can send to source or destination since edges are treated as undirected.
+        // Send messages to vertices of the current color.
+        // We may send to source or destination since edges are treated as undirected.
         val msgForSrc: Column = when(AM.src("color") === color, AM.edge("b") * AM.dst("belief"))
         val msgForDst: Column = when(AM.dst("color") === color, AM.edge("b") * AM.src("belief"))
         val logistic = udf { (x: Double) => math.exp(-log1pExp(-x)) }

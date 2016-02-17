@@ -419,13 +419,26 @@ object GraphFrame extends Serializable {
   /** Column name for vertex IDs in [[GraphFrame.vertices]] */
   val ID: String = "id"
 
-  /** Column name for source vertex IDs in [[GraphFrame.edges]] and [[GraphFrame.triplets]] */
+  /**
+   * Column name for source vertices of edges.
+   *  - In [[GraphFrame.edges]], this is a column of vertex IDs.
+   *  - In [[GraphFrame.triplets]], this is a column of vertices with schema matching
+   *    [[GraphFrame.vertices]].
+   */
   val SRC: String = "src"
 
-  /** Column name for destination vertex IDs in [[GraphFrame.edges]] and [[GraphFrame.triplets]] */
+  /**
+   * Column name for destination vertices of edges.
+   *  - In [[GraphFrame.edges]], this is a column of vertex IDs.
+   *  - In [[GraphFrame.triplets]], this is a column of vertices with schema matching
+   *    [[GraphFrame.vertices]].
+   */
   val DST: String = "dst"
 
-  /** Column name for edge in [[GraphFrame.triplets]] */
+  /**
+   * Column name for edge in [[GraphFrame.triplets]].  In [[GraphFrame.triplets]],
+   * this is a column of edges with schema matching [[GraphFrame.edges]].
+   */
   val EDGE: String = "edge"
 
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
@@ -503,17 +516,20 @@ object GraphFrame extends Serializable {
   }
 
   /**
-   * Given a GraphFrame and a GraphX graph derived from the GraphFrame,
-   * merge attributes from the GraphX graph into the original GraphFrame.
+   * Given:
+   *  - a GraphFrame `originalGraph`
+   *  - a GraphX graph derived from the GraphFrame using [[GraphFrame.toGraphX]]
+   * this method merges attributes from the GraphX graph into the original GraphFrame.
    *
    * This method is useful for doing computations using the GraphX API and then merging the results
    * with a GraphFrame.  For example, given:
-   *  - GraphFrame `gf`
-   *  - GraphX Graph[String, Int] `gx` with a String vertex attribute we want to call "category"
+   *  - GraphFrame `originalGraph`
+   *  - GraphX Graph[String, Int] `graph` with a String vertex attribute we want to call "category"
    *    and an Int edge attribute we want to call "count"
-   * We can call `fromGraphX(gf, gx, Seq("category"), Seq("count"))` to produce a new GraphFrame.
-   * The new GraphFrame will be an augmented version of `gf`, with new [[GraphFrame.vertices]]
-   * column "category" and new [[GraphFrame.edges]] column "count" added.
+   * We can call `fromGraphX(originalGraph, graph, Seq("category"), Seq("count"))` to produce
+   * a new GraphFrame. The new GraphFrame will be an augmented version of `originalGraph`,
+   * with new [[GraphFrame.vertices]] column "category" and new [[GraphFrame.edges]] column
+   * "count" added.
    *
    * See [[org.graphframes.examples.BeliefPropagation]] for example usage.
    *

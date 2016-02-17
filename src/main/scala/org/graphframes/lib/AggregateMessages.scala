@@ -63,6 +63,8 @@ object AggregateMessages extends Logging with Serializable {
   class Builder private[graphframes] (g: GraphFrame)
     extends Arguments with Serializable {
 
+    import org.graphframes.GraphFrame.{DST, ID, SRC}
+
     private var msgToSrc: Option[Column] = None
 
     /** Send message to source vertex */
@@ -105,7 +107,6 @@ object AggregateMessages extends Logging with Serializable {
       require(msgToSrc.nonEmpty || msgToDst.nonEmpty, s"To run GraphFrame.aggregateMessages," +
         s" messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")
       val triplets = g.triplets
-      import org.graphframes.GraphFrame.{DST, ID, SRC}
       val sentMsgsToSrc = msgToSrc.map { msg =>
         val msgsToSrc = triplets.select(msg.as("MSG"), triplets(SRC)(ID).as(ID))
         // Inner join: only send messages to vertices with edges
