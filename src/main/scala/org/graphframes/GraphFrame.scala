@@ -391,9 +391,9 @@ class GraphFrame protected(
 
   // **** Standard library ****
 
-  def connectedComponents(): ConnectedComponents.Builder = new ConnectedComponents.Builder(this)
+  def connectedComponents(): ConnectedComponents = new ConnectedComponents(this)
 
-  def labelPropagation(): LabelPropagation.Builder = new LabelPropagation.Builder(this)
+  def labelPropagation(): LabelPropagation = new LabelPropagation(this)
 
   def pageRank(): PageRank.Builder = new PageRank.Builder(this)
 
@@ -408,9 +408,9 @@ class GraphFrame protected(
   /**
    * This is a primitive for implementing graph algorithms.
    * This method aggregates values from the neighboring edges and vertices of each vertex.
-   * See [[AggregateMessages]] for detailed documentation.
+   * See [[AggregateMessagesBuilder]] for detailed documentation.
    */
-  def aggregateMessages: AggregateMessages.Builder = new AggregateMessages.Builder(this)
+  def aggregateMessages: AggregateMessagesBuilder = new AggregateMessagesBuilder(this)
 }
 
 

@@ -24,7 +24,7 @@ import org.apache.spark.sql.functions.{col, lit, sum, udf, when}
 
 import org.graphframes.GraphFrame
 import org.graphframes.examples.Graphs.gridIsingModel
-import org.graphframes.lib.AggregateMessages
+import org.graphframes.lib.{AggregateMessagesBuilder}
 
 
 /**
@@ -218,7 +218,7 @@ object BeliefPropagation {
       for (color <- Range(0, numColors)) {
         // Define "AM" for shorthand for referring to the src, dst, edge, and msg fields.
         // (See usage below.)
-        val AM = AggregateMessages
+        val AM = AggregateMessagesBuilder
         // Send messages to vertices of the current color.
         // We may send to source or destination since edges are treated as undirected.
         val msgForSrc: Column = when(AM.src("color") === color, AM.edge("b") * AM.dst("belief"))
