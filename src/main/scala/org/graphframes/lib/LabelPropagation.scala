@@ -22,7 +22,7 @@ import org.apache.spark.graphx.{lib => graphxlib}
 import org.graphframes.GraphFrame
 
 private object LabelPropagation {
-  def run(graph: GraphFrame, maxSteps: Int): GraphFrame = {
+  private def run(graph: GraphFrame, maxSteps: Int): GraphFrame = {
     val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxSteps)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID))
   }

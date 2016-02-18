@@ -26,7 +26,7 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
     val vertices = sqlContext.createDataFrame((1L to 5L).map(Tuple1.apply)).toDF("id")
     val edges = sqlContext.createDataFrame(Seq.empty[(Long, Long)]).toDF("src", "dst")
     val graph = GraphFrame(vertices, edges)
-    val c = StronglyConnectedComponents.run(graph, 5)
+    val c = graph.stronglyConnectedComponents().numIterations(5).run()
     LabelPropagationSuite.testSchemaInvariants(graph, c)
     for (Row(id: Long, scc: Long) <- c.vertices.collect()) {
       assert(id === scc)

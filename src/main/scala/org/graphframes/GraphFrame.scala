@@ -294,7 +294,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def shortestPaths(): ShortestPaths.Builder = new ShortestPaths.Builder(this)
+  def shortestPaths(): ShortestPaths = new ShortestPaths(this)
 
   /**
    * Strongly connected components algorithm.
@@ -303,7 +303,8 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def stronglyConnectedComponents(): StronglyConnectedComponents.Builder = new StronglyConnectedComponents.Builder(this)
+  def stronglyConnectedComponents(): StronglyConnectedComponents =
+    new StronglyConnectedComponents(this)
 
   /**
    * SVD++ algorithm.
@@ -312,7 +313,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
+  def svdPlusPlus(): SVDPlusPlus = new SVDPlusPlus(this)
 
   /**
    * Triangle count algorithm.
@@ -321,7 +322,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def triangleCount(): TriangleCount.Builder = new TriangleCount.Builder(this)
+  def triangleCount(): TriangleCount = new TriangleCount(this)
   
   // ========= Motif finding (private) =========
 
