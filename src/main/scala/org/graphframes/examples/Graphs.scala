@@ -19,6 +19,7 @@ package org.graphframes.examples
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.functions.{col, randn, udf}
 
 import org.graphframes.GraphFrame
 
@@ -126,6 +127,77 @@ class Graphs {
       |4,3,1.0
       |4,4,5.0
     """.stripMargin.split("\n").map(_.trim).filterNot(_.isEmpty)
+
+  /**
+   * This method generates a grid Ising model with random parameters.
+   *
+   * Ising models are probabilistic graphical models over binary variables x,,i,,.
+   * Each binary variable x,,i,, corresponds to one vertex, and it may take values -1 or +1.
+   * The probability distribution P(X) (over all x,,i,,) is parameterized by vertex factors a,,i,,
+   * and edge factors b,,ij,,:
+   * {{{
+   *  P(X) = (1/Z) * exp[ \sum_i a_i x_i + \sum_{ij} b_{ij} x_i x_j ]
+   * }}}
+   * where Z is the normalization constant (partition function). See
+   * [[https://en.wikipedia.org/wiki/Ising_model Wikipedia]] for more information on Ising models.
+   *
+   * Each vertex is parameterized by a single scalar a,,i,,.
+   * Each edge is parameterized by a single scalar b,,ij,,.
+   *
+   * @param  n  Length of one side of the grid.  The grid will be of size n x n.
+   * @param  vStd  Standard deviation of normal distribution used to generate vertex factors "a".
+   *               Default of 1.0.
+   * @param  eStd  Standard deviation of normal distribution used to generate edge factors "b".
+   *               Default of 1.0.
+   * @return  GraphFrame.  Vertices have columns "id" and "a".
+   *          Edges have columns "src", "dst", and "b".  Edges are directed, but they should be
+   *          treated as undirected in any algorithms run on this model.
+   *          Vertex IDs are of the form "i,j".  E.g., vertex "1,3" is in the second row and fourth
+   *          column of the grid.
+   */
+  def gridIsingModel(sqlContext: SQLContext, n: Int, vStd: Double, eStd: Double): GraphFrame = {
+    require(n >= 1, s"Grid graph must have size >= 1, but was given invalid value n = $n")
+    val rows = sqlContext.createDataFrame(Range(0, n).map(i => Tuple1(i))).toDF("i")
+    val cols = rows.select(rows("i").as("j"))
+    // Cartesian join to create grid
+    val coordinates = rows.join(cols)
+
+    // Create SQL expression for converting coordinates (i,j) to a string ID "i,j"
+    val toIDudf = udf { (i: Int, j: Int) => i.toString + "," + j.toString }
+
+    // Create the vertex DataFrame
+    //  Create SQL expression for converting coordinates (i,j) to a string ID "i,j"
+    val vIDcol = toIDudf(col("i"), col("j"))
+    //  Add random parameters generated from a normal distribution
+    val seed = 12345
+    val vertices = coordinates.withColumn("id", vIDcol)  // vertex IDs "i,j"
+      .withColumn("a", randn(seed) * vStd)  // Ising parameter for vertex
+
+    // Create the edge DataFrame
+    //  Create SQL expression for converting coordinates (i,j+1) and (i+1,j) to string IDs
+    val rightIDcol = toIDudf(col("i"), col("j") + 1)
+    val downIDcol = toIDudf(col("i") + 1, col("j"))
+    val horizontalEdges = coordinates.filter(col("j") !== n - 1)
+      .select(vIDcol.as("src"), rightIDcol.as("dst"))
+    val verticalEdges = coordinates.filter(col("i") !== n - 1)
+      .select(vIDcol.as("src"), downIDcol.as("dst"))
+    val allEdges = horizontalEdges.unionAll(verticalEdges)
+    //  Add random parameters from a normal distribution
+    val edges = allEdges.withColumn("b", randn(seed + 1) * eStd)  // Ising parameter for edge
+
+    // Create the GraphFrame
+    val g = GraphFrame(vertices, edges)
+
+    // Materialize graph as workaround for SPARK-13333
+    g.vertices.cache().count()
+    g.edges.cache().count()
+
+    g
+  }
+
+  /** Version of [[gridIsingModel()]] with vStd, eStd set to 1.0. */
+  def gridIsingModel(sqlContext: SQLContext, n: Int): GraphFrame =
+    gridIsingModel(sqlContext, n, 1.0, 1.0)
 
 }
 
