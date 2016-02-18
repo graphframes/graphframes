@@ -131,8 +131,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val gf = GraphFrame(vv, ee)
     val g = gf.toGraphX
     // Int IDs should be directly cast to Long, so ID values should match.
-    val vCols = gf.vColsMap
-    val eCols = gf.eColsMap
+    val vCols = gf.vertexColumnMap
+    val eCols = gf.edgeColumnMap
     g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
       val id1 = attr.getInt(vCols("id"))
       val name = attr.getString(vCols("name"))
@@ -158,8 +158,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       val gf = GraphFrame(vv, ee)
       val g = gf.toGraphX
       // String IDs will be re-indexed, so ID values may not match.
-      val vCols = gf.vColsMap
-      val eCols = gf.eColsMap
+      val vCols = gf.vertexColumnMap
+      val eCols = gf.edgeColumnMap
       // First, get index.
       val new2oldID: Map[Long, String] = g.vertices.map { case (id: Long, attr: Row) =>
         (id, attr.getString(vCols("id")))
@@ -209,19 +209,19 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("degree metrics") {
     val g = GraphFrame(vertices, edges)
 
-    assert(g.outDegrees.columns === Seq("id", "outDeg"))
+    assert(g.outDegrees.columns === Seq("id", "outDegree"))
     val outDegrees = g.outDegrees.collect().map { case Row(id: Long, outDeg: Int) =>
       (id, outDeg)
     }.toMap
     assert(outDegrees === Map(1L -> 1, 2L -> 2))
 
-    assert(g.inDegrees.columns === Seq("id", "inDeg"))
+    assert(g.inDegrees.columns === Seq("id", "inDegree"))
     val inDegrees = g.inDegrees.collect().map { case Row(id: Long, inDeg: Int) =>
       (id, inDeg)
     }.toMap
     assert(inDegrees === Map(1L -> 1, 2L -> 1, 3L -> 1))
 
-    assert(g.degrees.columns === Seq("id", "deg"))
+    assert(g.degrees.columns === Seq("id", "degree"))
     val degrees = g.degrees.collect().map { case Row(id: Long, deg: Int) =>
       (id, deg)
     }.toMap

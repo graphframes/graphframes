@@ -26,62 +26,68 @@ import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.graphframes.GraphFrame
 import GraphFrame.nestAsCol
 
-
+/**
+ * Breadth-first search (BFS)
+ *
+ * This method returns a DataFrame of valid shortest paths from vertices matching `fromExpr`
+ * to vertices matching `toExpr`.  If multiple paths are valid and have the same length,
+ * the DataFrame will return one Row for each path.  If no paths are valid, the DataFrame will
+ * be empty.
+ * Note: "Shortest" means globally shortest path.  I.e., if the shortest path between two vertices
+ * matching `fromExpr` and `toExpr` is length 5 (edges) but no path is shorter than 5, then all
+ * paths returned by BFS will have length 5.
+ *
+ * The returned DataFrame will have the following columns:
+ *  - `from` start vertex of path
+ *  - `e[i]` edge i in the path, indexed from 0
+ *  - `v[i]` intermediate vertex i in the path, indexed from 1
+ *  - `to` end vertex of path
+ * Each of these columns is a StructType whose fields are the same as the columns of
+ * [[GraphFrame.vertices]] or [[GraphFrame.edges]].
+ *
+ * For example, suppose we have a graph g.  Say the vertices DataFrame of g has columns "id" and
+ * "job", and the edges DataFrame of g has columns "src", "dst", and "relation".
+ * {{{
+ *   // Search from vertex "Joe" to find the closet vertices with attribute job = CEO.
+ *   g.bfs(col("id") === "Joe", col("job") === "CEO").run()
+ * }}}
+ * If we found a path of 3 edges, each row would have columns:
+ * {{{from | e0 | v1 | e1 | v2 | e2 | to}}}
+ * In the above row, each vertex column (from, v1, v2, to) would have fields "id" and "job"
+ * (just like g.vertices).
+ * Each edge column (e0, e1, e2) would have fields "src", "dst", and "relation".
+ *
+ * If there are ties, then each of the equal paths will be returned as a separate Row.
+ *
+ * If one or more vertices match both the from and to conditions, then there is a 0-hop path.
+ * The returned DataFrame will have the "from" and "to" columns (as above); however,
+ * the "from" and "to" columns will be exactly the same.  There will be one row for each vertex
+ * in [[GraphFrame.vertices]] matching both `fromExpr` and `toExpr`.
+ *
+ * Parameters:
+ *
+ *  - `from`  Spark SQL expression specifying valid starting vertices for the BFS.
+ *                  This condition will be matched against each vertex's id or attributes.
+ *                  To start from a specific vertex, this could be "id = [start vertex id]".
+ *                  To start from multiple valid vertices, this can operate on vertex attributes.
+ *
+ *  - `to`  Spark SQL expression specifying valid target vertices for the BFS.
+ *                This condition will be matched against each vertex's id or attributes.
+ *
+ *  - `maxPathLength`  Limit on the length of paths.  If no valid paths of length
+ *                       <= maxPathLength are found, then the BFS is terminated.
+ *                       (default = 10)
+ *  - `edgeFilter`  Spark SQL expression specifying edges which may be used in the search.
+ *                    This allows the user to disallow crossing certain edges.  Such filters
+ *                    can be applied post-hoc after BFS, run specifying the filter here is more
+ *                    efficient.
+ *
+ * Returns:
+ *
+ * DataFrame of valid shortest paths found in the BFS
+ */
 object BFS extends Logging with Serializable {
 
-  /**
-   * Breadth-first search (BFS)
-   *
-   * This method returns a DataFrame of valid shortest paths from vertices matching `fromExpr`
-   * to vertices matching `toExpr`.  If multiple paths are valid and have the same length,
-   * the DataFrame will return one Row for each path.  If no paths are valid, the DataFrame will
-   * be empty.
-   * Note: "Shortest" means globally shortest path.  I.e., if the shortest path between two vertices
-   * matching `fromExpr` and `toExpr` is length 5 (edges) but no path is shorter than 5, then all
-   * paths returned by BFS will have length 5.
-   *
-   * The returned DataFrame will have the following columns:
-   *  - from: start vertex of path
-   *  - e[i]: edge i in the path, indexed from 0
-   *  - v[i]: intermediate vertex i in the path, indexed from 1
-   *  - to: end vertex of path
-   * Each of these columns is a StructType whose fields are the same as the columns of
-   * [[GraphFrame.vertices]] or [[GraphFrame.edges]].
-   *
-   * For example, suppose we have a graph g.  Say the vertices DataFrame of g has columns "id" and
-   * "job", and the edges DataFrame of g has columns "src", "dst", and "relation".
-   * {{{
-   *   // Search from vertex "Joe" to find the closet vertices with attribute job = CEO.
-   *   g.bfs(col("id") === "Joe", col("job") === "CEO").run()
-   * }}}
-   * If we found a path of 3 edges, each row would have columns:
-   * {{{from | e0 | v1 | e1 | v2 | e2 | to}}}
-   * In the above row, each vertex column (from, v1, v2, to) would have fields "id" and "job"
-   * (just like g.vertices).
-   * Each edge column (e0, e1, e2) would have fields "src", "dst", and "relation".
-   *
-   * If there are ties, then each of the equal paths will be returned as a separate Row.
-   *
-   * If one or more vertices match both the from and to conditions, then there is a 0-hop path.
-   * The returned DataFrame will have the "from" and "to" columns (as above); however,
-   * the "from" and "to" columns will be exactly the same.  There will be one row for each vertex
-   * in [[GraphFrame.vertices]] matching both `fromExpr` and `toExpr`.
-   *
-   * @param from  Spark SQL expression specifying valid starting vertices for the BFS.
-   *                  This condition will be matched against each vertex's id or attributes.
-   *                  To start from a specific vertex, this could be "id = [start vertex id]".
-   *                  To start from multiple valid vertices, this can operate on vertex attributes.
-   * @param to  Spark SQL expression specifying valid target vertices for the BFS.
-   *                This condition will be matched against each vertex's id or attributes.
-   * @param maxPathLength  Limit on the length of paths.  If no valid paths of length
-   *                       <= maxPathLength are found, then the BFS is terminated.
-   *                       (default = 10)
-   * @param edgeFilter  Spark SQL expression specifying edges which may be used in the search.
-   *                    This allows the user to disallow crossing certain edges.  Such filters
-   *                    can be applied post-hoc after BFS, run specifying the filter here is more
-   *                    efficient.
-   * @return  DataFrame of valid shortest paths found in the BFS
-   */
   private[graphframes] def run(
       g: GraphFrame,
       from: Column,

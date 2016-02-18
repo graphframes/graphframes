@@ -29,3 +29,9 @@ parallelExecution := false
 
 unmanagedSourceDirectories in Compile ++=
   Seq(baseDirectory.value / "src" / "main" / (if (sparkVersion.value.substring(0, 3) == "1.4") "spark-1.4" else "spark-x"))
+
+scalacOptions in (Compile, doc) ++= Seq("-groups", "-implicits")
+
+scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
+
+autoAPIMappings := true

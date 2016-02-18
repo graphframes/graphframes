@@ -133,8 +133,8 @@ object BeliefPropagation {
     // Convert GraphFrame to GraphX, and initialize beliefs.
     val gx0 = colorG.toGraphX
     // Schema maps for extracting attributes
-    val vColsMap = colorG.vColsMap
-    val eColsMap = colorG.eColsMap
+    val vColsMap = colorG.vertexColumnMap
+    val eColsMap = colorG.edgeColumnMap
     // Convert vertex attributes to nice case classes.
     val gx1: Graph[VertexAttr, Row] = gx0.mapVertices { case (_, attr) =>
       // Initialize belief at 0.0
