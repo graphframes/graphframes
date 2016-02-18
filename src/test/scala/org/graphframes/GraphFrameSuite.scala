@@ -132,8 +132,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val gf = GraphFrame(vv, ee)
     val g = gf.toGraphX
     // Int IDs should be directly cast to Long, so ID values should match.
-    val vCols = gf.vColsMap
-    val eCols = gf.eColsMap
+    val vCols = gf.vertexColumnMap
+    val eCols = gf.edgeColumnMap
     g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
       val id1 = attr.getInt(vCols("id"))
       val name = attr.getString(vCols("name"))
@@ -159,8 +159,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       val gf = GraphFrame(vv, ee)
       val g = gf.toGraphX
       // String IDs will be re-indexed, so ID values may not match.
-      val vCols = gf.vColsMap
-      val eCols = gf.eColsMap
+      val vCols = gf.vertexColumnMap
+      val eCols = gf.edgeColumnMap
       // First, get index.
       val new2oldID: Map[Long, String] = g.vertices.map { case (id: Long, attr: Row) =>
         (id, attr.getString(vCols("id")))
