@@ -17,17 +17,15 @@
 
 package org.graphframes
 
-import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.graphx.{Edge, Graph, TripletFields}
-import org.apache.spark.rdd.RDD
+import org.apache.spark.{Logging}
+import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.{array, col, count, explode, monotonicallyIncreasingId, struct}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{Logging, graphx}
 
 import org.graphframes.lib._
 import org.graphframes.pattern._
@@ -105,7 +103,6 @@ class GraphFrame protected(
   @transient private lazy val cachedGraphX: Graph[Row, Row] = { toGraphX }
 
   // ============================ Motif finding ========================================
-
 
   /**
    * Motif finding.
@@ -385,47 +382,12 @@ class GraphFrame protected(
   lazy val eColsMap: Map[String, Int] = eCols.zipWithIndex.toMap
 
   /**
-   *
-   * Aggregates values from the neighboring edges and vertices of each vertex. The user-supplied
-   * `sendMsg` function is invoked on each edge of the graph, generating 0 or more messages to be
-   * sent to either vertex in the edge. The `mergeMsg` function is then used to combine all messages
-   * destined to the same vertex.
-   *
-   * @tparam A the type of message to be sent to each vertex
-   * @param sendMsg runs on each edge, sending messages to neighboring vertices using the
-   *   [[EdgeContext]].
-   *   The first iterable collection is the collection of messages sent to the SOURCE.
-   *   The second iterable collection is the collection of messages sent to the DESTINATION.
-   * @param aggregate used to combine messages from `sendMsg` destined to the same vertex. This
-   *   combiner should be commutative and associative.
-   * @param selectedFields which fields should be included in the [[EdgeContext]] passed to the
-   *   `sendMsg` function. If not all fields are needed, specifying this can improve performance.
-   * @example We can use this function to compute the in-degree of each
-   * vertex
-   * {{{
-   * val rawGraph: Graph[_, _] = Graph.textFile("twittergraph")
-   * val inDeg: RDD[(VertexId, Int)] =
-   *   rawGraph.aggregateMessages(ctx => Seq(1) -> Seq.empty, _ + _)
-   * }}}
-   *
-   * It returns a dataframe with the following columns:
-   *  - id: the vertex ID
-   *  - all the other columns that were created by using type A.
+   * Returns triplets: (source vertex)-[edge]->(destination vertex) for all edges in the graph.
+   * The DataFrame returned has 3 columns, with names: [[GraphFrame.SRC]], [[GraphFrame.EDGE]],
+   * and [[GraphFrame.DST]].  The 2 vertex columns have schema matching [[GraphFrame.vertices]],
+   * and the edge column has a schema matching [[GraphFrame.edges]].
    */
-  def aggregateMessages[A : ClassTag : TypeTag](
-      sendMsg: EdgeContext => (Iterable[A], Iterable[A]),
-      aggregate: (A, A) => A,
-      selectedFields: TripletFields = TripletFields.All): DataFrame = {
-    def send(ec: graphx.EdgeContext[Row, Row, A]): Unit = {
-      val ec2: EdgeContext = new EdgeContextImpl(ec.srcId, ec.dstId, ec.srcAttr, ec.dstAttr, ec.attr)
-      val (src, dst) = sendMsg(ec2)
-      src.foreach(ec.sendToSrc)
-      dst.foreach(ec.sendToDst)
-    }
-    val gx: RDD[(Long, A)] = cachedGraphX.aggregateMessages(send, aggregate, selectedFields)
-    val df = sqlContext.createDataFrame(gx).toDF(ID, ATTR)
-    df
-  }
+  lazy val triplets: DataFrame = find(s"($SRC)-[$EDGE]->($DST)")
 
   // **** Standard library ****
 
@@ -442,6 +404,13 @@ class GraphFrame protected(
   def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
 
   def triangleCount(): TriangleCount.Builder = new TriangleCount.Builder(this)
+
+  /**
+   * This is a primitive for implementing graph algorithms.
+   * This method aggregates values from the neighboring edges and vertices of each vertex.
+   * See [[AggregateMessages]] for detailed documentation.
+   */
+  def aggregateMessages: AggregateMessages.Builder = new AggregateMessages.Builder(this)
 }
 
 
@@ -450,11 +419,27 @@ object GraphFrame extends Serializable {
   /** Column name for vertex IDs in [[GraphFrame.vertices]] */
   val ID: String = "id"
 
-  /** Column name for source vertex IDs in [[GraphFrame.edges]] */
+  /**
+   * Column name for source vertices of edges.
+   *  - In [[GraphFrame.edges]], this is a column of vertex IDs.
+   *  - In [[GraphFrame.triplets]], this is a column of vertices with schema matching
+   *    [[GraphFrame.vertices]].
+   */
   val SRC: String = "src"
 
-  /** Column name for destination vertex IDs in [[GraphFrame.edges]] */
+  /**
+   * Column name for destination vertices of edges.
+   *  - In [[GraphFrame.edges]], this is a column of vertex IDs.
+   *  - In [[GraphFrame.triplets]], this is a column of vertices with schema matching
+   *    [[GraphFrame.vertices]].
+   */
   val DST: String = "dst"
+
+  /**
+   * Column name for edge in [[GraphFrame.triplets]].  In [[GraphFrame.triplets]],
+   * this is a column of edges with schema matching [[GraphFrame.edges]].
+   */
+  val EDGE: String = "edge"
 
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
   private[graphframes] val ATTR: String = "attr"
@@ -528,6 +513,52 @@ object GraphFrame extends Serializable {
     val vv = sqlContext.createDataFrame(graph.vertices).toDF(ID, ATTR)
     val ee = sqlContext.createDataFrame(graph.edges).toDF(SRC, DST, ATTR)
     GraphFrame(vv, ee)
+  }
+
+  /**
+   * Given:
+   *  - a GraphFrame `originalGraph`
+   *  - a GraphX graph derived from the GraphFrame using [[GraphFrame.toGraphX]]
+   * this method merges attributes from the GraphX graph into the original GraphFrame.
+   *
+   * This method is useful for doing computations using the GraphX API and then merging the results
+   * with a GraphFrame.  For example, given:
+   *  - GraphFrame `originalGraph`
+   *  - GraphX Graph[String, Int] `graph` with a String vertex attribute we want to call "category"
+   *    and an Int edge attribute we want to call "count"
+   * We can call `fromGraphX(originalGraph, graph, Seq("category"), Seq("count"))` to produce
+   * a new GraphFrame. The new GraphFrame will be an augmented version of `originalGraph`,
+   * with new [[GraphFrame.vertices]] column "category" and new [[GraphFrame.edges]] column
+   * "count" added.
+   *
+   * See [[org.graphframes.examples.BeliefPropagation]] for example usage.
+   *
+   * @param originalGraph  Original GraphFrame used to compute the GraphX graph.
+   * @param graph  GraphX graph. Vertex and edge attributes, if any, will be merged into
+   *               the original graph as new columns.  If the attributes are [[Product]] types
+   *               such as tuples, then each element of the [[Product]] will be put in a separate
+   *               column.  If the attributes are other types, then the entire GraphX attribute
+   *               will become a single new column.
+   * @param vertexNames  Column name(s) for vertex attributes in the GraphX graph.
+   *                     If there is no vertex attribute, this should be empty.
+   *                     If there is a singleton attribute, this should have a single column name.
+   *                     If the attribute is a [[Product]] type, this should be a list of names
+   *                     matching the order of the attribute elements.
+   * @param edgeNames  Column name(s) for edge attributes in the GraphX graph.
+   *                     If there is no edge attribute, this should be empty.
+   *                     If there is a singleton attribute, this should have a single column name.
+   *                     If the attribute is a [[Product]] type, this should be a list of names
+   *                     matching the order of the attribute elements.
+   * @tparam V the type of the vertex data
+   * @tparam E the type of the edge data
+   * @return original graph augmented with vertex and column attributes from the GraphX graph
+   */
+  def fromGraphX[V : TypeTag, E : TypeTag](
+      originalGraph: GraphFrame,
+      graph: Graph[V, E],
+      vertexNames: Seq[String] = Nil,
+      edgeNames: Seq[String] = Nil): GraphFrame = {
+    GraphXConversions.fromGraphX[V, E](originalGraph, graph, vertexNames, edgeNames)
   }
 
   // ============================ DataFrame utilities ========================================

@@ -23,12 +23,11 @@ import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 
-import org.apache.spark.graphx.{Edge, Graph, TripletFields}
+import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.{DataFrame, Row}
-import org.graphframes.examples.Graphs
 
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
@@ -227,20 +226,5 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       (id, deg)
     }.toMap
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
-  }
-
-  ignore("aggregateMessages") {
-    val n = 5
-    val agg = Graphs.star(n).aggregateMessages[Int](
-      ctx => {
-        if (ctx.destinationVertex != null) {
-          throw new Exception(
-            "expected ctx.destinationVertex to be null due to TripletFields, but it was " +
-              ctx.destinationVertex)
-        }
-        val f = ctx.sourceVertex.getAs[Int]("v_attr1")
-        Seq(f) -> Nil
-      }, _ + _, TripletFields.Src)
-    assert(agg.collect().toSet === (1 to n).map(x => Row(x: Long, "v")).toSet)
   }
 }
