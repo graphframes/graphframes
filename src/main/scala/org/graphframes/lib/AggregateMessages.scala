@@ -31,25 +31,25 @@ import org.graphframes.GraphFrame
  *
  * For each triplet (source vertex, edge, destination vertex) in [[GraphFrame.triplets]],
  * this can send a message to the source and/or destination vertices.
- *  - [[AggregateMessagesBuilder.sendToSrc()]] sends a message to the source vertex of each
+ *  - [[AggregateMessages.sendToSrc()]] sends a message to the source vertex of each
  *    triplet
- *  - [[AggregateMessagesBuilder.sendToDst()]] sends a message to the destination vertex of each
+ *  - [[AggregateMessages.sendToDst()]] sends a message to the destination vertex of each
  *    triplet
- *  - [[AggregateMessagesBuilder.agg()]] specifies an aggregation function for aggregating the
+ *  - [[AggregateMessages.agg()]] specifies an aggregation function for aggregating the
  *    messages sent to each vertex.  It also runs the aggregation, computing a DataFrame
  *    with one row for each vertex which receives > 0 messages.  The DataFrame has 2 columns:
  *     - vertex column ID (named [[GraphFrame.ID]])
  *     - aggregate from messages sent to vertex (with the name given to the [[Column]] specified
- *       in [[AggregateMessagesBuilder.agg()]])
+ *       in [[AggregateMessages.agg()]])
  *
  * When specifying the messages and aggregation function, the user may reference columns using:
- *  - [[AggregateMessagesBuilder]]: column for source vertex of edge
- *  - [[AggregateMessagesBuilder.edge]]: column for edge
- *  - [[AggregateMessagesBuilder.dst]]: column for destination vertex of edge
- *  - [[AggregateMessagesBuilder.msg]]: message sent to vertex (for aggregation function)
+ *  - [[AggregateMessages]]: column for source vertex of edge
+ *  - [[AggregateMessages.edge]]: column for edge
+ *  - [[AggregateMessages.dst]]: column for destination vertex of edge
+ *  - [[AggregateMessages.msg]]: message sent to vertex (for aggregation function)
  *
  * Note: If you use this operation to write an iterative algorithm, you may want to use
- * [[AggregateMessagesBuilder.getCachedDataFrame()]] as a workaround for caching issues.
+ * [[AggregateMessages.getCachedDataFrame()]] as a workaround for caching issues.
  *
  * @example We can use this function to compute the in-degree of each vertex
  * {{{
@@ -58,7 +58,7 @@ import org.graphframes.GraphFrame
  *   g.aggregateMessages().sendToDst(lit(1)).agg(sum(AggregateMessagesBuilder.msg))
  * }}}
  */
-class AggregateMessagesBuilder private[graphframes] (private val g: GraphFrame)
+class AggregateMessages private[graphframes] (private val g: GraphFrame)
   extends Arguments with Serializable {
 
   import org.graphframes.GraphFrame.{DST, ID, SRC}
@@ -129,7 +129,7 @@ class AggregateMessagesBuilder private[graphframes] (private val g: GraphFrame)
   }
 }
 
-private[graphframes] object AggregateMessagesBuilder extends Logging with Serializable {
+private[graphframes] object AggregateMessages extends Logging with Serializable {
 
   /** Reference for source column, used for specifying messages */
   def src: Column = col(GraphFrame.SRC)

@@ -22,6 +22,94 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StringType
 import org.graphframes.GraphFrame
 
+/**
+ * PageRank algorithm implementation. There are two implementations of PageRank implemented.
+ *
+ * The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
+ * for a fixed number of iterations:
+ * {{{
+ * var PR = Array.fill(n)( 1.0 )
+ * val oldPR = Array.fill(n)( 1.0 )
+ * for( iter <- 0 until numIter ) {
+ *   swap(oldPR, PR)
+ *   for( i <- 0 until n ) {
+ *     PR[i] = alpha + (1 - alpha) * inNbrs[i].map(j => oldPR[j] / outDeg[j]).sum
+ *   }
+ * }
+ * }}}
+ *
+ * The second implementation uses the [[org.apache.spark.graphx.Pregel]] interface and runs PageRank until
+ * convergence:
+ *
+ * {{{
+ * var PR = Array.fill(n)( 1.0 )
+ * val oldPR = Array.fill(n)( 0.0 )
+ * while( max(abs(PR - oldPr)) > tol ) {
+ *   swap(oldPR, PR)
+ *   for( i <- 0 until n if abs(PR[i] - oldPR[i]) > tol ) {
+ *     PR[i] = alpha + (1 - \alpha) * inNbrs[i].map(j => oldPR[j] / outDeg[j]).sum
+ *   }
+ * }
+ * }}}
+ *
+ * `alpha` is the random reset probability (typically 0.15), `inNbrs[i]` is the set of
+ * neighbors whick link to `i` and `outDeg[j]` is the out degree of vertex `j`.
+ *
+ * Note that this is not the "normalized" PageRank and as a consequence pages that have no
+ * inlinks will have a PageRank of alpha.
+ *
+ * Result graphs:
+ *
+ * The result edges contain the following columns:
+ *  - src: the id of the start vertex
+ *  - dst: the id of the end vertex
+ *  - weight: (double) the normalized weight of this edge after running PageRank
+ * All the other columns are dropped.
+ *
+ * The result vertices contain the following columns:
+ *  - id: the id of the vertex
+ *  - weight (double): the normalized weight (page rank) of this vertex.
+ * All the other columns are dropped.
+ */
+class PageRank private[graphframes] (
+      private val graph: GraphFrame) extends Arguments {
+
+  private var tol: Option[Double] = None
+  private var resetProb: Option[Double] = Some(0.15)
+  private var numIters: Option[Int] = None
+  private var srcId : Option[Any] = None
+
+  def sourceId(srcId : Any): this.type = {
+    this.srcId = Some(srcId)
+    this
+  }
+
+  def resetProbability(p: Double): this.type = {
+    resetProb = Some(p)
+    this
+  }
+
+  def untilConvergence(tolerance: Double): this.type = {
+    tol = Some(tolerance)
+    this
+  }
+
+  def fixedIterations(i: Int): this.type = {
+    numIters = Some(i)
+    this
+  }
+
+  def run(): GraphFrame = {
+    tol match {
+      case Some(t) =>
+        PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
+      case None =>
+        PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId)
+    }
+  }
+}
+
+
 // TODO: srcID's type should be checked. The most futureproof check would be : Encoder, because it is compatible with
 // Datasets after that.
 private object PageRank {
@@ -72,94 +160,6 @@ private object PageRank {
    * Default name for the weight column.
    */
   private val WEIGHT = "weight"
-
-  /**
-   * PageRank algorithm implementation. There are two implementations of PageRank implemented.
-   *
-   * The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
-   * for a fixed number of iterations:
-   * {{{
-   * var PR = Array.fill(n)( 1.0 )
-   * val oldPR = Array.fill(n)( 1.0 )
-   * for( iter <- 0 until numIter ) {
-   *   swap(oldPR, PR)
-   *   for( i <- 0 until n ) {
-   *     PR[i] = alpha + (1 - alpha) * inNbrs[i].map(j => oldPR[j] / outDeg[j]).sum
-   *   }
-   * }
-   * }}}
-   *
-   * The second implementation uses the [[org.apache.spark.graphx.Pregel]] interface and runs PageRank until
-   * convergence:
-   *
-   * {{{
-   * var PR = Array.fill(n)( 1.0 )
-   * val oldPR = Array.fill(n)( 0.0 )
-   * while( max(abs(PR - oldPr)) > tol ) {
-   *   swap(oldPR, PR)
-   *   for( i <- 0 until n if abs(PR[i] - oldPR[i]) > tol ) {
-   *     PR[i] = alpha + (1 - \alpha) * inNbrs[i].map(j => oldPR[j] / outDeg[j]).sum
-   *   }
-   * }
-   * }}}
-   *
-   * `alpha` is the random reset probability (typically 0.15), `inNbrs[i]` is the set of
-   * neighbors whick link to `i` and `outDeg[j]` is the out degree of vertex `j`.
-   *
-   * Note that this is not the "normalized" PageRank and as a consequence pages that have no
-   * inlinks will have a PageRank of alpha.
-   *
-   * Result graphs:
-   *
-   * The result edges contain the following columns:
-   *  - src: the id of the start vertex
-   *  - dst: the id of the end vertex
-   *  - weight: (double) the normalized weight of this edge after running PageRank
-   * All the other columns are dropped.
-   *
-   * The result vertices contain the following columns:
-   *  - id: the id of the vertex
-   *  - weight (double): the normalized weight (page rank) of this vertex.
-   * All the other columns are dropped.
-   */
-  class PageRankBuilder private[graphframes] (
-      private val graph: GraphFrame) extends Arguments {
-
-    private var tol: Option[Double] = None
-    private var resetProb: Option[Double] = Some(0.15)
-    private var numIters: Option[Int] = None
-    private var srcId : Option[Any] = None
-
-    def setSourceId[VertexId](srcId : VertexId): this.type = {
-      this.srcId = Some(srcId)
-      this
-    }
-
-    def setResetProbability(p: Double): this.type = {
-      resetProb = Some(p)
-      this
-    }
-
-    def untilConvergence(tolerance: Double): this.type = {
-      tol = Some(tolerance)
-      this
-    }
-
-    def fixedIterations(i: Int): this.type = {
-      numIters = Some(i)
-      this
-    }
-
-    def run(): GraphFrame = {
-      tol match {
-        case Some(t) =>
-          PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
-        case None =>
-          PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId)
-      }
-    }
-  }
-
 
   /**
    * Given a graph and an object, attempts to get the the corresponding integral id in the
