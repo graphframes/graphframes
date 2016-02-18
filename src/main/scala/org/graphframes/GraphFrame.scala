@@ -230,7 +230,7 @@ class GraphFrame private(
   /**
    * Breadth-first search (BFS)
    *
-   * Refer to the documentation of [[BFS]] for the description of the output.
+   * Refer to the documentation of [[org.graphframes.lib.BFS]] for the description of the output.
    *
    * @group stdlib
    */
@@ -239,7 +239,7 @@ class GraphFrame private(
   /**
    * Breadth-first search (BFS)
    *
-   * Refer to the documentation of [[BFS]] for the description of the output.
+   * Refer to the documentation of [[org.graphframes.lib.BFS]] for the description of the output.
    *
    * @param fromExpr a SQL expression that selects all the source nodes.
    * @param toExpr a SQL expression that selects all the sink nodes.
@@ -299,7 +299,7 @@ class GraphFrame private(
   /**
    * Connected component algorithm.
    *
-   * See [[ConnectedComponents]] for more details.
+   * See [[org.graphframes.lib.ConnectedComponents]] for more details.
    *
    * @group stdlib
    */
@@ -308,7 +308,7 @@ class GraphFrame private(
   /**
    * Label propagation algorithm.
    *
-   * See [[LabelPropagation]] for more details.
+   * See [[org.graphframes.lib.LabelPropagation]] for more details.
    *
    * @group stdlib
    */
@@ -317,7 +317,7 @@ class GraphFrame private(
   /**
    * Page Rank algorithm.
    *
-   * See [[PageRank]] for more details.
+   * See [[org.graphframes.lib.PageRank]] for more details.
    *
    * @group stdlib
    */
@@ -326,7 +326,7 @@ class GraphFrame private(
   /**
    * Shortest paths algorithm.
    *
-   * See [[ShortestPaths]] for more details.
+   * See [[org.graphframes.lib.ShortestPaths]] for more details.
    *
    * @group stdlib
    */
@@ -335,7 +335,7 @@ class GraphFrame private(
   /**
    * Strongly connected components algorithm.
    *
-   * See [[StronglyConnectedComponents]] for more details.
+   * See [[org.graphframes.lib.StronglyConnectedComponents]] for more details.
    *
    * @group stdlib
    */
@@ -344,7 +344,7 @@ class GraphFrame private(
   /**
    * SVD++ algorithm.
    *
-   * See [[SVDPlusPlus]] for more details.
+   * See [[org.graphframes.lib.SVDPlusPlus]] for more details.
    *
    * @group stdlib
    */
@@ -353,7 +353,7 @@ class GraphFrame private(
   /**
    * Triangle count algorithm.
    *
-   * See [[TriangleCount]] for more details.
+   * See [[org.graphframes.lib.TriangleCount]] for more details.
    *
    * @group stdlib
    */
