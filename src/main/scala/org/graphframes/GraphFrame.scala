@@ -32,8 +32,6 @@ import org.graphframes.pattern._
 
 
 /**
- * A representation of a graph using [[DataFrame]]s.
- *
  * Represents a graph with vertices and edges stored as [[DataFrame]]s.
  * [[vertices]] must contain a column named "id" storing unique vertex IDs.
  * [[edges]] must contain two columns "src" and "dst" storing source vertex IDs and destination
@@ -87,7 +85,7 @@ class GraphFrame private(
    *
    * @group structure
    */
-  // TODO(tjh) mention what happens with multiple edges.
+  // TODO(tjhunter) eventually clarify the treatment of duplicate edges
   def edges: DataFrame = {
     if (_edges == null) {
       throw new Exception("You cannot use GraphFrame objects within a Spark closure")
@@ -96,46 +94,12 @@ class GraphFrame private(
   }
 
   /**
-   * The column names in the [[vertices]] DataFrame, in order.
-   *
-   * Helper method for [[toGraphX]] which specifies the schema of vertex attributes.
-   * The vertex attributes of the returned [[Graph.vertices]] are given as a [[Row]],
-   * and this method defines the column ordering in that [[Row]].
-   *
-   * @group structure
-   */
-  lazy val vertexColumns: Array[String] = vertices.columns
-
-  /**
-   * Version of [[vertexColumns]] which maps column names to indices in the Rows.
-   *
-   * @group structure
-   */
-  lazy val vertexColumnMap: Map[String, Int] = vertexColumns.zipWithIndex.toMap
-
-  /**
-   * The vertex names in the [[vertices]] DataFrame, in order.
-   *
-   * Helper method for [[toGraphX]] which specifies the schema of edge attributes.
-   * The edge attributes of the returned [[Graph.edges]] are given as a [[Row]],
-   * and this method defines the column ordering in that [[Row]].
-   *
-   * @group structure
-   */
-  lazy val edgeColumns: Array[String] = edges.columns
-
-  /**
-   * Version of [[edgeColumns]] which maps column names to indices in the Rows.
-   *
-   * @group structure
-   */
-  lazy val edgeColumnMap: Map[String, Int] = edgeColumns.zipWithIndex.toMap
-
-  /**
    * Returns triplets: (source vertex)-[edge]->(destination vertex) for all edges in the graph.
    * The DataFrame returned has 3 columns, with names: [[GraphFrame.SRC]], [[GraphFrame.EDGE]],
    * and [[GraphFrame.DST]].  The 2 vertex columns have schema matching [[GraphFrame.vertices]],
    * and the edge column has a schema matching [[GraphFrame.edges]].
+   *
+   * @group structure
    */
   lazy val triplets: DataFrame = find(s"($SRC)-[$EDGE]->($DST)")
 
@@ -172,46 +136,78 @@ class GraphFrame private(
     }
   }
 
+  /**
+   * The column names in the [[vertices]] DataFrame, in order.
+   *
+   * Helper method for [[toGraphX]] which specifies the schema of vertex attributes.
+   * The vertex attributes of the returned [[Graph.vertices]] are given as a [[Row]],
+   * and this method defines the column ordering in that [[Row]].
+   *
+   * @group conversions
+   */
+  def vertexColumns: Array[String] = vertices.columns
+
+  /**
+   * Version of [[vertexColumns]] which maps column names to indices in the Rows.
+   *
+   * @group conversions
+   */
+  def vertexColumnMap: Map[String, Int] = vertexColumns.zipWithIndex.toMap
+
+  /**
+   * The vertex names in the [[vertices]] DataFrame, in order.
+   *
+   * Helper method for [[toGraphX]] which specifies the schema of edge attributes.
+   * The edge attributes of the returned [[Graph.edges]] are given as a [[Row]],
+   * and this method defines the column ordering in that [[Row]].
+   *
+   * @group conversions
+   */
+  def edgeColumns: Array[String] = edges.columns
+
+  /**
+   * Version of [[edgeColumns]] which maps column names to indices in the Rows.
+   *
+   * @group conversions
+   */
+  def edgeColumnMap: Map[String, Int] = edgeColumns.zipWithIndex.toMap
 
   // ============================ Degree metrics =======================================
 
   /**
    * The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
-   *  - "outDeg" (integer) storing out-degrees.
+   *  - "outDegree" (integer) storing out-degrees.
    * Note that vertices with no out-degrees are not returned in the result.
    *
    * @group degree
    */
-  // TODO(tjh) change the name 'outDeg' -> 'outDegree'
   @transient lazy val outDegrees: DataFrame = {
-    edges.groupBy(edges(SRC).as(ID)).agg(count("*").cast("int").as("outDeg"))
+    edges.groupBy(edges(SRC).as(ID)).agg(count("*").cast("int").as("outDegree"))
   }
 
   /**
    * The in-degree of each vertex in the graph, returned as a DataFame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
-   * "- "inDeg" (int) storing in-degrees.
+   * "- "inDegree" (int) storing in-degrees.
    * Note that vertices with no in-degrees are not returned in the result.
    *
    * @group degree
    */
-  // TODO(tjh) change the name 'inDeg' -> 'inDegree'
   @transient lazy val inDegrees: DataFrame = {
-    edges.groupBy(edges(DST).as(ID)).agg(count("*").cast("int").as("inDeg"))
+    edges.groupBy(edges(DST).as(ID)).agg(count("*").cast("int").as("inDegree"))
   }
 
   /**
    * The degree of each vertex in the graph, returned as a DataFrame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
-   *  - 'deg' (intege) the degree of the vertex
+   *  - 'degree' (integer) the degree of the vertex
    * Note that vertices with no degrees are not returned in the result.
    *
    * @group degree
    */
-  // TODO(tjh) change the name 'deg' -> 'degree'
   @transient lazy val degrees: DataFrame = {
-    edges.select(explode(array(SRC, DST)).as(ID)).groupBy(ID).agg(count("*").cast("int").as("deg"))
+    edges.select(explode(array(SRC, DST)).as(ID)).groupBy(ID).agg(count("*").cast("int").as("degree"))
   }
 
   // ============================ Motif finding ========================================
@@ -283,7 +279,7 @@ class GraphFrame private(
   def labelPropagation(): LabelPropagation.Builder = new LabelPropagation.Builder(this)
 
   /**
-   * Page Rank algorithm.
+   * PageRank algorithm.
    *
    * See [[org.graphframes.lib.PageRank]] for more details.
    *
