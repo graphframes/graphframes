@@ -33,21 +33,19 @@ GraphFrames depends on Apache Spark, which is available for download from the
 [Apache Spark website](http://spark.apache.org).
 
 GraphFrames should be compatible with any platform which runs Spark.
-Refer to the [Spark documentation](http://spark.apache.org/docs/latest) for more information.
+Refer to the [Apache Spark documentation](http://spark.apache.org/docs/latest) for more information.
 
 GraphFrames is compatible with Spark 1.4+.  However, later versions of Spark include major improvements
 to DataFrames, so GraphFrames may be more efficient when running on more recent Spark versions.
 
 # Applications, the Apache Spark shell, and clusters
 
-See the Spark User Guide (TODO: LINK) for more information about submitting Spark jobs to clusters,
-running the Spark shell, and launching Spark clusters.
+See the [Apache Spark User Guide](http://spark.apache.org/docs/latest/) for more information about
+submitting Spark jobs to clusters, running the Spark shell, and launching Spark clusters.
 The [GraphFrame Quick-Start guide](quick-start.html) also shows how to run the Spark shell with
 GraphFrames supplied as a package.
 
 # Where to Go from Here
-
-**TODO: UPDATE THIS SECTION**
 
 **User Guides:**
 
@@ -60,20 +58,8 @@ GraphFrames supplied as a package.
 * [GraphFrames Scala API (Scaladoc)](api/scala/index.html#org.graphframes.package)
 * [GraphFrames Python API (Sphinx)](api/python/index.html)
 
-**Other Documents:**
-
-**TODO: PULL INFO FROM GRAPHX DOCS?**
-
-* [Configuration](configuration.html): customize Spark via its configuration system
-* [Tuning Guide](tuning.html): best practices to optimize performance and memory use
-* [Building Spark](building-spark.html): build Spark using the Maven system
-* [Contributing to Spark](https://cwiki.apache.org/confluence/display/SPARK/Contributing+to+Spark)
-
 **External Resources:**
 
-* [Spark Homepage](http://spark.apache.org)
-* [Spark Wiki](https://cwiki.apache.org/confluence/display/SPARK)
-* [Mailing Lists](http://spark.apache.org/mailing-lists.html): ask questions about Spark here
-* [Code Examples](http://spark.apache.org/examples.html): more are also available in the `examples` subfolder of Spark ([Scala]({{site.SPARK_GITHUB_URL}}/tree/master/examples/src/main/scala/org/apache/spark/examples),
- [Java]({{site.SPARK_GITHUB_URL}}/tree/master/examples/src/main/java/org/apache/spark/examples),
- [Python]({{site.SPARK_GITHUB_URL}}/tree/master/examples/src/main/python))
+* [Apache Spark Homepage](http://spark.apache.org)
+* [Apache Spark Wiki](https://cwiki.apache.org/confluence/display/SPARK)
+* [Mailing Lists](http://spark.apache.org/mailing-lists.html): Ask questions about Spark here

@@ -3,12 +3,12 @@
 
 scalaVersion := "2.10.4"
 
-sparkVersion := "1.4.1"
+sparkVersion := "1.4.2"
 
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := "0.0.1-SNAPSHOT"
+version := "0.1.1-SNAPSHOT"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))

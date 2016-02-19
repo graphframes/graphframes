@@ -94,6 +94,36 @@ class GraphFrame(object):
         """
         return self._edges
 
+    def outDegrees(self):
+        """
+        The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
+         - [[GraphFrame.ID]] the ID of the vertex
+         - "outDegree" (integer) storing the out-degree of the vertex
+        Note that vertices with 0 out-edges are not returned in the result.
+        """
+        jdf = self._jvm_graph.outDegrees()
+        return DataFrame(jdf, self._sqlContext)
+
+    def inDegrees(self):
+        """
+        The in-degree of each vertex in the graph, returned as a DataFame with two columns:
+         - [[GraphFrame.ID]] the ID of the vertex
+         - "inDegree" (int) storing the in-degree of the vertex
+        Note that vertices with 0 in-edges are not returned in the result.
+        """
+        jdf = self._jvm_graph.inDegrees()
+        return DataFrame(jdf, self._sqlContext)
+
+    def degrees(self):
+        """
+        The degree of each vertex in the graph, returned as a DataFrame with two columns:
+         - [[GraphFrame.ID]] the ID of the vertex
+         - 'degree' (integer) the degree of the vertex
+        Note that vertices with 0 edges are not returned in the result.
+        """
+        jdf = self._jvm_graph.degrees()
+        return DataFrame(jdf, self._sqlContext)
+
     def find(self, pattern):
         """
         Motif finding.

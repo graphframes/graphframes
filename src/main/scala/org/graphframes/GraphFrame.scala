@@ -174,8 +174,8 @@ class GraphFrame private(
   /**
    * The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
-   *  - "outDegree" (integer) storing out-degrees.
-   * Note that vertices with no out-degrees are not returned in the result.
+   *  - "outDegree" (integer) storing the out-degree of the vertex
+   * Note that vertices with 0 out-edges are not returned in the result.
    *
    * @group degree
    */
@@ -186,8 +186,8 @@ class GraphFrame private(
   /**
    * The in-degree of each vertex in the graph, returned as a DataFame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
-   * "- "inDegree" (int) storing in-degrees.
-   * Note that vertices with no in-degrees are not returned in the result.
+   * "- "inDegree" (int) storing the in-degree of the vertex
+   * Note that vertices with 0 in-edges are not returned in the result.
    *
    * @group degree
    */
@@ -199,7 +199,7 @@ class GraphFrame private(
    * The degree of each vertex in the graph, returned as a DataFrame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
    *  - 'degree' (integer) the degree of the vertex
-   * Note that vertices with no degrees are not returned in the result.
+   * Note that vertices with 0 edges are not returned in the result.
    *
    * @group degree
    */
