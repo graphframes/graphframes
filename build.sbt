@@ -3,7 +3,7 @@
 
 scalaVersion := "2.10.4"
 
-sparkVersion := "1.4.3-SNAPSHOT"
+sparkVersion := "1.4.1"
 
 spName := "graphframes/graphframes"
 
