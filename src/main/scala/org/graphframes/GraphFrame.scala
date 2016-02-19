@@ -19,7 +19,7 @@ package org.graphframes
 
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.{Logging}
+import org.apache.spark.Logging
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
@@ -32,10 +32,7 @@ import org.graphframes.pattern._
 
 
 /**
- * Represents a graph with vertices and edges stored as [[DataFrame]]s.
- * [[vertices]] must contain a column named "id" storing unique vertex IDs.
- * [[edges]] must contain two columns "src" and "dst" storing source vertex IDs and destination
- * vertex IDs of edges, respectively.
+ * A representation of a graph using [[DataFrame]]s.
  *
  * @groupname structure Structure information
  * @groupname conversions Conversions
