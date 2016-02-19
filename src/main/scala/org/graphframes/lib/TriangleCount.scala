@@ -21,8 +21,16 @@ import org.apache.spark.graphx.{lib => graphxlib}
 
 import org.graphframes.GraphFrame
 
+
 /**
- * Compute the number of triangles passing through each vertex.
+ * Computes the number of triangles passing through each vertex.
+ *
+ * The edges of the resulting graph have the same schema as the original edges.
+ *
+ * The vertices of the resulting graph have the following schema:
+ *  - id: the id of the vertex
+ *  - count (int): the count of triangles
+ *  - the other columns that were part of the vertex dataframe.
  *
  * The algorithm is relatively straightforward and can be computed in three steps:
  *
@@ -35,31 +43,22 @@ import org.graphframes.GraphFrame
  * Note that the input graph should have its edges in canonical direction
  * (i.e. the `sourceId` less than `destId`).
  */
-// TODO(tjh) graphX requires the graph to be partitioned.
-object TriangleCount {
+class TriangleCount private[graphframes] (private val graph: GraphFrame) extends Arguments {
 
-  /**
-   * Computes the number of triangles passing through each vertex.
-   *
-   * The edges of the resulting graph have the same schema as the original edges.
-   *
-   * The vertices of the resulting graph have the following schema:
-   *  - id: the id of the vertex
-   *  - count (int): the count of triangles
-   *  - the other columns that were part of the vertex dataframe.
-   */
-  def run(graph: GraphFrame): GraphFrame = {
+  def run(): GraphFrame = {
+    TriangleCount.run(graph)
+  }
+}
+
+// TODO(tjh) graphX requires the graph to be partitioned.
+private object TriangleCount {
+
+  private def run(graph: GraphFrame): GraphFrame = {
     val gx = graphxlib.TriangleCount.run(graph.cachedTopologyGraphX)
     GraphXConversions.fromGraphX(graph, gx, Seq(COUNT_ID), Nil)
   }
 
   private val COUNT_ID = "count"
 
-  class Builder private[graphframes] (graph: GraphFrame) extends Arguments {
-
-    def run(): GraphFrame = {
-      TriangleCount.run(graph)
-    }
-  }
 
 }

@@ -122,7 +122,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
     def test_label_progagation(self):
         n = 5
         g = self._graph("twoBlobs", n)
-        labels = g.labelPropagation(max_steps=4 * n)
+        labels = g.labelPropagation(maxSteps=4 * n)
         labels1 = labels.vertices.filter("id < 5").select("label").collect()
         all1 = set([x.label for x in labels1])
         self.assertEqual(all1, set([0]))
@@ -150,7 +150,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
-        (g2, cost) = g.svdPlusPlus({})
+        (g2, cost) = g.svdPlusPlus()
         self._hasCols(g2, vcols=['id', 'column1', 'column2', 'column3'],
                       ecols=['src', 'dst', 'ecolumn1'])
 

@@ -105,9 +105,9 @@ class GraphFrame(object):
         """
         Breadth-first search (BFS)
         """
-        builder = self._jvm_graph.bfs(fromExpr, toExpr).setMaxPathLength(maxPathLength)
+        builder = self._jvm_graph.bfs(fromExpr, toExpr).maxPathLength(maxPathLength)
         if edgeFilter is not None:
-            builder.setEdgeFilter(edgeFilter)
+            builder.edgeFilter(edgeFilter)
         jdf = builder.run()
         return DataFrame(jdf, self._sqlContext)
 
@@ -121,33 +121,33 @@ class GraphFrame(object):
         jgf = self._jvm_graph.connectedComponents().run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def labelPropagation(self, max_steps):
+    def labelPropagation(self, maxSteps):
         """
         Runs static label propagation for detecting communities in networks.
-        :param max_steps: the number of super steps to be performed.
+        :param maxSteps: the number of super steps to be performed.
         :return:
         """
-        jgf = self._jvm_graph.labelPropagation().setMaxSteps(max_steps).run()
+        jgf = self._jvm_graph.labelPropagation().maxSteps(maxSteps).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def pageRank(self, reset_prob = 0.15, source_id = None, fixed_num_iter = None,
+    def pageRank(self, resetProbability = 0.15, sourceId = None, numIter = None,
                  tolerance = None):
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
-        :param reset_prob:
-        :param source_id: (optional) the source vertex for a personalized PageRank.
-        :param fixed_num_iter: If set, the algorithm is run for a fixed number
+        :param resetProbability:
+        :param sourceId: (optional) the source vertex for a personalized PageRank.
+        :param numIter: If set, the algorithm is run for a fixed number
                of iterations. This may not be set if the `tolerance` parameter is set.
         :param tolerance: If set, the algorithm is run until the given tolerance.
-               This may not be set if the `fixed_num_iter` parameter is set.
+               This may not be set if the `numIter` parameter is set.
         :return:
         """
-        builder = self._jvm_graph.pageRank().setResetProbability(reset_prob)
-        if source_id is not None:
-            builder = builder.setSourceId(source_id)
-        if fixed_num_iter is not None:
-            builder = builder.fixedIterations(fixed_num_iter)
+        builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
+        if sourceId is not None:
+            builder = builder.sourceId(sourceId)
+        if numIter is not None:
+            builder = builder.numIter(numIter)
             assert tolerance is None, "Exactly one of fixed_num_iter or tolerance shoud be set."
         else:
             assert tolerance is not None, "Exactly one of fixed_num_iter or tolerance shoud be set."
@@ -155,46 +155,34 @@ class GraphFrame(object):
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def shortestPaths(self, landmark_ids):
+    def shortestPaths(self, landmarks):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
-        :param landmark_ids: a set of landmarks
+        :param landmarks: a set of landmarks
         :return:
         """
-        jgf = self._jvm_graph.shortestPaths().setLandmarks(landmark_ids).run()
+        jgf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def stronglyConnectedComponents(self, num_iterations):
+    def stronglyConnectedComponents(self, numIter):
         """
         Runs the strongly connected components algorithm on this graph.
-        :param num_iterations: the number of iterations to run.
+        :param numIter: the number of iterations to run.
         :return:
         """
-        jgf = self._jvm_graph.stronglyConnectedComponents().setNumIterations(num_iterations).run()
+        jgf = self._jvm_graph.stronglyConnectedComponents().numIter(numIter).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def svdPlusPlus(self, conf_dict):
+    def svdPlusPlus(self, rank = 10, maxIter = 2, minValue = 0.0, maxValue = 5.0,
+                    gamma1 = 0.007, gamma2 = 0.007, gamma6 = 0.005, gamma7 = 0.015):
         """
         Runs the SVD++ algorithm.
-        :param conf:
         :return:
         """
         # This call is actually useless, because one needs to build the configuration first...
         builder = self._jvm_graph.svdPlusPlus()
-        jconf = builder.defaultConf()
-        all_args = []
-        # The order is important, it determines the order of arguments in the java call.
-        # Check the order of the arguments in SVDPlusPlus.Conf
-        double_args = [(key, float) for key in ["minVal", "maxVal", "gamma1", "gamma2", "gamma6", "gamma7"]]
-        args = [("rank", int), ("maxIters", int)] + double_args
-        for key, constructor in args:
-            if key in conf_dict:
-                all_args.append(conf_dict[key])
-            else:
-                all_args.append(getattr(jconf, key)())
-
-        jconf2 = jconf.copy(*all_args)
-        builder = builder.setConf(jconf2)
+        builder.rank(rank).maxIter(maxIter).minValue(minValue).maxValue(maxValue)
+        builder.gamma1(gamma1).gamma2(gamma2).gamma6(gamma6).gamma7(gamma7)
         jgf = builder.run()
         loss = builder.loss()
         gf = _from_java_gf(jgf, self._sqlContext)

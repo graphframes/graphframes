@@ -26,7 +26,7 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
 
   test("Toy example") {
     val g = Graphs.twoBlobs(n)
-    val labels = LabelPropagation.run(g, 4 * n)
+    val labels = g.labelPropagation.maxSteps(4 * n).run()
     LabelPropagationSuite.testSchemaInvariants(g, labels)
     val clique1 = labels.vertices.filter(s"id < $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique1.size === 1)

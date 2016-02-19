@@ -21,38 +21,39 @@ import org.apache.spark.graphx.{lib => graphxlib}
 
 import org.graphframes.GraphFrame
 
+/**
+ * Compute the strongly connected component (SCC) of each vertex and return a graph with the
+ * vertex value containing the lowest vertex id in the SCC containing that vertex.
+ *
+ * The edges have the same schema as the original edges.
+ *
+ * The resulting verticexs have the following columns:
+ *  - id: the id of the vertex
+ *  - weight (double): the normalized weight (page rank) of this vertex.
+ *
+ * @param graph the graph for which to compute the SCC
+ * @return a graph with vertex attributes containing the smallest vertex id in each SCC
+ */
+class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame) extends Arguments {
+  private var numIters: Option[Int] = None
+
+  def numIter(value: Int): this.type = {
+    numIters = Some(value)
+    this
+  }
+
+  def run(): GraphFrame = {
+    StronglyConnectedComponents.run(graph, check(numIters, "numIterations"))
+  }
+}
+
+
 /** Strongly connected components algorithm implementation. */
-object StronglyConnectedComponents {
-  /**
-   * Compute the strongly connected component (SCC) of each vertex and return a graph with the
-   * vertex value containing the lowest vertex id in the SCC containing that vertex.
-   *
-   * The edges have the same schema as the original edges.
-   *
-   * The resulting verticexs have the following columns:
-   *  - id: the id of the vertex
-   *  - weight (double): the normalized weight (page rank) of this vertex.
-   *
-   * @param graph the graph for which to compute the SCC
-   * @return a graph with vertex attributes containing the smallest vertex id in each SCC
-   */
-  def run(graph: GraphFrame, numIters: Int): GraphFrame = {
+private object StronglyConnectedComponents {
+  private def run(graph: GraphFrame, numIters: Int): GraphFrame = {
     val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIters)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
   }
 
   private[graphframes] val COMPONENT_ID = "component"
-
-  class Builder private[graphframes] (graph: GraphFrame) extends Arguments {
-    private var numIters: Option[Int] = None
-
-    def setNumIterations(iterations: Int): this.type = {
-      numIters = Some(iterations)
-      this
-    }
-
-    def run(): GraphFrame = {
-      StronglyConnectedComponents.run(graph, check(numIters, "numIterations"))
-    }
-  }
 }

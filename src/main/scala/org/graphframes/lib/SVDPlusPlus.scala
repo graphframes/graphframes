@@ -24,99 +24,110 @@ import org.apache.spark.sql.types._
 import org.graphframes.GraphFrame
 
 /**
+ * Implement SVD++ based on "Factorization Meets the Neighborhood:
+ * a Multifaceted Collaborative Filtering Model",
+ * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
+ *
+ * The prediction rule is rui = u + bu + bi + qi*(pu + |N(u)|^^-0.5^^*sum(y)),
+ * see the details on page 6.
+ *
+ * Configuration parameters: see the description of each parameter in the article.
+ *
+ * @return a graph with vertex attributes containing the trained model
+ */
+class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends Arguments {
+  private var _rank: Int = 10
+  private var _maxIters: Int = 2
+  private var _minVal: Double = 0.0
+  private var _maxVal: Double = 5.0
+  private var _gamma1: Double = 0.007
+  private var _gamma2: Double = 0.007
+  private var _gamma6: Double = 0.005
+  private var _gamma7: Double = 0.015
+
+  private var _loss: Option[Double] = None
+
+  def rank(value: Int): this.type = {
+    _rank = value
+    this
+  }
+
+  def maxIter(value: Int): this.type = {
+    _maxIters = value
+    this
+  }
+
+  def minValue(value: Double): this.type = {
+    _minVal = value
+    this
+  }
+
+  def maxValue(value: Double): this.type = {
+    _maxVal = value
+    this
+  }
+
+  def gamma1(value: Double): this.type = {
+    _gamma1 = value
+    this
+  }
+
+  def gamma2(value: Double): this.type = {
+    _gamma2 = value
+    this
+  }
+
+  def gamma6(value: Double): this.type = {
+    _gamma6 = value
+    this
+  }
+
+  def gamma7(value: Double): this.type = {
+    _gamma7 = value
+    this
+  }
+
+  def run(): GraphFrame = {
+    val conf = new graphxlib.SVDPlusPlus.Conf(
+      rank = _rank,
+      maxIters = _maxIters,
+      minVal = _minVal,
+      maxVal = _maxVal,
+      gamma1 = _gamma1,
+      gamma2 = _gamma2,
+      gamma6 = _gamma6,
+      gamma7 = _gamma7)
+
+    val (g, l) = SVDPlusPlus.run(graph, conf)
+    _loss = Some(l)
+    g
+  }
+
+  def loss: Double = {
+    // We could use types instead to make sure that it is never accessed before being run.
+    _loss.getOrElse(throw new Exception("The algorithm has not been run yet"))
+  }
+}
+
+
+/**
  * Implementation of the SVD++ algorithm, based on "Factorization Meets the Neighborhood:
  * a Multifaceted Collaborative Filtering Model",
  * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
  */
-object SVDPlusPlus {
+private object SVDPlusPlus {
 
-  /**
-   * Implement SVD++ based on "Factorization Meets the Neighborhood:
-   * a Multifaceted Collaborative Filtering Model",
-   * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
-   *
-   * The prediction rule is rui = u + bu + bi + qi*(pu + |N(u)|^^-0.5^^*sum(y)),
-   * see the details on page 6.
-   *
-   * @param conf SVDPlusPlus parameters
-   * @return a graph with vertex attributes containing the trained model
-   */
-  def run(graph: GraphFrame, conf: Conf): (GraphFrame, Double) = {
+  private def run(graph: GraphFrame, conf: graphxlib.SVDPlusPlus.Conf): (GraphFrame, Double) = {
     val edges = graph.edges.select(GraphFrame.SRC, GraphFrame.DST, COLUMN_WEIGHT).map {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
     }
-    val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf.toGraphXConf)
+    val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf)
     val gf = GraphXConversions.fromGraphX(graph, gx,
       vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4),
       edgeNames = Seq(ECOLUMN1))
     (gf, res)
   }
 
-  /**
-   * Configuration parameters for SVD++.
-   *
-   * @param rank
-   * @param maxIters
-   * @param minVal
-   * @param maxVal
-   * @param gamma1
-   * @param gamma2
-   * @param gamma6
-   * @param gamma7
-   */
-  // TODO(tjh) put some documentation for the parameters.
-  case class Conf(
-      rank: Int,
-      maxIters: Int,
-      minVal: Double,
-      maxVal: Double,
-      gamma1: Double,
-      gamma2: Double,
-      gamma6: Double,
-      gamma7: Double) extends Serializable {
-
-    /**
-     * Convenience conversion method.
-     */
-    private[graphframes] def toGraphXConf: graphxlib.SVDPlusPlus.Conf = {
-      new graphxlib.SVDPlusPlus.Conf(
-        rank = rank,
-        maxIters = maxIters,
-        minVal = minVal,
-        maxVal = maxVal,
-        gamma1 = gamma1,
-        gamma2 = gamma2,
-        gamma6 = gamma6,
-        gamma7 = gamma7)
-    }
-  }
-
-  object Conf {
-
-    /**
-     * Default settings for the parameters.
-     */
-    // TODO(tjh) expose as part of the API
-    // TODO(tjh) explain the values of the parameters?
-    private[graphframes] val default = new Conf(10, 2, 0.0, 5.0, 0.007, 0.007, 0.005, 0.015)
-
-    /**
-     * Convenience conversion method for users of GraphX.
-      *
-      * @param conf
-     */
-    def buildFrom(conf: graphxlib.SVDPlusPlus.Conf): Conf = {
-      new Conf(
-        rank = conf.rank,
-        maxIters = conf.maxIters,
-        minVal = conf.minVal,
-        maxVal = conf.maxVal,
-        gamma1 = conf.gamma1,
-        gamma2 = conf.gamma2,
-        gamma6 = conf.gamma6,
-        gamma7 = conf.gamma7)
-    }
-  }
 
   private val COLUMN_WEIGHT = "weight"
 
@@ -126,26 +137,4 @@ object SVDPlusPlus {
   private val COLUMN4 = "column4"
   private val ECOLUMN1 = "ecolumn1"
 
-  class Builder private[graphframes] (graph: GraphFrame) extends Arguments {
-    private var conf: Option[Conf] = None
-    private var _loss: Option[Double] = None
-
-    def setConf(c: Conf): this.type = {
-      conf = Some(c)
-      this
-    }
-
-    def run(): GraphFrame = {
-      val (g, l) = SVDPlusPlus.run(graph, check(conf, "conf"))
-      _loss = Some(l)
-      g
-    }
-
-    def loss: Double = {
-      // We could use types instead to make sure that it is never accessed before being run.
-      _loss.getOrElse(throw new Exception("The algorithm has not been run yet"))
-    }
-
-    private[graphframes] def defaultConf: Conf = Conf.default
-  }
 }

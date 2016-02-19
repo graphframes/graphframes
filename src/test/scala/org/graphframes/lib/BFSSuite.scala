@@ -119,27 +119,27 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("maxPathLength: length 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "f").setMaxPathLength(1).run()
+    val paths = g.bfs(col("id") === "e", col("id") === "f").maxPathLength(1).run()
     assert(paths.count() === 1)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "f").setMaxPathLength(0).run()
+    val paths0 = g.bfs(col("id") === "e", col("id") === "f").maxPathLength(0).run()
     assert(paths0.count() === 0)
   }
 
   test("maxPathLength: length > 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "b").setMaxPathLength(3).run()
+    val paths = g.bfs(col("id") === "e", col("id") === "b").maxPathLength(3).run()
     assert(paths.count() === 2)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "b").setMaxPathLength(2).run()
+    val paths0 = g.bfs(col("id") === "e", col("id") === "b").maxPathLength(2).run()
     assert(paths0.count() === 0)
   }
 
   test("edge filter") {
-    val paths1 = g.bfs(col("id") === "e", col("id") === "b").setEdgeFilter(col("src") !== "d").run()
+    val paths1 = g.bfs(col("id") === "e", col("id") === "b").edgeFilter(col("src") !== "d").run()
     assert(paths1.count() === 1)
     paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
       assert(id === "f")
     }
     val paths2 = g.bfs(col("id") === "e", col("id") === "b")
-      .setEdgeFilter(col("relationship") === "friend").run()
+      .edgeFilter(col("relationship") === "friend").run()
     assert(paths2.count() === 1)
     paths2.select("e0.dst").collect().foreach { case Row(id: String) =>
       assert(id === "d")
@@ -147,7 +147,7 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("string expressions") {
-    val paths1 = g.bfs("id = 'e'", "id = 'b'").setEdgeFilter("src != 'd'").run()
+    val paths1 = g.bfs("id = 'e'", "id = 'b'").edgeFilter("src != 'd'").run()
     assert(paths1.count() === 1)
     paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
       assert(id === "f")

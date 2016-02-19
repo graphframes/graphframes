@@ -26,21 +26,45 @@ import org.apache.spark.graphx.{lib => graphxlib}
 import org.graphframes.GraphFrame
 
 /**
+ * Computes shortest paths to the given set of landmark vertices.
+ *
+ * @param graph the graph for which to compute the shortest paths
+ * @return a graph where each vertex attribute is a map containing the shortest-path distance to
+ * each reachable landmark vertex.
+ */
+class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
+  private var lmarks: Option[Seq[Any]] = None
+
+  /**
+   * The list of landmark vertex ids. Shortest paths will be computed to each
+   * landmark.
+   */
+  def landmarks(value: Seq[Any]): this.type = {
+    // TODO(tjh) do some initial checks here, without running queries.
+    lmarks = Some(value)
+    this
+  }
+
+  /**
+   * The list of landmark vertex ids. Shortest paths will be computed to each
+   * landmark.
+   */
+  def landmarks(value: util.ArrayList[Any]): this.type = {
+    landmarks(value.asScala)
+  }
+
+  def run(): GraphFrame = {
+    ShortestPaths.run(graph, check(lmarks, "landmarks"))
+  }
+}
+
+/**
  * Computes shortest paths to the given set of landmark vertices, returning a graph where each
  * vertex attribute is a map containing the shortest-path distance to each reachable landmark.
  */
-object ShortestPaths {
+private object ShortestPaths {
 
-  /**
-   * Computes shortest paths to the given set of landmark vertices.
-   *
-   * @param graph the graph for which to compute the shortest paths
-   * @param landmarks the list of landmark vertex ids. Shortest paths will be computed to each
-   * landmark.
-   * @return a graph where each vertex attribute is a map containing the shortest-path distance to
-   * each reachable landmark vertex.
-   */
-  def run(graph: GraphFrame, landmarks: Seq[Any]): GraphFrame = {
+  private def run(graph: GraphFrame, landmarks: Seq[Any]): GraphFrame = {
     val longLandmarks = landmarks.map(PageRank.integralId(graph, _))
     val gx = graphxlib.ShortestPaths.run(
       graph.cachedTopologyGraphX,
@@ -50,21 +74,5 @@ object ShortestPaths {
 
   private val DISTANCE_ID = "distance"
 
-  class Builder private[graphframes] (graph: GraphFrame) extends Arguments {
-    private var lmarks: Option[Seq[Any]] = None
-
-    def setLandmarks[VertexType](landmarks: Seq[VertexType]): this.type = {
-      // TODO(tjh) do some initial checks here, without running queries.
-      lmarks = Some(landmarks)
-      this
-    }
-
-    def setLandmarks[VertexType](landmarks: util.ArrayList[VertexType]): this.type = {
-      setLandmarks(landmarks.asScala)
-    }
-
-    def run(): GraphFrame = {
-      ShortestPaths.run(graph, check(lmarks, "landmarks"))
-    }
-  }
 }
+

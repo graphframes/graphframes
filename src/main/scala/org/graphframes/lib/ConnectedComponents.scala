@@ -23,37 +23,37 @@ import org.graphframes.GraphFrame
 
 /**
  * Connected components algorithm.
+ *
+ * Computes the connected component membership of each vertex and return a graph with the vertex
+ * value containing the lowest vertex id in the connected component containing that vertex.
+ *
+ * The resulting edges are the same as the original edges.
+ *
+ * The resulting vertices have two columns:
+ *  - id: the id of the vertex
+ *  - component: (same type as vertex id) the id of a vertex in the connected component, used as a unique identifier
+ *    for this component.
+ * All the other columns from the vertices are dropped.
+ *
+ * @return a graph with vertex attributes containing the smallest vertex in each
+ *         connected component
  */
-object ConnectedComponents {
+class ConnectedComponents private[graphframes] (private val graph: GraphFrame) extends Arguments {
 
   /**
-   * Compute the connected component membership of each vertex and return a graph with the vertex
-   * value containing the lowest vertex id in the connected component containing that vertex.
-   *
-   * The resulting edges are the same as the original edges.
-   *
-   * The resulting vertices have two columns:
-   *  - id: the id of the vertex
-   *  - component: (same type as vertex id) the id of a vertex in the connected component, used as a unique identifier
-   *    for this component.
-   * All the other columns from the vertices are dropped.
-   *
-   * @param graph the graph for which to compute the connected components
-   * @return a graph with vertex attributes containing the smallest vertex in each
-   *         connected component
+   * Runs the algorithm.
    */
+  def run(): GraphFrame = {
+    ConnectedComponents.run(graph)
+  }
+}
+
+private object ConnectedComponents {
+
   def run(graph: GraphFrame): GraphFrame = {
     val gx = graphxlib.ConnectedComponents.run(graph.cachedTopologyGraphX)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
   }
 
   private val COMPONENT_ID = "component"
-
-  class Builder private[graphframes] (graph: GraphFrame) extends Arguments {
-
-    def run(): GraphFrame = {
-      ConnectedComponents.run(graph)
-    }
-  }
-
 }

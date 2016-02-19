@@ -29,8 +29,7 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val svdppErr = 8.0
     val g = Graphs.ALSSyntheticData()
 
-    val conf = SVDPlusPlus.Conf(10, 2, 0.0, 5.0, 0.007, 0.007, 0.005, 0.015) // 2 iterations
-    val (g2, _) = SVDPlusPlus.run(g, conf)
+    val g2 = g.svdPlusPlus.maxIter(2).run()
     LabelPropagationSuite.testSchemaInvariants(g, g2)
     val err = g2.vertices.select(GraphFrame.ID, "column4").map { case Row(vid: Long, vd: Double) =>
       if (vid % 2 == 1) vd else 0.0

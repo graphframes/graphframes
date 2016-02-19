@@ -24,7 +24,7 @@ import org.apache.spark.sql.functions.{col, lit, sum, udf, when}
 
 import org.graphframes.GraphFrame
 import org.graphframes.examples.Graphs.gridIsingModel
-import org.graphframes.lib.AggregateMessages
+import org.graphframes.lib.{AggregateMessages}
 
 
 /**

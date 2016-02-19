@@ -71,9 +71,50 @@ import org.graphframes.GraphFrame
  *  - weight (double): the normalized weight (page rank) of this vertex.
  * All the other columns are dropped.
  */
+class PageRank private[graphframes] (
+      private val graph: GraphFrame) extends Arguments {
+
+  private var tol: Option[Double] = None
+  private var resetProb: Option[Double] = Some(0.15)
+  private var numIters: Option[Int] = None
+  private var srcId : Option[Any] = None
+
+  def sourceId(value : Any): this.type = {
+    this.srcId = Some(value)
+    this
+  }
+
+  def resetProbability(value: Double): this.type = {
+    resetProb = Some(value)
+    this
+  }
+
+  def untilConvergence(tolerance: Double): this.type = {
+    tol = Some(tolerance)
+    this
+  }
+
+  def numIter(value: Int): this.type = {
+    numIters = Some(value)
+    this
+  }
+
+  def run(): GraphFrame = {
+    tol match {
+      case Some(t) =>
+        assert(numIters.isEmpty,
+          "You cannot specify numIter() and untilConvergence() at the same time.")
+        PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
+      case None =>
+        PageRank.run(graph, check(numIters, "numIter"), resetProb.get, srcId)
+    }
+  }
+}
+
+
 // TODO: srcID's type should be checked. The most futureproof check would be : Encoder, because it is compatible with
 // Datasets after that.
-object PageRank {
+private object PageRank {
   /**
    * Run PageRank for a fixed number of iterations returning a graph
    * with vertex attributes containing the PageRank and edge
@@ -121,45 +162,6 @@ object PageRank {
    * Default name for the weight column.
    */
   private val WEIGHT = "weight"
-
-  class Builder private[graphframes] (
-      graph: GraphFrame) extends Arguments {
-
-    private var tol: Option[Double] = None
-    private var resetProb: Option[Double] = Some(0.15)
-    private var numIters: Option[Int] = None
-    private var srcId : Option[Any] = None
-
-    def setSourceId[VertexId](srcId : VertexId): this.type = {
-      this.srcId = Some(srcId)
-      this
-    }
-
-    def setResetProbability(p: Double): this.type = {
-      resetProb = Some(p)
-      this
-    }
-
-    def untilConvergence(tolerance: Double): this.type = {
-      tol = Some(tolerance)
-      this
-    }
-
-    def fixedIterations(i: Int): this.type = {
-      numIters = Some(i)
-      this
-    }
-
-    def run(): GraphFrame = {
-      tol match {
-        case Some(t) =>
-          PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
-        case None =>
-          PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId)
-      }
-    }
-  }
-
 
   /**
    * Given a graph and an object, attempts to get the the corresponding integral id in the

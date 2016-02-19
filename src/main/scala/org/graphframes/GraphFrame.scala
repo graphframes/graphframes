@@ -235,7 +235,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def bfs(fromExpr: Column, toExpr: Column): BFS.Builder = new BFS.Builder(this, fromExpr, toExpr)
+  def bfs(fromExpr: Column, toExpr: Column): BFS = new BFS(this, fromExpr, toExpr)
 
   /**
    * Breadth-first search (BFS)
@@ -247,15 +247,15 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def bfs(fromExpr: String, toExpr: String): BFS.Builder =
-    new BFS.Builder(this, expr(fromExpr), expr(toExpr))
+  def bfs(fromExpr: String, toExpr: String): BFS =
+    new BFS(this, expr(fromExpr), expr(toExpr))
 
   /**
    * This is a primitive for implementing graph algorithms.
    * This method aggregates values from the neighboring edges and vertices of each vertex.
    * See [[AggregateMessages]] for detailed documentation.
    */
-  def aggregateMessages: AggregateMessages.Builder = new AggregateMessages.Builder(this)
+  def aggregateMessages: AggregateMessages = new AggregateMessages(this)
 
 
   // **** Standard library ****
@@ -267,7 +267,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def connectedComponents(): ConnectedComponents.Builder = new ConnectedComponents.Builder(this)
+  def connectedComponents: ConnectedComponents = new ConnectedComponents(this)
 
   /**
    * Label propagation algorithm.
@@ -276,7 +276,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def labelPropagation(): LabelPropagation.Builder = new LabelPropagation.Builder(this)
+  def labelPropagation: LabelPropagation = new LabelPropagation(this)
 
   /**
    * PageRank algorithm.
@@ -285,7 +285,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def pageRank(): PageRank.Builder = new PageRank.Builder(this)
+  def pageRank: PageRank = new PageRank(this)
 
   /**
    * Shortest paths algorithm.
@@ -294,7 +294,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def shortestPaths(): ShortestPaths.Builder = new ShortestPaths.Builder(this)
+  def shortestPaths: ShortestPaths = new ShortestPaths(this)
 
   /**
    * Strongly connected components algorithm.
@@ -303,7 +303,8 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def stronglyConnectedComponents(): StronglyConnectedComponents.Builder = new StronglyConnectedComponents.Builder(this)
+  def stronglyConnectedComponents: StronglyConnectedComponents =
+    new StronglyConnectedComponents(this)
 
   /**
    * SVD++ algorithm.
@@ -312,7 +313,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def svdPlusPlus(): SVDPlusPlus.Builder = new SVDPlusPlus.Builder(this)
+  def svdPlusPlus: SVDPlusPlus = new SVDPlusPlus(this)
 
   /**
    * Triangle count algorithm.
@@ -321,7 +322,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def triangleCount(): TriangleCount.Builder = new TriangleCount.Builder(this)
+  def triangleCount: TriangleCount = new TriangleCount(this)
   
   // ========= Motif finding (private) =========
 
