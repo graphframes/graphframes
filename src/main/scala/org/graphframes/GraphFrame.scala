@@ -235,7 +235,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def bfs(fromExpr: Column, toExpr: Column): BFS.Builder = new BFS.Builder(this, fromExpr, toExpr)
+  def bfs(fromExpr: Column, toExpr: Column): BFS = new BFS(this, fromExpr, toExpr)
 
   /**
    * Breadth-first search (BFS)
@@ -247,8 +247,8 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def bfs(fromExpr: String, toExpr: String): BFS.Builder =
-    new BFS.Builder(this, expr(fromExpr), expr(toExpr))
+  def bfs(fromExpr: String, toExpr: String): BFS =
+    new BFS(this, expr(fromExpr), expr(toExpr))
 
   /**
    * This is a primitive for implementing graph algorithms.

@@ -86,9 +86,35 @@ import GraphFrame.nestAsCol
  *
  * DataFrame of valid shortest paths found in the BFS
  */
+class BFS private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Column)
+  extends Arguments with Serializable {
+
+  private var maxPathLength: Int = 10
+
+  def maxPathLength(value: Int): this.type = {
+    require(value >= 0, s"BFS maxPathLength must be >= 0, but was set to $value")
+    maxPathLength = value
+    this
+  }
+
+  private var edgeFilter: Option[Column] = None
+
+  def setEdgeFilter(value: Column): this.type = {
+    edgeFilter = Some(value)
+    this
+  }
+
+  def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
+
+  def run(): DataFrame = {
+    BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)
+  }
+}
+
+
 object BFS extends Logging with Serializable {
 
-  private[graphframes] def run(
+  private def run(
       g: GraphFrame,
       from: Column,
       to: Column,
@@ -178,30 +204,6 @@ object BFS extends Logging with Serializable {
     }
   }
 
-  class Builder private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Column)
-    extends Arguments with Serializable {
-
-    private var maxPathLength: Int = 10
-
-    def setMaxPathLength(value: Int): this.type = {
-      require(value >= 0, s"BFS maxPathLength must be >= 0, but was set to $value")
-      maxPathLength = value
-      this
-    }
-
-    private var edgeFilter: Option[Column] = None
-
-    def setEdgeFilter(value: Column): this.type = {
-      edgeFilter = Some(value)
-      this
-    }
-
-    def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
-
-    def run(): DataFrame = {
-      BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)
-    }
-  }
 
   /**
    * Apply the given SQL expression (such as `id = 3`) to the field in a column,

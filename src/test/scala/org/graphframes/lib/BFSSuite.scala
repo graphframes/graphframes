@@ -119,16 +119,16 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("maxPathLength: length 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "f").setMaxPathLength(1).run()
+    val paths = g.bfs(col("id") === "e", col("id") === "f").maxPathLength(1).run()
     assert(paths.count() === 1)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "f").setMaxPathLength(0).run()
+    val paths0 = g.bfs(col("id") === "e", col("id") === "f").maxPathLength(0).run()
     assert(paths0.count() === 0)
   }
 
   test("maxPathLength: length > 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "b").setMaxPathLength(3).run()
+    val paths = g.bfs(col("id") === "e", col("id") === "b").maxPathLength(3).run()
     assert(paths.count() === 2)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "b").setMaxPathLength(2).run()
+    val paths0 = g.bfs(col("id") === "e", col("id") === "b").maxPathLength(2).run()
     assert(paths0.count() === 0)
   }
 

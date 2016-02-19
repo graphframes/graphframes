@@ -23,7 +23,7 @@ import org.apache.spark.sql.functions.{col, randn, udf}
 
 import org.graphframes.GraphFrame
 
-class Graphs {
+class Graphs private[graphframes] () {
   // Note: these cannot be values: we are creating and destroying spark contexts during the tests,
   // and turning these into vals means we would hold onto a potentially destroyed spark context.
   private def sc: SparkContext = SparkContext.getOrCreate()
