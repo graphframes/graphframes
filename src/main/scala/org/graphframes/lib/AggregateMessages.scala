@@ -43,7 +43,7 @@ import org.graphframes.GraphFrame
  *       in [[AggregateMessages.agg()]])
  *
  * When specifying the messages and aggregation function, the user may reference columns using:
- *  - [[AggregateMessages]]: column for source vertex of edge
+ *  - [[AggregateMessages.src]]: column for source vertex of edge
  *  - [[AggregateMessages.edge]]: column for edge
  *  - [[AggregateMessages.dst]]: column for destination vertex of edge
  *  - [[AggregateMessages.msg]]: message sent to vertex (for aggregation function)
@@ -129,7 +129,7 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
   }
 }
 
-private[graphframes] object AggregateMessages extends Logging with Serializable {
+object AggregateMessages extends Logging with Serializable {
 
   /** Reference for source column, used for specifying messages */
   def src: Column = col(GraphFrame.SRC)

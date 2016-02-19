@@ -94,7 +94,7 @@ class PageRank private[graphframes] (
     this
   }
 
-  def fixedIterations(i: Int): this.type = {
+  def numIter(i: Int): this.type = {
     numIters = Some(i)
     this
   }
@@ -102,9 +102,11 @@ class PageRank private[graphframes] (
   def run(): GraphFrame = {
     tol match {
       case Some(t) =>
+        assert(numIters.isEmpty,
+          "You cannot specify numIter() and untilConvergence() at the same time.")
         PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
       case None =>
-        PageRank.run(graph, check(numIters, "numIters"), resetProb.get, srcId)
+        PageRank.run(graph, check(numIters, "numIter"), resetProb.get, srcId)
     }
   }
 }

@@ -52,7 +52,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
     this
   }
 
-  def maxIterations(iter: Int): this.type = {
+  def maxIter(iter: Int): this.type = {
     _maxIters = iter
     this
   }

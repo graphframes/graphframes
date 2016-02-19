@@ -99,12 +99,12 @@ class BFS private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Col
 
   private var edgeFilter: Option[Column] = None
 
-  def setEdgeFilter(value: Column): this.type = {
+  def edgeFilter(value: Column): this.type = {
     edgeFilter = Some(value)
     this
   }
 
-  def setEdgeFilter(value: String): this.type = setEdgeFilter(expr(value))
+  def edgeFilter(value: String): this.type = edgeFilter(expr(value))
 
   def run(): DataFrame = {
     BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)

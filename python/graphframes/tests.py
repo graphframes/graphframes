@@ -122,7 +122,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
     def test_label_progagation(self):
         n = 5
         g = self._graph("twoBlobs", n)
-        labels = g.labelPropagation(max_steps=4 * n)
+        labels = g.labelPropagation(maxSteps=4 * n)
         labels1 = labels.vertices.filter("id < 5").select("label").collect()
         all1 = set([x.label for x in labels1])
         self.assertEqual(all1, set([0]))
