@@ -112,7 +112,7 @@ class BFS private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Col
 }
 
 
-object BFS extends Logging with Serializable {
+private object BFS extends Logging with Serializable {
 
   private def run(
       g: GraphFrame,
