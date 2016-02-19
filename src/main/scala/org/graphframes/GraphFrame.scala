@@ -267,7 +267,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def connectedComponents(): ConnectedComponents = new ConnectedComponents(this)
+  def connectedComponents: ConnectedComponents = new ConnectedComponents(this)
 
   /**
    * Label propagation algorithm.
@@ -276,7 +276,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def labelPropagation(): LabelPropagation = new LabelPropagation(this)
+  def labelPropagation: LabelPropagation = new LabelPropagation(this)
 
   /**
    * PageRank algorithm.
@@ -285,7 +285,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def pageRank(): PageRank = new PageRank(this)
+  def pageRank: PageRank = new PageRank(this)
 
   /**
    * Shortest paths algorithm.
@@ -294,7 +294,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def shortestPaths(): ShortestPaths = new ShortestPaths(this)
+  def shortestPaths: ShortestPaths = new ShortestPaths(this)
 
   /**
    * Strongly connected components algorithm.
@@ -303,7 +303,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def stronglyConnectedComponents(): StronglyConnectedComponents =
+  def stronglyConnectedComponents: StronglyConnectedComponents =
     new StronglyConnectedComponents(this)
 
   /**
@@ -313,7 +313,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def svdPlusPlus(): SVDPlusPlus = new SVDPlusPlus(this)
+  def svdPlusPlus: SVDPlusPlus = new SVDPlusPlus(this)
 
   /**
    * Triangle count algorithm.
@@ -322,7 +322,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def triangleCount(): TriangleCount = new TriangleCount(this)
+  def triangleCount: TriangleCount = new TriangleCount(this)
   
   // ========= Motif finding (private) =========
 

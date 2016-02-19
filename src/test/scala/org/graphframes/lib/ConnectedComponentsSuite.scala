@@ -45,7 +45,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val e = sqlContext.createDataFrame(List(
       (0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
     val g = GraphFrame(v, e)
-    val comps = g.connectedComponents().run()
+    val comps = g.connectedComponents.run()
     LabelPropagationSuite.testSchemaInvariants(g, comps)
     assert(comps.vertices.count() === 2)
     assert(comps.edges.count() === 1)

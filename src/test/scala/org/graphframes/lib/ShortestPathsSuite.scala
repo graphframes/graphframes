@@ -36,7 +36,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val vertices = sqlContext.createDataFrame(v).toDF("id")
     val graph = GraphFrame(vertices, edges)
     val landmarks = Seq(1, 4).map(_.toLong)
-    val g2 = graph.shortestPaths().landmarks(landmarks).run()
+    val g2 = graph.shortestPaths.landmarks(landmarks).run()
     LabelPropagationSuite.testSchemaInvariants(graph, g2)
     val newVs = g2.vertices.select("id", "distance").collect().toSeq
     val results = newVs.map {
