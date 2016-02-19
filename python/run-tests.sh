@@ -29,7 +29,7 @@ for lib in "$SPARK_HOME/python/lib"/*zip ; do
   LIBS=$LIBS:$lib
 done
 
-JAR_PATH="`pwd`/../target/scala-2.10/graphframes-assembly-0.1.1-SNAPSHOT.jar"
+JAR_PATH="`pwd`/../target/scala-2.10/graphframes-assembly-0.1.0-SNAPSHOT.jar"
 
 export PYSPARK_SUBMIT_ARGS="--jars $JAR_PATH pyspark-shell"
 
