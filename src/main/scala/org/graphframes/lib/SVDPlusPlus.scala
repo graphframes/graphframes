@@ -47,43 +47,43 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
 
   private var _loss: Option[Double] = None
 
-  def rank(rank: Int): this.type = {
-    _rank = rank
+  def rank(value: Int): this.type = {
+    _rank = value
     this
   }
 
-  def maxIter(iter: Int): this.type = {
-    _maxIters = iter
+  def maxIter(value: Int): this.type = {
+    _maxIters = value
     this
   }
 
-  def minValue(minVal: Double): this.type = {
-    _minVal = minVal
+  def minValue(value: Double): this.type = {
+    _minVal = value
     this
   }
 
-  def maxValue(maxVal: Double): this.type = {
-    _maxVal = maxVal
+  def maxValue(value: Double): this.type = {
+    _maxVal = value
     this
   }
 
-  def gamma1(gamma1: Double): this.type = {
-    _gamma1 = gamma1
+  def gamma1(value: Double): this.type = {
+    _gamma1 = value
     this
   }
 
-  def gamma2(gamma2: Double): this.type = {
-    _gamma2 = gamma2
+  def gamma2(value: Double): this.type = {
+    _gamma2 = value
     this
   }
 
-  def gamma6(gamma6: Double): this.type = {
-    _gamma6 = gamma6
+  def gamma6(value: Double): this.type = {
+    _gamma6 = value
     this
   }
 
-  def gamma7(gamma7: Double): this.type = {
-    _gamma7 = gamma7
+  def gamma7(value: Double): this.type = {
+    _gamma7 = value
     this
   }
 

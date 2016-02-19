@@ -90,14 +90,13 @@ class BFS private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Col
   extends Arguments with Serializable {
 
   private var maxPathLength: Int = 10
+  private var edgeFilter: Option[Column] = None
 
   def maxPathLength(value: Int): this.type = {
     require(value >= 0, s"BFS maxPathLength must be >= 0, but was set to $value")
     maxPathLength = value
     this
   }
-
-  private var edgeFilter: Option[Column] = None
 
   def edgeFilter(value: Column): this.type = {
     edgeFilter = Some(value)

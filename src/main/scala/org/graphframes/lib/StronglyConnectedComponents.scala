@@ -37,8 +37,8 @@ import org.graphframes.GraphFrame
 class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var numIters: Option[Int] = None
 
-  def numIter(iterations: Int): this.type = {
-    numIters = Some(iterations)
+  def numIter(value: Int): this.type = {
+    numIters = Some(value)
     this
   }
 

@@ -20,17 +20,6 @@ package org.graphframes.lib
 import org.apache.spark.graphx.{lib => graphxlib}
 
 import org.graphframes.GraphFrame
-
-private object LabelPropagation {
-  private def run(graph: GraphFrame, maxSteps: Int): GraphFrame = {
-    val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxSteps)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID))
-  }
-
-  private val LABEL_ID = "label"
-
-}
-
 /**
  * Run static Label Propagation for detecting communities in networks.
  *
@@ -61,8 +50,8 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
    * the number of supersteps of LPA to be performed. Because this is a static
    * implementation, the algorithm will run for exactly this many supersteps.
    */
-  def maxSteps(i: Int): this.type = {
-    maxSteps = Some(i)
+  def maxSteps(value: Int): this.type = {
+    maxSteps = Some(value)
     this
   }
 
@@ -71,4 +60,15 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
       graph,
       check(maxSteps, "maxSteps"))
   }
+}
+
+
+private object LabelPropagation {
+  private def run(graph: GraphFrame, maxSteps: Int): GraphFrame = {
+    val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxSteps)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID))
+  }
+
+  private val LABEL_ID = "label"
+
 }

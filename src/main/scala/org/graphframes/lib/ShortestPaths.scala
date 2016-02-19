@@ -39,9 +39,9 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
    * The list of landmark vertex ids. Shortest paths will be computed to each
    * landmark.
    */
-  def landmarks(vertexIds: Seq[Any]): this.type = {
+  def landmarks(value: Seq[Any]): this.type = {
     // TODO(tjh) do some initial checks here, without running queries.
-    lmarks = Some(vertexIds)
+    lmarks = Some(value)
     this
   }
 
@@ -49,8 +49,8 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
    * The list of landmark vertex ids. Shortest paths will be computed to each
    * landmark.
    */
-  def landmarks(vertexIds: util.ArrayList[Any]): this.type = {
-    landmarks(vertexIds.asScala)
+  def landmarks(value: util.ArrayList[Any]): this.type = {
+    landmarks(value.asScala)
   }
 
   def run(): GraphFrame = {

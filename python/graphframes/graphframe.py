@@ -130,7 +130,7 @@ class GraphFrame(object):
         jgf = self._jvm_graph.labelPropagation().maxSteps(maxSteps).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def pageRank(self, resetProb = 0.15, sourceId = None, fixedNumIter = None,
+    def pageRank(self, resetProbability = 0.15, sourceId = None, numIter = None,
                  tolerance = None):
         """
         Runs the PageRank algorithm on the graph.
@@ -143,11 +143,11 @@ class GraphFrame(object):
                This may not be set if the `fixed_num_iter` parameter is set.
         :return:
         """
-        builder = self._jvm_graph.pageRank().resetProbability(resetProb)
+        builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
         if sourceId is not None:
             builder = builder.sourceId(sourceId)
-        if fixedNumIter is not None:
-            builder = builder.numIter(fixedNumIter)
+        if numIter is not None:
+            builder = builder.numIter(numIter)
             assert tolerance is None, "Exactly one of fixed_num_iter or tolerance shoud be set."
         else:
             assert tolerance is not None, "Exactly one of fixed_num_iter or tolerance shoud be set."
@@ -155,13 +155,13 @@ class GraphFrame(object):
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def shortestPaths(self, landmarkIds):
+    def shortestPaths(self, landmarks):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
         :param landmarkIds: a set of landmarks
         :return:
         """
-        jgf = self._jvm_graph.shortestPaths().landmarks(landmarkIds).run()
+        jgf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
         return _from_java_gf(jgf, self._sqlContext)
 
     def stronglyConnectedComponents(self, numIter):

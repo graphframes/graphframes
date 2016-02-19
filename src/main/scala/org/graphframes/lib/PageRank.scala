@@ -79,13 +79,13 @@ class PageRank private[graphframes] (
   private var numIters: Option[Int] = None
   private var srcId : Option[Any] = None
 
-  def sourceId(srcId : Any): this.type = {
-    this.srcId = Some(srcId)
+  def sourceId(value : Any): this.type = {
+    this.srcId = Some(value)
     this
   }
 
-  def resetProbability(p: Double): this.type = {
-    resetProb = Some(p)
+  def resetProbability(value: Double): this.type = {
+    resetProb = Some(value)
     this
   }
 
@@ -94,8 +94,8 @@ class PageRank private[graphframes] (
     this
   }
 
-  def numIter(i: Int): this.type = {
-    numIters = Some(i)
+  def numIter(value: Int): this.type = {
+    numIters = Some(value)
     this
   }
 

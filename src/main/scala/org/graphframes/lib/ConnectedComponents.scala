@@ -21,16 +21,6 @@ import org.apache.spark.graphx.{lib => graphxlib}
 
 import org.graphframes.GraphFrame
 
-private object ConnectedComponents {
-
-  def run(graph: GraphFrame): GraphFrame = {
-    val gx = graphxlib.ConnectedComponents.run(graph.cachedTopologyGraphX)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
-  }
-
-  private val COMPONENT_ID = "component"
-}
-
 /**
  * Connected components algorithm.
  *
@@ -56,4 +46,14 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame) e
   def run(): GraphFrame = {
     ConnectedComponents.run(graph)
   }
+}
+
+private object ConnectedComponents {
+
+  def run(graph: GraphFrame): GraphFrame = {
+    val gx = graphxlib.ConnectedComponents.run(graph.cachedTopologyGraphX)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
+  }
+
+  private val COMPONENT_ID = "component"
 }
