@@ -135,12 +135,12 @@ class GraphFrame(object):
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
-        :param resetProb:
+        :param resetProbability:
         :param sourceId: (optional) the source vertex for a personalized PageRank.
-        :param fixedNumIter: If set, the algorithm is run for a fixed number
+        :param numIter: If set, the algorithm is run for a fixed number
                of iterations. This may not be set if the `tolerance` parameter is set.
         :param tolerance: If set, the algorithm is run until the given tolerance.
-               This may not be set if the `fixed_num_iter` parameter is set.
+               This may not be set if the `numIter` parameter is set.
         :return:
         """
         builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
@@ -158,7 +158,7 @@ class GraphFrame(object):
     def shortestPaths(self, landmarks):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
-        :param landmarkIds: a set of landmarks
+        :param landmarks: a set of landmarks
         :return:
         """
         jgf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
