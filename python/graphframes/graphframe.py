@@ -127,7 +127,7 @@ class GraphFrame(object):
         :param max_steps: the number of super steps to be performed.
         :return:
         """
-        jgf = self._jvm_graph.labelPropagation().setMaxSteps(max_steps).run()
+        jgf = self._jvm_graph.labelPropagation().maxSteps(max_steps).run()
         return _from_java_gf(jgf, self._sqlContext)
 
     def pageRank(self, reset_prob = 0.15, source_id = None, fixed_num_iter = None,
@@ -143,9 +143,9 @@ class GraphFrame(object):
                This may not be set if the `fixed_num_iter` parameter is set.
         :return:
         """
-        builder = self._jvm_graph.pageRank().setResetProbability(reset_prob)
+        builder = self._jvm_graph.pageRank().resetProbability(reset_prob)
         if source_id is not None:
-            builder = builder.setSourceId(source_id)
+            builder = builder.sourceId(source_id)
         if fixed_num_iter is not None:
             builder = builder.fixedIterations(fixed_num_iter)
             assert tolerance is None, "Exactly one of fixed_num_iter or tolerance shoud be set."
@@ -161,7 +161,7 @@ class GraphFrame(object):
         :param landmark_ids: a set of landmarks
         :return:
         """
-        jgf = self._jvm_graph.shortestPaths().setLandmarks(landmark_ids).run()
+        jgf = self._jvm_graph.shortestPaths().landmarks(landmark_ids).run()
         return _from_java_gf(jgf, self._sqlContext)
 
     def stronglyConnectedComponents(self, num_iterations):
@@ -170,10 +170,11 @@ class GraphFrame(object):
         :param num_iterations: the number of iterations to run.
         :return:
         """
-        jgf = self._jvm_graph.stronglyConnectedComponents().setNumIterations(num_iterations).run()
+        jgf = self._jvm_graph.stronglyConnectedComponents().numIterations(num_iterations).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def svdPlusPlus(self, conf_dict):
+    def svdPlusPlus(self, rank = 10, max_iterations = 2, min_value = 0.0, max_value = 5.0,
+                    gamma1 = 0.007, gamma2 = 0.007, gamma6 = 0.005, gamma7 = 0.015):
         """
         Runs the SVD++ algorithm.
         :param conf:
@@ -181,20 +182,8 @@ class GraphFrame(object):
         """
         # This call is actually useless, because one needs to build the configuration first...
         builder = self._jvm_graph.svdPlusPlus()
-        jconf = builder.defaultConf()
-        all_args = []
-        # The order is important, it determines the order of arguments in the java call.
-        # Check the order of the arguments in SVDPlusPlus.Conf
-        double_args = [(key, float) for key in ["minVal", "maxVal", "gamma1", "gamma2", "gamma6", "gamma7"]]
-        args = [("rank", int), ("maxIters", int)] + double_args
-        for key, constructor in args:
-            if key in conf_dict:
-                all_args.append(conf_dict[key])
-            else:
-                all_args.append(getattr(jconf, key)())
-
-        jconf2 = jconf.copy(*all_args)
-        builder = builder.setConf(jconf2)
+        builder.rank(rank).maxIterations(max_iterations).minValue(min_value).maxValue(max_value)
+        builder.gamma1(gamma1).gamma2(gamma2).gamma6(gamma6).gamma7(gamma7)
         jgf = builder.run()
         loss = builder.loss()
         gf = _from_java_gf(jgf, self._sqlContext)

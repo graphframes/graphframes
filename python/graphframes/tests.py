@@ -150,7 +150,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
-        (g2, cost) = g.svdPlusPlus({})
+        (g2, cost) = g.svdPlusPlus()
         self._hasCols(g2, vcols=['id', 'column1', 'column2', 'column3'],
                       ecols=['src', 'dst', 'ecolumn1'])
 

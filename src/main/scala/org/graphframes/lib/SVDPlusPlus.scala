@@ -63,7 +63,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
   }
 
   def maxValue(maxVal: Double): this.type = {
-    _maxVal =maxVal
+    _maxVal = maxVal
     this
   }
 
