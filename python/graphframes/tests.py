@@ -38,6 +38,8 @@ class GraphFrameTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls.sc = SparkContext('local[4]', cls.__name__)
         cls.sql = SQLContext(cls.sc)
+        # Small tests run much faster with spark.sql.shuffle.partitions=4
+        cls.sql.setConf("spark.sql.shuffle.partitions", "4")
 
     @classmethod
     def tearDownClass(cls):
@@ -61,6 +63,15 @@ class GraphFrameTest(GraphFrameTestCase):
         assert sorted(vertexIDs) == [1, 2, 3]
         edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
         assert sorted(edgeActions) == ["follow", "hate", "love"]
+
+    def test_degrees(self):
+        g = self.g
+        outDeg = g.outDegrees()
+        self.assertSetEqual(set(outDeg.columns), {"id", "outDegree"})
+        inDeg = g.inDegrees()
+        self.assertSetEqual(set(inDeg.columns), {"id", "inDegree"})
+        deg = g.degrees()
+        self.assertSetEqual(set(deg.columns), {"id", "degree"})
 
     def test_motif_finding(self):
         g = self.g

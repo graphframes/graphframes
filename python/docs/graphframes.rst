@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
     :maxdepth: 1
 
+    graphframes.examples
 
 Contents
 --------

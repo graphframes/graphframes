@@ -31,7 +31,7 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     val conf = new SparkConf()
       .setMaster("local[2]")
       .setAppName("GraphFramesUnitTest")
-      .set("spark.sql.shuffle.partitions", "4")
+      .set("spark.sql.shuffle.partitions", "4")  // makes small tests much faster
     sc = new SparkContext(conf)
     sqlContext = new SQLContext(sc)
   }

@@ -19,7 +19,7 @@ package org.graphframes
 
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.{Logging}
+import org.apache.spark.Logging
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
@@ -32,10 +32,7 @@ import org.graphframes.pattern._
 
 
 /**
- * Represents a graph with vertices and edges stored as [[DataFrame]]s.
- * [[vertices]] must contain a column named "id" storing unique vertex IDs.
- * [[edges]] must contain two columns "src" and "dst" storing source vertex IDs and destination
- * vertex IDs of edges, respectively.
+ * A representation of a graph using [[DataFrame]]s.
  *
  * @groupname structure Structure information
  * @groupname conversions Conversions
@@ -177,8 +174,8 @@ class GraphFrame private(
   /**
    * The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
-   *  - "outDegree" (integer) storing out-degrees.
-   * Note that vertices with no out-degrees are not returned in the result.
+   *  - "outDegree" (integer) storing the out-degree of the vertex
+   * Note that vertices with 0 out-edges are not returned in the result.
    *
    * @group degree
    */
@@ -189,8 +186,8 @@ class GraphFrame private(
   /**
    * The in-degree of each vertex in the graph, returned as a DataFame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
-   * "- "inDegree" (int) storing in-degrees.
-   * Note that vertices with no in-degrees are not returned in the result.
+   * "- "inDegree" (int) storing the in-degree of the vertex
+   * Note that vertices with 0 in-edges are not returned in the result.
    *
    * @group degree
    */
@@ -202,7 +199,7 @@ class GraphFrame private(
    * The degree of each vertex in the graph, returned as a DataFrame with two columns:
    *  - [[GraphFrame.ID]] the ID of the vertex
    *  - 'degree' (integer) the degree of the vertex
-   * Note that vertices with no degrees are not returned in the result.
+   * Note that vertices with 0 edges are not returned in the result.
    *
    * @group degree
    */

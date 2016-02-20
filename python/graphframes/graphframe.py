@@ -21,6 +21,7 @@ from pyspark.sql import DataFrame, SQLContext
 def _from_java_gf(jgf, sqlContext):
     """
     (internal) creates a python GraphFrame wrapper from a java GraphFrame.
+
     :param jgf:
     :return:
     """
@@ -93,6 +94,36 @@ class GraphFrame(object):
         """
         return self._edges
 
+    def outDegrees(self):
+        """
+        The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
+         - [[GraphFrame.ID]] the ID of the vertex
+         - "outDegree" (integer) storing the out-degree of the vertex
+        Note that vertices with 0 out-edges are not returned in the result.
+        """
+        jdf = self._jvm_graph.outDegrees()
+        return DataFrame(jdf, self._sqlContext)
+
+    def inDegrees(self):
+        """
+        The in-degree of each vertex in the graph, returned as a DataFame with two columns:
+         - [[GraphFrame.ID]] the ID of the vertex
+         - "inDegree" (int) storing the in-degree of the vertex
+        Note that vertices with 0 in-edges are not returned in the result.
+        """
+        jdf = self._jvm_graph.inDegrees()
+        return DataFrame(jdf, self._sqlContext)
+
+    def degrees(self):
+        """
+        The degree of each vertex in the graph, returned as a DataFrame with two columns:
+         - [[GraphFrame.ID]] the ID of the vertex
+         - 'degree' (integer) the degree of the vertex
+        Note that vertices with 0 edges are not returned in the result.
+        """
+        jdf = self._jvm_graph.degrees()
+        return DataFrame(jdf, self._sqlContext)
+
     def find(self, pattern):
         """
         Motif finding.
@@ -116,6 +147,7 @@ class GraphFrame(object):
     def connectedComponents(self):
         """
         Computes the connected components of the graph.
+
         :return:
         """
         jgf = self._jvm_graph.connectedComponents().run()
@@ -124,6 +156,7 @@ class GraphFrame(object):
     def labelPropagation(self, maxSteps):
         """
         Runs static label propagation for detecting communities in networks.
+
         :param maxSteps: the number of super steps to be performed.
         :return:
         """
@@ -135,6 +168,7 @@ class GraphFrame(object):
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
+
         :param resetProbability:
         :param sourceId: (optional) the source vertex for a personalized PageRank.
         :param numIter: If set, the algorithm is run for a fixed number
@@ -158,6 +192,7 @@ class GraphFrame(object):
     def shortestPaths(self, landmarks):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
+
         :param landmarks: a set of landmarks
         :return:
         """
@@ -167,6 +202,7 @@ class GraphFrame(object):
     def stronglyConnectedComponents(self, numIter):
         """
         Runs the strongly connected components algorithm on this graph.
+
         :param numIter: the number of iterations to run.
         :return:
         """
@@ -177,6 +213,7 @@ class GraphFrame(object):
                     gamma1 = 0.007, gamma2 = 0.007, gamma6 = 0.005, gamma7 = 0.015):
         """
         Runs the SVD++ algorithm.
+
         :return:
         """
         # This call is actually useless, because one needs to build the configuration first...
@@ -191,6 +228,7 @@ class GraphFrame(object):
     def triangleCount(self):
         """
         Counts the number of triangles passing through each vertex in this graph.
+
         :return:
         """
         jgf = self._jvm_graph.triangleCount().run()
