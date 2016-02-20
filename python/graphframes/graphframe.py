@@ -94,11 +94,15 @@ class GraphFrame(object):
         """
         return self._edges
 
+    def __repr__(self):
+        return self._jvm_graph.toString()
+
     def outDegrees(self):
         """
         The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
          - [[GraphFrame.ID]] the ID of the vertex
          - "outDegree" (integer) storing the out-degree of the vertex
+
         Note that vertices with 0 out-edges are not returned in the result.
         """
         jdf = self._jvm_graph.outDegrees()
@@ -109,6 +113,7 @@ class GraphFrame(object):
         The in-degree of each vertex in the graph, returned as a DataFame with two columns:
          - [[GraphFrame.ID]] the ID of the vertex
          - "inDegree" (int) storing the in-degree of the vertex
+
         Note that vertices with 0 in-edges are not returned in the result.
         """
         jdf = self._jvm_graph.inDegrees()
@@ -119,6 +124,7 @@ class GraphFrame(object):
         The degree of each vertex in the graph, returned as a DataFrame with two columns:
          - [[GraphFrame.ID]] the ID of the vertex
          - 'degree' (integer) the degree of the vertex
+
         Note that vertices with 0 edges are not returned in the result.
         """
         jdf = self._jvm_graph.degrees()
@@ -164,7 +170,7 @@ class GraphFrame(object):
         return _from_java_gf(jgf, self._sqlContext)
 
     def pageRank(self, resetProbability = 0.15, sourceId = None, numIter = None,
-                 tolerance = None):
+                 tol = None):
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
@@ -172,8 +178,8 @@ class GraphFrame(object):
         :param resetProbability:
         :param sourceId: (optional) the source vertex for a personalized PageRank.
         :param numIter: If set, the algorithm is run for a fixed number
-               of iterations. This may not be set if the `tolerance` parameter is set.
-        :param tolerance: If set, the algorithm is run until the given tolerance.
+               of iterations. This may not be set if the `tol` parameter is set.
+        :param tol: If set, the algorithm is run until the given tolerance.
                This may not be set if the `numIter` parameter is set.
         :return:
         """
@@ -182,10 +188,10 @@ class GraphFrame(object):
             builder = builder.sourceId(sourceId)
         if numIter is not None:
             builder = builder.numIter(numIter)
-            assert tolerance is None, "Exactly one of fixed_num_iter or tolerance shoud be set."
+            assert tol is None, "Exactly one of numIter or tol shoud be set."
         else:
-            assert tolerance is not None, "Exactly one of fixed_num_iter or tolerance shoud be set."
-            builder = builder.untilConvergence(tolerance)
+            assert tol is not None, "Exactly one of numIter or tol shoud be set."
+            builder = builder.tol(tol)
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
 

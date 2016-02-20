@@ -195,7 +195,7 @@ class Graphs private[graphframes] () {
     g
   }
 
-  /** Version of [[gridIsingModel()]] with vStd, eStd set to 1.0. */
+  /** Version of `gridIsingModel` with vStd, eStd set to 1.0. */
   def gridIsingModel(sqlContext: SQLContext, n: Int): GraphFrame =
     gridIsingModel(sqlContext, n, 1.0, 1.0)
 

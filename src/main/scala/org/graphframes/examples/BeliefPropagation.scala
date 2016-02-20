@@ -118,7 +118,7 @@ object BeliefPropagation {
    *  - Run BP using GraphX's aggregateMessages API.
    *  - Augment the original GraphFrame with the BP results (vertex beliefs).
    *
-   * @param g  Graphical model created by [[org.graphframes.examples.Graphs.gridIsingModel()]]
+   * @param g  Graphical model created by `org.graphframes.examples.Graphs.gridIsingModel()`
    * @param numIter  Number of iterations of BP to run.  One iteration includes updating each
    *                 vertex's belief once.
    * @return  Same graphical model, but with [[GraphFrame.vertices]] augmented with a new column
@@ -195,7 +195,7 @@ object BeliefPropagation {
    *  - Run BP using GraphFrame's aggregateMessages API.
    *  - Augment the original GraphFrame with the BP results (vertex beliefs).
    *
-   * @param g  Graphical model created by [[org.graphframes.examples.Graphs.gridIsingModel()]]
+   * @param g  Graphical model created by `org.graphframes.examples.Graphs.gridIsingModel()`
    * @param numIter  Number of iterations of BP to run.  One iteration includes updating each
    *                 vertex's belief once.
    * @return  Same graphical model, but with [[GraphFrame.vertices]] augmented with a new column

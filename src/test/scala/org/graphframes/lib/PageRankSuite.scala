@@ -30,7 +30,7 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val errorTol = 1.0e-5
     val pr = g.pageRank
       .resetProbability(resetProb)
-      .untilConvergence(errorTol).run()
+      .tol(errorTol).run()
     LabelPropagationSuite.testSchemaInvariants(g, pr)
   }
 }

@@ -32,7 +32,7 @@ import org.graphframes.pattern._
 
 
 /**
- * A representation of a graph using [[DataFrame]]s.
+ * A representation of a graph using `DataFrame`s.
  *
  * @groupname structure Structure information
  * @groupname conversions Conversions
@@ -48,6 +48,16 @@ class GraphFrame private(
 
   /** Default constructor is provided to support serialization */
   protected def this() = this(null, null)
+
+  override def toString: String = {
+    // We call select on the vertices and edges to ensure that ID, SRC, DST always come first
+    // in the printed schema.
+    val v = vertices.select(ID, vertices.columns.filter(_ != ID) :_ *).toString
+    val e = edges.select(SRC, DST +: edges.columns.filter(c => c != SRC && c != DST) :_ *).toString
+    "GraphFrame\n" +
+      "  v: " + v + "\n" +
+      "  e: " + e
+  }
 
   // ============== Basic structural methods ============
 
@@ -103,7 +113,7 @@ class GraphFrame private(
   // ============================ Conversions ========================================
 
   /**
-   * Converts this [[GraphFrame]] instance to a GraphX [[Graph]].
+   * Converts this [[GraphFrame]] instance to a GraphX `Graph`.
    * Vertex and edge attributes are the original rows in [[vertices]] and [[edges]], respectively.
    *
    * Note that vertex (and edge) attributes include vertex IDs (and source, destination IDs)
@@ -111,7 +121,7 @@ class GraphFrame private(
    * then the values are indexed in order to generate corresponding Long vertex IDs (which is an
    * expensive operation).
    *
-   * The column ordering of the returned [[Graph]] vertex and edge attributes are specified by
+   * The column ordering of the returned `Graph` vertex and edge attributes are specified by
    * [[vertexColumns]] and [[edgeColumns]], respectively.
    *
    * @group conversions
@@ -137,8 +147,8 @@ class GraphFrame private(
    * The column names in the [[vertices]] DataFrame, in order.
    *
    * Helper method for [[toGraphX]] which specifies the schema of vertex attributes.
-   * The vertex attributes of the returned [[Graph.vertices]] are given as a [[Row]],
-   * and this method defines the column ordering in that [[Row]].
+   * The vertex attributes of the returned `Graph` are given as a `Row`,
+   * and this method defines the column ordering in that `Row`.
    *
    * @group conversions
    */
@@ -155,8 +165,8 @@ class GraphFrame private(
    * The vertex names in the [[vertices]] DataFrame, in order.
    *
    * Helper method for [[toGraphX]] which specifies the schema of edge attributes.
-   * The edge attributes of the returned [[Graph.edges]] are given as a [[Row]],
-   * and this method defines the column ordering in that [[Row]].
+   * The edge attributes of the returned `edges` are given as a `Row`,
+   * and this method defines the column ordering in that `Row`.
    *
    * @group conversions
    */
@@ -214,7 +224,7 @@ class GraphFrame private(
    * TODO: Describe possible motifs.
    *
    * @param pattern  Pattern specifying a motif to search for.
-   * @return  [[DataFrame]] containing all instances of the motif.
+   * @return  `DataFrame` containing all instances of the motif.
    *          TODO: Describe column naming patterns.
    *
    * @group motif
@@ -250,7 +260,7 @@ class GraphFrame private(
   /**
    * This is a primitive for implementing graph algorithms.
    * This method aggregates values from the neighboring edges and vertices of each vertex.
-   * See [[AggregateMessages]] for detailed documentation.
+   * See [[org.graphframes.lib.AggregateMessages AggregateMessages]] for detailed documentation.
    */
   def aggregateMessages: AggregateMessages = new AggregateMessages(this)
 
@@ -327,12 +337,12 @@ class GraphFrame private(
   /**
    * Primary method implementing motif finding.
    * This recursive method handles one pattern (via [[findIncremental()]] on each iteration,
-   * augmenting the [[DataFrame]] in prevDF with each new pattern.
+   * augmenting the `DataFrame` in prevDF with each new pattern.
    *
    * @param prevPatterns  Patterns already handled
    * @param prevDF  Current DataFrame based on prevPatterns
    * @param remainingPatterns  Patterns not yet handled
-   * @return  [[DataFrame]] augmented with the next pattern, or the previous DataFrame if done
+   * @return  `DataFrame` augmented with the next pattern, or the previous DataFrame if done
    */
   private def findSimple(
       prevPatterns: Seq[Pattern],
@@ -443,7 +453,7 @@ object GraphFrame extends Serializable {
   // ============================ Constructors and converters =================================
 
   /**
-   * Create a new [[GraphFrame]] from vertex and edge [[DataFrame]]s.
+   * Create a new [[GraphFrame]] from vertex and edge `DataFrame`s.
    *
    * @param vertices  Vertex DataFrame.  This must include a column "id" containing unique vertex IDs.
    *           All other columns are treated as vertex attributes.
@@ -466,11 +476,11 @@ object GraphFrame extends Serializable {
   }
 
   /**
-   * Create a new [[GraphFrame]] from an edge [[DataFrame]].
+   * Create a new [[GraphFrame]] from an edge `DataFrame`.
    * The resulting [[GraphFrame]] will have [[GraphFrame.vertices]] with a single "id" column.
    *
    * Note: The [[GraphFrame.vertices]] DataFrame will be persisted at level
-   *       [[StorageLevel.MEMORY_AND_DISK]].
+   *       `StorageLevel.MEMORY_AND_DISK`.
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
    * @return  New [[GraphFrame]] instance
@@ -484,9 +494,9 @@ object GraphFrame extends Serializable {
   }
 
   /**
-   * Converts a GraphX [[Graph]] instance into a [[GraphFrame]].
+   * Converts a GraphX `Graph` instance into a [[GraphFrame]].
    *
-   * This converts each [[org.apache.spark.rdd.RDD]] in the [[Graph]] to a [[DataFrame]] using
+   * This converts each `org.apache.spark.rdd.RDD` in the `Graph` to a `DataFrame` using
    * schema inference.
    * TODO: Add version which takes explicit schemas.
    *
@@ -521,19 +531,19 @@ object GraphFrame extends Serializable {
    *
    * @param originalGraph  Original GraphFrame used to compute the GraphX graph.
    * @param graph  GraphX graph. Vertex and edge attributes, if any, will be merged into
-   *               the original graph as new columns.  If the attributes are [[Product]] types
-   *               such as tuples, then each element of the [[Product]] will be put in a separate
+   *               the original graph as new columns.  If the attributes are `Product` types
+   *               such as tuples, then each element of the `Product` will be put in a separate
    *               column.  If the attributes are other types, then the entire GraphX attribute
    *               will become a single new column.
    * @param vertexNames  Column name(s) for vertex attributes in the GraphX graph.
    *                     If there is no vertex attribute, this should be empty.
    *                     If there is a singleton attribute, this should have a single column name.
-   *                     If the attribute is a [[Product]] type, this should be a list of names
+   *                     If the attribute is a `Product` type, this should be a list of names
    *                     matching the order of the attribute elements.
    * @param edgeNames  Column name(s) for edge attributes in the GraphX graph.
    *                     If there is no edge attribute, this should be empty.
    *                     If there is a singleton attribute, this should have a single column name.
-   *                     If the attribute is a [[Product]] type, this should be a list of names
+   *                     If the attribute is a `Product` type, this should be a list of names
    *                     matching the order of the attribute elements.
    * @tparam V the type of the vertex data
    * @tparam E the type of the edge data
