@@ -54,9 +54,7 @@ class GraphFrame private(
     // in the printed schema.
     val v = vertices.select(ID, vertices.columns.filter(_ != ID) :_ *).toString
     val e = edges.select(SRC, DST +: edges.columns.filter(c => c != SRC && c != DST) :_ *).toString
-    "GraphFrame\n" +
-      "  v: " + v + "\n" +
-      "  e: " + e
+    "GraphFrame(v:" + v + ", e:" + e + ")"
   }
 
   // ============== Basic structural methods ============
