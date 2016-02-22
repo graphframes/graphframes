@@ -28,16 +28,17 @@ import org.graphframes.GraphFrame
 /**
  * Computes shortest paths to the given set of landmark vertices.
  *
- * @param graph the graph for which to compute the shortest paths
- * @return a graph where each vertex attribute is a map containing the shortest-path distance to
- * each reachable landmark vertex.
+ * The returned vertices DataFrame contains one additional column:
+ *  - distances (MapType[vertex ID type, IntegerType]): For each vertex v, a map containing
+ *   the shortest-path distance to each reachable landmark vertex.
+ *
+ * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var lmarks: Option[Seq[Any]] = None
 
   /**
-   * The list of landmark vertex ids. Shortest paths will be computed to each
-   * landmark.
+   * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
    */
   def landmarks(value: Seq[Any]): this.type = {
     // TODO(tjh) do some initial checks here, without running queries.
@@ -46,8 +47,7 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
   }
 
   /**
-   * The list of landmark vertex ids. Shortest paths will be computed to each
-   * landmark.
+   * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
    */
   def landmarks(value: util.ArrayList[Any]): this.type = {
     landmarks(value.asScala)
@@ -58,21 +58,16 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
   }
 }
 
-/**
- * Computes shortest paths to the given set of landmark vertices, returning a graph where each
- * vertex attribute is a map containing the shortest-path distance to each reachable landmark.
- */
 private object ShortestPaths {
 
   private def run(graph: GraphFrame, landmarks: Seq[Any]): GraphFrame = {
-    val longLandmarks = landmarks.map(PageRank.integralId(graph, _))
+    val longLandmarks = landmarks.map(GraphXConversions.integralId(graph, _))
     val gx = graphxlib.ShortestPaths.run(
       graph.cachedTopologyGraphX,
       longLandmarks).mapVertices { case (_, m) => m.toSeq }
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
   }
 
-  private val DISTANCE_ID = "distance"
+  private val DISTANCE_ID = "distances"
 
 }
-

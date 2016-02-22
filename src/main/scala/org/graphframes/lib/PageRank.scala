@@ -18,8 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StringType
+
 import org.graphframes.GraphFrame
 
 /**
@@ -38,7 +37,7 @@ import org.graphframes.GraphFrame
  * }
  * }}}
  *
- * The second implementation uses the `org.apache.spark.graphx.Pregel interface and runs PageRank
+ * The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank
  * until convergence.  This can be run by setting `tol`.
  *
  * {{{
@@ -58,18 +57,11 @@ import org.graphframes.GraphFrame
  * Note that this is not the "normalized" PageRank and as a consequence pages that have no
  * inlinks will have a PageRank of alpha.
  *
- * Result graphs:
+ * The resulting vertices DataFrame contains one additional column:
+ *  - pagerank (double): the pagerank of this vertex
  *
- * The result edges contain the following columns:
- *  - src: the id of the start vertex
- *  - dst: the id of the end vertex
- *  - weight: (double) the normalized weight of this edge after running PageRank
- * All the other columns are dropped.
- *
- * The result vertices contain the following columns:
- *  - id: the id of the vertex
- *  - weight (double): the normalized weight (page rank) of this vertex.
- * All the other columns are dropped.
+ * The resulting edges DataFrame contains one additional column:
+ *  - weight (double): the normalized weight of this edge after running PageRank
  */
 class PageRank private[graphframes] (
       private val graph: GraphFrame) extends Arguments {
@@ -84,6 +76,7 @@ class PageRank private[graphframes] (
     this
   }
 
+  /** Reset probability "alpha" */
   def resetProbability(value: Double): this.type = {
     resetProb = Some(value)
     this
@@ -112,8 +105,8 @@ class PageRank private[graphframes] (
 }
 
 
-// TODO: srcID's type should be checked. The most futureproof check would be : Encoder, because it is compatible with
-// Datasets after that.
+// TODO: srcID's type should be checked. The most futureproof check would be Encoder because it is
+//       compatible with Datasets after that.
 private object PageRank {
   /**
    * Run PageRank for a fixed number of iterations returning a graph
@@ -131,9 +124,10 @@ private object PageRank {
       numIter: Int,
       resetProb: Double = 0.15,
       srcId: Option[Any] = None): GraphFrame = {
-    val longSrcId = srcId.map(integralId(graph, _))
-    val gx = graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, longSrcId)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
+    val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
+    val gx =
+      graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, numIter, resetProb, longSrcId)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }
 
   /**
@@ -152,46 +146,15 @@ private object PageRank {
       tol: Double,
       resetProb: Double = 0.15,
       srcId: Option[Any] = None): GraphFrame = {
-    val longSrcId = srcId.map(integralId(graph, _))
-    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(graph.cachedTopologyGraphX, tol, resetProb, longSrcId)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(WEIGHT), edgeNames = Seq(WEIGHT))
+    val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
+    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(
+      graph.cachedTopologyGraphX, tol, resetProb, longSrcId)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }
 
+  /** Default name for the pagerank column. */
+  private val PAGERANK = "pagerank"
 
-  /**
-   * Default name for the weight column.
-   */
+  /** Default name for the weight column. */
   private val WEIGHT = "weight"
-
-  /**
-   * Given a graph and an object, attempts to get the the corresponding integral id in the
-   * internal representation.
-   *
-   * @param graph
-   * @param vertexId
-   * @return
-   */
-  private[graphframes] def integralId(graph: GraphFrame, vertexId: Any): Long = {
-    // Check if we can directly convert it
-    vertexId match {
-      case x: Int => return x.toLong
-      case x: Long => return x.toLong
-      case x: Short => return x.toLong
-      case x: Byte => return x.toLong
-      case _ =>
-    }
-    // It is a non-integral type such as a string, we need to use the translation table.
-    // Check that the type is compatible.
-    val tpe = graph.vertices.schema(GraphFrame.ID)
-    vertexId match {
-      case _: String => require(tpe.dataType == StringType, s"Type should be string, it is ${tpe.dataType}")
-      case x => throw new Exception(s"Unknown type ${x.getClass}. The only accepted types are the raw SQL types")
-    }
-    val longIdRow = graph.indexedVertices
-      .select(graph.vertices(GraphFrame.ID) === vertexId)
-      .select(GraphFrame.LONG_ID)
-    // TODO(tjh): could do more informative message
-    val Seq(Row(long_id: Long)) = longIdRow.collect().toSeq
-    long_id
-  }
 }

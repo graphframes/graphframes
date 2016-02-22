@@ -23,13 +23,19 @@ import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
 
 class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Island Strongly Connected Components") {
-    val vertices = sqlContext.createDataFrame((1L to 5L).map(Tuple1.apply)).toDF("id")
+    val vertices = sqlContext.createDataFrame(Seq(
+      (1L, "a"),
+      (2L, "b"),
+      (3L, "c"),
+      (4L, "d"),
+      (5L, "e"))).toDF("id", "value")
     val edges = sqlContext.createDataFrame(Seq.empty[(Long, Long)]).toDF("src", "dst")
     val graph = GraphFrame(vertices, edges)
     val c = graph.stronglyConnectedComponents.numIter(5).run()
     LabelPropagationSuite.testSchemaInvariants(graph, c)
-    for (Row(id: Long, scc: Long) <- c.vertices.collect()) {
-      assert(id === scc)
+    for (Row(id: Long, component: Long, _)
+         <- c.vertices.select("id", "component", "value").collect()) {
+      assert(id === component)
     }
   }
 }

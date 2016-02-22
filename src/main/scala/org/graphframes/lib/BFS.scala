@@ -83,8 +83,7 @@ import GraphFrame.nestAsCol
  *                    efficient.
  *
  * Returns:
- *
- * DataFrame of valid shortest paths found in the BFS
+ *  - DataFrame of valid shortest paths found in the BFS
  */
 class BFS private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Column)
   extends Arguments with Serializable {

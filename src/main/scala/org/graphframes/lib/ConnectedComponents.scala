@@ -24,19 +24,14 @@ import org.graphframes.GraphFrame
 /**
  * Connected components algorithm.
  *
- * Computes the connected component membership of each vertex and return a graph with the vertex
- * value containing the lowest vertex id in the connected component containing that vertex.
+ * Computes the connected component membership of each vertex and return a graph with each vertex
+ * assigned a component ID.
  *
- * The resulting edges are the same as the original edges.
+ * The resulting vertices DataFrame contains one additional column:
+ *  - component: (same type as vertex id) the id of some vertex in the connected component,
+ *    used as a unique identifier for this component
  *
- * The resulting vertices have two columns:
- *  - id: the id of the vertex
- *  - component: (same type as vertex id) the id of a vertex in the connected component, used as a unique identifier
- *    for this component.
- * All the other columns from the vertices are dropped.
- *
- * @return a graph with vertex attributes containing the smallest vertex in each
- *         connected component
+ * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class ConnectedComponents private[graphframes] (private val graph: GraphFrame) extends Arguments {
 

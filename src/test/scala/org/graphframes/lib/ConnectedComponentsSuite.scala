@@ -34,7 +34,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     LabelPropagationSuite.testSchemaInvariants(g, comps)
     assert(comps.vertices.count() === 1)
     assert(comps.edges.count() === 0)
-    // We loose all the attributes for now, due to a limitation of the graphx implementation
     assert(comps.vertices.select("id", "component", "vattr", "gender").collect() === Seq(Row(0L, 0L, "a", "b")))
   }
 
@@ -49,9 +48,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     LabelPropagationSuite.testSchemaInvariants(g, comps)
     assert(comps.vertices.count() === 2)
     assert(comps.edges.count() === 1)
-    // We loose all the attributes for now, due to a limitation of the graphx implementation
     assert(List(Row(0L, 1L, "a01", "b01")) === comps.edges.collect())
-    val vxs = comps.vertices.select("id", "component", "A", "B").collect()
+    val vxs = comps.vertices.sort("id").select("id", "component", "A", "B").collect()
     assert(List(Row(0L, 0L, "a0", "b0"), Row(1L, 0L, "a1", "b1")) === vxs)
   }
 
