@@ -26,7 +26,7 @@ import org.graphframes.GraphFrame
  * PageRank algorithm implementation. There are two implementations of PageRank implemented.
  *
  * The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
- * for a fixed number of iterations:
+ * for a fixed number of iterations.  This can be run by setting `numIter`.
  * {{{
  * var PR = Array.fill(n)( 1.0 )
  * val oldPR = Array.fill(n)( 1.0 )
@@ -38,8 +38,8 @@ import org.graphframes.GraphFrame
  * }
  * }}}
  *
- * The second implementation uses the [[org.apache.spark.graphx.Pregel]] interface and runs PageRank until
- * convergence:
+ * The second implementation uses the `org.apache.spark.graphx.Pregel interface and runs PageRank
+ * until convergence.  This can be run by setting `tol`.
  *
  * {{{
  * var PR = Array.fill(n)( 1.0 )
@@ -89,8 +89,8 @@ class PageRank private[graphframes] (
     this
   }
 
-  def untilConvergence(tolerance: Double): this.type = {
-    tol = Some(tolerance)
+  def tol(value: Double): this.type = {
+    tol = Some(value)
     this
   }
 
@@ -103,7 +103,7 @@ class PageRank private[graphframes] (
     tol match {
       case Some(t) =>
         assert(numIters.isEmpty,
-          "You cannot specify numIter() and untilConvergence() at the same time.")
+          "You cannot specify numIter() and tol() at the same time.")
         PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
       case None =>
         PageRank.run(graph, check(numIters, "numIter"), resetProb.get, srcId)

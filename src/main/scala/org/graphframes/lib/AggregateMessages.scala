@@ -24,23 +24,22 @@ import org.apache.spark.sql.{Column, DataFrame}
 
 import org.graphframes.GraphFrame
 
-
 /**
  * This is a primitive for implementing graph algorithms.
  * This method aggregates messages from the neighboring edges and vertices of each vertex.
  *
  * For each triplet (source vertex, edge, destination vertex) in [[GraphFrame.triplets]],
  * this can send a message to the source and/or destination vertices.
- *  - [[AggregateMessages.sendToSrc()]] sends a message to the source vertex of each
+ *  - `AggregateMessages.sendToSrc()` sends a message to the source vertex of each
  *    triplet
- *  - [[AggregateMessages.sendToDst()]] sends a message to the destination vertex of each
+ *  - `AggregateMessages.sendToDst()` sends a message to the destination vertex of each
  *    triplet
- *  - [[AggregateMessages.agg()]] specifies an aggregation function for aggregating the
+ *  - `AggregateMessages.agg` specifies an aggregation function for aggregating the
  *    messages sent to each vertex.  It also runs the aggregation, computing a DataFrame
  *    with one row for each vertex which receives > 0 messages.  The DataFrame has 2 columns:
  *     - vertex column ID (named [[GraphFrame.ID]])
- *     - aggregate from messages sent to vertex (with the name given to the [[Column]] specified
- *       in [[AggregateMessages.agg()]])
+ *     - aggregate from messages sent to vertex (with the name given to the `Column` specified
+ *       in `AggregateMessages.agg()`)
  *
  * When specifying the messages and aggregation function, the user may reference columns using:
  *  - [[AggregateMessages.src]]: column for source vertex of edge
@@ -49,7 +48,8 @@ import org.graphframes.GraphFrame
  *  - [[AggregateMessages.msg]]: message sent to vertex (for aggregation function)
  *
  * Note: If you use this operation to write an iterative algorithm, you may want to use
- * [[AggregateMessages.getCachedDataFrame()]] as a workaround for caching issues.
+ * [[AggregateMessages$.getCachedDataFrame getCachedDataFrame()]] as a workaround for caching
+ * issues.
  *
  * @example We can use this function to compute the in-degree of each vertex
  * {{{
@@ -146,7 +146,7 @@ object AggregateMessages extends Logging with Serializable {
   /**
    * Cache a DataFrame, and returned the cached version. For iterative DataFrame-based algorithms.
    *
-   * WARNING: This is NOT the same as [[DataFrame.cache()]].
+   * WARNING: This is NOT the same as `DataFrame.cache()`.
    *          The original DataFrame will NOT be cached.
    *
    * This is a workaround for SPARK-13346, which makes it difficult to use DataFrames in iterative

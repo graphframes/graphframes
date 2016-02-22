@@ -146,7 +146,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         g = self._graph("star", n)
         resetProb = 0.15
         errorTol = 1.0e-5
-        pr = g.pageRank(resetProb, tolerance=errorTol)
+        pr = g.pageRank(resetProb, tol=errorTol)
         self._hasCols(pr, vcols=['id', 'weight'], ecols=['src', 'dst', 'weight'])
 
     def test_shortest_paths(self):
