@@ -32,5 +32,7 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .resetProbability(resetProb)
       .tol(errorTol).run()
     LabelPropagationSuite.testSchemaInvariants(g, pr)
+    assert(pr.vertices.columns.contains("pagerank"))
+    assert(pr.edges.columns.contains("weight"))
   }
 }

@@ -147,7 +147,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         resetProb = 0.15
         errorTol = 1.0e-5
         pr = g.pageRank(resetProb, tol=errorTol)
-        self._hasCols(pr, vcols=['id', 'weight'], ecols=['src', 'dst', 'weight'])
+        self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
 
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
@@ -157,13 +157,13 @@ class GraphFrameLibTest(GraphFrameTestCase):
         g = GraphFrame(vertices, edges)
         landmarks = [1, 4]
         g2 = g.shortestPaths(landmarks)
-        self._hasCols(g2, vcols=["id", "distance"])
+        self._hasCols(g2, vcols=["id", "distances"])
 
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
         (g2, cost) = g.svdPlusPlus()
-        self._hasCols(g2, vcols=['id', 'column1', 'column2', 'column3'],
-                      ecols=['src', 'dst', 'ecolumn1'])
+        self._hasCols(g2, vcols=['id', 'column1', 'column2', 'column3', 'column4'],
+                      ecols=['src', 'dst'])
 
     def test_strongly_connected_components(self):
         # Simple island test
@@ -181,5 +181,3 @@ class GraphFrameLibTest(GraphFrameTestCase):
         c = g.triangleCount()
         for row in c.vertices.select("id", "count").collect():
             self.assertEqual(row.count, 1)
-
-

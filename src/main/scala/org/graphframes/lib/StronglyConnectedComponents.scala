@@ -22,19 +22,18 @@ import org.apache.spark.graphx.{lib => graphxlib}
 import org.graphframes.GraphFrame
 
 /**
- * Compute the strongly connected component (SCC) of each vertex and return a graph with the
- * vertex value containing the lowest vertex id in the SCC containing that vertex.
+ * Compute the strongly connected component (SCC) of each vertex and return a graph with each vertex
+ * assigned to the SCC containing that vertex.
  *
- * The edges have the same schema as the original edges.
+ * The resulting vertices DataFrame contains one additional column:
+ *  - component: (same type as vertex id) the id of some vertex in the connected component,
+ *    used as a unique identifier for this component
  *
- * The resulting verticexs have the following columns:
- *  - id: the id of the vertex
- *  - weight (double): the normalized weight (page rank) of this vertex.
- *
- * @param graph the graph for which to compute the SCC
- * @return a graph with vertex attributes containing the smallest vertex id in each SCC
+ * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
-class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame) extends Arguments {
+class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame)
+  extends Arguments {
+
   private var numIters: Option[Int] = None
 
   def numIter(value: Int): this.type = {

@@ -20,7 +20,7 @@ package org.graphframes.lib
 import scala.reflect.runtime.universe._
 
 import org.apache.spark.graphx.Graph
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{Row, DataFrame}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StructField, StructType}
 
@@ -158,6 +158,31 @@ private[graphframes] object GraphXConversions {
 
     GraphFrame(vertexDF, edgeDF)
   }
+
+  /**
+   * Given a graph and an object, gets the the corresponding integral id in the
+   * internal representation.
+   */
+  private[graphframes] def integralId(graph: GraphFrame, vertexId: Any): Long = {
+    // Check if we can directly convert it
+    vertexId match {
+      case x: Int => return x.toLong
+      case x: Long => return x.toLong
+      case x: Short => return x.toLong
+      case x: Byte => return x.toLong
+      case _ =>
+    }
+    // If the vertex is a non-integral type such as a String, we need to use the translation table.
+    val longIdRow: Array[Row] = graph.indexedVertices
+      .filter(graph.vertices(GraphFrame.ID) === vertexId)
+      .select(GraphFrame.LONG_ID).take(1)
+    if (longIdRow.isEmpty) {
+      throw new NoSuchVertexException(s"GraphFrame algorithm given vertex ID which does not exist" +
+        s" in Graph. Vertex ID $vertexId not contained in $graph")
+    }
+    // TODO(tjh): could do more informative message
+    longIdRow.head.getLong(0)
+  }
 }
 
 private[lib] trait Arguments {
@@ -165,3 +190,8 @@ private[lib] trait Arguments {
     a.getOrElse(throw new IllegalArgumentException)
   }
 }
+
+/**
+ * Thrown when a GraphFrame algorithm is given a vertex ID which does not exist in the graph.
+ */
+class NoSuchVertexException(message: String) extends Exception(message)

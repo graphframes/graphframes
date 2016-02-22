@@ -28,9 +28,11 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
     val g = Graphs.twoBlobs(n)
     val labels = g.labelPropagation.maxSteps(4 * n).run()
     LabelPropagationSuite.testSchemaInvariants(g, labels)
-    val clique1 = labels.vertices.filter(s"id < $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
+    val clique1 =
+      labels.vertices.filter(s"id < $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique1.size === 1)
-    val clique2 = labels.vertices.filter(s"id >= $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
+    val clique2 =
+      labels.vertices.filter(s"id >= $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique2.size === 1)
     assert(clique1 !== clique2)
   }
@@ -48,7 +50,13 @@ object LabelPropagationSuite {
     es(SRC)
     es(DST)
   }
-  // Runs some tests on a transform of the GraphFrame
+
+  /**
+   * Test validity of both GraphFrames.
+   * Also ensure that the GraphFrames match:
+   *  - vertex column schema match
+   *  - `before` columns are a subset of the `after` columns, and schema match
+   */
   def testSchemaInvariants(before: GraphFrame, after: GraphFrame): Unit = {
     testSchemaInvariant(before)
     testSchemaInvariant(after)

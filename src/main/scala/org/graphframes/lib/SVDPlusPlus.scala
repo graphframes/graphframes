@@ -19,7 +19,6 @@ package org.graphframes.lib
 
 import org.apache.spark.graphx.{Edge, lib => graphxlib}
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types._
 
 import org.graphframes.GraphFrame
 
@@ -28,12 +27,13 @@ import org.graphframes.GraphFrame
  * a Multifaceted Collaborative Filtering Model",
  * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
  *
- * The prediction rule is rui = u + bu + bi + qi*(pu + |N(u)|^^-0.5^^*sum(y)),
- * see the details on page 6.
+ * The prediction rule is r,,ui,, = u + b,,u,, + b,,i,, + q,,i,,*(p,,u,, + |N(u)|^^-0.5^^*sum(y)).
+ * See the details on page 6 of the article.
  *
  * Configuration parameters: see the description of each parameter in the article.
  *
- * @return a graph with vertex attributes containing the trained model
+ * Returns a graph with vertex attributes containing the trained model.  See object (static) members
+ * for names of output columns.
  */
 class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var _rank: Int = 10
@@ -109,13 +109,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
   }
 }
 
-
-/**
- * Implementation of the SVD++ algorithm, based on "Factorization Meets the Neighborhood:
- * a Multifaceted Collaborative Filtering Model",
- * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
- */
-private object SVDPlusPlus {
+object SVDPlusPlus {
 
   private def run(graph: GraphFrame, conf: graphxlib.SVDPlusPlus.Conf): (GraphFrame, Double) = {
     val edges = graph.edges.select(GraphFrame.SRC, GraphFrame.DST, COLUMN_WEIGHT).map {
@@ -123,18 +117,46 @@ private object SVDPlusPlus {
     }
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf)
     val gf = GraphXConversions.fromGraphX(graph, gx,
-      vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4),
-      edgeNames = Seq(ECOLUMN1))
+      vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4))
     (gf, res)
   }
 
+  /**
+   * Name for input edge DataFrame column containing edge weights.
+   *
+   * Note: This column name may change in the future!
+   */
+  val COLUMN_WEIGHT = "weight"
 
-  private val COLUMN_WEIGHT = "weight"
+  /**
+   * Name for output vertexDataFrame column containing first parameter of learned model,
+   * of type `Array[Double]`.
+   *
+   * Note: This column name may change in the future!
+   */
+  val COLUMN1 = "column1"
 
-  private val COLUMN1 = "column1"
-  private val COLUMN2 = "column2"
-  private val COLUMN3 = "column3"
-  private val COLUMN4 = "column4"
-  private val ECOLUMN1 = "ecolumn1"
+  /**
+   * Name for output vertexDataFrame column containing second parameter of learned model,
+   * of type `Array[Double]`.
+   *
+   * Note: This column name may change in the future!
+   */
+  val COLUMN2 = "column2"
 
+  /**
+   * Name for output vertexDataFrame column containing third parameter of learned model,
+   * of type `Double`.
+   *
+   * Note: This column name may change in the future!
+   */
+  val COLUMN3 = "column3"
+
+  /**
+   * Name for output vertexDataFrame column containing fourth parameter of learned model,
+   * of type `Double`.
+   *
+   * Note: This column name may change in the future!
+   */
+  val COLUMN4 = "column4"
 }

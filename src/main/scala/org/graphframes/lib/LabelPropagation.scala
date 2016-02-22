@@ -20,6 +20,7 @@ package org.graphframes.lib
 import org.apache.spark.graphx.{lib => graphxlib}
 
 import org.graphframes.GraphFrame
+
 /**
  * Run static Label Propagation for detecting communities in networks.
  *
@@ -31,23 +32,17 @@ import org.graphframes.GraphFrame
  * computationally, although (1) convergence is not guaranteed and (2) one can end up with
  * trivial solutions (all nodes are identified into a single community).
  *
- * The resulting edges are the same as the original edges.
+ * The resulting vertices DataFrame contains one additional column:
+ *  - label: (same type as vertex id) label of community affiliation
  *
- * The resulting vertices have two columns:
- *  - id: the id of the vertex
- *  - component: (same type as vertex id) the id of a vertex in the connected component, used as a unique identifier
- *    for this component.
- * All the other columns from the vertices are dropped.
- *
- * @param graph the graph for which to compute the community affiliation
- *
- * @return a graph with vertex attributes containing the label of community affiliation.
+ * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class LabelPropagation private[graphframes] (private val graph: GraphFrame) extends Arguments {
+
   private var maxSteps: Option[Int] = None
 
   /**
-   * the number of supersteps of LPA to be performed. Because this is a static
+   * The number of supersteps of LPA to be performed. Because this is a static
    * implementation, the algorithm will run for exactly this many supersteps.
    */
   def maxSteps(value: Int): this.type = {
