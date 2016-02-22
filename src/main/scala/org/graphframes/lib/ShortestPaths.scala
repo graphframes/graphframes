@@ -29,7 +29,7 @@ import org.graphframes.GraphFrame
  * Computes shortest paths to the given set of landmark vertices.
  *
  * The returned vertices DataFrame contains one additional column:
- *  - distances (MapType[vertex ID type, IntegerType]): For each vertex v, a map containing
+ *  - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing
  *   the shortest-path distance to each reachable landmark vertex.
  *
  * The resulting edges DataFrame is the same as the original edges DataFrame.

@@ -26,11 +26,11 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Count a single triangle") {
     val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
     val vertices = sqlContext.createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
-      .toDF("id", "v_attr1")
+      .toDF("id", "a")
     val g = GraphFrame(vertices, edges)
     val g2 = g.triangleCount.run()
     LabelPropagationSuite.testSchemaInvariants(g, g2)
-    g2.vertices.select("id", "count", "v_attr1")
+    g2.vertices.select("id", "count", "a")
       .collect().foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
   }
 

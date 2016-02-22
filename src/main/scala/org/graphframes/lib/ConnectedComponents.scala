@@ -24,7 +24,7 @@ import org.graphframes.GraphFrame
 /**
  * Connected components algorithm.
  *
- * Computes the connected component membership of each vertex and return a graph with each vertex
+ * Computes the connected component membership of each vertex and returns a graph with each vertex
  * assigned a component ID.
  *
  * The resulting vertices DataFrame contains one additional column:

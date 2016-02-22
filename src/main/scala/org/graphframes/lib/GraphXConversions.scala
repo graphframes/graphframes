@@ -20,7 +20,7 @@ package org.graphframes.lib
 import scala.reflect.runtime.universe._
 
 import org.apache.spark.graphx.Graph
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{Row, DataFrame}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StructField, StructType}
 
@@ -173,10 +173,10 @@ private[graphframes] object GraphXConversions {
       case _ =>
     }
     // If the vertex is a non-integral type such as a String, we need to use the translation table.
-    val longIdRow = graph.indexedVertices
+    val longIdRow: Array[Row] = graph.indexedVertices
       .filter(graph.vertices(GraphFrame.ID) === vertexId)
       .select(GraphFrame.LONG_ID).take(1)
-    if (longIdRow.length == 0) {
+    if (longIdRow.isEmpty) {
       throw new NoSuchVertexException(s"GraphFrame algorithm given vertex ID which does not exist" +
         s" in Graph. Vertex ID $vertexId not contained in $graph")
     }

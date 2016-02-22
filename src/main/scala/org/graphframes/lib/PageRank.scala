@@ -58,10 +58,10 @@ import org.graphframes.GraphFrame
  * inlinks will have a PageRank of alpha.
  *
  * The resulting vertices DataFrame contains one additional column:
- *  - pagerank (double): the pagerank of this vertex
+ *  - pagerank (`DoubleType`): the pagerank of this vertex
  *
  * The resulting edges DataFrame contains one additional column:
- *  - weight (double): the normalized weight of this edge after running PageRank
+ *  - weight (`DoubleType`): the normalized weight of this edge after running PageRank
  */
 class PageRank private[graphframes] (
       private val graph: GraphFrame) extends Arguments {

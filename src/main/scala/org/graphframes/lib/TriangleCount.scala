@@ -31,7 +31,7 @@ import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_ID, LONG_SRC, SRC}
  * GraphX, which will count a triangle (a,b,c) twice if all edges are bidirectional.
  *
  * The returned vertices DataFrame contains one additional column:
- *  - count (long): the count of triangles
+ *  - count (`LongType`): the count of triangles
  *
  * The returned edges DataFrame is the same as the original edges DataFrame.
  */
@@ -46,12 +46,10 @@ private object TriangleCount {
 
   private def run(graph: GraphFrame): GraphFrame = {
     // Dedup edges by flipping them to have LONG_SRC < LONG_DST
-    val e = graph.indexedEdges
-    val min = udf { (x: Long, y: Long) => math.min(x, y) }
-    val max = udf { (x: Long, y: Long) => math.max(x, y) }
-    val dedupedE = e.select(e(SRC), e(DST),
-      min(e(LONG_SRC), e(LONG_DST)).as(LONG_SRC),
-      max(e(LONG_SRC), e(LONG_DST)).as(LONG_DST))
+    // TODO (when we drop support for Spark 1.4): Use functions greatest, smallest instead of UDFs
+    val dedupedE = graph.indexedEdges.selectExpr(SRC, DST,
+      s"if($LONG_SRC < $LONG_DST, $LONG_SRC, $LONG_DST) as $LONG_SRC",
+      s"if($LONG_SRC < $LONG_DST, $LONG_DST, $LONG_SRC) as $LONG_DST")
       .dropDuplicates(Seq(LONG_SRC, LONG_DST))
       .select(SRC, DST)
     val g2 = GraphFrame(graph.vertices, dedupedE)
