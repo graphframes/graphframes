@@ -271,8 +271,9 @@ motifs.filter("e.relationship = 'follow' AND e2.relationship = 'follow'").show()
 </div>
 
 Many motif queries are stateless and simple to express, as in the examples above.
-More complex queries, such as those with state carried along a path in the motif,
-can likewise be expressed by combining GraphFrame motif finding with filters on the result.
+The next examples demonstrate more complex queries which carry state along a path in the motif.
+These queries can be expressed by combining GraphFrame motif finding with filters on the result,
+where the filters use sequence operations to construct a series of `DataFrame` `Column`s.
 
 For example, suppose one wishes to identify a chain of 4 vertices with some property defined
 by a sequence of functions.  That is, among chains of 4 vertices `a->b->c->d`, identify the subset
@@ -286,8 +287,8 @@ of chains matching this complex filter:
 
 The below code snippets demonstrate this process, where we identify chains of 4 vertices
 such that at least 2 of the 3 edges are "friend" relationships.
-The first query shows how to do this in a stateless way, and the second query shows how to do
-this with state, where the state is the current count of "friend" edges.
+In this example, the state is the current count of "friend" edges; in general, it could be any
+`DataFrame Column`.
 
 <div class="codetabs">
 
@@ -299,20 +300,16 @@ import org.graphframes.examples
 
 val g = examples.Graphs.friends  // get example graph
 
-// Query on sequence, but without state
-val chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
-val chainWith2Friends = chain4.where(
-  Seq("ab", "bc", "cd")
-    .map(e => when(col(e)("relationship") === "friend", 1).otherwise(0))
-    .reduce(_ + _) >= 2)
-chainWith2Friends.show()
-
 // Query on sequence, with state (cnt)
+//  (a) Define method for updating state given the next element of the motif.
 def sumFriends(cnt: Column, relationship: Column): Column = {
   when(relationship === "friend", cnt + 1).otherwise(cnt)
 }
+//  (b) Use sequence operation to apply method to sequence of elements in motif.
+//      In this case, the elements are the 3 edges.
 val condition = Seq("ab", "bc", "cd").
   foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship")))
+//  (c) Apply filter to DataFrame.
 val chainWith2Friends2 = chain4.where(condition >= 2)
 chainWith2Friends2.show()
 {% endhighlight %}
@@ -325,24 +322,26 @@ from pyspark.sql.types import IntegerType
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-# Query on sequence, but without state
-chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
-chainWith2Friends = chain4.where(
-  sum(map(lambda c: when(col(c).relationship == "friend", 1).otherwise(0),\
-    ["ab", "bc", "cd"])) >= 2)
-chainWith2Friends.show()
-
 # Query on sequence, with state (cnt)
+#  (a) Define method for updating state given the next element of the motif.
 sumFriends =\
   lambda cnt,relationship: when(relationship == "friend", cnt+1).otherwise(cnt)
+#  (b) Use sequence operation to apply method to sequence of elements in motif.
+#      In this case, the elements are the 3 edges.
 condition =\
   reduce(lambda cnt,e: sumFriends(cnt, col(e).relationship), ["ab", "bc", "cd"], lit(0))
+#  (c) Apply filter to DataFrame.
 chainWith2Friends2 = chain4.where(condition >= 2)
 chainWith2Friends2.show()
 {% endhighlight %}
 </div>
 
 </div>
+
+The above example demonstrated a stateful motif for a fixed-length chain.  Currently, in order to
+search for variable-length motifs, users need to run one query for each possible length.
+However, the above query patterns allow users to re-use the same code for each length, with the
+only change being to update the sequence of motif elements ("ab", "bc", "cd" above).
 
 # Subgraphs
 
