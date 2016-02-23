@@ -218,12 +218,44 @@ class GraphFrame private(
   // ============================ Motif finding ========================================
 
   /**
-   * Motif finding.
-   * TODO: Describe possible motifs.
+   * Motif finding: Searching the graph for structural patterns
+   *
+   * Motif finding uses a simple Domain-Specific Language (DSL) for expressing structural queries.
+   * For example, `graph.find("(a)-[e]->(b); (b)-[e2]->(a)")` will search for pairs of vertices
+   * `a,b` connected by edges in both directions.  It will return a `DataFrame` of all such
+   * structures in the graph, with columns for each of the named elements (vertices or edges)
+   * in the motif.  In this case, the returned columns will be "a, b, e, e2."
+   *
+   * DSL for expressing structural patterns:
+   *  - The basic unit of a pattern is an edge.
+   *    For example, `"(a)-[e]->(b)"` expresses an edge `e` from vertex `a` to vertex `b`.
+   *    Note that vertices are denoted by parentheses `(a)`, while edges are denoted by
+   *    square brackets `[e]`.
+   *  - A pattern is expressed as a union of edges. Edge patterns can be joined with semicolons.
+   *    Motif `"(a)-[e]->(b); (b)-[e2]->(c)"` specifies two edges from `a` to `b` to `c`.
+   *  - Within a pattern, names can be assigned to vertices and edges.  For example,
+   *    `"(a)-[e]->(b)"` has three named elements: vertices `a,b` and edge `e`.
+   *    These names serve two purposes:
+   *     - The names can identify common elements among edges.  For example,
+   *       `"(a)-[e]->(b); (b)-[e2]->(c)"` specifies that the same vertex `b` is the destination
+   *       of edge `e` and source of edge `e2`.
+   *     - The names are used as column names in the result `DataFrame`.  If a motif contains
+   *       named vertex `a`, then the result `DataFrame` will contain a column "a" which is a
+   *       `StructType` with sub-fields equivalent to the schema (columns) of
+   *       [[GraphFrame.vertices]]. Similarly, an edge `e` in a motif will produce a column "e"
+   *       in the result `DataFrame` with sub-fields equivalent to the schema (columns) of
+   *       [[GraphFrame.edges]].
+   *  - It is acceptable to omit names for vertices or edges in motifs when not needed.
+   *    E.g., `"(a)-[]->(b)"` expresses an edge between vertices `a,b` but does not assign a name
+   *    to the edge.  There will be no column for the anonymous edge in the result `DataFrame`.
+   *    Similarly, `"(a)-[e]->()"` indicates an out-edge of vertex `a` but does not name
+   *    the destination vertex.
+   *
+   * More complex queries, such as queries which operate on vertex or edge attributes,
+   * can be expressed by applying filters to the result `DataFrame`.
    *
    * @param pattern  Pattern specifying a motif to search for.
    * @return  `DataFrame` containing all instances of the motif.
-   *          TODO: Describe column naming patterns.
    *
    * @group motif
    */

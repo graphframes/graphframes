@@ -17,10 +17,10 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.functions.{col, struct, udf, when}
+import org.apache.spark.sql.functions.{col, when}
 
 import org.graphframes.GraphFrame
-import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_ID, LONG_SRC, SRC}
+import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC}
 
 
 /**

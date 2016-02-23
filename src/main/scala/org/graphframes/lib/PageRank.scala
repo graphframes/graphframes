@@ -22,7 +22,7 @@ import org.apache.spark.graphx.{lib => graphxlib}
 import org.graphframes.GraphFrame
 
 /**
- * PageRank algorithm implementation. There are two implementations of PageRank implemented.
+ * PageRank algorithm implementation. There are two implementations of PageRank.
  *
  * The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
  * for a fixed number of iterations.  This can be run by setting `numIter`.
@@ -71,7 +71,8 @@ class PageRank private[graphframes] (
   private var numIters: Option[Int] = None
   private var srcId : Option[Any] = None
 
-  def sourceId(value : Any): this.type = {
+  /** Source vertex for a Personalized Page Rank (optional) */
+  def sourceId(value: Any): this.type = {
     this.srcId = Some(value)
     this
   }

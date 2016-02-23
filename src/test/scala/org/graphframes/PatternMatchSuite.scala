@@ -18,9 +18,9 @@
 package org.graphframes
 
 import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.functions.{lit, udf, when}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions.{col, lit, when}
 
-import org.graphframes.GFImplicits._
 
 class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -107,27 +107,27 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
 
     // Using DataFrame operations, but not really operating in a stateful manner
-    val chain4with2friends = chain4.where(
+    val chainWith2Friends = chain4.where(
       Seq("ab", "bc", "cd")
-        .field("relationship")
-        .map(f => when(f === "friend", 1).otherwise(0))
+        .map(e => when(col(e)("relationship") === "friend", 1).otherwise(0))
         .reduce(_ + _) >= 2)
 
-    assert(chain4with2friends.count() === 4)
-    chain4with2friends.select("ab.relationship", "bc.relationship", "cd.relationship").collect()
+    assert(chainWith2Friends.count() === 4)
+    chainWith2Friends.select("ab.relationship", "bc.relationship", "cd.relationship").collect()
       .foreach { case Row(ab: String, bc: String, cd: String) =>
         val numFriends = Seq(ab, bc, cd).map(r => if (r == "friend") 1 else 0).sum
         assert(numFriends >= 2)
       }
 
     // Operating in a stateful manner, where cnt is the state.
-    val sumFriends =
-      udf((cnt: Int, relationship: String) => if (relationship == "friend") cnt + 1 else cnt)
-    val chain4with2friends2 = chain4.where(
-      Seq("ab", "bc", "cd").field("relationship")
-        .foldLeft(lit(0))((cnt, rel) => sumFriends(cnt, rel)) >= 2)
+    def sumFriends(cnt: Column, relationship: Column): Column = {
+      when(relationship === "friend", cnt + 1).otherwise(cnt)
+    }
+    val condition = Seq("ab", "bc", "cd").
+      foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship")))
+    val chainWith2Friends2 = chain4.where(condition >= 2)
 
-    assert(chain4with2friends.collect().toSet === chain4with2friends2.collect().toSet)
+    assert(chainWith2Friends.collect().toSet === chainWith2Friends2.collect().toSet)
   }
 
   /*
