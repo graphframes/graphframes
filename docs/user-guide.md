@@ -201,6 +201,43 @@ numFollows = g.edges.filter("relationship = 'follow'").count()
 
 # Motif finding
 
+Motif finding refers to searching for structural patterns in a graph.
+
+GraphFrame motif finding uses a simple Domain-Specific Language (DSL) for expressing structural
+queries. For example, `graph.find("(a)-[e]->(b); (b)-[e2]->(a)")` will search for pairs of vertices
+`a,b` connected by edges in both directions.  It will return a `DataFrame` of all such
+structures in the graph, with columns for each of the named elements (vertices or edges)
+in the motif.  In this case, the returned columns will be "a, b, e, e2."
+
+DSL for expressing structural patterns:
+
+* The basic unit of a pattern is an edge.
+   For example, `"(a)-[e]->(b)"` expresses an edge `e` from vertex `a` to vertex `b`.
+   Note that vertices are denoted by parentheses `(a)`, while edges are denoted by
+   square brackets `[e]`.
+* A pattern is expressed as a union of edges. Edge patterns can be joined with semicolons.
+   Motif `"(a)-[e]->(b); (b)-[e2]->(c)"` specifies two edges from `a` to `b` to `c`.
+* Within a pattern, names can be assigned to vertices and edges.  For example,
+   `"(a)-[e]->(b)"` has three named elements: vertices `a,b` and edge `e`.
+   These names serve two purposes:
+  * The names can identify common elements among edges.  For example,
+      `"(a)-[e]->(b); (b)-[e2]->(c)"` specifies that the same vertex `b` is the destination
+      of edge `e` and source of edge `e2`.
+  * The names are used as column names in the result `DataFrame`.  If a motif contains
+      named vertex `a`, then the result `DataFrame` will contain a column "a" which is a
+      `StructType` with sub-fields equivalent to the schema (columns) of
+      [[GraphFrame.vertices]]. Similarly, an edge `e` in a motif will produce a column "e"
+      in the result `DataFrame` with sub-fields equivalent to the schema (columns) of
+      [[GraphFrame.edges]].
+* It is acceptable to omit names for vertices or edges in motifs when not needed.
+   E.g., `"(a)-[]->(b)"` expresses an edge between vertices `a,b` but does not assign a name
+   to the edge.  There will be no column for the anonymous edge in the result `DataFrame`.
+   Similarly, `"(a)-[e]->()"` indicates an out-edge of vertex `a` but does not name
+   the destination vertex.
+
+More complex queries, such as queries which operate on vertex or edge attributes,
+can be expressed by applying filters to the result `DataFrame`.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
@@ -208,7 +245,12 @@ numFollows = g.edges.filter("relationship = 'follow'").count()
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+// Search for pairs of vertices with edges in both directions between them.
+val motifs: DataFrame = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
+motifs.show()
+
+// More complex queries can be expressed by applying filters.
+motifs.filter("e.relationship = 'follow' AND e2.relationship = 'follow'").show()
 {% endhighlight %}
 </div>
 
@@ -217,11 +259,89 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+# Search for pairs of vertices with edges in both directions between them.
+motifs = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
+motifs.show()
+
+# More complex queries can be expressed by applying filters.
+motifs.filter("e.relationship = 'follow' AND e2.relationship = 'follow'").show()
 {% endhighlight %}
 </div>
 
 </div>
+
+Many motif queries are stateless and simple to express, as in the examples above.
+The next examples demonstrate more complex queries which carry state along a path in the motif.
+These queries can be expressed by combining GraphFrame motif finding with filters on the result,
+where the filters use sequence operations to construct a series of `DataFrame` `Column`s.
+
+For example, suppose one wishes to identify a chain of 4 vertices with some property defined
+by a sequence of functions.  That is, among chains of 4 vertices `a->b->c->d`, identify the subset
+of chains matching this complex filter:
+
+* Initialize state on path.
+* Update state based on vertex `a`.
+* Update state based on vertex `b`.
+* Etc. for `c` and `d`.
+* If final state matches some condition, then the chain is accepted by the filter.
+
+The below code snippets demonstrate this process, where we identify chains of 4 vertices
+such that at least 2 of the 3 edges are "friend" relationships.
+In this example, the state is the current count of "friend" edges; in general, it could be any
+`DataFrame Column`.
+
+<div class="codetabs">
+
+<div data-lang="scala"  markdown="1">
+{% highlight scala %}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions.{col, when}
+import org.graphframes.examples
+
+val g = examples.Graphs.friends  // get example graph
+
+// Query on sequence, with state (cnt)
+//  (a) Define method for updating state given the next element of the motif.
+def sumFriends(cnt: Column, relationship: Column): Column = {
+  when(relationship === "friend", cnt + 1).otherwise(cnt)
+}
+//  (b) Use sequence operation to apply method to sequence of elements in motif.
+//      In this case, the elements are the 3 edges.
+val condition = Seq("ab", "bc", "cd").
+  foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship")))
+//  (c) Apply filter to DataFrame.
+val chainWith2Friends2 = chain4.where(condition >= 2)
+chainWith2Friends2.show()
+{% endhighlight %}
+</div>
+
+<div data-lang="python"  markdown="1">
+{% highlight python %}
+from pyspark.sql.functions import col, lit, udf, when
+from pyspark.sql.types import IntegerType
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
+
+# Query on sequence, with state (cnt)
+#  (a) Define method for updating state given the next element of the motif.
+sumFriends =\
+  lambda cnt,relationship: when(relationship == "friend", cnt+1).otherwise(cnt)
+#  (b) Use sequence operation to apply method to sequence of elements in motif.
+#      In this case, the elements are the 3 edges.
+condition =\
+  reduce(lambda cnt,e: sumFriends(cnt, col(e).relationship), ["ab", "bc", "cd"], lit(0))
+#  (c) Apply filter to DataFrame.
+chainWith2Friends2 = chain4.where(condition >= 2)
+chainWith2Friends2.show()
+{% endhighlight %}
+</div>
+
+</div>
+
+The above example demonstrated a stateful motif for a fixed-length chain.  Currently, in order to
+search for variable-length motifs, users need to run one query for each possible length.
+However, the above query patterns allow users to re-use the same code for each length, with the
+only change being to update the sequence of motif elements ("ab", "bc", "cd" above).
 
 # Subgraphs
 
@@ -362,6 +482,9 @@ g.bfs("name = 'Bob'", "age <= 30",\
 
 ## Connected components
 
+Computes the connected component membership of each vertex and returns a graph with each vertex
+assigned a component ID.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
@@ -369,7 +492,8 @@ g.bfs("name = 'Bob'", "age <= 30",\
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+val result = g.connectedComponents.run()
+result.vertices.select("id", "component").show()
 {% endhighlight %}
 </div>
 
@@ -378,7 +502,8 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+result = g.connectedComponents()
+result.vertices.select("id", "component").show()
 {% endhighlight %}
 </div>
 
@@ -386,6 +511,9 @@ TODO
 
 ### Strongly connected components
 
+Compute the strongly connected component (SCC) of each vertex and return a graph with each vertex
+assigned to the SCC containing that vertex.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
@@ -393,7 +521,8 @@ TODO
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+val result = g.stronglyConnectedComponents.numIter(10).run()
+result.vertices.select("id", "component").show()
 {% endhighlight %}
 </div>
 
@@ -402,7 +531,8 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+result = g.stronglyConnectedComponents(numIter=10)
+result.vertices.select("id", "component").show()
 {% endhighlight %}
 </div>
 
@@ -410,6 +540,16 @@ TODO
 
 ## Label propagation
 
+Run static Label Propagation for detecting communities in networks.
+
+Each node in the network is initially assigned to its own community. At every superstep, nodes
+send their community affiliation to all neighbors and update their state to the mode community
+affiliation of incoming messages.
+
+LPA is a standard community detection algorithm for graphs. It is very inexpensive
+computationally, although (1) convergence is not guaranteed and (2) one can end up with
+trivial solutions (all nodes are identified into a single community).
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
@@ -417,7 +557,8 @@ TODO
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+val result = g.labelPropagation.maxSteps(5).run()
+result.vertices.select("id", "label").show()
 {% endhighlight %}
 </div>
 
@@ -426,7 +567,8 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+result = g.labelPropagation(maxSteps=5)
+result.vertices.select("id", "label").show()
 {% endhighlight %}
 </div>
 
@@ -434,6 +576,16 @@ TODO
 
 ## PageRank
 
+There are two implementations of PageRank.
+
+* The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
+ for a fixed number of iterations.  This can be run by setting `numIter`.
+* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank
+  until convergence.  This can be run by setting `tol`.
+
+Both implementations support non-personalized and personalized PageRank, where setting a `sourceId`
+personalizes the results for that vertex.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
@@ -441,7 +593,17 @@ TODO
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+// Run PageRank until convergence to tolerance "tol".
+val results = g.pageRank.resetProbability(0.15).tol(0.01).run()
+// Display resulting pageranks and final edge weights
+results.vertices.select("id", "pagerank").show()
+results.edges.select("src", "dst", "weight").show()
+
+// Run PageRank for a fixed number of iterations.
+val results2 = g.pageRank.resetProbability(0.15).numIter(10).run()
+
+// Run PageRank personalized for vertex "a"
+val results3 = g.pageRank.resetProbability(0.15).numIter(10).sourceId("a").run()
 {% endhighlight %}
 </div>
 
@@ -450,7 +612,17 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+# Run PageRank until convergence to tolerance "tol".
+results = g.pageRank(resetProbability=0.15, tol=0.01)
+# Display resulting pageranks and final edge weights
+results.vertices.select("id", "pagerank").show()
+results.edges.select("src", "dst", "weight").show()
+
+# Run PageRank for a fixed number of iterations.
+results2 = g.pageRank(resetProbability=0.15, numIter=10)
+
+# Run PageRank personalized for vertex "a"
+results3 = g.pageRank(resetProbability=0.15, numIter=10, sourceId="a")
 {% endhighlight %}
 </div>
 
@@ -458,29 +630,7 @@ TODO
 
 ## Shortest paths
 
-<div class="codetabs">
-
-<div data-lang="scala"  markdown="1">
-{% highlight scala %}
-import org.graphframes.examples
-val g: GraphFrame = examples.Graphs.friends  // get example graph
-
-TODO
-{% endhighlight %}
-</div>
-
-<div data-lang="python"  markdown="1">
-{% highlight python %}
-from graphframes.examples import Graphs
-g = Graphs(sqlContext).friends()  # Get example graph
-
-TODO
-{% endhighlight %}
-</div>
-
-</div>
-
-## SVD++
+Computes shortest paths to the given set of landmark vertices.
 
 <div class="codetabs">
 
@@ -489,7 +639,8 @@ TODO
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+val results = g.shortestPaths.landmarks(Seq("a", "d")).run()
+results.vertices.select("id", "distances").show()
 {% endhighlight %}
 </div>
 
@@ -498,7 +649,8 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+results = g.shortestPaths(landmarks=["a", "d"])
+results.vertices.select("id", "distances").show()
 {% endhighlight %}
 </div>
 
@@ -506,6 +658,8 @@ TODO
 
 ## Triangle count
 
+Computes the number of triangles passing through each vertex.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
@@ -513,7 +667,8 @@ TODO
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+val results = g.triangleCount.run()
+results.vertices.select("id", "count").show()
 {% endhighlight %}
 </div>
 
@@ -522,7 +677,8 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+results = g.triangleCount()
+results.vertices.select("id", "count").show()
 {% endhighlight %}
 </div>
 
