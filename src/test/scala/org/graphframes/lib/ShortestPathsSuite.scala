@@ -40,8 +40,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     LabelPropagationSuite.testSchemaInvariants(graph, g2)
     val newVs = g2.vertices.select("id", "distances").collect().toSeq
     val results = newVs.map {
-      case Row(v: Long, spMap: Seq[Row] @unchecked) =>
-        (v, spMap.map { case Row(a: Long, b: Int) => a -> b } .toMap)
+      case Row(id: Long, spMap: Map[String, Int] @unchecked) => (id, spMap)
     }
     assert(results.toSet === shortestPaths)
   }
@@ -58,4 +57,5 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }.toSet
     assert(results === expected)
   }
+
 }
