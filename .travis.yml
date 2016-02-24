@@ -1,0 +1,17 @@
+language: scala
+scala:
+  - 2.10.4
+jdk:
+  - openjdk7
+sudo: false
+cache:
+  directories:
+    - $HOME/.ivy2
+env:
+  matrix:
+    - SPARK_VERSION=1.4.1
+    - SPARK_VERSION=1.5.2
+    - SPARK_VERSION=1.6.0
+script:
+  - sbt -Dspark.version=$SPARK_VERSION test
+
