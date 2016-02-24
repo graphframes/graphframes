@@ -23,7 +23,7 @@ import org.apache.spark.Logging
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, col, count, explode, monotonicallyIncreasingId, struct}
+import org.apache.spark.sql.functions.{array, col, count, explode, struct}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 

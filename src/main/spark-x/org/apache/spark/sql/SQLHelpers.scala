@@ -24,4 +24,6 @@ object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
 
   def expr(e: String): Column = functions.expr(e)
+
+  def monotonicallyIncreasingId(): Column = functions.monotonicallyIncreasingId()
 }

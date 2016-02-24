@@ -17,11 +17,46 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.SqlParser
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.{DataType, LongType}
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
 
   def expr(e: String): Column = new Column(new SqlParser().parseExpression(e))
+
+  def monotonicallyIncreasingId(): Column = Column(PatchedMonotonicallyIncreasingID())
+
+  /**
+   * A patched version of [[org.apache.spark.sql.execution.expressions.MonotonicallyIncreasingID()]]
+   * that works for local relations in Spark 1.4.
+   */
+  private case class PatchedMonotonicallyIncreasingID() extends LeafExpression {
+
+    /**
+     * Record ID within each partition. By being transient, count's value is reset to 0 every time
+     * we serialize and deserialize it.
+     */
+    @transient private[this] var count: Long = 0L
+
+    override type EvaluatedType = Long
+
+    override def nullable: Boolean = false
+
+    override def dataType: DataType = LongType
+
+    override def eval(input: Row): Long = {
+      val currentCount = count
+      count += 1
+      val taskContext = TaskContext.get()
+      if (taskContext == null) {
+        // This is a local relation.
+        currentCount
+      } else {
+        (taskContext.partitionId().toLong << 33) + currentCount
+      }
+    }
+  }
 }
