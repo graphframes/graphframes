@@ -88,14 +88,14 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("unmatched queries should return nothing") {
-    val badStart = g.bfs(col("id") === "howdy", col("id") === "a").run()
+    val badStart = g.bfs.fromExpr(col("id") === "howdy").toExpr(col("id") === "a").run()
     assert(badStart.count() === 0)
-    val badEnd = g.bfs(col("id") === "a", col("id") === "howdy").run()
+    val badEnd = g.bfs.fromExpr(col("id") === "a").toExpr(col("id") === "howdy").run()
     assert(badEnd.count() === 0)
   }
 
   test("0 hops, aka from=to") {
-    val paths = g.bfs(col("id") === "a", col("id") === "a").run()
+    val paths = g.bfs.fromExpr(col("id") === "a").toExpr(col("id") === "a").run()
     assert(paths.count() === 1)
     assert(paths.columns === Seq("from", "to"))
     assert(paths.select("from.id").head().getString(0) === "a")
@@ -103,14 +103,14 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("1 hop, aka single edge paths") {
-    val paths = g.bfs(col("id") === "a", col("id") === "b").run()
+    val paths = g.bfs.fromExpr(col("id") === "a").toExpr(col("id") === "b").run()
     assert(paths.count() === 1)
     assert(paths.columns === Seq("from", "e0", "to"))
     assert(paths.select("from.id", "to.id").head() === Row("a", "b"))
   }
 
   test("ties") {
-    val paths = g.bfs(col("id") === "e", col("id") === "b").run()
+    val paths = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b").run()
     assert(paths.count() === 2)
     assert(paths.columns === Seq("from", "e0", "v1", "e1", "v2", "e2", "to"))
     paths.select("to.id").collect().foreach { case Row(id: String) =>
@@ -119,27 +119,30 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("maxPathLength: length 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "f").maxPathLength(1).run()
+    val paths = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "f").maxPathLength(1).run()
     assert(paths.count() === 1)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "f").maxPathLength(0).run()
+    val paths0 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "f").maxPathLength(0).run()
     assert(paths0.count() === 0)
   }
 
   test("maxPathLength: length > 1") {
-    val paths = g.bfs(col("id") === "e", col("id") === "b").maxPathLength(3).run()
+    val paths = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b").maxPathLength(3).run()
     assert(paths.count() === 2)
-    val paths0 = g.bfs(col("id") === "e", col("id") === "b").maxPathLength(2).run()
+    val paths0 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b").maxPathLength(2).run()
     assert(paths0.count() === 0)
   }
 
   test("edge filter") {
-    val paths1 = g.bfs(col("id") === "e", col("id") === "b").edgeFilter(col("src") !== "d").run()
+    val paths1 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b")
+      .edgeFilter(col("src") !== "d")
+      .run()
     assert(paths1.count() === 1)
     paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
       assert(id === "f")
     }
-    val paths2 = g.bfs(col("id") === "e", col("id") === "b")
-      .edgeFilter(col("relationship") === "friend").run()
+    val paths2 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b")
+      .edgeFilter(col("relationship") === "friend")
+      .run()
     assert(paths2.count() === 1)
     paths2.select("e0.dst").collect().foreach { case Row(id: String) =>
       assert(id === "d")
@@ -147,10 +150,24 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("string expressions") {
-    val paths1 = g.bfs("id = 'e'", "id = 'b'").edgeFilter("src != 'd'").run()
+    val paths1 = g.bfs.fromExpr("id = 'e'").toExpr("id = 'b'")
+      .edgeFilter("src != 'd'")
+      .run()
     assert(paths1.count() === 1)
     paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
       assert(id === "f")
+    }
+  }
+
+  test("fromExpr and toExpr are required") {
+    intercept[IllegalArgumentException] {
+      g.bfs.run()
+    }
+    intercept[IllegalArgumentException] {
+      g.bfs.fromExpr("id = 'e'").run()
+    }
+    intercept[IllegalArgumentException] {
+      g.bfs.toExpr("id = 'b'").run()
     }
   }
 }

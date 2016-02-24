@@ -155,7 +155,7 @@ class GraphFrame(object):
 
         :return: DataFrame with one Row for each shortest path between matching vertices.
         """
-        builder = self._jvm_graph.bfs(fromExpr, toExpr).maxPathLength(maxPathLength)
+        builder = self._jvm_graph.bfs.fromExpr(fromExpr).toExpr(toExpr).maxPathLength(maxPathLength)
         if edgeFilter is not None:
             builder.edgeFilter(edgeFilter)
         jdf = builder.run()

@@ -477,11 +477,11 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Search from "Esther" for users of age <= 32.
-val paths: DataFrame = g.bfs("name = 'Esther'", "age < 32").run()
+val paths: DataFrame = g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32").run()
 paths.show()
 
 // Specify edge filters or max path lengths.
-g.bfs("name = 'Esther'", "age < 32")
+g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32")
   .edgeFilter("relationship != 'friend'")
   .maxPathLength(3)
   .run()
