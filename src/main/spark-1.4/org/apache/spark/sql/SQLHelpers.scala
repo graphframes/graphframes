@@ -17,46 +17,27 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.SqlParser
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.{DataType, LongType}
+import org.apache.spark.sql.types.{LongType, StructField, StructType}
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
 
   def expr(e: String): Column = new Column(new SqlParser().parseExpression(e))
 
-  def monotonicallyIncreasingId(): Column = Column(PatchedMonotonicallyIncreasingID())
-
   /**
-   * A patched version of [[org.apache.spark.sql.execution.expressions.MonotonicallyIncreasingID()]]
-   * that works for local relations in Spark 1.4. (SPARK-9020)
+   * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
+   * This is a workaround for SPARK-9020.
    */
-  private case class PatchedMonotonicallyIncreasingID() extends LeafExpression {
-
-    /**
-     * Record ID within each partition. By being transient, count's value is reset to 0 every time
-     * we serialize and deserialize it.
-     */
-    @transient private[this] var count: Long = 0L
-
-    override type EvaluatedType = Long
-
-    override def nullable: Boolean = false
-
-    override def dataType: DataType = LongType
-
-    override def eval(input: Row): Long = {
-      val currentCount = count
-      count += 1
-      val taskContext = TaskContext.get()
-      if (taskContext == null) {
-        // This is a local relation.
-        currentCount
-      } else {
-        (taskContext.partitionId().toLong << 33) + currentCount
-      }
+  def zipWithUniqueId(df: DataFrame): DataFrame = {
+    val sqlContext = df.sqlContext
+    val schema = df.schema
+    val rdd = df.rdd.zipWithUniqueId().map { case (row, id) =>
+      Row(row, id)
     }
+    val outputSchema = StructType(Seq(
+      StructField("row", schema, false), StructField("uniq_id", LongType, false)))
+    sqlContext.createDataFrame(rdd, outputSchema)
   }
 }

@@ -416,8 +416,8 @@ class GraphFrame private(
       val indexedVertices = vertices.select(nestAsCol(vertices, ATTR))
       indexedVertices.select(col(ATTR + "." + ID).as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     } else {
-      val indexedVertices = vertices.select(monotonicallyIncreasingId().as(LONG_ID), nestAsCol(vertices, ATTR))
-      indexedVertices.select(col(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
+      val indexedVertices = zipWithUniqueId(vertices)
+      indexedVertices.select(col("uniq_id").as(LONG_ID), col("row." + ID).as(ID), col("row").as(ATTR))
     }
   }
 
