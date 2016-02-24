@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
+import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, examples}
 
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
@@ -53,4 +53,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(List(Row(0L, 0L, "a0", "b0"), Row(1L, 0L, "a1", "b1")) === vxs)
   }
 
+  test("fiends graph") {
+    val friends = examples.Graphs.friends
+    friends.connectedComponents.run()
+  }
 }

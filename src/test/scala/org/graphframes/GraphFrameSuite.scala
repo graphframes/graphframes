@@ -41,12 +41,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   override def beforeAll(): Unit = {
     super.beforeAll()
     tempDir = Files.createTempDir()
-    // Note: We use non-local DataFrames because of a bug in Spark 1.4 which prevents us from
-    //       using monotonicallyIncreasingID: SPARK-9020
-    //       This fix in 1.5 will not be backported to 1.4, but we could fix it by having two
-    //       implementations of indexing in GraphFrame.toGraphX.
-    vertices = sqlContext.createDataFrame(sc.parallelize(localVertices.toSeq)).toDF("id", "name")
-    edges = sqlContext.createDataFrame(sc.parallelize(localEdges.toSeq).map {
+    vertices = sqlContext.createDataFrame(localVertices.toSeq).toDF("id", "name")
+    edges = sqlContext.createDataFrame(localEdges.toSeq.map {
       case ((src, dst), action) =>
         (src, dst, action)
     }).toDF("src", "dst", "action")
@@ -150,7 +146,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
-  ignore("convert to GraphX: String IDs") {
+  test("convert to GraphX: String IDs") {
     try {
       val vv = vertices.select(col("id").cast(StringType).as("id"), col("name"))
       val ee = edges.select(col("src").cast(StringType).as("src"),

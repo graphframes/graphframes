@@ -24,4 +24,13 @@ object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
 
   def expr(e: String): Column = functions.expr(e)
+
+  /**
+   * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
+   */
+  def zipWithUniqueId(df: DataFrame): DataFrame = {
+    df.select(
+      functions.struct(df.columns.map(c => df(c)) :_*).as("row"),
+      functions.monotonicallyIncreasingId().as("uniq_id"))
+  }
 }
