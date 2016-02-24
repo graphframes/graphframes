@@ -17,6 +17,8 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.sql.functions.col
+
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
 
@@ -37,6 +39,10 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("friends graph") {
-    Graphs.friends.pageRank.resetProbability(0.15).numIter(10).sourceId("a").run()
+    val results = Graphs.friends.pageRank.resetProbability(0.15).numIter(10).sourceId("a").run()
+
+    val gRank = results.vertices.filter(col("id") === "g").select("pagerank").first().getDouble(0)
+    assert(gRank === 0.0,
+      s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got $gRank.")
   }
 }
