@@ -18,10 +18,26 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.catalyst.SqlParser
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.{LongType, StructField, StructType}
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
 
   def expr(e: String): Column = new Column(new SqlParser().parseExpression(e))
+
+  /**
+   * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
+   * This is a workaround for SPARK-9020.
+   */
+  def zipWithUniqueId(df: DataFrame): DataFrame = {
+    val sqlContext = df.sqlContext
+    val schema = df.schema
+    val rdd = df.rdd.zipWithUniqueId().map { case (row, id) =>
+      Row(row, id)
+    }
+    val outputSchema = StructType(Seq(
+      StructField("row", schema, false), StructField("uniq_id", LongType, false)))
+    sqlContext.createDataFrame(rdd, outputSchema)
+  }
 }
