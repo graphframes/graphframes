@@ -173,7 +173,7 @@ private[graphframes] object GraphXConversions {
     }
     // If the vertex is a non-integral type such as a String, we need to use the translation table.
     val longIdRow: Array[Row] = graph.indexedVertices
-      .filter(graph.vertices(GraphFrame.ID) === vertexId)
+      .filter(col(GraphFrame.ID) === vertexId)
       .select(GraphFrame.LONG_ID).take(1)
     if (longIdRow.isEmpty) {
       throw new NoSuchVertexException(s"GraphFrame algorithm given vertex ID which does not exist" +
