@@ -35,4 +35,8 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(pr.vertices.columns.contains("pagerank"))
     assert(pr.edges.columns.contains("weight"))
   }
+
+  test("friends graph") {
+    Graphs.friends.pageRank.resetProbability(0.15).numIter(10).sourceId("a").run()
+  }
 }
