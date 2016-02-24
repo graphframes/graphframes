@@ -192,7 +192,17 @@ private object BFS extends Logging with Serializable {
     }
     if (foundPath) {
       logInfo(s"GraphFrame.bfs found path of length $iter.")
-      paths
+      def rank(c: String): Double = {
+        // from < e0 < v1 < e1 < ... < to
+        c match {
+          case "from" => 0.0
+          case "to" => Double.PositiveInfinity
+          case _ if c.startsWith("e") => 0.6 + c.substring(1).toInt
+          case _ if c.startsWith("v") => 0.3 + c.substring(1).toInt
+        }
+      }
+      val ordered = paths.columns.sortBy(rank _)
+      paths.select(ordered.map(col): _*)
     } else {
       logInfo(s"GraphFrame.bfs failed to find a path of length <= $maxPathLength.")
       // Return empty DataFrame
