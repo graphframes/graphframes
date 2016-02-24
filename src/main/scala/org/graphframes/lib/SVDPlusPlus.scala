@@ -37,7 +37,7 @@ import org.graphframes.GraphFrame
  */
 class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var _rank: Int = 10
-  private var _maxIters: Int = 2
+  private var _maxIter: Int = 2
   private var _minVal: Double = 0.0
   private var _maxVal: Double = 5.0
   private var _gamma1: Double = 0.007
@@ -53,7 +53,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
   }
 
   def maxIter(value: Int): this.type = {
-    _maxIters = value
+    _maxIter = value
     this
   }
 
@@ -90,7 +90,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
   def run(): GraphFrame = {
     val conf = new graphxlib.SVDPlusPlus.Conf(
       rank = _rank,
-      maxIters = _maxIters,
+      maxIters = _maxIter,
       minVal = _minVal,
       maxVal = _maxVal,
       gamma1 = _gamma1,

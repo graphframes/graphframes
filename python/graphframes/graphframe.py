@@ -174,19 +174,19 @@ class GraphFrame(object):
         jgf = self._jvm_graph.connectedComponents().run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def labelPropagation(self, maxSteps):
+    def labelPropagation(self, maxIter):
         """
         Runs static label propagation for detecting communities in networks.
 
         See Scala documentation for more details.
 
-        :param maxSteps: the number of super steps to be performed
+        :param maxIter: the number of iterations to be performed
         :return: GraphFrame with new vertices column "label"
         """
-        jgf = self._jvm_graph.labelPropagation().maxSteps(maxSteps).run()
+        jgf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def pageRank(self, resetProbability = 0.15, sourceId = None, numIter = None,
+    def pageRank(self, resetProbability = 0.15, sourceId = None, maxIter = None,
                  tol = None):
         """
         Runs the PageRank algorithm on the graph.
@@ -196,7 +196,7 @@ class GraphFrame(object):
 
         :param resetProbability: Probability of resetting to a random vertex.
         :param sourceId: (optional) the source vertex for a personalized PageRank.
-        :param numIter: If set, the algorithm is run for a fixed number
+        :param maxIter: If set, the algorithm is run for a fixed number
                of iterations. This may not be set if the `tol` parameter is set.
         :param tol: If set, the algorithm is run until the given tolerance.
                This may not be set if the `numIter` parameter is set.
@@ -205,11 +205,11 @@ class GraphFrame(object):
         builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
         if sourceId is not None:
             builder = builder.sourceId(sourceId)
-        if numIter is not None:
-            builder = builder.numIter(numIter)
-            assert tol is None, "Exactly one of numIter or tol shoud be set."
+        if maxIter is not None:
+            builder = builder.maxIter(maxIter)
+            assert tol is None, "Exactly one of maxIter or tol should be set."
         else:
-            assert tol is not None, "Exactly one of numIter or tol shoud be set."
+            assert tol is not None, "Exactly one of maxIter or tol should be set."
             builder = builder.tol(tol)
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
@@ -226,16 +226,16 @@ class GraphFrame(object):
         jgf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def stronglyConnectedComponents(self, numIter):
+    def stronglyConnectedComponents(self, maxIter):
         """
         Runs the strongly connected components algorithm on this graph.
 
         See Scala documentation for more details.
 
-        :param numIter: the number of iterations to run
+        :param maxIter: the number of iterations to run
         :return: GraphFrame with new vertex column "component"
         """
-        jgf = self._jvm_graph.stronglyConnectedComponents().numIter(numIter).run()
+        jgf = self._jvm_graph.stronglyConnectedComponents().numIter(maxIter).run()
         return _from_java_gf(jgf, self._sqlContext)
 
     def svdPlusPlus(self, rank = 10, maxIter = 2, minValue = 0.0, maxValue = 5.0,

@@ -31,7 +31,7 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
       (5L, "e"))).toDF("id", "value")
     val edges = sqlContext.createDataFrame(Seq.empty[(Long, Long)]).toDF("src", "dst")
     val graph = GraphFrame(vertices, edges)
-    val c = graph.stronglyConnectedComponents.numIter(5).run()
+    val c = graph.stronglyConnectedComponents.maxIter(5).run()
     LabelPropagationSuite.testSchemaInvariants(graph, c)
     for (Row(id: Long, component: Long, _)
          <- c.vertices.select("id", "component", "value").collect()) {

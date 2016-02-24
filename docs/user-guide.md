@@ -562,7 +562,7 @@ For API details, refer to the [API docs](api/scala/index.html#org.graphframes.li
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-val result = g.stronglyConnectedComponents.numIter(10).run()
+val result = g.stronglyConnectedComponents.maxIter(10).run()
 result.vertices.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
@@ -575,7 +575,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-result = g.stronglyConnectedComponents(numIter=10)
+result = g.stronglyConnectedComponents(maxIter=10)
 result.vertices.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
@@ -606,7 +606,7 @@ For API details, refer to the [API docs](api/scala/index.html#org.graphframes.li
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-val result = g.labelPropagation.maxSteps(5).run()
+val result = g.labelPropagation.maxIter(5).run()
 result.vertices.select("id", "label").show()
 {% endhighlight %}
 </div>
@@ -619,7 +619,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-result = g.labelPropagation(maxSteps=5)
+result = g.labelPropagation(maxIter=5)
 result.vertices.select("id", "label").show()
 {% endhighlight %}
 </div>
@@ -631,7 +631,7 @@ result.vertices.select("id", "label").show()
 There are two implementations of PageRank.
 
 * The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
- for a fixed number of iterations.  This can be run by setting `numIter`.
+ for a fixed number of iterations.  This can be run by setting `maxIter`.
 * The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank
   until convergence.  This can be run by setting `tol`.
 
@@ -659,10 +659,10 @@ results.vertices.select("id", "pagerank").show()
 results.edges.select("src", "dst", "weight").show()
 
 // Run PageRank for a fixed number of iterations.
-val results2 = g.pageRank.resetProbability(0.15).numIter(10).run()
+val results2 = g.pageRank.resetProbability(0.15).maxIter(10).run()
 
 // Run PageRank personalized for vertex "a"
-val results3 = g.pageRank.resetProbability(0.15).numIter(10).sourceId("a").run()
+val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
 {% endhighlight %}
 </div>
 
@@ -683,10 +683,10 @@ results.vertices.select("id", "pagerank").show()
 results.edges.select("src", "dst", "weight").show()
 
 # Run PageRank for a fixed number of iterations.
-results2 = g.pageRank(resetProbability=0.15, numIter=10)
+results2 = g.pageRank(resetProbability=0.15, maxIter=10)
 
 # Run PageRank personalized for vertex "a"
-results3 = g.pageRank(resetProbability=0.15, numIter=10, sourceId="a")
+results3 = g.pageRank(resetProbability=0.15, maxIter=10, sourceId="a")
 {% endhighlight %}
 </div>
 

@@ -24,7 +24,7 @@ import org.graphframes.GraphFrame
 /**
  * Run static Label Propagation for detecting communities in networks.
  *
- * Each node in the network is initially assigned to its own community. At every superstep, nodes
+ * Each node in the network is initially assigned to its own community. At every iteration, nodes
  * send their community affiliation to all neighbors and update their state to the mode community
  * affiliation of incoming messages.
  *
@@ -39,28 +39,28 @@ import org.graphframes.GraphFrame
  */
 class LabelPropagation private[graphframes] (private val graph: GraphFrame) extends Arguments {
 
-  private var maxSteps: Option[Int] = None
+  private var maxIter: Option[Int] = None
 
   /**
-   * The number of supersteps of LPA to be performed. Because this is a static
-   * implementation, the algorithm will run for exactly this many supersteps.
+   * The max number of iterations of LPA to be performed. Because this is a static
+   * implementation, the algorithm will run for exactly this many iterations.
    */
-  def maxSteps(value: Int): this.type = {
-    maxSteps = Some(value)
+  def maxIter(value: Int): this.type = {
+    maxIter = Some(value)
     this
   }
 
   def run(): GraphFrame = {
     LabelPropagation.run(
       graph,
-      check(maxSteps, "maxSteps"))
+      check(maxIter, "maxIter"))
   }
 }
 
 
 private object LabelPropagation {
-  private def run(graph: GraphFrame, maxSteps: Int): GraphFrame = {
-    val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxSteps)
+  private def run(graph: GraphFrame, maxIter: Int): GraphFrame = {
+    val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxIter)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID))
   }
 
