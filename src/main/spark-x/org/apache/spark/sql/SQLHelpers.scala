@@ -18,7 +18,7 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.functions
+
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
@@ -30,7 +30,7 @@ object SQLHelpers {
    */
   def zipWithUniqueId(df: DataFrame): DataFrame = {
     df.select(
-      struct(df.columns.map(c => df(c)) :_*).as("row"),
+      functions.struct(df.columns.map(c => df(c)) :_*).as("row"),
       functions.monotonicallyIncreasingId().as("uniq_id"))
   }
 }
