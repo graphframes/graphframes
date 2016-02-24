@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
+import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, examples}
 
 class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -44,5 +44,18 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         (v, spMap.map { case Row(a: Long, b: Int) => a -> b } .toMap)
     }
     assert(results.toSet === shortestPaths)
+  }
+
+  test("friends graph") {
+    val friends = examples.Graphs.friends
+    val g = friends.shortestPaths.landmarks(Seq("a")).run()
+    val expected = Set[(String, Map[String, Int])](("a", Map("a" -> 0)), ("b", Map.empty),
+      ("c", Map.empty), ("d", Map("a" -> 1)), ("e", Map("a" -> 2)), ("f", Map.empty),
+      ("g", Map.empty))
+    val results = g.vertices.select("id", "distances").collect().map {
+      case Row(id: String, spMap: Map[String, Int] @unchecked) =>
+        (id, spMap)
+    }.toSet
+    assert(results === expected)
   }
 }

@@ -22,8 +22,12 @@ import java.util
 import scala.collection.JavaConverters._
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.functions.{callUDF, col}
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.{IntegerType, MapType}
 
 import org.graphframes.GraphFrame
+
 
 /**
  * Computes shortest paths to the given set of landmark vertices.
@@ -61,11 +65,23 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
 private object ShortestPaths {
 
   private def run(graph: GraphFrame, landmarks: Seq[Any]): GraphFrame = {
-    val longLandmarks = landmarks.map(GraphXConversions.integralId(graph, _))
+    val idType = graph.vertices.schema(GraphFrame.ID).dataType
+    val longIdToLandmark = landmarks.map(l => GraphXConversions.integralId(graph, l) -> l).toMap
     val gx = graphxlib.ShortestPaths.run(
       graph.cachedTopologyGraphX,
-      longLandmarks).mapVertices { case (_, m) => m.toSeq }
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
+      longIdToLandmark.keys.toSeq).mapVertices { case (_, m) => m.toSeq }
+    val g = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
+    if (graph.hasIntegralIdType) {
+      g
+    } else {
+      def mapToLandmark(distances: Seq[Row]): Map[Any, Int] = {
+        distances.map { case Row(k: Long, v: Int) =>
+          longIdToLandmark(k) -> v
+        }.toMap
+      }
+      val distancesCol = callUDF(mapToLandmark _, MapType(idType, IntegerType, false), col(DISTANCE_ID))
+      GraphFrame(g.vertices.select(distancesCol.as(DISTANCE_ID) +: graph.vertices.columns.map(col) : _*), g.edges)
+    }
   }
 
   private val DISTANCE_ID = "distances"
