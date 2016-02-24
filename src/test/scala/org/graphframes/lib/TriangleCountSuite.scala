@@ -73,4 +73,13 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       assert(count === 1)
     }
   }
+
+  test("no triangles") {
+    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L)).toDF("src", "dst")
+    val g = GraphFrame.fromEdges(edges)
+    val g2 = g.triangleCount.run()
+    g2.vertices.select("count").collect().foreach { case Row(count: Long) =>
+      assert(count === 0)
+    }
+  }
 }
