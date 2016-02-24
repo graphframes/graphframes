@@ -23,7 +23,6 @@ def _from_java_gf(jgf, sqlContext):
     (internal) creates a python GraphFrame wrapper from a java GraphFrame.
 
     :param jgf:
-    :return:
     """
     pv = DataFrame(jgf.vertices(), sqlContext)
     pe = DataFrame(jgf.edges(), sqlContext)
@@ -39,12 +38,12 @@ class GraphFrame(object):
     """
     Represents a graph with vertices and edges stored as DataFrames.
 
-    :param vertices:  :class:`DataFrame` holding vertex information.
-                      Must contain a column named "id" that stores unique
-                      vertex IDs.
-    :param edges:  :class:`DataFrame` holding edge information.
-                   Must contain two columns "src" and "dst" storing source
-                   vertex IDs and destination vertex IDs of edges, respectively.
+    :param v:  :class:`DataFrame` holding vertex information.
+               Must contain a column named "id" that stores unique
+               vertex IDs.
+    :param e:  :class:`DataFrame` holding edge information.
+               Must contain two columns "src" and "dst" storing source
+               vertex IDs and destination vertex IDs of edges, respectively.
 
     >>> localVertices = [(1,"A"), (2,"B"), (3, "C")]
     >>> localEdges = [(1,2,"love"), (2,1,"hate"), (2,3,"follow")]
@@ -100,10 +99,12 @@ class GraphFrame(object):
     def outDegrees(self):
         """
         The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
-         - [[GraphFrame.ID]] the ID of the vertex
+         - "id": the ID of the vertex
          - "outDegree" (integer) storing the out-degree of the vertex
 
         Note that vertices with 0 out-edges are not returned in the result.
+
+        :return:  DataFrame with new vertices column "outDegree"
         """
         jdf = self._jvm_graph.outDegrees()
         return DataFrame(jdf, self._sqlContext)
@@ -111,10 +112,12 @@ class GraphFrame(object):
     def inDegrees(self):
         """
         The in-degree of each vertex in the graph, returned as a DataFame with two columns:
-         - [[GraphFrame.ID]] the ID of the vertex
+         - "id": the ID of the vertex
          - "inDegree" (int) storing the in-degree of the vertex
 
         Note that vertices with 0 in-edges are not returned in the result.
+
+        :return:  DataFrame with new vertices column "inDegree"
         """
         jdf = self._jvm_graph.inDegrees()
         return DataFrame(jdf, self._sqlContext)
@@ -122,10 +125,12 @@ class GraphFrame(object):
     def degrees(self):
         """
         The degree of each vertex in the graph, returned as a DataFrame with two columns:
-         - [[GraphFrame.ID]] the ID of the vertex
+         - "id": the ID of the vertex
          - 'degree' (integer) the degree of the vertex
 
         Note that vertices with 0 edges are not returned in the result.
+
+        :return:  DataFrame with new vertices column "degree"
         """
         jdf = self._jvm_graph.degrees()
         return DataFrame(jdf, self._sqlContext)
@@ -133,14 +138,22 @@ class GraphFrame(object):
     def find(self, pattern):
         """
         Motif finding.
-        TODO: Copy doc from Scala
+
+        See Scala documentation for more details.
+
+        :param pattern:  String describing the motif to search for.
+        :return:  DataFrame with one Row for each instance of the motif found
         """
         jdf = self._jvm_graph.find(pattern)
         return DataFrame(jdf, self._sqlContext)
 
     def bfs(self, fromExpr, toExpr, edgeFilter=None, maxPathLength=10):
         """
-        Breadth-first search (BFS)
+        Breadth-first search (BFS).
+
+        See Scala documentation for more details.
+
+        :return: DataFrame with one Row for each shortest path between matching vertices.
         """
         builder = self._jvm_graph.bfs(fromExpr, toExpr).maxPathLength(maxPathLength)
         if edgeFilter is not None:
@@ -154,7 +167,9 @@ class GraphFrame(object):
         """
         Computes the connected components of the graph.
 
-        :return:
+        See Scala documentation for more details.
+
+        :return: GraphFrame with new vertices column "component"
         """
         jgf = self._jvm_graph.connectedComponents().run()
         return _from_java_gf(jgf, self._sqlContext)
@@ -163,8 +178,10 @@ class GraphFrame(object):
         """
         Runs static label propagation for detecting communities in networks.
 
-        :param maxSteps: the number of super steps to be performed.
-        :return:
+        See Scala documentation for more details.
+
+        :param maxSteps: the number of super steps to be performed
+        :return: GraphFrame with new vertices column "label"
         """
         jgf = self._jvm_graph.labelPropagation().maxSteps(maxSteps).run()
         return _from_java_gf(jgf, self._sqlContext)
@@ -175,13 +192,15 @@ class GraphFrame(object):
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
 
-        :param resetProbability:
+        See Scala documentation for more details.
+
+        :param resetProbability: Probability of resetting to a random vertex.
         :param sourceId: (optional) the source vertex for a personalized PageRank.
         :param numIter: If set, the algorithm is run for a fixed number
                of iterations. This may not be set if the `tol` parameter is set.
         :param tol: If set, the algorithm is run until the given tolerance.
                This may not be set if the `numIter` parameter is set.
-        :return:
+        :return:  GraphFrame with new vertices column "pagerank" and new edges column "weight"
         """
         builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
         if sourceId is not None:
@@ -199,8 +218,10 @@ class GraphFrame(object):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
 
-        :param landmarks: a set of landmarks
-        :return:
+        See Scala documentation for more details.
+
+        :param landmarks: a set of one or more landmarks
+        :return: GraphFrame with new vertices column "distances"
         """
         jgf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
         return _from_java_gf(jgf, self._sqlContext)
@@ -209,8 +230,10 @@ class GraphFrame(object):
         """
         Runs the strongly connected components algorithm on this graph.
 
-        :param numIter: the number of iterations to run.
-        :return:
+        See Scala documentation for more details.
+
+        :param numIter: the number of iterations to run
+        :return: GraphFrame with new vertex column "component"
         """
         jgf = self._jvm_graph.stronglyConnectedComponents().numIter(numIter).run()
         return _from_java_gf(jgf, self._sqlContext)
@@ -220,7 +243,9 @@ class GraphFrame(object):
         """
         Runs the SVD++ algorithm.
 
-        :return:
+        See Scala documentation for more details.
+
+        :return: GraphFrame with new vertex columns storing learned model.
         """
         # This call is actually useless, because one needs to build the configuration first...
         builder = self._jvm_graph.svdPlusPlus()
@@ -235,7 +260,9 @@ class GraphFrame(object):
         """
         Counts the number of triangles passing through each vertex in this graph.
 
-        :return:
+        See Scala documentation for more details.
+
+        :return:  GraphFrame with new vertex column "count"
         """
         jgf = self._jvm_graph.triangleCount().run()
         return _from_java_gf(jgf, self._sqlContext)

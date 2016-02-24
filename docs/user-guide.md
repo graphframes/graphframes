@@ -185,7 +185,7 @@ g.edges.show()
 # +---+---+------------+
 
 # Get a DataFrame with columns "id" and "inDeg" (in-degree)
-# TODO: vertexInDegrees = g.inDegrees
+vertexInDegrees = g.inDegrees()
 
 # Find the youngest user's age in the graph.
 # This queries the vertex DataFrame.
@@ -241,6 +241,9 @@ can be expressed by applying filters to the result `DataFrame`.
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.GraphFrame).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -255,6 +258,9 @@ motifs.filter("e.relationship = 'follow' AND e2.relationship = 'follow'").show()
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.find).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -434,7 +440,8 @@ g2 = GraphFrame(g.vertices, e2)
 # Graph algorithms
 
 GraphFrames provides the same suite of standard graph algorithms as GraphX, plus some new ones.
-We provide brief descriptions and code snippets below.  See the API docs for more details.
+We provide brief descriptions and code snippets below.
+See the [API docs](api/scala/index.html#org.graphframes.lib) for more details.
 
 ## Breadth-first search (BFS)
 
@@ -442,11 +449,16 @@ Breadth-first search (BFS) finds the shortest path(s) from one vertex (or a set 
 to another vertex (or a set of vertices).  The beginning and end vertices are specified as
 Spark DataFrame expressions.
 
+See [Wikipedia on BFS](https://en.wikipedia.org/wiki/Breadth-first_search) for more background.
+
 <div class="codetabs">
 
 The following code snippets search for people connected to the user "Bob."
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.BFS).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -464,6 +476,9 @@ g.bfs("name = 'Bob'", "age <= 30")
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.bfs).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -485,9 +500,14 @@ g.bfs("name = 'Bob'", "age <= 30",\
 Computes the connected component membership of each vertex and returns a graph with each vertex
 assigned a component ID.
 
+See [Wikipedia](https://en.wikipedia.org/wiki/Connected_component_(graph_theory)) for background.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.ConnectedComponents).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -498,6 +518,9 @@ result.vertices.select("id", "component").show()
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.connectedComponents).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -514,9 +537,14 @@ result.vertices.select("id", "component").show()
 Compute the strongly connected component (SCC) of each vertex and return a graph with each vertex
 assigned to the SCC containing that vertex.
 
+See [Wikipedia](https://en.wikipedia.org/wiki/Strongly_connected_component) for background.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.StronglyConnectedComponents).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -527,6 +555,9 @@ result.vertices.select("id", "component").show()
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.stronglyConnectedComponents).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -538,9 +569,9 @@ result.vertices.select("id", "component").show()
 
 </div>
 
-## Label propagation
+## Label Propagation Algorithm (LPA)
 
-Run static Label Propagation for detecting communities in networks.
+Run static Label Propagation Algorithm for detecting communities in networks.
 
 Each node in the network is initially assigned to its own community. At every superstep, nodes
 send their community affiliation to all neighbors and update their state to the mode community
@@ -550,9 +581,14 @@ LPA is a standard community detection algorithm for graphs. It is very inexpensi
 computationally, although (1) convergence is not guaranteed and (2) one can end up with
 trivial solutions (all nodes are identified into a single community).
 
+See [Wikipedia](https://en.wikipedia.org/wiki/Label_Propagation_Algorithm) for background.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.LabelPropagation).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -563,6 +599,9 @@ result.vertices.select("id", "label").show()
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.labelPropagation).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -586,9 +625,14 @@ There are two implementations of PageRank.
 Both implementations support non-personalized and personalized PageRank, where setting a `sourceId`
 personalizes the results for that vertex.
 
+See [Wikipedia](https://en.wikipedia.org/wiki/PageRank) for background.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.PageRank).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -608,6 +652,9 @@ val results3 = g.pageRank.resetProbability(0.15).numIter(10).sourceId("a").run()
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.pageRank).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -630,11 +677,17 @@ results3 = g.pageRank(resetProbability=0.15, numIter=10, sourceId="a")
 
 ## Shortest paths
 
-Computes shortest paths to the given set of landmark vertices.
+Computes shortest paths to the given set of landmark vertices, where landmarks are specified
+by vertex ID.
+
+See [Wikipedia](https://en.wikipedia.org/wiki/Shortest_path_problem) for background.
 
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.ShortestPaths).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -645,6 +698,9 @@ results.vertices.select("id", "distances").show()
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.shortestPaths).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -663,6 +719,9 @@ Computes the number of triangles passing through each vertex.
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.TriangleCount).
+
 {% highlight scala %}
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
@@ -673,6 +732,9 @@ results.vertices.select("id", "count").show()
 </div>
 
 <div data-lang="python"  markdown="1">
+
+For API details, refer to the [API docs](api/python/graphframes.html#graphframes.GraphFrame.triangleCount).
+
 {% highlight python %}
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -686,31 +748,12 @@ results.vertices.select("id", "count").show()
 
 # Saving and loading GraphFrames
 
-<div class="codetabs">
+Since GraphFrames are built around DataFrames, they automatically support saving and loading
+to and from the same set of datasources.
+Refer to the [Spark SQL User Guide on datasources](http://spark.apache.org/docs/latest/sql-programming-guide.html#data-sources)
+for more details.
 
-<div data-lang="scala"  markdown="1">
-{% highlight scala %}
-import org.graphframes.examples
-val g: GraphFrame = examples.Graphs.friends  // get example graph
-
-TODO
-{% endhighlight %}
-</div>
-
-<div data-lang="python"  markdown="1">
-{% highlight python %}
-from graphframes.examples import Graphs
-g = Graphs(sqlContext).friends()  # Get example graph
-
-TODO
-{% endhighlight %}
-</div>
-
-</div>
-
-# GraphX compatibility
-
-## GraphX-GraphFrame conversions
+The below example shows how to save and then load a graph.
 
 <div class="codetabs">
 
@@ -719,7 +762,16 @@ TODO
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+// Save vertices and edges as Parquet to some location.
+g.vertices.write.parquet("hdfs://myLocation/vertices")
+g.edges.write.parquet("hdfs://myLocation/edges")
+
+// Load the vertices and edges back.
+val sameV = sqlContext.read.parquet("hdfs://myLocation/vertices")
+val sameE = sqlContext.read.parquet("hdfs://myLocation/edges")
+
+// Create an identical GraphFrame.
+val sameG = GraphFrame(sameV, sameE)
 {% endhighlight %}
 </div>
 
@@ -728,36 +780,138 @@ TODO
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-TODO
+# Save vertices and edges as Parquet to some location.
+g.vertices.write.parquet("hdfs://myLocation/vertices")
+g.edges.write.parquet("hdfs://myLocation/edges")
+
+# Load the vertices and edges back.
+sameV = sqlContext.read.parquet("hdfs://myLocation/vertices")
+sameE = sqlContext.read.parquet("hdfs://myLocation/edges")
+
+# Create an identical GraphFrame.
+sameG = GraphFrame(sameV, sameE)
 {% endhighlight %}
 </div>
 
 </div>
 
-## GraphX APIs
+# Message passing via AggregateMessages
 
-algorithms
+Like GraphX, GraphFrames provides primitives for developing graph algorithms.
+The two key components are:
 
-aggregateMessages
+* `aggregateMessages`: Send messages between vertices, and aggregate messages for each vertex.
+  GraphFrames provides a native `aggregateMessages` method implemented using DataFrame operations.
+  This may be used analogously to the GraphX API.
+* joins: Join message aggregates with the original graph.
+  GraphFrames rely on `DataFrame` joins, which provide the full functionality of GraphX joins.
+
+The below code snippets show how to use `aggregateMessages` to compute the sum of the ages
+of adjacent users.
 
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
+
+For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.AggregateMessages).
+
 {% highlight scala %}
+import org.graphframes.examples
+import org.graphframes.lib.AggregateMessages
+val g: GraphFrame = examples.Graphs.friends  // get example graph
+
+// We will use AggregateMessages utilities later, so name it "AM" for short.
+val AM = AggregateMessages
+
+// For each user, sum the ages of the adjacent users.
+val msgToSrc = AM.dst("age")
+val msgToDst = AM.src("age")
+val agg = g.aggregateMessages
+  .sendToSrc(msgToSrc)  // send destination user's age to source
+  .sendToDst(msgToDst)  // send source user's age to destination
+  .agg(sum(AM.msg).as("summedAges"))  // sum up ages, stored in AM.msg column
+agg.show()
+{% endhighlight %}
+</div>
+
+</div>
+
+`AggregateMessages` does not yet have a Python API, but we expect to add one in the future.
+
+For a more complex example, look at the code used to implement the
+[Belief Propagation example](api/scala/index.html#org.graphframes.examples.BeliefPropagation$).
+
+# GraphX-GraphFrame conversions
+
+We provide utilities for converting between GraphFrame and GraphX graphs.
+See the [GraphX User Guide](http://spark.apache.org/docs/latest/graphx-programming-guide.html)
+for details on GraphX.
+
+## GraphFrame to GraphX
+
+Conversion to GraphX creates a GraphX `Graph` which has `Long` vertex IDs and attributes
+of type `Row`.
+
+Vertex and edge attributes are the original rows in `vertices` and `edges`, respectively.
+
+Note that vertex (and edge) attributes include vertex IDs (and source, destination IDs)
+in order to support non-Long vertex IDs.  If the vertex IDs are not convertible to Long values,
+then the values are indexed in order to generate corresponding Long vertex IDs (which is an
+expensive operation).
+
+The column ordering of the returned `Graph` vertex and edge attributes are specified by
+`GraphFrame.vertexColumns` and `GraphFrame.edgeColumns`, respectively.
+
+## GraphX to GraphFrame
+
+GraphFrame provides two conversions methods.  The first takes any GraphX graph and converts
+the vertex and edge `RDD`s into `DataFrame`s using schema inference.  Those DataFrames
+are then used to create a GraphFrame.
+
+The second conversion method is more complex and is useful for users with existing GraphX code.
+Its main purpose is to support workflows of the following form: (1) convert a GraphFrame to GraphX,
+(2) run GraphX code to augment the GraphX graph with new vertex or edge attributes, and
+(3) merge the new attributes back into the original GraphFrame.
+
+For example, given:
+
+* GraphFrame `originalGraph`
+* GraphX `Graph[String, Int]` `graph` with a String vertex attribute we want to call "category"
+  and an Int edge attribute we want to call "count"
+
+We can call `fromGraphX(originalGraph, graph, Seq("category"), Seq("count"))` to produce
+a new GraphFrame. The new GraphFrame will be an augmented version of `originalGraph`,
+with new `GraphFrame.vertices` column "category" and new `GraphFrame.edges` column "count" added.
+
+For example usage, look at the code used to implement the
+[Belief Propagation example](api/scala/index.html#org.graphframes.examples.BeliefPropagation$).
+
+## Example conversions
+
+The below example demonstrates simple GraphFrame-GraphX conversions.
+
+<div class="codetabs">
+<div data-lang="scala"  markdown="1">
+
+For API details, refer to the API docs for:
+
+* [toGraphX](api/scala/index.html#org.graphframes.GraphFrame)
+* [fromGraphX](api/scala/index.html#org.graphframes.GraphFrame$)
+
+{% highlight scala %}
+import org.apache.spark.graphx.Graph
+import org.apache.spark.Row
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-TODO
+// Convert to GraphX
+val gx: Graph[Row, Row] = g.toGraphX
+
+// Convert back to GraphFrame.
+// Note that the schema is changed because of constraints in the GraphX API.
+val g2: GraphFrame = GraphFrame.fromGraphX(gx)
 {% endhighlight %}
 </div>
-
-<div data-lang="python"  markdown="1">
-{% highlight python %}
-from graphframes.examples import Graphs
-g = Graphs(sqlContext).friends()  # Get example graph
-
-TODO
-{% endhighlight %}
 </div>
 
-</div>
+These conversions are only supported in Scala since GraphX does not have a Python API.

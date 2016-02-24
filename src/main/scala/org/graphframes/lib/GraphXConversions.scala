@@ -115,7 +115,6 @@ private[graphframes] object GraphXConversions {
   private def unpackStructFields(df: DataFrame): DataFrame = {
     val cols = df.schema.flatMap {
       case StructField(fname, dt: StructType, nullable, meta) =>
-        // TODO: Do we need stripPrefix here?
         dt.iterator.map(sub => col(s"$fname.${sub.name}").as(sub.name))
       case f => Seq(col(f.name))
     }
