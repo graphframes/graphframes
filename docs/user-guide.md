@@ -42,7 +42,8 @@ val v = sqlContext.createDataFrame(List(
   ("c", "Charlie", 30),
   ("d", "David", 29),
   ("e", "Esther", 32),
-  ("f", "Fanny", 36)
+  ("f", "Fanny", 36),
+  ("g", "Gabby", 60)
 )).toDF("id", "name", "age")
 // Edge DataFrame
 val e = sqlContext.createDataFrame(List(
@@ -75,7 +76,8 @@ v = sqlContext.createDataFrame([
   ("c", "Charlie", 30),
   ("d", "David", 29),
   ("e", "Esther", 32),
-  ("f", "Fanny", 36)
+  ("f", "Fanny", 36),
+  ("g", "Gabby", 60)
 ], ["id", "name", "age"])
 # Edge DataFrame
 e = sqlContext.createDataFrame([
@@ -85,7 +87,8 @@ e = sqlContext.createDataFrame([
   ("f", "c", "follow"),
   ("e", "f", "follow"),
   ("e", "d", "friend"),
-  ("d", "a", "friend")
+  ("d", "a", "friend"),
+  ("a", "e", "friend")
 ], ["src", "dst", "relationship"])
 # Create a GraphFrame
 g = GraphFrame(v, e)
@@ -126,6 +129,7 @@ g.vertices.show()
 // | d|  David| 29|
 // | e| Esther| 32|
 // | f|  Fanny| 36|
+// | g|  Gabby| 60|
 // +--+-------+---+
 
 g.edges.show()
@@ -139,6 +143,7 @@ g.edges.show()
 // |  e|  f|      follow|
 // |  e|  d|      friend|
 // |  d|  a|      friend|
+// |  a|  e|      friend|
 // +---+---+------------+
 
 // Get a DataFrame with columns "id" and "inDeg" (in-degree)
