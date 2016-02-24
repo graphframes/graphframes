@@ -226,16 +226,16 @@ class GraphFrame(object):
         jgf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def stronglyConnectedComponents(self, numIter):
+    def stronglyConnectedComponents(self, maxIter):
         """
         Runs the strongly connected components algorithm on this graph.
 
         See Scala documentation for more details.
 
-        :param numIter: the number of iterations to run
+        :param maxIter: the number of iterations to run
         :return: GraphFrame with new vertex column "component"
         """
-        jgf = self._jvm_graph.stronglyConnectedComponents().numIter(numIter).run()
+        jgf = self._jvm_graph.stronglyConnectedComponents().numIter(maxIter).run()
         return _from_java_gf(jgf, self._sqlContext)
 
     def svdPlusPlus(self, rank = 10, maxIter = 2, minValue = 0.0, maxValue = 5.0,

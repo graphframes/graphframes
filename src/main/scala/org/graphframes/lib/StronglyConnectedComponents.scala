@@ -34,23 +34,23 @@ import org.graphframes.GraphFrame
 class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame)
   extends Arguments {
 
-  private var numIters: Option[Int] = None
+  private var maxIter: Option[Int] = None
 
-  def numIter(value: Int): this.type = {
-    numIters = Some(value)
+  def maxIter(value: Int): this.type = {
+    maxIter = Some(value)
     this
   }
 
   def run(): GraphFrame = {
-    StronglyConnectedComponents.run(graph, check(numIters, "numIterations"))
+    StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
   }
 }
 
 
 /** Strongly connected components algorithm implementation. */
 private object StronglyConnectedComponents {
-  private def run(graph: GraphFrame, numIters: Int): GraphFrame = {
-    val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIters)
+  private def run(graph: GraphFrame, numIter: Int): GraphFrame = {
+    val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIter)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
   }
 
