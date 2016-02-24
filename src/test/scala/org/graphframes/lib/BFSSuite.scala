@@ -97,7 +97,7 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("0 hops, aka from=to") {
     val paths = g.bfs(col("id") === "a", col("id") === "a").run()
     assert(paths.count() === 1)
-    assert(paths.columns.toSet === Set("from", "to"))
+    assert(paths.columns === Seq("from", "to"))
     assert(paths.select("from.id").head().getString(0) === "a")
     assert(paths.select("to.id").head().getString(0) === "a")
   }
@@ -105,14 +105,14 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("1 hop, aka single edge paths") {
     val paths = g.bfs(col("id") === "a", col("id") === "b").run()
     assert(paths.count() === 1)
-    assert(paths.columns.toSet === Set("from", "e0", "to"))
+    assert(paths.columns === Seq("from", "e0", "to"))
     assert(paths.select("from.id", "to.id").head() === Row("a", "b"))
   }
 
   test("ties") {
     val paths = g.bfs(col("id") === "e", col("id") === "b").run()
     assert(paths.count() === 2)
-    assert(paths.columns.toSet === Set("from", "e0", "v1", "e1", "v2", "e2", "to"))
+    assert(paths.columns === Seq("from", "e0", "v1", "e1", "v2", "e2", "to"))
     paths.select("to.id").collect().foreach { case Row(id: String) =>
       assert(id === "b")
     }
