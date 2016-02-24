@@ -28,7 +28,7 @@ object SQLHelpers {
 
   /**
    * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
-   * This is a workaround for SPARK-9020.
+   * This is a workaround for SPARK-9020 and SPARK-13473.
    */
   def zipWithUniqueId(df: DataFrame): DataFrame = {
     val sqlContext = df.sqlContext
