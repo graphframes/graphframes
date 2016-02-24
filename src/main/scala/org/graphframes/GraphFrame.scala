@@ -528,11 +528,11 @@ object GraphFrame extends Serializable {
    *
    * This converts each `org.apache.spark.rdd.RDD` in the `Graph` to a `DataFrame` using
    * schema inference.
-   * TODO: Add version which takes explicit schemas.
    *
    * Vertex ID column names will be converted to "id" for the vertex DataFrame,
    * and to "src" and "dst" for the edge DataFrame.
    */
+  // TODO: Add version which takes explicit schemas.
   def fromGraphX[VD : TypeTag, ED : TypeTag](graph: Graph[VD, ED]): GraphFrame = {
     val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
     val vv = sqlContext.createDataFrame(graph.vertices).toDF(ID, ATTR)

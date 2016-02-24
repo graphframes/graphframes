@@ -35,7 +35,6 @@ classpath:
 $ ./bin/spark-shell --master local[4] --jars graphframes.jar
 {% endhighlight %}
 
-{:/TODO: maven coordinates when published}
 </div>
 
 <div data-lang="python"  markdown="1">
@@ -47,7 +46,6 @@ by passing the JAR to the pyspark shell script as follows:
 $ ./bin/pyspark --master local[4] --py-files graphframes.jar --jars graphframes.jar
 {% endhighlight %}
 
-{:/TODO: maven coordinates when published}
 </div>
 
 </div>

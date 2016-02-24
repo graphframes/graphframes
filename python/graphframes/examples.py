@@ -20,6 +20,9 @@ from .graphframe import GraphFrame
 __all__ = ['Graphs']
 
 class Graphs(object):
+    """
+    Example GraphFrames
+    """
 
     def __init__(self, sqlContext):
         """
@@ -29,6 +32,9 @@ class Graphs(object):
         self._sc = sqlContext._sc
 
     def friends(self):
+        """
+        A GraphFrame of friends in a (fake) social network.
+        """
         sqlContext = self._sql
         # Vertex DataFrame
         v = sqlContext.createDataFrame([
