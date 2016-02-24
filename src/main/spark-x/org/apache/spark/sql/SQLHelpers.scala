@@ -18,18 +18,18 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.functions._
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
 
-  def expr(e: String): Column = expr(e)
+  def expr(e: String): Column = functions.expr(e)
 
   /**
    * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
    */
   def zipWithUniqueId(df: DataFrame): DataFrame = {
     df.select(
-      struct(df.columns.map(c => df(c)) :_*).as("row"), monotonicallyIncreasingId().as("uniq_id"))
+      functions.struct(df.columns.map(c => df(c)) :_*).as("row"),
+      functions.monotonicallyIncreasingId().as("uniq_id"))
   }
 }
