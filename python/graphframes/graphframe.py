@@ -174,16 +174,16 @@ class GraphFrame(object):
         jgf = self._jvm_graph.connectedComponents().run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def labelPropagation(self, maxSteps):
+    def labelPropagation(self, maxIter):
         """
         Runs static label propagation for detecting communities in networks.
 
         See Scala documentation for more details.
 
-        :param maxSteps: the number of super steps to be performed
+        :param maxIter: the number of iterations to be performed
         :return: GraphFrame with new vertices column "label"
         """
-        jgf = self._jvm_graph.labelPropagation().maxSteps(maxSteps).run()
+        jgf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
         return _from_java_gf(jgf, self._sqlContext)
 
     def pageRank(self, resetProbability = 0.15, sourceId = None, numIter = None,
