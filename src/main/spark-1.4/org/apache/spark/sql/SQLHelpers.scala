@@ -31,7 +31,7 @@ object SQLHelpers {
 
   /**
    * A patched version of [[org.apache.spark.sql.execution.expressions.MonotonicallyIncreasingID()]]
-   * that works for local relations in Spark 1.4.
+   * that works for local relations in Spark 1.4. (SPARK-9020)
    */
   private case class PatchedMonotonicallyIncreasingID() extends LeafExpression {
 
