@@ -272,20 +272,7 @@ class GraphFrame private(
    *
    * @group stdlib
    */
-  def bfs(fromExpr: Column, toExpr: Column): BFS = new BFS(this, fromExpr, toExpr)
-
-  /**
-   * Breadth-first search (BFS)
-   *
-   * Refer to the documentation of [[org.graphframes.lib.BFS]] for the description of the output.
-   *
-   * @param fromExpr a SQL expression that selects all the source nodes.
-   * @param toExpr a SQL expression that selects all the sink nodes.
-   *
-   * @group stdlib
-   */
-  def bfs(fromExpr: String, toExpr: String): BFS =
-    new BFS(this, expr(fromExpr), expr(toExpr))
+  def bfs: BFS = new BFS(this)
 
   /**
    * This is a primitive for implementing graph algorithms.

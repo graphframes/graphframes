@@ -24,7 +24,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{Column, DataFrame, Row}
 
 import org.graphframes.GraphFrame
-import GraphFrame.nestAsCol
+import org.graphframes.GraphFrame.nestAsCol
 
 /**
  * Breadth-first search (BFS)
@@ -85,11 +85,27 @@ import GraphFrame.nestAsCol
  * Returns:
  *  - DataFrame of valid shortest paths found in the BFS
  */
-class BFS private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Column)
+class BFS private[graphframes] (private val graph: GraphFrame)
   extends Arguments with Serializable {
 
   private var maxPathLength: Int = 10
   private var edgeFilter: Option[Column] = None
+  private var fromExpr: Column = _
+  private var toExpr: Column = _
+
+  def fromExpr(value: Column): this.type = {
+    fromExpr = value
+    this
+  }
+
+  def fromExpr(value: String): this.type = fromExpr(expr(value))
+
+  def toExpr(value: Column): this.type = {
+    toExpr = value
+    this
+  }
+
+  def toExpr(value: String): this.type = toExpr(expr(value))
 
   def maxPathLength(value: Int): this.type = {
     require(value >= 0, s"BFS maxPathLength must be >= 0, but was set to $value")
@@ -105,6 +121,8 @@ class BFS private[graphframes] (graph: GraphFrame, fromExpr: Column, toExpr: Col
   def edgeFilter(value: String): this.type = edgeFilter(expr(value))
 
   def run(): DataFrame = {
+    require(fromExpr != null, "fromExpr is required.")
+    require(toExpr != null, "toExpr is required.")
     BFS.run(graph, fromExpr, toExpr, maxPathLength, edgeFilter)
   }
 }
