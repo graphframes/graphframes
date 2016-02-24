@@ -74,10 +74,9 @@ private object TriangleCount {
       .unionAll(cycles.select(col("a").as(ID)))
     val triangleCounts = allTriangles.groupBy(ID).count()
     val v = graph.vertices
-    val countsCol = when(triangleCounts("count").isNotNull, triangleCounts("count"))
-      .otherwise(0).as(COUNT_ID)
+    val countsCol = when(col("count").isNull, 0L).otherwise(col("count"))
     val newV = v.join(triangleCounts, v(ID) === triangleCounts(ID), "left_outer")
-      .select(countsCol +: v.columns.map(v.apply) :_ *)
+      .select(countsCol.as(COUNT_ID) +: v.columns.map(v.apply) :_ *)
     GraphFrame(newV, graph.edges)
   }
 
