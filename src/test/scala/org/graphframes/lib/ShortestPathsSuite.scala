@@ -48,10 +48,10 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("friends graph") {
     val friends = examples.Graphs.friends
-    val g = friends.shortestPaths.landmarks(Seq("a")).run()
-    val expected = Set[(String, Map[String, Int])](("a", Map("a" -> 0)), ("b", Map.empty),
-      ("c", Map.empty), ("d", Map("a" -> 1)), ("e", Map("a" -> 2)), ("f", Map.empty),
-      ("g", Map.empty))
+    val g = friends.shortestPaths.landmarks(Seq("a", "d")).run()
+    val expected = Set[(String, Map[String, Int])](("a", Map("a" -> 0, "d" -> 2)), ("b", Map.empty),
+      ("c", Map.empty), ("d", Map("a" -> 1, "d" -> 0)), ("e", Map("a" -> 2, "d" -> 1)),
+      ("f", Map.empty), ("g", Map.empty))
     val results = g.vertices.select("id", "distances").collect().map {
       case Row(id: String, spMap: Map[String, Int] @unchecked) =>
         (id, spMap)
