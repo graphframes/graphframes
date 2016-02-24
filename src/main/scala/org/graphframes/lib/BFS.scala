@@ -66,12 +66,12 @@ import org.graphframes.GraphFrame.nestAsCol
  *
  * Parameters:
  *
- *  - `from`  Spark SQL expression specifying valid starting vertices for the BFS.
+ *  - `fromExpr`  Spark SQL expression specifying valid starting vertices for the BFS.
  *                  This condition will be matched against each vertex's id or attributes.
  *                  To start from a specific vertex, this could be "id = [start vertex id]".
  *                  To start from multiple valid vertices, this can operate on vertex attributes.
  *
- *  - `to`  Spark SQL expression specifying valid target vertices for the BFS.
+ *  - `toExpr`  Spark SQL expression specifying valid target vertices for the BFS.
  *                This condition will be matched against each vertex's id or attributes.
  *
  *  - `maxPathLength`  Limit on the length of paths.  If no valid paths of length
