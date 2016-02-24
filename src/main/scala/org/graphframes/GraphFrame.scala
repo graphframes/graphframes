@@ -804,8 +804,3 @@ object GraphFrame extends Serializable {
 
 }
 
-/**
- * Exception thrown when a parsed pattern for motif finding cannot be translated into a DataFrame
- * query.
- */
-class InvalidPatternException() extends Exception()

@@ -24,7 +24,7 @@ import org.apache.spark.sql.{Row, DataFrame}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StructField, StructType}
 
-import org.graphframes.GraphFrame
+import org.graphframes.{NoSuchVertexException, GraphFrame}
 
 /**
  * Convenience functions to map GraphX graphs to GraphFrames,
@@ -189,8 +189,3 @@ private[lib] trait Arguments {
     a.getOrElse(throw new IllegalArgumentException)
   }
 }
-
-/**
- * Thrown when a GraphFrame algorithm is given a vertex ID which does not exist in the graph.
- */
-class NoSuchVertexException(message: String) extends Exception(message)
