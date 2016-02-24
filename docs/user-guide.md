@@ -52,7 +52,8 @@ val e = sqlContext.createDataFrame(List(
   ("f", "c", "follow"),
   ("e", "f", "follow"),
   ("e", "d", "friend"),
-  ("d", "a", "friend")
+  ("d", "a", "friend"),
+  ("a", "e", "friend")
 )).toDF("src", "dst", "relationship")
 // Create a GraphFrame
 val g = GraphFrame(v, e)
@@ -169,6 +170,7 @@ g.vertices.show()
 # | d|  David| 29|
 # | e| Esther| 32|
 # | f|  Fanny| 36|
+# | g|  Gabby| 60|
 # +--+-------+---+
 
 g.edges.show()
@@ -182,6 +184,7 @@ g.edges.show()
 # |  e|  f|      follow|
 # |  e|  d|      friend|
 # |  d|  a|      friend|
+# |  a|  e|      friend|
 # +---+---+------------+
 
 # Get a DataFrame with columns "id" and "inDeg" (in-degree)
@@ -253,7 +256,7 @@ val motifs: DataFrame = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
 motifs.show()
 
 // More complex queries can be expressed by applying filters.
-motifs.filter("e.relationship = 'follow' AND e2.relationship = 'follow'").show()
+motifs.filter("b.age > 30").show()
 {% endhighlight %}
 </div>
 
@@ -270,7 +273,7 @@ motifs = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
 motifs.show()
 
 # More complex queries can be expressed by applying filters.
-motifs.filter("e.relationship = 'follow' AND e2.relationship = 'follow'").show()
+motifs.filter("b.age > 30").show()
 {% endhighlight %}
 </div>
 
@@ -306,6 +309,9 @@ import org.graphframes.examples
 
 val g = examples.Graphs.friends  // get example graph
 
+// Find chains of 4 vertices.
+val chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
+
 // Query on sequence, with state (cnt)
 //  (a) Define method for updating state given the next element of the motif.
 def sumFriends(cnt: Column, relationship: Column): Column = {
@@ -327,6 +333,8 @@ from pyspark.sql.functions import col, lit, udf, when
 from pyspark.sql.types import IntegerType
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
+
+chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
 
 # Query on sequence, with state (cnt)
 #  (a) Define method for updating state given the next element of the motif.
@@ -463,14 +471,14 @@ For API details, refer to the [API docs](api/scala/index.html#org.graphframes.li
 import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-// Search from "Bob" for users of age <= 30.
-val paths: DataFrame = g.bfs("name = 'Bob'", "age <= 30").run()
+// Search from "Esther" for users of age <= 32.
+val paths: DataFrame = g.bfs("name = 'Esther'", "age < 32").run()
 paths.show()
 
 // Specify edge filters or max path lengths.
-g.bfs("name = 'Bob'", "age <= 30")
-  .setEdgeFilter("relationship != 'follow'")
-  .setMaxPathLength(3)
+g.bfs("name = 'Esther'", "age < 32")
+  .edgeFilter("relationship != 'friend'")
+  .maxPathLength(3)
   .run()
 {% endhighlight %}
 </div>
@@ -483,13 +491,13 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-# Search from "Bob" for users of age <= 30.
-paths = g.bfs("name = 'Bob'", "age <= 30")
+# Search from "Esther" for users of age < 32.
+paths = g.bfs("name = 'Esther'", "age < 32")
 paths.show()
 
 # Specify edge filters or max path lengths.
-g.bfs("name = 'Bob'", "age <= 30",\
-  edgeFilter="relationship != 'follow'", maxPathLength=3)
+g.bfs("name = 'Esther'", "age < 32",\
+  edgeFilter="relationship != 'friend'", maxPathLength=3)
 {% endhighlight %}
 </div>
 
@@ -513,7 +521,7 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.connectedComponents.run()
-result.vertices.select("id", "component").show()
+result.vertices.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -526,7 +534,7 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 result = g.connectedComponents()
-result.vertices.select("id", "component").show()
+result.vertices.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -550,7 +558,7 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.stronglyConnectedComponents.numIter(10).run()
-result.vertices.select("id", "component").show()
+result.vertices.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -563,7 +571,7 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 result = g.stronglyConnectedComponents(numIter=10)
-result.vertices.select("id", "component").show()
+result.vertices.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -640,6 +648,8 @@ val g: GraphFrame = examples.Graphs.friends  // get example graph
 // Run PageRank until convergence to tolerance "tol".
 val results = g.pageRank.resetProbability(0.15).tol(0.01).run()
 // Display resulting pageranks and final edge weights
+// Note that the displayed pagerank may be truncated, e.g., missing the E notation.
+// In Spark 1.5+, you can use show(truncate=false) to avoid truncation.
 results.vertices.select("id", "pagerank").show()
 results.edges.select("src", "dst", "weight").show()
 
@@ -662,6 +672,8 @@ g = Graphs(sqlContext).friends()  # Get example graph
 # Run PageRank until convergence to tolerance "tol".
 results = g.pageRank(resetProbability=0.15, tol=0.01)
 # Display resulting pageranks and final edge weights
+# Note that the displayed pagerank may be truncated, e.g., missing the E notation.
+# In Spark 1.5+, you can use show(truncate=False) to avoid truncation.
 results.vertices.select("id", "pagerank").show()
 results.edges.select("src", "dst", "weight").show()
 
