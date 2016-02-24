@@ -25,11 +25,11 @@ import org.graphframes.GraphFrame
  * PageRank algorithm implementation. There are two implementations of PageRank.
  *
  * The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
- * for a fixed number of iterations.  This can be run by setting `numIter`.
+ * for a fixed number of iterations.  This can be run by setting `maxIter`.
  * {{{
  * var PR = Array.fill(n)( 1.0 )
  * val oldPR = Array.fill(n)( 1.0 )
- * for( iter <- 0 until numIter ) {
+ * for( iter <- 0 until maxIter ) {
  *   swap(oldPR, PR)
  *   for( i <- 0 until n ) {
  *     PR[i] = alpha + (1 - alpha) * inNbrs[i].map(j => oldPR[j] / outDeg[j]).sum
@@ -52,7 +52,7 @@ import org.graphframes.GraphFrame
  * }}}
  *
  * `alpha` is the random reset probability (typically 0.15), `inNbrs[i]` is the set of
- * neighbors whick link to `i` and `outDeg[j]` is the out degree of vertex `j`.
+ * neighbors which link to `i` and `outDeg[j]` is the out degree of vertex `j`.
  *
  * Note that this is not the "normalized" PageRank and as a consequence pages that have no
  * inlinks will have a PageRank of alpha.
@@ -68,7 +68,7 @@ class PageRank private[graphframes] (
 
   private var tol: Option[Double] = None
   private var resetProb: Option[Double] = Some(0.15)
-  private var numIters: Option[Int] = None
+  private var maxIter: Option[Int] = None
   private var srcId : Option[Any] = None
 
   /** Source vertex for a Personalized Page Rank (optional) */
@@ -88,19 +88,19 @@ class PageRank private[graphframes] (
     this
   }
 
-  def numIter(value: Int): this.type = {
-    numIters = Some(value)
+  def maxIter(value: Int): this.type = {
+    maxIter = Some(value)
     this
   }
 
   def run(): GraphFrame = {
     tol match {
       case Some(t) =>
-        assert(numIters.isEmpty,
-          "You cannot specify numIter() and tol() at the same time.")
+        assert(maxIter.isEmpty,
+          "You cannot specify maxIter() and tol() at the same time.")
         PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
       case None =>
-        PageRank.run(graph, check(numIters, "numIter"), resetProb.get, srcId)
+        PageRank.run(graph, check(maxIter, "maxIter"), resetProb.get, srcId)
     }
   }
 }
@@ -115,19 +115,19 @@ private object PageRank {
    * attributes the normalized edge weight.
    *
    * @param graph the graph on which to compute PageRank
-   * @param numIter the number of iterations of PageRank to run
+   * @param maxIter the number of iterations of PageRank to run
    * @param resetProb the random reset probability (alpha)
    * @return the graph containing with each vertex containing the PageRank and each edge
    *         containing the normalized weight.
    */
   def run(
       graph: GraphFrame,
-      numIter: Int,
+      maxIter: Int,
       resetProb: Double = 0.15,
       srcId: Option[Any] = None): GraphFrame = {
     val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
     val gx = backport.PageRank.runWithOptions(
-      graph.cachedTopologyGraphX, numIter, resetProb, longSrcId)
+      graph.cachedTopologyGraphX, maxIter, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }
 

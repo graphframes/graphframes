@@ -39,7 +39,7 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("friends graph") {
-    val results = Graphs.friends.pageRank.resetProbability(0.15).numIter(10).sourceId("a").run()
+    val results = Graphs.friends.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
 
     val gRank = results.vertices.filter(col("id") === "g").select("pagerank").first().getDouble(0)
     assert(gRank === 0.0,
