@@ -192,8 +192,8 @@ g.edges.show()
 # |  a|  e|      friend|
 # +---+---+------------+
 
-# Get a DataFrame with columns "id" and "inDeg" (in-degree)
-vertexInDegrees = g.inDegrees()
+# Get a DataFrame with columns "id" and "inDegree" (in-degree)
+vertexInDegrees = g.inDegrees
 
 # Find the youngest user's age in the graph.
 # This queries the vertex DataFrame.
