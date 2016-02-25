@@ -33,10 +33,9 @@ import org.graphframes.GraphFrame
  * computationally, although (1) convergence is not guaranteed and (2) one can end up with
  * trivial solutions (all nodes are identified into a single community).
  *
- * The resulting vertices DataFrame contains one additional column:
+ * The resulting DataFrame contains all the original vertex information and one additional column:
  *  - label: (same type as vertex id) label of community affiliation
  *
- * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class LabelPropagation private[graphframes] (private val graph: GraphFrame) extends Arguments {
 

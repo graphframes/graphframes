@@ -27,13 +27,17 @@ import org.graphframes.GraphFrame
  * a Multifaceted Collaborative Filtering Model",
  * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
  *
+ * Note: The status of this algorithm is EXPERIMENTAL. Its API and implementation may be changed
+ * in the future.
+ *
  * The prediction rule is r,,ui,, = u + b,,u,, + b,,i,, + q,,i,,*(p,,u,, + |N(u)|^^-0.5^^*sum(y)).
  * See the details on page 6 of the article.
  *
  * Configuration parameters: see the description of each parameter in the article.
  *
- * Returns a graph with vertex attributes containing the trained model.  See object (static) members
- * for names of output columns.
+ * Returns a DataFrame with vertex attributes containing the trained model.  See the object
+ * (static) members for the names of the output columns.
+ *
  */
 class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var _rank: Int = 10

@@ -30,10 +30,8 @@ import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC}
  * In a multigraph, duplicate edges will be counted only once.  Note that this is different from
  * GraphX, which will count a triangle (a,b,c) twice if all edges are bidirectional.
  *
- * The returned vertices DataFrame contains one additional column:
+ * The returned DataFrame contains all the original vertex information and one additional column:
  *  - count (`LongType`): the count of triangles
- *
- * The returned edges DataFrame is the same as the original edges DataFrame.
  */
 class TriangleCount private[graphframes] (private val graph: GraphFrame) extends Arguments {
 

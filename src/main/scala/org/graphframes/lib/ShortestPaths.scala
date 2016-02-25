@@ -31,11 +31,10 @@ import org.graphframes.GraphFrame
 /**
  * Computes shortest paths to the given set of landmark vertices.
  *
- * The returned vertices DataFrame contains one additional column:
+ * The returned DataFrame contains all the original vertex information as well as one additional
+ * column:
  *  - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing
  *   the shortest-path distance to each reachable landmark vertex.
- *
- * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var lmarks: Option[Seq[Any]] = None

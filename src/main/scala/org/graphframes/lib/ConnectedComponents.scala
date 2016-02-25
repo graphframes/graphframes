@@ -25,10 +25,10 @@ import org.graphframes.GraphFrame
 /**
  * Connected components algorithm.
  *
- * Computes the connected component membership of each vertex and returns a graph with each vertex
- * assigned a component ID.
+ * Computes the connected component membership of each vertex and returns a DataFrame of vertex
+ * information with each vertex assigned a component ID.
  *
- * The resulting vertices DataFrame contains one additional column:
+ * The resulting DataFrame contains all the vertex information and one additional column:
  *  - component: (same type as vertex id) the id of some vertex in the connected component,
  *    used as a unique identifier for this component
  *
