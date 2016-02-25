@@ -55,7 +55,8 @@ import org.graphframes.GraphFrame
  * neighbors which link to `i` and `outDeg[j]` is the out degree of vertex `j`.
  *
  * Note that this is not the "normalized" PageRank and as a consequence pages that have no
- * inlinks will have a PageRank of alpha.
+ * inlinks will have a PageRank of alpha. In particular, the pageranks may have some values
+ * greater than 1.
  *
  * The resulting vertices DataFrame contains one additional column:
  *  - pagerank (`DoubleType`): the pagerank of this vertex
