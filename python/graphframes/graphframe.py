@@ -96,6 +96,7 @@ class GraphFrame(object):
     def __repr__(self):
         return self._jvm_graph.toString()
 
+    @property
     def outDegrees(self):
         """
         The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
@@ -109,6 +110,7 @@ class GraphFrame(object):
         jdf = self._jvm_graph.outDegrees()
         return DataFrame(jdf, self._sqlContext)
 
+    @property
     def inDegrees(self):
         """
         The in-degree of each vertex in the graph, returned as a DataFame with two columns:
@@ -122,6 +124,7 @@ class GraphFrame(object):
         jdf = self._jvm_graph.inDegrees()
         return DataFrame(jdf, self._sqlContext)
 
+    @property
     def degrees(self):
         """
         The degree of each vertex in the graph, returned as a DataFrame with two columns:

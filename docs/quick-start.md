@@ -103,7 +103,7 @@ e = sqlContext.createDataFrame([
 g = GraphFrame(v, e)
 
 # Query: Get in-degree of each vertex.
-g.inDegrees().show()
+g.inDegrees.show()
 
 # Query: Count the number of "follow" connections in the graph.
 g.edges.filter("relationship = 'follow'").count()
