@@ -66,11 +66,11 @@ class GraphFrameTest(GraphFrameTestCase):
 
     def test_degrees(self):
         g = self.g
-        outDeg = g.outDegrees()
+        outDeg = g.outDegrees
         self.assertSetEqual(set(outDeg.columns), {"id", "outDegree"})
-        inDeg = g.inDegrees()
+        inDeg = g.inDegrees
         self.assertSetEqual(set(inDeg.columns), {"id", "inDegree"})
-        deg = g.degrees()
+        deg = g.degrees
         self.assertSetEqual(set(deg.columns), {"id", "degree"})
 
     def test_motif_finding(self):
