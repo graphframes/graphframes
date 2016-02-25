@@ -155,7 +155,10 @@ class GraphFrame(object):
 
         :return: DataFrame with one Row for each shortest path between matching vertices.
         """
-        builder = self._jvm_graph.bfs.fromExpr(fromExpr).toExpr(toExpr).maxPathLength(maxPathLength)
+        builder = self._jvm_graph.bfs()\
+            .fromExpr(fromExpr)\
+            .toExpr(toExpr)\
+            .maxPathLength(maxPathLength)
         if edgeFilter is not None:
             builder.edgeFilter(edgeFilter)
         jdf = builder.run()
@@ -171,8 +174,8 @@ class GraphFrame(object):
 
         :return: GraphFrame with new vertices column "component"
         """
-        jgf = self._jvm_graph.connectedComponents().run()
-        return _from_java_gf(jgf, self._sqlContext)
+        jdf = self._jvm_graph.connectedComponents().run()
+        return DataFrame(jdf, self._sqlContext)
 
     def labelPropagation(self, maxIter):
         """
@@ -183,8 +186,8 @@ class GraphFrame(object):
         :param maxIter: the number of iterations to be performed
         :return: GraphFrame with new vertices column "label"
         """
-        jgf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
-        return _from_java_gf(jgf, self._sqlContext)
+        jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
+        return DataFrame(jdf, self._sqlContext)
 
     def pageRank(self, resetProbability = 0.15, sourceId = None, maxIter = None,
                  tol = None):
@@ -223,8 +226,8 @@ class GraphFrame(object):
         :param landmarks: a set of one or more landmarks
         :return: GraphFrame with new vertices column "distances"
         """
-        jgf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
-        return _from_java_gf(jgf, self._sqlContext)
+        jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
+        return DataFrame(jdf, self._sqlContext)
 
     def stronglyConnectedComponents(self, maxIter):
         """
@@ -235,8 +238,8 @@ class GraphFrame(object):
         :param maxIter: the number of iterations to run
         :return: GraphFrame with new vertex column "component"
         """
-        jgf = self._jvm_graph.stronglyConnectedComponents().numIter(maxIter).run()
-        return _from_java_gf(jgf, self._sqlContext)
+        jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
+        return DataFrame(jdf, self._sqlContext)
 
     def svdPlusPlus(self, rank = 10, maxIter = 2, minValue = 0.0, maxValue = 5.0,
                     gamma1 = 0.007, gamma2 = 0.007, gamma6 = 0.005, gamma7 = 0.015):
@@ -251,10 +254,10 @@ class GraphFrame(object):
         builder = self._jvm_graph.svdPlusPlus()
         builder.rank(rank).maxIter(maxIter).minValue(minValue).maxValue(maxValue)
         builder.gamma1(gamma1).gamma2(gamma2).gamma6(gamma6).gamma7(gamma7)
-        jgf = builder.run()
+        jdf = builder.run()
         loss = builder.loss()
-        gf = _from_java_gf(jgf, self._sqlContext)
-        return (gf, loss)
+        v = DataFrame(jdf, self._sqlContext)
+        return (v, loss)
 
     def triangleCount(self):
         """
@@ -264,8 +267,8 @@ class GraphFrame(object):
 
         :return:  GraphFrame with new vertex column "count"
         """
-        jgf = self._jvm_graph.triangleCount().run()
-        return _from_java_gf(jgf, self._sqlContext)
+        jdf = self._jvm_graph.triangleCount().run()
+        return DataFrame(jdf, self._sqlContext)
 
 
 def _test():

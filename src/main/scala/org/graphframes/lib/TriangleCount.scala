@@ -17,11 +17,11 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.{array, col, explode, when}
 
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC}
-
 
 /**
  * Computes the number of triangles passing through each vertex.
@@ -37,14 +37,14 @@ import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC}
  */
 class TriangleCount private[graphframes] (private val graph: GraphFrame) extends Arguments {
 
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     TriangleCount.run(graph)
   }
 }
 
 private object TriangleCount {
 
-  private def run(graph: GraphFrame): GraphFrame = {
+  private def run(graph: GraphFrame): DataFrame = {
     // Dedup edges by flipping them to have LONG_SRC < LONG_DST
     // TODO (when we drop support for Spark 1.4): Use functions greatest, smallest instead of UDFs
     val dedupedE = graph.indexedEdges
@@ -68,7 +68,7 @@ private object TriangleCount {
     val countsCol = when(col("count").isNull, 0L).otherwise(col("count"))
     val newV = v.join(triangleCounts, v(ID) === triangleCounts(ID), "left_outer")
       .select(countsCol.as(COUNT_ID) +: v.columns.map(v.apply) :_ *)
-    GraphFrame(newV, graph.edges)
+    newV
   }
 
   private val COUNT_ID = "count"

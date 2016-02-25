@@ -18,6 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.DataFrame
 
 import org.graphframes.GraphFrame
 
@@ -38,16 +39,16 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame) e
   /**
    * Runs the algorithm.
    */
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     ConnectedComponents.run(graph)
   }
 }
 
 private object ConnectedComponents {
 
-  def run(graph: GraphFrame): GraphFrame = {
+  def run(graph: GraphFrame): DataFrame = {
     val gx = graphxlib.ConnectedComponents.run(graph.cachedTopologyGraphX)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID)).vertices
   }
 
   private val COMPONENT_ID = "component"

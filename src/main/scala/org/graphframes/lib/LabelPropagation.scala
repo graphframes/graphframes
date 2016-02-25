@@ -18,6 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.DataFrame
 
 import org.graphframes.GraphFrame
 
@@ -50,7 +51,7 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
     this
   }
 
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     LabelPropagation.run(
       graph,
       check(maxIter, "maxIter"))
@@ -59,9 +60,9 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
 
 
 private object LabelPropagation {
-  private def run(graph: GraphFrame, maxIter: Int): GraphFrame = {
+  private def run(graph: GraphFrame, maxIter: Int): DataFrame = {
     val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxIter)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID))
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
   }
 
   private val LABEL_ID = "label"

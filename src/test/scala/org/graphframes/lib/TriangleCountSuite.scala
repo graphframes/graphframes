@@ -28,9 +28,9 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val vertices = sqlContext.createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
       .toDF("id", "a")
     val g = GraphFrame(vertices, edges)
-    val g2 = g.triangleCount.run()
-    LabelPropagationSuite.testSchemaInvariants(g, g2)
-    g2.vertices.select("id", "count", "a")
+    val v2 = g.triangleCount.run()
+    LabelPropagationSuite.testSchemaInvariants(g, v2)
+    v2.select("id", "count", "a")
       .collect().foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
   }
 
@@ -38,8 +38,8 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
       Array(0L -> -1L, -1L -> -2L, -2L -> 0L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
-    val g2 = g.triangleCount.run()
-    g2.vertices.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
+    val v2 = g.triangleCount.run()
+    v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
       if (id == 0) {
         assert(count === 2)
       } else {
@@ -54,8 +54,8 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val revTriangles = triangles.map { case (a, b) => (b, a) }
     val edges = sqlContext.createDataFrame(triangles ++ revTriangles).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
-    val g2 = g.triangleCount.run()
-    g2.vertices.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
+    val v2 = g.triangleCount.run()
+    v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
       if (id == 0) {
         assert(count === 2)
       } else {
@@ -68,17 +68,17 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
         Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
-    val g2 = g.triangleCount.run()
-    g2.vertices.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
+    val v2 = g.triangleCount.run()
+    v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
       assert(count === 1)
     }
   }
 
-  test("no triangles") {
+  test("no triangle") {
     val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
-    val g2 = g.triangleCount.run()
-    g2.vertices.select("count").collect().foreach { case Row(count: Long) =>
+    val v2 = g.triangleCount.run()
+    v2.select("count").collect().foreach { case Row(count: Long) =>
       assert(count === 0)
     }
   }

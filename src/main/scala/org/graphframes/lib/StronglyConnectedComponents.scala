@@ -18,6 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.DataFrame
 
 import org.graphframes.GraphFrame
 
@@ -41,7 +42,7 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
     this
   }
 
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
   }
 }
@@ -49,9 +50,9 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
 
 /** Strongly connected components algorithm implementation. */
 private object StronglyConnectedComponents {
-  private def run(graph: GraphFrame, numIter: Int): GraphFrame = {
+  private def run(graph: GraphFrame, numIter: Int): DataFrame = {
     val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIter)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID)).vertices
   }
 
   private[graphframes] val COMPONENT_ID = "component"

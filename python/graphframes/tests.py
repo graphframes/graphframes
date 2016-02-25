@@ -99,6 +99,9 @@ class GraphFrameLibTest(GraphFrameTestCase):
         map(lambda c: self.assertIn(c, graph.vertices.columns), vcols)
         map(lambda c: self.assertIn(c, graph.edges.columns), ecols)
 
+    def _df_hasCols(self, vertices, vcols = []):
+        map(lambda c: self.assertIn(c, vertices.columns), vcols)
+
     def _graph(self, name, *args):
         """
         Convenience to call one of the example graphs, passing the arguments and wrapping the result back
@@ -117,27 +120,25 @@ class GraphFrameLibTest(GraphFrameTestCase):
         e = self.sqlContext.createDataFrame([(0L, 0L, 1L)], ["src", "dst", "test"]).filter("src > 10")
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
-        self._hasCols(comps, vcols=['id', 'component', 'vattr', 'gender'])
-        self.assertEqual(comps.vertices.count(), 1)
-        self.assertEqual(comps.edges.count(), 0)
+        self._df_hasCols(comps, vcols=['id', 'component', 'vattr', 'gender'])
+        self.assertEqual(comps.count(), 1)
 
     def test_connected_components2(self):
         v = self.sqlContext.createDataFrame([(0L, "a0", "b0"), (1L, "a1", "b1")], ["id", "A", "B"])
         e = self.sqlContext.createDataFrame([(0L, 1L, "a01", "b01")], ["src", "dst", "A", "B"])
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
-        self._hasCols(comps, vcols=['id', 'component', 'A', 'B'])
-        self.assertEqual(comps.vertices.count(), 2)
-        self.assertEqual(comps.edges.count(), 1)
+        self._df_hasCols(comps, vcols=['id', 'component', 'A', 'B'])
+        self.assertEqual(comps.count(), 2)
 
     def test_label_progagation(self):
         n = 5
         g = self._graph("twoBlobs", n)
-        labels = g.labelPropagation(maxSteps=4 * n)
-        labels1 = labels.vertices.filter("id < 5").select("label").collect()
+        labels = g.labelPropagation(maxIter=4 * n)
+        labels1 = labels.filter("id < 5").select("label").collect()
         all1 = set([x.label for x in labels1])
         self.assertEqual(all1, set([0]))
-        labels2 = labels.vertices.filter("id >= 5").select("label").collect()
+        labels2 = labels.filter("id >= 5").select("label").collect()
         all2 = set([x.label for x in labels2])
         self.assertEqual(all2, set([n]))
 
@@ -156,14 +157,13 @@ class GraphFrameLibTest(GraphFrameTestCase):
         vertices = self.sqlContext.createDataFrame([(i,) for i in range(1, 7)], ["id"])
         g = GraphFrame(vertices, edges)
         landmarks = [1, 4]
-        g2 = g.shortestPaths(landmarks)
-        self._hasCols(g2, vcols=["id", "distances"])
+        v2 = g.shortestPaths(landmarks)
+        self._df_hasCols(v2, vcols=["id", "distances"])
 
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
-        (g2, cost) = g.svdPlusPlus()
-        self._hasCols(g2, vcols=['id', 'column1', 'column2', 'column3', 'column4'],
-                      ecols=['src', 'dst'])
+        (v2, cost) = g.svdPlusPlus()
+        self._df_hasCols(v2, vcols=['id', 'column1', 'column2', 'column3', 'column4'])
 
     def test_strongly_connected_components(self):
         # Simple island test
@@ -171,7 +171,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         edges = self.sqlContext.createDataFrame([(7, 8)], ["src", "dst"])
         g = GraphFrame(vertices, edges)
         c = g.stronglyConnectedComponents(5)
-        for row in c.vertices.collect():
+        for row in c.collect():
             self.assertEqual(row.id, row.component)
 
     def test_triangle_counts(self):
@@ -179,5 +179,5 @@ class GraphFrameLibTest(GraphFrameTestCase):
         vertices = self.sqlContext.createDataFrame([(0,), (1,), (2,)], ["id"])
         g = GraphFrame(vertices, edges)
         c = g.triangleCount()
-        for row in c.vertices.select("id", "count").collect():
+        for row in c.select("id", "count").collect():
             self.assertEqual(row.count, 1)

@@ -18,7 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{Edge, lib => graphxlib}
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{DataFrame, Row}
 
 import org.graphframes.GraphFrame
 
@@ -87,7 +87,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
     this
   }
 
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     val conf = new graphxlib.SVDPlusPlus.Conf(
       rank = _rank,
       maxIters = _maxIter,
@@ -98,9 +98,9 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
       gamma6 = _gamma6,
       gamma7 = _gamma7)
 
-    val (g, l) = SVDPlusPlus.run(graph, conf)
+    val (df, l) = SVDPlusPlus.run(graph, conf)
     _loss = Some(l)
-    g
+    df
   }
 
   def loss: Double = {
@@ -111,14 +111,14 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
 
 object SVDPlusPlus {
 
-  private def run(graph: GraphFrame, conf: graphxlib.SVDPlusPlus.Conf): (GraphFrame, Double) = {
+  private def run(graph: GraphFrame, conf: graphxlib.SVDPlusPlus.Conf): (DataFrame, Double) = {
     val edges = graph.edges.select(GraphFrame.SRC, GraphFrame.DST, COLUMN_WEIGHT).map {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
     }
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf)
     val gf = GraphXConversions.fromGraphX(graph, gx,
       vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4))
-    (gf, res)
+    (gf.vertices, res)
   }
 
   /**

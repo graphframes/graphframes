@@ -36,9 +36,9 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val vertices = sqlContext.createDataFrame(v).toDF("id")
     val graph = GraphFrame(vertices, edges)
     val landmarks = Seq(1, 4).map(_.toLong)
-    val g2 = graph.shortestPaths.landmarks(landmarks).run()
-    LabelPropagationSuite.testSchemaInvariants(graph, g2)
-    val newVs = g2.vertices.select("id", "distances").collect().toSeq
+    val v2 = graph.shortestPaths.landmarks(landmarks).run()
+    LabelPropagationSuite.testSchemaInvariants(graph, v2)
+    val newVs = v2.select("id", "distances").collect().toSeq
     val results = newVs.map {
       case Row(id: Long, spMap: Map[String, Int] @unchecked) => (id, spMap)
     }
@@ -47,11 +47,11 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("friends graph") {
     val friends = examples.Graphs.friends
-    val g = friends.shortestPaths.landmarks(Seq("a", "d")).run()
+    val v = friends.shortestPaths.landmarks(Seq("a", "d")).run()
     val expected = Set[(String, Map[String, Int])](("a", Map("a" -> 0, "d" -> 2)), ("b", Map.empty),
       ("c", Map.empty), ("d", Map("a" -> 1, "d" -> 0)), ("e", Map("a" -> 2, "d" -> 1)),
       ("f", Map.empty), ("g", Map.empty))
-    val results = g.vertices.select("id", "distances").collect().map {
+    val results = v.select("id", "distances").collect().map {
       case Row(id: String, spMap: Map[String, Int] @unchecked) =>
         (id, spMap)
     }.toSet
