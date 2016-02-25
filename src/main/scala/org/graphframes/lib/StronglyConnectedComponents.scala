@@ -18,18 +18,17 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.DataFrame
 
 import org.graphframes.GraphFrame
 
 /**
- * Compute the strongly connected component (SCC) of each vertex and return a graph with each vertex
- * assigned to the SCC containing that vertex.
+ * Compute the strongly connected component (SCC) of each vertex and return a DataFrame with each
+ * vertex assigned to the SCC containing that vertex.
  *
- * The resulting vertices DataFrame contains one additional column:
+ * The resulting DataFrame contains all the original vertex information and one additional column:
  *  - component: (same type as vertex id) the id of some vertex in the connected component,
  *    used as a unique identifier for this component
- *
- * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame)
   extends Arguments {
@@ -41,7 +40,7 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
     this
   }
 
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
   }
 }
@@ -49,9 +48,9 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
 
 /** Strongly connected components algorithm implementation. */
 private object StronglyConnectedComponents {
-  private def run(graph: GraphFrame, numIter: Int): GraphFrame = {
+  private def run(graph: GraphFrame, numIter: Int): DataFrame = {
     val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIter)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID))
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID)).vertices
   }
 
   private[graphframes] val COMPONENT_ID = "component"

@@ -22,21 +22,19 @@ import java.util
 import scala.collection.JavaConverters._
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.functions.{callUDF, col}
-import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.types.{IntegerType, MapType}
 
 import org.graphframes.GraphFrame
 
-
 /**
  * Computes shortest paths to the given set of landmark vertices.
  *
- * The returned vertices DataFrame contains one additional column:
+ * The returned DataFrame contains all the original vertex information as well as one additional
+ * column:
  *  - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing
  *   the shortest-path distance to each reachable landmark vertex.
- *
- * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var lmarks: Option[Seq[Any]] = None
@@ -57,14 +55,14 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
     landmarks(value.asScala)
   }
 
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     ShortestPaths.run(graph, check(lmarks, "landmarks"))
   }
 }
 
 private object ShortestPaths {
 
-  private def run(graph: GraphFrame, landmarks: Seq[Any]): GraphFrame = {
+  private def run(graph: GraphFrame, landmarks: Seq[Any]): DataFrame = {
     val idType = graph.vertices.schema(GraphFrame.ID).dataType
     val longIdToLandmark = landmarks.map(l => GraphXConversions.integralId(graph, l) -> l).toMap
     val gx = graphxlib.ShortestPaths.run(
@@ -89,7 +87,7 @@ private object ShortestPaths {
       callUDF(mapToLandmark _, MapType(idType, IntegerType, false), col(DISTANCE_ID))
     }
     val cols = graph.vertices.columns.map(col) :+ distanceCol.as(DISTANCE_ID)
-    GraphFrame(g.vertices.select(cols: _*), g.edges)
+    g.vertices.select(cols: _*)
   }
 
   private val DISTANCE_ID = "distances"

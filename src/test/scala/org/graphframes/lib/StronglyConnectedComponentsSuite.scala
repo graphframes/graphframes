@@ -34,7 +34,7 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
     val c = graph.stronglyConnectedComponents.maxIter(5).run()
     LabelPropagationSuite.testSchemaInvariants(graph, c)
     for (Row(id: Long, component: Long, _)
-         <- c.vertices.select("id", "component", "value").collect()) {
+         <- c.select("id", "component", "value").collect()) {
       assert(id === component)
     }
   }

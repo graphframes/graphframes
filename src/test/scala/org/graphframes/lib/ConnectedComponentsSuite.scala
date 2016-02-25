@@ -32,9 +32,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val g = GraphFrame(v, e)
     val comps = ConnectedComponents.run(g)
     LabelPropagationSuite.testSchemaInvariants(g, comps)
-    assert(comps.vertices.count() === 1)
-    assert(comps.edges.count() === 0)
-    assert(comps.vertices.select("id", "component", "vattr", "gender").collect() === Seq(Row(0L, 0L, "a", "b")))
+    assert(comps.count() === 1)
+    assert(comps.select("id", "component", "vattr", "gender").collect() === Seq(Row(0L, 0L, "a", "b")))
   }
 
   test("simple connected toy example") {
@@ -46,10 +45,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val g = GraphFrame(v, e)
     val comps = g.connectedComponents.run()
     LabelPropagationSuite.testSchemaInvariants(g, comps)
-    assert(comps.vertices.count() === 2)
-    assert(comps.edges.count() === 1)
-    assert(List(Row(0L, 1L, "a01", "b01")) === comps.edges.collect())
-    val vxs = comps.vertices.sort("id").select("id", "component", "A", "B").collect()
+    assert(comps.count() === 2)
+    val vxs = comps.sort("id").select("id", "component", "A", "B").collect()
     assert(List(Row(0L, 0L, "a0", "b0"), Row(1L, 0L, "a1", "b1")) === vxs)
   }
 

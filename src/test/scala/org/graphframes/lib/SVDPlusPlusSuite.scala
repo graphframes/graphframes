@@ -30,18 +30,18 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val svdppErr = 8.0
     val g = Graphs.ALSSyntheticData()
 
-    val g2 = g.svdPlusPlus.maxIter(2).run()
-    LabelPropagationSuite.testSchemaInvariants(g, g2)
+    val v2 = g.svdPlusPlus.maxIter(2).run()
+    LabelPropagationSuite.testSchemaInvariants(g, v2)
     Seq(SVDPlusPlus.COLUMN1, SVDPlusPlus.COLUMN2).foreach { case c =>
-      assert(g2.vertices.columns.contains(c))
-      assert(g2.vertices.schema(c).dataType ===
+      assert(v2.columns.contains(c))
+      assert(v2.schema(c).dataType ===
         DataTypes.createArrayType(DataTypes.DoubleType, false))
     }
     Seq(SVDPlusPlus.COLUMN3, SVDPlusPlus.COLUMN4).foreach { case c =>
-      assert(g2.vertices.columns.contains(c))
-      assert(g2.vertices.schema(c).dataType === DataTypes.DoubleType)
+      assert(v2.columns.contains(c))
+      assert(v2.schema(c).dataType === DataTypes.DoubleType)
     }
-    val err = g2.vertices.select(GraphFrame.ID, SVDPlusPlus.COLUMN4).map {
+    val err = v2.select(GraphFrame.ID, SVDPlusPlus.COLUMN4).map {
       case Row(vid: Long, vd: Double) =>
         if (vid % 2 == 1) vd else 0.0
     }.reduce(_ + _) / g.edges.count()

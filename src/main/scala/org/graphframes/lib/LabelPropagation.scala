@@ -18,6 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.DataFrame
 
 import org.graphframes.GraphFrame
 
@@ -32,10 +33,9 @@ import org.graphframes.GraphFrame
  * computationally, although (1) convergence is not guaranteed and (2) one can end up with
  * trivial solutions (all nodes are identified into a single community).
  *
- * The resulting vertices DataFrame contains one additional column:
+ * The resulting DataFrame contains all the original vertex information and one additional column:
  *  - label: (same type as vertex id) label of community affiliation
  *
- * The resulting edges DataFrame is the same as the original edges DataFrame.
  */
 class LabelPropagation private[graphframes] (private val graph: GraphFrame) extends Arguments {
 
@@ -50,7 +50,7 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
     this
   }
 
-  def run(): GraphFrame = {
+  def run(): DataFrame = {
     LabelPropagation.run(
       graph,
       check(maxIter, "maxIter"))
@@ -59,9 +59,9 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
 
 
 private object LabelPropagation {
-  private def run(graph: GraphFrame, maxIter: Int): GraphFrame = {
+  private def run(graph: GraphFrame, maxIter: Int): DataFrame = {
     val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxIter)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID))
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
   }
 
   private val LABEL_ID = "label"
