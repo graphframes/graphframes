@@ -4,7 +4,7 @@
 
 # GraphFrames: DataFrame-based Graphs
 
-This is a prototype package for DataFrame-based graphs in Spark.
+This is a prototype package for DataFrame-based graphs on top of Apache Spark.
 Users can write highly expressive queries by leveraging the DataFrame API, combined with a new
 API for motif finding.  The user also benefits from DataFrame performance optimizations
 within the Spark SQL engine.
