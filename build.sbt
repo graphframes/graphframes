@@ -8,7 +8,7 @@ sparkVersion := sys.props.getOrElse("spark.version", "1.4.1")
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := "0.1.0-SNAPSHOT"
+version := "0.1.0-spark" + sparkVersion.value.substring(0, 3)
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
