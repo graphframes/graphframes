@@ -526,7 +526,7 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.connectedComponents.run()
-result.vertices.select("id", "component").orderBy("component").show()
+result.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -539,7 +539,7 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 result = g.connectedComponents()
-result.vertices.select("id", "component").orderBy("component").show()
+result.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -563,7 +563,7 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.stronglyConnectedComponents.maxIter(10).run()
-result.vertices.select("id", "component").orderBy("component").show()
+result.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -576,7 +576,7 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 result = g.stronglyConnectedComponents(maxIter=10)
-result.vertices.select("id", "component").orderBy("component").show()
+result.select("id", "component").orderBy("component").show()
 {% endhighlight %}
 </div>
 
@@ -607,7 +607,7 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.labelPropagation.maxIter(5).run()
-result.vertices.select("id", "label").show()
+result.select("id", "label").show()
 {% endhighlight %}
 </div>
 
@@ -620,7 +620,7 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 result = g.labelPropagation(maxIter=5)
-result.vertices.select("id", "label").show()
+result.select("id", "label").show()
 {% endhighlight %}
 </div>
 
@@ -710,7 +710,7 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val results = g.shortestPaths.landmarks(Seq("a", "d")).run()
-results.vertices.select("id", "distances").show()
+results.select("id", "distances").show()
 {% endhighlight %}
 </div>
 
@@ -723,7 +723,7 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 results = g.shortestPaths(landmarks=["a", "d"])
-results.vertices.select("id", "distances").show()
+results.select("id", "distances").show()
 {% endhighlight %}
 </div>
 
@@ -744,7 +744,7 @@ import org.graphframes.examples
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val results = g.triangleCount.run()
-results.vertices.select("id", "count").show()
+results.select("id", "count").show()
 {% endhighlight %}
 </div>
 
@@ -757,7 +757,7 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 results = g.triangleCount()
-results.vertices.select("id", "count").show()
+results.select("id", "count").show()
 {% endhighlight %}
 </div>
 

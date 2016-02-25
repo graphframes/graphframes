@@ -175,7 +175,7 @@ class GraphFrame(object):
 
         See Scala documentation for more details.
 
-        :return: GraphFrame with new vertices column "component"
+        :return: DataFrame with new vertices column "component"
         """
         jdf = self._jvm_graph.connectedComponents().run()
         return DataFrame(jdf, self._sqlContext)
@@ -187,7 +187,7 @@ class GraphFrame(object):
         See Scala documentation for more details.
 
         :param maxIter: the number of iterations to be performed
-        :return: GraphFrame with new vertices column "label"
+        :return: DataFrame with new vertices column "label"
         """
         jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
         return DataFrame(jdf, self._sqlContext)
@@ -227,7 +227,7 @@ class GraphFrame(object):
         See Scala documentation for more details.
 
         :param landmarks: a set of one or more landmarks
-        :return: GraphFrame with new vertices column "distances"
+        :return: DataFrame with new vertices column "distances"
         """
         jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
         return DataFrame(jdf, self._sqlContext)
@@ -239,7 +239,7 @@ class GraphFrame(object):
         See Scala documentation for more details.
 
         :param maxIter: the number of iterations to run
-        :return: GraphFrame with new vertex column "component"
+        :return: DataFrame with new vertex column "component"
         """
         jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
         return DataFrame(jdf, self._sqlContext)
@@ -251,7 +251,7 @@ class GraphFrame(object):
 
         See Scala documentation for more details.
 
-        :return: GraphFrame with new vertex columns storing learned model.
+        :return: DataFrame with new vertex columns storing learned model.
         """
         # This call is actually useless, because one needs to build the configuration first...
         builder = self._jvm_graph.svdPlusPlus()
@@ -268,7 +268,7 @@ class GraphFrame(object):
 
         See Scala documentation for more details.
 
-        :return:  GraphFrame with new vertex column "count"
+        :return:  DataFrame with new vertex column "count"
         """
         jdf = self._jvm_graph.triangleCount().run()
         return DataFrame(jdf, self._sqlContext)
