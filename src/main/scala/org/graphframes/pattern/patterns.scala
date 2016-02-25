@@ -19,6 +19,8 @@ package org.graphframes.pattern
 
 import scala.util.parsing.combinator._
 
+import org.graphframes.InvalidParseException
+
 /**
  * Parser for graph patterns for motif finding. Copied from GraphFrames with minor modification.
  */
@@ -72,7 +74,3 @@ private[graphframes] case class AnonymousEdge(src: Vertex, dst: Vertex) extends 
 
 private[graphframes] case class NamedEdge(name: String, src: Vertex, dst: Vertex) extends Edge
 
-/**
- * Exception thrown when a pattern String for motif finding cannot be parsed.
- */
-class InvalidParseException(message: String) extends Exception(message)
