@@ -1,14 +1,24 @@
 // Your sbt build file. Guides on how to write one can be found at
 // http://www.scala-sbt.org/0.13/docs/index.html
 
-scalaVersion := "2.10.5"
+val sparkVer = sys.props.getOrElse("spark.version", "1.4.1")
+val sparkBranch = sparkVer.substring(0, 3)
+val defaultScalaVer = sparkBranch match {
+  case "1.4" => "2.10.4"
+  case "1.5" => "2.10.4"
+  case "1.6" => "2.10.5"
+  case "2.0" => "2.11.7"
+}
+val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
 
-sparkVersion := sys.props.getOrElse("spark.version", "1.4.1")
+sparkVersion := sparkVer
+
+scalaVersion := scalaVer
 
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := "0.1.0-spark" + sparkVersion.value.substring(0, 3)
+version := s"0.1.0-spark$sparkBranch-SNAPSHOT"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
@@ -23,12 +33,12 @@ sparkComponents ++= Seq("graphx", "sql")
 // add any Spark Package dependencies using spDependencies.
 // e.g. spDependencies += "databricks/spark-avro:0.1"
 
-libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.0" % "test"
 
 parallelExecution := false
 
 unmanagedSourceDirectories in Compile ++=
-  Seq(baseDirectory.value / "src" / "main" / (if (sparkVersion.value.substring(0, 3) == "1.4") "spark-1.4" else "spark-x"))
+  Seq(baseDirectory.value / "src" / "main" / (if (sparkBranch == "1.4") "spark-1.4" else "spark-x"))
 
 scalacOptions in (Compile, doc) ++= Seq(
   "-groups",
