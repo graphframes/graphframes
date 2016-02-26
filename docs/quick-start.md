@@ -80,7 +80,7 @@ g.inDegrees.show()
 g.edges.filter("relationship = 'follow'").count()
 
 // Run PageRank algorithm, and show results.
-val results = g.pageRank.resetProbability(0.01).numIter(20).run()
+val results = g.pageRank.resetProbability(0.01).maxIter(20).run()
 results.vertices.select("id", "pagerank").show()
 {% endhighlight %}
 </div>
