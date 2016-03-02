@@ -242,6 +242,9 @@ DSL for expressing structural patterns:
    to the edge.  There will be no column for the anonymous edge in the result `DataFrame`.
    Similarly, `"(a)-[e]->()"` indicates an out-edge of vertex `a` but does not name
    the destination vertex.
+* An edge can be negated to indicate that the edge should *not* be present in the graph.
+  E.g., `"(a)-[]->(b); !(b)-[]->(a)"` finds edges from `a` to `b` for which there is *no*
+  edge from `b` to `a`.
 
 More complex queries, such as queries which operate on vertex or edge attributes,
 can be expressed by applying filters to the result `DataFrame`.
@@ -455,6 +458,10 @@ g2 = GraphFrame(g.vertices, e2)
 GraphFrames provides the same suite of standard graph algorithms as GraphX, plus some new ones.
 We provide brief descriptions and code snippets below.
 See the [API docs](api/scala/index.html#org.graphframes.lib) for more details.
+
+Some of the algorithms are currently wrappers around GraphX implementations, so they may not be
+more scalable than GraphX.  More algorithms will be migrated to native GraphFrames implementations
+in the future.
 
 ## Breadth-first search (BFS)
 
@@ -694,8 +701,8 @@ results3 = g.pageRank(resetProbability=0.15, maxIter=10, sourceId="a")
 
 ## Shortest paths
 
-Computes shortest paths to the given set of landmark vertices, where landmarks are specified
-by vertex ID.
+Computes shortest paths from each vertex to the given set of landmark vertices, where landmarks are
+specified by vertex ID.  Note that this takes edge direction into account.
 
 See [Wikipedia](https://en.wikipedia.org/wiki/Shortest_path_problem) for background.
 
