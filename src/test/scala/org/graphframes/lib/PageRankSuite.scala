@@ -35,8 +35,8 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .resetProbability(resetProb)
       .tol(errorTol).run()
     TestUtils.testSchemaInvariants(g, pr)
-    TestUtils.checkColumnType(g.vertices.schema, "pagerank", DataTypes.DoubleType)
-    TestUtils.checkColumnType(g.edges.schema, "weight", DataTypes.DoubleType)
+    TestUtils.checkColumnType(pr.vertices.schema, "pagerank", DataTypes.DoubleType)
+    TestUtils.checkColumnType(pr.edges.schema, "weight", DataTypes.DoubleType)
   }
 
   test("friends graph with personalized PageRank") {

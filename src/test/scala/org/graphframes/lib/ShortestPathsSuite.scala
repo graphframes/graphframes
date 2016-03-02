@@ -41,7 +41,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     TestUtils.testSchemaInvariants(graph, v2)
     TestUtils.checkColumnType(v2.schema, "distances",
-      DataTypes.createMapType(v2.schema("id").dataType, DataTypes.LongType, true))
+      DataTypes.createMapType(v2.schema("id").dataType, DataTypes.IntegerType, false))
     val newVs = v2.select("id", "distances").collect().toSeq
     val results = newVs.map {
       case Row(id: Long, spMap: Map[Long, Int] @unchecked) => (id, spMap)
