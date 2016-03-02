@@ -18,9 +18,10 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes.examples.Graphs
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
+import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
 class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -33,12 +34,12 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val pr = g.pageRank
       .resetProbability(resetProb)
       .tol(errorTol).run()
-    LabelPropagationSuite.testSchemaInvariants(g, pr)
-    assert(pr.vertices.columns.contains("pagerank"))
-    assert(pr.edges.columns.contains("weight"))
+    TestUtils.testSchemaInvariants(g, pr)
+    TestUtils.checkColumnType(g.vertices.schema, "pagerank", DataTypes.DoubleType)
+    TestUtils.checkColumnType(g.edges.schema, "weight", DataTypes.DoubleType)
   }
 
-  test("friends graph") {
+  test("friends graph with personalized PageRank") {
     val results = Graphs.friends.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
 
     val gRank = results.vertices.filter(col("id") === "g").select("pagerank").first().getDouble(0)

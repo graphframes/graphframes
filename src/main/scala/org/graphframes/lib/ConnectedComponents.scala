@@ -29,8 +29,7 @@ import org.graphframes.GraphFrame
  * information with each vertex assigned a component ID.
  *
  * The resulting DataFrame contains all the vertex information and one additional column:
- *  - component: (same type as vertex id) the id of some vertex in the connected component,
- *    used as a unique identifier for this component
+ *  - component (`LongType`): unique ID for this component
  *
  * The resulting edges DataFrame is the same as the original edges DataFrame.
  */

@@ -17,9 +17,10 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.types.DataTypes
+
+import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 import org.graphframes.examples.Graphs
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
 
 class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -28,7 +29,8 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
   test("Toy example") {
     val g = Graphs.twoBlobs(n)
     val labels = g.labelPropagation.maxIter(4 * n).run()
-    LabelPropagationSuite.testSchemaInvariants(g, labels)
+    TestUtils.testSchemaInvariants(g, labels)
+    TestUtils.checkColumnType(labels.schema, "label", DataTypes.LongType)
     val clique1 =
       labels.filter(s"id < $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique1.size === 1)
@@ -36,73 +38,5 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
       labels.filter(s"id >= $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique2.size === 1)
     assert(clique1 !== clique2)
-  }
-}
-
-object LabelPropagationSuite {
-
-  import GraphFrame.{DST, ID, SRC}
-
-  def testSchemaInvariant(g: GraphFrame): Unit = {
-    // The ID should be present
-    val vs = g.vertices.schema
-    val es = g.edges.schema
-    vs(ID)
-    es(SRC)
-    es(DST)
-  }
-
-  /**
-   * Test validity of both GraphFrames.
-   * Also ensure that the GraphFrames match:
-   *  - vertex column schema match
-   *  - `before` columns are a subset of the `after` columns, and schema match
-   */
-  def testSchemaInvariants(before: GraphFrame, after: GraphFrame): Unit = {
-    testSchemaInvariant(before)
-    testSchemaInvariant(after)
-    // The IDs, source and destination columns should be of the same type
-    // with the same metadata.
-    for (colName <- Seq(ID)) {
-      val b = before.vertices.schema(colName)
-      val a = after.vertices.schema(colName)
-      // TODO(tjh) check nullability and metadata
-      assert(a.dataType == b.dataType, (a, b))
-    }
-    for (colName <- Seq(SRC, DST)) {
-      val b = before.edges.schema(colName)
-      val a = after.edges.schema(colName)
-      // TODO(tjh) check nullability and metadata
-      assert(a.dataType == b.dataType, (a, b))
-    }
-    // All the columns before should be found after (with some extra columns,
-    // potentially).
-    val afterVNames = before.vertices.schema.fields.map(_.name)
-    for (f <- before.vertices.schema.iterator) {
-
-      if (!afterVNames.contains(f.name)) {
-        throw new Exception(s"vertex error: ${f.name} should be in ${afterVNames.mkString(", ")}")
-      }
-
-      assert(before.vertices.schema(f.name) == after.vertices.schema(f.name),
-      s"${before.vertices.schema} != ${after.vertices.schema}")
-    }
-
-    for (f <- before.edges.schema.iterator) {
-      val a = before.edges.schema(f.name)
-      val b = after.edges.schema(f.name)
-      assert(a.dataType == b.dataType,
-        s"${before.edges.schema} not a subset of ${after.edges.schema}")
-    }
-  }
-
-  /**
-   * Test validity of both GraphFrames.
-   * Also ensure that the GraphFrames match:
-   *  - vertex column schema match
-   *  - `before` columns are a subset of the `after` columns, and schema match
-   */
-  def testSchemaInvariants(before: GraphFrame, afterVertices: DataFrame): Unit = {
-    testSchemaInvariant(GraphFrame(afterVertices, before.edges))
   }
 }

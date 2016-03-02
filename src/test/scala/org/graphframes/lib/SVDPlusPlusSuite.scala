@@ -17,12 +17,12 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
 
-import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite}
+import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 import org.graphframes.examples.Graphs
 
-import org.apache.spark.sql.Row
 
 class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -31,15 +31,13 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val g = Graphs.ALSSyntheticData()
 
     val v2 = g.svdPlusPlus.maxIter(2).run()
-    LabelPropagationSuite.testSchemaInvariants(g, v2)
+    TestUtils.testSchemaInvariants(g, v2)
     Seq(SVDPlusPlus.COLUMN1, SVDPlusPlus.COLUMN2).foreach { case c =>
-      assert(v2.columns.contains(c))
-      assert(v2.schema(c).dataType ===
+      TestUtils.checkColumnType(v2.schema, c,
         DataTypes.createArrayType(DataTypes.DoubleType, false))
     }
     Seq(SVDPlusPlus.COLUMN3, SVDPlusPlus.COLUMN4).foreach { case c =>
-      assert(v2.columns.contains(c))
-      assert(v2.schema(c).dataType === DataTypes.DoubleType)
+      TestUtils.checkColumnType(v2.schema, c, DataTypes.DoubleType)
     }
     val err = v2.select(GraphFrame.ID, SVDPlusPlus.COLUMN4).map {
       case Row(vid: Long, vd: Double) =>

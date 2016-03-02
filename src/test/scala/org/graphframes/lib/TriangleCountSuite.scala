@@ -18,8 +18,9 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.DataTypes
 
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
+import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, TestUtils}
 
 class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -29,7 +30,8 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .toDF("id", "a")
     val g = GraphFrame(vertices, edges)
     val v2 = g.triangleCount.run()
-    LabelPropagationSuite.testSchemaInvariants(g, v2)
+    TestUtils.testSchemaInvariants(g, v2)
+    TestUtils.checkColumnType(v2.schema, "count", DataTypes.LongType)
     v2.select("id", "count", "a")
       .collect().foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
   }

@@ -34,8 +34,7 @@ import org.graphframes.GraphFrame
  * trivial solutions (all nodes are identified into a single community).
  *
  * The resulting DataFrame contains all the original vertex information and one additional column:
- *  - label: (same type as vertex id) label of community affiliation
- *
+ *  - label (`LongType`): label of community affiliation
  */
 class LabelPropagation private[graphframes] (private val graph: GraphFrame) extends Arguments {
 
