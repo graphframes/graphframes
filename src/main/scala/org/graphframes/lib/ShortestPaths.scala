@@ -29,12 +29,13 @@ import org.apache.spark.sql.types.{IntegerType, MapType}
 import org.graphframes.GraphFrame
 
 /**
- * Computes shortest paths to the given set of landmark vertices.
+ * Computes shortest paths from every vertex to the given set of landmark vertices.
+ * Note that this takes edge direction into account.
  *
  * The returned DataFrame contains all the original vertex information as well as one additional
  * column:
  *  - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing
- *   the shortest-path distance to each reachable landmark vertex.
+ *    the shortest-path distance to each reachable landmark vertex.
  */
 class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var lmarks: Option[Seq[Any]] = None

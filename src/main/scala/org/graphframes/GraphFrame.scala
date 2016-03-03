@@ -250,6 +250,9 @@ class GraphFrame private(
    *    to the edge.  There will be no column for the anonymous edge in the result `DataFrame`.
    *    Similarly, `"(a)-[e]->()"` indicates an out-edge of vertex `a` but does not name
    *    the destination vertex.
+   *  - An edge can be negated to indicate that the edge should *not* be present in the graph.
+   *    E.g., `"(a)-[]->(b); !(b)-[]->(a)"` finds edges from `a` to `b` for which there is *no*
+   *    edge from `b` to `a`.
    *
    * More complex queries, such as queries which operate on vertex or edge attributes,
    * can be expressed by applying filters to the result `DataFrame`.
