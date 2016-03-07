@@ -7,6 +7,7 @@ sudo: false
 cache:
   directories:
     - $HOME/.ivy2
+    - $HOME/.sbt/launchers/
 env:
   matrix:
     - SPARK_VERSION=1.6.0 SPARK_BUILD="spark-1.6.0-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.0-bin-hadoop2.6.tgz"
@@ -18,5 +19,5 @@ install:
  - pip install --user -r ./python/requirements.txt
 
 script:
-  - sbt -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
+  - ./build/sbt -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
   - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD ./python/run-tests.sh
