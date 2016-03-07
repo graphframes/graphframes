@@ -3,7 +3,7 @@ scala:
   - 2.10.5
 jdk:
   - openjdk7
-sudo: false
+sudo: required
 cache:
   directories:
     - $HOME/.ivy2
@@ -14,7 +14,7 @@ env:
 before_install:
  - ./bin/download_travis_dependencies.sh
 
-install: "pip install -r ./python/requirements.txt"
+install: "sudo pip install -r ./python/requirements.txt"
 
 script:
   - sbt -Dspark.version=$SPARK_VERSION test
