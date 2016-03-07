@@ -14,6 +14,9 @@ env:
 before_install:
  - ./bin/download_travis_dependencies.sh
 
+install: "pip install -r ./python/requirements.txt"
+
 script:
   - sbt -Dspark.version=$SPARK_VERSION test
+  - sbt "set test in assembly := {}" assembly
   - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD ./python/run-tests.sh
