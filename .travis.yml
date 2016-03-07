@@ -2,7 +2,7 @@ language: scala
 scala:
   - 2.10.5
 jdk:
-  - oraclejdk7
+  - oraclejdk7 # openJDK crashes sometimes
 sudo: false
 cache:
   directories:

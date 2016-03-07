@@ -48,7 +48,7 @@ export PYTHONPATH=$PYTHONPATH:graphframes
 
 # Run test suites
 
-nosetests -v --all-modules
+nosetests -v --all-modules -w $DIR
 
 
 # Run doc tests
