@@ -46,6 +46,9 @@ export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS:.
 
 export PYTHONPATH=$PYTHONPATH:graphframes
 
+# Return on any failure
+set -e
+
 # Run test suites
 
 nosetests -v --all-modules -w $DIR
