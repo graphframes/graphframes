@@ -3,9 +3,7 @@ scala:
   - 2.10.5
 jdk:
   - openjdk7
-sudo: required
-services:
- - docker
+sudo: false
 cache:
   directories:
     - $HOME/.ivy2
