@@ -29,8 +29,11 @@ for lib in "$SPARK_HOME/python/lib"/*zip ; do
   LIBS=$LIBS:$lib
 done
 
+# The current directory of the script.
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 echo "List of assembly jars found, the last one will be used:"
-assembly_path="`pwd`/../target/scala-2.10"
+assembly_path="$DIR/../target/scala-2.10"
 echo `ls $assembly_path/graphframes-assembly*.jar`
 JAR_PATH=""
 for assembly in $assembly_path/graphframes-assembly*.jar ; do
