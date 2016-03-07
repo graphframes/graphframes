@@ -12,6 +12,8 @@ cache:
 env:
   matrix:
     - SPARK_VERSION=1.6.0 SPARK_BUILD="spark-1.6.0-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.0-bin-hadoop2.6.tgz"
+    - SPARK_VERSION=1.5.2 SPARK_BUILD="spark-1.5.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.5.2.tgz"
+    - SPARK_VERSION=1.4.1 SPARK_BUILD="spark-1.4.1-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.4.1-bin-hadoop2.6.tgz"
 
 before_install:
  - ./bin/download_travis_dependencies.sh
@@ -21,4 +23,5 @@ install:
 
 script:
   - sbt -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
+  - sbt -Dspark.version=$SPARK_VERSION test
   - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD ./python/run-tests.sh
