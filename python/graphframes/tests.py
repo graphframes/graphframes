@@ -180,4 +180,4 @@ class GraphFrameLibTest(GraphFrameTestCase):
         g = GraphFrame(vertices, edges)
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
-            self.assertEqual(row.count(), 1)
+            self.assertEqual(row.asDict()['count'], 1)
