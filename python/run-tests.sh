@@ -58,4 +58,4 @@ nosetests -v --all-modules -w $DIR
 
 cd "$DIR"
 
-exec python -u ./python/graphframes/graphframe.py "$@"
+exec python -u ./graphframes/graphframe.py "$@"
