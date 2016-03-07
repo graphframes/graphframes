@@ -53,7 +53,6 @@ nosetests -v --all-modules -w $DIR
 
 # Run doc tests
 
-FWDIR="$(cd "`dirname $0`"/..; pwd)"
-cd "$FWDIR"
+cd "$DIR"
 
 exec python -u ./python/graphframes/graphframe.py "$@"
