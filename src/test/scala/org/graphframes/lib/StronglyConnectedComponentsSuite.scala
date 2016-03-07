@@ -18,8 +18,9 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.DataTypes
 
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
+import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, TestUtils}
 
 class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Island Strongly Connected Components") {
@@ -32,7 +33,8 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
     val edges = sqlContext.createDataFrame(Seq.empty[(Long, Long)]).toDF("src", "dst")
     val graph = GraphFrame(vertices, edges)
     val c = graph.stronglyConnectedComponents.maxIter(5).run()
-    LabelPropagationSuite.testSchemaInvariants(graph, c)
+    TestUtils.testSchemaInvariants(graph, c)
+    TestUtils.checkColumnType(c.schema, "component", DataTypes.LongType)
     for (Row(id: Long, component: Long, _)
          <- c.select("id", "component", "value").collect()) {
       assert(id === component)

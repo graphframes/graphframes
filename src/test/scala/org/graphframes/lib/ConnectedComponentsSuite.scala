@@ -18,25 +18,28 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.DataTypes
 
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, examples}
-
+import org.graphframes._
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  test("simple toy example") {
+  test("single vertex") {
     val v = sqlContext.createDataFrame(List(
       (0L, "a", "b"))).toDF("id", "vattr", "gender")
     // Create an empty dataframe with the proper columns.
-    val e = sqlContext.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test").filter("src > 10")
+    val e = sqlContext.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test")
+      .filter("src > 10")
     val g = GraphFrame(v, e)
     val comps = ConnectedComponents.run(g)
-    LabelPropagationSuite.testSchemaInvariants(g, comps)
+    TestUtils.testSchemaInvariants(g, comps)
+    TestUtils.checkColumnType(comps.schema, "component", DataTypes.LongType)
     assert(comps.count() === 1)
-    assert(comps.select("id", "component", "vattr", "gender").collect() === Seq(Row(0L, 0L, "a", "b")))
+    assert(comps.select("id", "component", "vattr", "gender").collect()
+      === Seq(Row(0L, 0L, "a", "b")))
   }
 
-  test("simple connected toy example") {
+  test("two connected vertices") {
     val v = sqlContext.createDataFrame(List(
       (0L, "a0", "b0"),
       (1L, "a1", "b1"))).toDF("id", "A", "B")
@@ -44,13 +47,13 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       (0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
     val g = GraphFrame(v, e)
     val comps = g.connectedComponents.run()
-    LabelPropagationSuite.testSchemaInvariants(g, comps)
+    TestUtils.testSchemaInvariants(g, comps)
     assert(comps.count() === 2)
     val vxs = comps.sort("id").select("id", "component", "A", "B").collect()
     assert(List(Row(0L, 0L, "a0", "b0"), Row(1L, 0L, "a1", "b1")) === vxs)
   }
 
-  test("fiends graph") {
+  test("friends graph") {
     val friends = examples.Graphs.friends
     friends.connectedComponents.run()
   }
