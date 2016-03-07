@@ -10,5 +10,5 @@ if ! [ -f $filename ]; then
 	curl http://d3kbcqa49mib13.cloudfront.net/spark-1.6.0-bin-hadoop2.6.tgz > $filename
 	echo "Content of directory:"
 	ls -la $HOME/.cache/spark-versions/*
-	tar xvf $filename --directory $HOME/.cache/spark-versions
+	tar xvf $filename --directory $HOME/.cache/spark-versions > /dev/null
 fi

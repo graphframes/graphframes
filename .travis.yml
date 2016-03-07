@@ -16,3 +16,4 @@ before_install:
 
 script:
   - sbt -Dspark.version=$SPARK_VERSION test
+  - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD ./python/run-tests.sh
