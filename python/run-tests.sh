@@ -40,7 +40,7 @@ for assembly in $assembly_path/graphframes-assembly*.jar ; do
   JAR_PATH=$assembly
 done
 
-export PYSPARK_SUBMIT_ARGS="--jars $JAR_PATH pyspark-shell"
+export PYSPARK_SUBMIT_ARGS="--jars $JAR_PATH pyspark-shell "
 
 export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS:.
 
@@ -51,7 +51,9 @@ set -e
 
 # Run test suites
 
-nosetests -v --all-modules -w $DIR
+# Horrible hack for spark 1.4: we manually remove some log lines to stay below the 4MB log limit on Travis.
+# To remove when we ditch spark 1.4.
+nosetests -v --all-modules -w $DIR  2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)"
 
 
 # Run doc tests
