@@ -2,7 +2,7 @@ language: scala
 scala:
   - 2.10.5
 jdk:
-  - openjdk8
+  - oraclejdk7
 sudo: required
 cache:
   directories:
