@@ -29,22 +29,35 @@ for lib in "$SPARK_HOME/python/lib"/*zip ; do
   LIBS=$LIBS:$lib
 done
 
-JAR_PATH="`pwd`/../target/scala-2.10/graphframes-assembly-0.1.0-SNAPSHOT.jar"
+# The current directory of the script.
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export PYSPARK_SUBMIT_ARGS="--jars $JAR_PATH pyspark-shell"
+echo "List of assembly jars found, the last one will be used:"
+assembly_path="$DIR/../target/scala-2.10"
+echo `ls $assembly_path/graphframes-assembly*.jar`
+JAR_PATH=""
+for assembly in $assembly_path/graphframes-assembly*.jar ; do
+  JAR_PATH=$assembly
+done
+
+export PYSPARK_SUBMIT_ARGS="--jars $JAR_PATH pyspark-shell "
 
 export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS:.
 
 export PYTHONPATH=$PYTHONPATH:graphframes
 
+# Return on any failure
+set -e
+
 # Run test suites
 
-nosetests -v --all-modules
+# Horrible hack for spark 1.4: we manually remove some log lines to stay below the 4MB log limit on Travis.
+# To remove when we ditch spark 1.4.
+nosetests -v --all-modules -w $DIR  2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)"
 
 
 # Run doc tests
 
-FWDIR="$(cd "`dirname $0`"/..; pwd)"
-cd "$FWDIR"
+cd "$DIR"
 
-exec python -u ./python/graphframes/graphframe.py "$@"
+exec python -u ./graphframes/graphframe.py "$@"

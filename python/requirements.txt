@@ -1,1 +1,2 @@
 # This file should list any python package dependencies.
+nose==1.3.3

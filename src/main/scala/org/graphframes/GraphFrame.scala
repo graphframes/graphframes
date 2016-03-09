@@ -17,6 +17,8 @@
 
 package org.graphframes
 
+import org.apache.log4j.PropertyConfigurator
+
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.Logging
@@ -259,7 +261,6 @@ class GraphFrame private(
    *
    * @param pattern  Pattern specifying a motif to search for.
    * @return  `DataFrame` containing all instances of the motif.
-   *
    * @group motif
    */
   def find(pattern: String): DataFrame =
@@ -501,6 +502,7 @@ object GraphFrame extends Serializable {
    *
    * Note: The [[GraphFrame.vertices]] DataFrame will be persisted at level
    *       `StorageLevel.MEMORY_AND_DISK`.
+ *
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
    * @return  New [[GraphFrame]] instance
