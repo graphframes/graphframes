@@ -224,7 +224,8 @@ class GraphFrame private(
    * For example, `graph.find("(a)-[e]->(b); (b)-[e2]->(a)")` will search for pairs of vertices
    * `a,b` connected by edges in both directions.  It will return a `DataFrame` of all such
    * structures in the graph, with columns for each of the named elements (vertices or edges)
-   * in the motif.  In this case, the returned columns will be "a, b, e, e2."
+   * in the motif.  In this case, the returned columns will be in order of the pattern:
+   * "a, e, b, e2."
    *
    * DSL for expressing structural patterns:
    *  - The basic unit of a pattern is an edge.
@@ -262,9 +263,10 @@ class GraphFrame private(
    *
    * @group motif
    */
-  def find(pattern: String): DataFrame =
-    findSimple(Nil, None, Pattern.parse(pattern))
-
+  def find(pattern: String): DataFrame = {
+    val (df, names) = findSimple(Nil, None, Seq(), Pattern.parse(pattern))
+    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
+  }
 
   // ======================== Other queries ===================================
 
@@ -350,7 +352,7 @@ class GraphFrame private(
    * @group stdlib
    */
   def triangleCount: TriangleCount = new TriangleCount(this)
-  
+
   // ========= Motif finding (private) =========
 
 
@@ -367,12 +369,13 @@ class GraphFrame private(
   private def findSimple(
       prevPatterns: Seq[Pattern],
       prevDF: Option[DataFrame],
-      remainingPatterns: Seq[Pattern]): DataFrame = {
+      prevNames: Seq[String],
+      remainingPatterns: Seq[Pattern]): (DataFrame, Seq[String]) = {
     remainingPatterns match {
-      case Nil => prevDF.getOrElse(sqlContext.emptyDataFrame)
+      case Nil => (prevDF.getOrElse(sqlContext.emptyDataFrame), prevNames)
       case cur :: rest =>
-        val df = findIncremental(this, prevPatterns, prevDF, cur)
-        findSimple(prevPatterns :+ cur, df, rest)
+        val (df, names) = findIncremental(this, prevPatterns, prevDF, prevNames, cur)
+        findSimple(prevPatterns :+ cur, df, names, rest)
     }
   }
 
@@ -666,89 +669,100 @@ object GraphFrame extends Serializable {
       gf: GraphFrame,
       prevPatterns: Seq[Pattern],
       prev: Option[DataFrame],
-      pattern: Pattern): Option[DataFrame] = {
+      prevNames: Seq[String],
+      pattern: Pattern): (Option[DataFrame], Seq[String]) = {
     def nestE(name: String): DataFrame = gf.edges.select(nestAsCol(gf.edges, name))
     def nestV(name: String): DataFrame = gf.vertices.select(nestAsCol(gf.vertices, name))
 
     pattern match {
 
       case AnonymousVertex =>
-        prev
+        (prev, prevNames)
 
       case v @ NamedVertex(name) =>
         if (seen(v, prevPatterns)) {
           for (prev <- prev) assert(prev.columns.toSet.contains(name))
-          prev
+          (prev, prevNames)
         } else {
-          Some(maybeJoin(prev, nestV(name)))
+          (Some(maybeJoin(prev, nestV(name))), prevNames :+ name)
         }
 
       case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
         val eRen = nestE(name)
-        Some(maybeJoin(prev, eRen))
+        (Some(maybeJoin(prev, eRen)), prevNames :+ name)
 
       case NamedEdge(name, AnonymousVertex, dst @ NamedVertex(dstName)) =>
         if (seen(dst, prevPatterns)) {
           val eRen = nestE(name)
-          Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName))))
+          (Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName)))),
+            prevNames :+ name)
         } else {
           val eRen = nestE(name)
           val dstV = nestV(dstName)
-          Some(maybeJoin(prev, eRen)
-            .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)), "left_outer"))
+          (Some(maybeJoin(prev, eRen)
+            .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)), "left_outer")),
+            prevNames :+ name :+ dstName)
         }
 
       case NamedEdge(name, src @ NamedVertex(srcName), AnonymousVertex) =>
         if (seen(src, prevPatterns)) {
           val eRen = nestE(name)
-          Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName))))
+          (Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName)))),
+            prevNames :+ name)
         } else {
           val eRen = nestE(name)
           val srcV = nestV(srcName)
-          Some(maybeJoin(prev, eRen)
-            .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName))))
+          (Some(maybeJoin(prev, eRen)
+            .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
+             prevNames :+ srcName :+ name)
         }
 
       case NamedEdge(name, src @ NamedVertex(srcName), dst @ NamedVertex(dstName)) =>
         (seen(src, prevPatterns), seen(dst, prevPatterns)) match {
           case (true, true) =>
             val eRen = nestE(name)
-            Some(maybeJoin(prev, eRen, prev =>
-              eRen(eSrcId(name)) === prev(vId(srcName)) && eRen(eDstId(name)) === prev(vId(dstName))))
+            (Some(maybeJoin(prev, eRen, prev =>
+              eRen(eSrcId(name)) === prev(vId(srcName)) && eRen(eDstId(name)) === prev(vId(dstName)))),
+              prevNames :+ name)
 
           case (true, false) =>
             val eRen = nestE(name)
             val dstV = nestV(dstName)
-            Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName)))
-              .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName))))
+            (Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName)))
+              .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
+              prevNames :+ name :+ dstName)
 
           case (false, true) =>
             val eRen = nestE(name)
             val srcV = nestV(srcName)
-            Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName)))
-              .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName))))
+            (Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName)))
+              .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
+              prevNames :+ srcName :+ name)
 
           case (false, false) =>
             val eRen = nestE(name)
             val srcV = nestV(srcName)
             val dstV = nestV(dstName)
-            Some(maybeJoin(prev, eRen)
+            (Some(maybeJoin(prev, eRen)
               .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))
-              .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName))))
+              .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
+              prevNames :+ srcName :+ name :+ dstName)
           // TODO: expose the plans from joining these in the opposite order
         }
 
       case AnonymousEdge(src, dst) =>
         val tmpName = "__tmp"
-        val result = findIncremental(gf, prevPatterns, prev, NamedEdge(tmpName, src, dst))
-        result.map(_.drop(tmpName))
+        val (df, names) = findIncremental(gf, prevPatterns, prev, prevNames, NamedEdge(tmpName, src, dst))
+        (df.map(_.drop(tmpName)), names.filter(_ != tmpName))
 
       case Negation(edge) => prev match {
-        case Some(p) => findIncremental(gf, prevPatterns, Some(p), edge).map(result => p.except(result))
-        case None => throw new InvalidPatternException
+        case Some(p) =>
+          val (df, names) = findIncremental(gf, prevPatterns, Some(p), prevNames, edge)
+          (df.map(result => p.except(result)), names)
+        case None =>
+          throw new InvalidPatternException
       }
     }
   }
 
 }
-
