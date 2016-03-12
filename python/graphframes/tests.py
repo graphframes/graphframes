@@ -27,7 +27,7 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, SQLContext
+from pyspark.sql import DataFrame, SQLContext, Row
 
 from .graphframe import GraphFrame, _java_api, _from_java_gf
 
@@ -63,6 +63,9 @@ class GraphFrameTest(GraphFrameTestCase):
         assert sorted(vertexIDs) == [1, 2, 3]
         edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
         assert sorted(edgeActions) == ["follow", "hate", "love"]
+        tripletsFirst = map(lambda x: (x[0][1], x[1][1], x[2][2]),
+                            g.triplets.sort("src.id").select("src", "dst", "edge").take(1))
+        assert tripletsFirst == [("A", "B", "love")]
 
     def test_degrees(self):
         g = self.g

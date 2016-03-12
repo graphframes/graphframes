@@ -138,6 +138,20 @@ class GraphFrame(object):
         jdf = self._jvm_graph.degrees()
         return DataFrame(jdf, self._sqlContext)
 
+    @property
+    def triplets(self):
+        """
+        The triplets: (source vertex)-[edge]->(destination vertex) for all edges in the graph.
+        Returned as a :class:`DataFrame` with three columns:
+         - 'src': source vertex with schema matching 'vertices'
+         - 'edge': edge with schema matching 'edges'
+         - 'dst': destination vertex with schema matching 'vertices'
+
+        :return:  DataFrame with columns 'src', 'edge', and 'dst'
+        """
+        jdf = self._jvm_graph.triplets()
+        return DataFrame(jdf, self._sqlContext)
+
     def find(self, pattern):
         """
         Motif finding.
