@@ -27,7 +27,7 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, SQLContext, Row
+from pyspark.sql import DataFrame, SQLContext
 
 from .graphframe import GraphFrame, _java_api, _from_java_gf
 
