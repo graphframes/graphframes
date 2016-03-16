@@ -363,8 +363,14 @@ class GraphFrame private(
    *
    * @param prevPatterns  Patterns already handled
    * @param prevDF  Current DataFrame based on prevPatterns
+   * @param prevNames Current sequence of column names in the order as specified by prevPatterns
+   *                  For instance, `"(a)-[e]->(b)"` is Seq("a", "e", "b")
+   *                  `"(a)-[e]->(b); (b)-[]->(c)"` is Seq("a", "e", "b", "c")
    * @param remainingPatterns  Patterns not yet handled
-   * @return  `DataFrame` augmented with the next pattern, or the previous DataFrame if done
+   * @return Tuple2[`DataFrame`, Seq[String]] `DataFrame` augmented with the next pattern,
+   *                                          or the previous DataFrame if done
+   *                                          Seq[String] sequence of column names for the `DataFrame`
+   *                                          appended to in order as specified by the next pattern
    */
   private def findSimple(
       prevPatterns: Seq[Pattern],
