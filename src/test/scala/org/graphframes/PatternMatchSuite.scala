@@ -103,6 +103,21 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edges.collect().toSet === Set(Row(2L, 3L)))
   }
 
+  test("find column order") {
+    val fof = g.find("(u)-[e]->(v); (v)-[]->(w); !(u)-[]->(w); !(w)-[]->(u)")
+    assert(fof.columns === Array("u", "e", "v", "w"))
+    assert(fof.select("u.id", "v.id", "w.id").collect().toSet === Set(Row(1L, 2L, 3L)))
+
+    val fv = g.find("(u)")
+    assert(fv.columns === Array("u"))
+
+    val fve = g.find("(u)-[e2]->()")
+    assert(fve.columns === Array("u", "e2"))
+
+    val fed = g.find("()-[e]->(w)")
+    assert(fed.columns === Array("e", "w"))
+  }
+
   test("stateful predicates via UDFs") {
     val chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
 
