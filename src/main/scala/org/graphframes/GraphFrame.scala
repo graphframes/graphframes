@@ -17,9 +17,11 @@
 
 package org.graphframes
 
-import org.apache.log4j.PropertyConfigurator
+import java.util.Random
 
 import scala.reflect.runtime.universe.TypeTag
+
+import org.apache.log4j.PropertyConfigurator
 
 import org.apache.spark.Logging
 import org.apache.spark.graphx.{Edge, Graph}
@@ -31,7 +33,6 @@ import org.apache.spark.storage.StorageLevel
 
 import org.graphframes.lib._
 import org.graphframes.pattern._
-
 
 /**
  * A representation of a graph using `DataFrame`s.
@@ -623,6 +624,8 @@ object GraphFrame extends Serializable {
 
   // ========== Motif finding ==========
 
+  private val random: Random = new Random(classOf[GraphFrame].getName.##)
+
   private def prefixWithName(name: String, col: String): String = name + "." + col
   private def vId(name: String): String = prefixWithName(name, ID)
   private def eSrcId(name: String): String = prefixWithName(name, SRC)
@@ -759,7 +762,7 @@ object GraphFrame extends Serializable {
         }
 
       case AnonymousEdge(src, dst) =>
-        val tmpName = "__tmp"
+        val tmpName = "__tmp" + random.nextLong.toString
         val (df, names) = findIncremental(gf, prevPatterns, prev, prevNames, NamedEdge(tmpName, src, dst))
         (df.map(_.drop(tmpName)), names.filter(_ != tmpName))
 
