@@ -19,6 +19,8 @@ package org.graphframes
 
 import java.util.Random
 
+import scala.reflect.runtime.universe.TypeTag
+
 import org.apache.log4j.PropertyConfigurator
 
 import org.apache.spark.Logging
@@ -31,9 +33,6 @@ import org.apache.spark.storage.StorageLevel
 
 import org.graphframes.lib._
 import org.graphframes.pattern._
-
-import scala.reflect.runtime.universe.TypeTag
-
 
 /**
  * A representation of a graph using `DataFrame`s.

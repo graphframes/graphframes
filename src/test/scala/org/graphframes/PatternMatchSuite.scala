@@ -103,6 +103,12 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edges.collect().toSet === Set(Row(2L, 3L)))
   }
 
+  test("named edge __tmp") {
+    // named edge __tmp should not be removed if there is an anonymous edge
+    val edges = g.find("()-[__tmp]->(v); (v)-[]->(w)")
+    assert(edges.columns === Array("__tmp", "v", "w"))
+  }
+
   test("find column order") {
     val fof = g.find("(u)-[e]->(v); (v)-[]->(w); !(u)-[]->(w); !(w)-[]->(u)")
     assert(fof.columns === Array("u", "e", "v", "w"))
