@@ -57,7 +57,7 @@ import scala.reflect.ClassTag
  * }}}
  *
  * `alpha` is the random reset probability (typically 0.15), `inNbrs[i]` is the set of
- * neighbors whick link to `i` and `outDeg[j]` is the out degree of vertex `j`.
+ * neighbors which link to `i` and `outDeg[j]` is the out degree of vertex `j`.
  *
  * Note that this is not the "normalized" PageRank and as a consequence pages that have no
  * inlinks will have a PageRank of alpha.
@@ -135,7 +135,7 @@ object PageRank extends Logging {
       // edge partitions.
       prevRankGraph = rankGraph
       val rPrb = if (personalized) {
-        (src: VertexId , id: VertexId) => resetProb * delta(src, id)
+        (src: VertexId, id: VertexId) => resetProb * delta(src, id)
       } else {
         (src: VertexId, id: VertexId) => resetProb
       }
@@ -200,7 +200,7 @@ object PageRank extends Logging {
       }
       // Set the weight on the edges based on the degree
       .mapTriplets( e => 1.0 / e.srcAttr )
-      // Set the vertex attributes to (initalPR, delta = 0)
+      // Set the vertex attributes to (initialPR, delta = 0)
       .mapVertices { (id, attr) =>
         if (id == src) (resetProb, Double.NegativeInfinity) else (0.0, 0.0)
       }
