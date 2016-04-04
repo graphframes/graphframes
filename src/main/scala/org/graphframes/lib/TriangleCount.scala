@@ -27,8 +27,11 @@ import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC}
  * Computes the number of triangles passing through each vertex.
  *
  * This algorithm ignores edge direction; i.e., all edges are treated as undirected.
- * In a multigraph, duplicate edges will be counted only once.  Note that this is different from
- * GraphX, which will count a triangle (a,b,c) twice if all edges are bidirectional.
+ * In a multigraph, duplicate edges will be counted only once.
+ *
+ * Note that this provides the same algorithm as GraphX, but GraphX assumes the user provides
+ * a graph in the correct format.  In Spark 2.0, GraphX can automatically canonicalize
+ * the graph to put it in this format.
  *
  * The returned DataFrame contains all the original vertex information and one additional column:
  *  - count (`LongType`): the count of triangles
