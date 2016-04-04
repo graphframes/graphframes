@@ -71,6 +71,7 @@ val e = sqlContext.createDataFrame(List(
   ("c", "b", "follow")
 )).toDF("src", "dst", "relationship")
 // Create a GraphFrame
+import org.graphframes.GraphFrame
 val g = GraphFrame(v, e)
 
 // Query: Get in-degree of each vertex.
@@ -100,6 +101,7 @@ e = sqlContext.createDataFrame([
   ("c", "b", "follow"),
 ], ["src", "dst", "relationship"])
 # Create a GraphFrame
+from graphframes import *
 g = GraphFrame(v, e)
 
 # Query: Get in-degree of each vertex.
@@ -109,7 +111,7 @@ g.inDegrees.show()
 g.edges.filter("relationship = 'follow'").count()
 
 # Run PageRank algorithm, and show results.
-results = g.pageRank(resetProbability=0.01, numIter=20)
+results = g.pageRank(resetProbability=0.01, maxIter=20)
 results.vertices.select("id", "pagerank").show()
 {% endhighlight %}
 </div>
