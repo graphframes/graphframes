@@ -60,6 +60,57 @@ class GraphFrame private(
     "GraphFrame(v:" + v + ", e:" + e + ")"
   }
 
+  /**
+   * Persist the dataframe representation of vertices and edges of the graph with the default
+   * storage level.
+   */
+  def cache(): this.type = {
+    persist()
+  }
+
+  /**
+   * Persist the dataframe representation of vertices and edges of the graph with the default
+   * storage level.
+   */
+  def persist(): this.type = {
+    vertices.persist()
+    edges.persist()
+    this
+  }
+
+  /**
+   * Persist the dataframe representation of vertices and edges of the graph with the given
+   * storage level.
+   * @param newLevel  One of: `MEMORY_ONLY`, `MEMORY_AND_DISK`, `MEMORY_ONLY_SER`,
+   * `MEMORY_AND_DISK_SER`, `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc..
+   */
+  def persist(newLevel: StorageLevel): this.type = {
+    vertices.persist(newLevel)
+    edges.persist(newLevel)
+    this
+  }
+
+  /**
+   * Mark the dataframe representation of vertices and edges of the graph as non-persistent, and
+   * remove all blocks for it from memory and disk.
+   */
+  def unpersist(): this.type = {
+    vertices.unpersist()
+    edges.unpersist()
+    this
+  }
+
+  /**
+   * Mark the dataframe representation of vertices and edges of the graph as non-persistent, and
+   * remove all blocks for it from memory and disk.
+   * @param blocking  Whether to block until all blocks are deleted.
+   */
+  def unpersist(blocking: Boolean): this.type = {
+    vertices.unpersist(blocking)
+    edges.unpersist(blocking)
+    this
+  }
+
   // ============== Basic structural methods ============
 
   /**

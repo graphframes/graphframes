@@ -16,6 +16,7 @@
 #
 
 from pyspark import SparkContext
+from pyspark.storagelevel import StorageLevel
 from pyspark.sql import DataFrame, SQLContext
 
 def _from_java_gf(jgf, sqlContext):
@@ -95,6 +96,28 @@ class GraphFrame(object):
 
     def __repr__(self):
         return self._jvm_graph.toString()
+
+    def cache(self):
+        """ Persist the dataframe representation of vertices and edges of the graph with the default
+        storage level.
+        """
+        self._jvm_graph.cache()
+        return self
+
+    def persist(self, storageLevel=StorageLevel.MEMORY_ONLY):
+        """Persist the dataframe representation of vertices and edges of the graph with the given
+        storage level.
+        """
+        javaStorageLevel = self._sc._getJavaStorageLevel(storageLevel)
+        self._jvm_graph.persist(javaStorageLevel)
+        return self
+
+    def unpersist(self, blocking=True):
+        """Mark the dataframe representation of vertices and edges of the graph as non-persistent,
+        and remove all blocks for it from memory and disk.
+        """
+        self._jvm_graph.unpersist(blocking)
+        return self
 
     @property
     def outDegrees(self):
