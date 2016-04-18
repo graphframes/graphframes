@@ -232,5 +232,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     g.unpersist()
     // org.apache.spark.sql.execution.columnar.InMemoryRelation is private and not accessible
+    // This has prevented us from validating DataFrame's are cached.
   }
 }

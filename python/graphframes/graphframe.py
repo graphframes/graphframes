@@ -16,8 +16,8 @@
 #
 
 from pyspark import SparkContext
-from pyspark.storagelevel import StorageLevel
 from pyspark.sql import DataFrame, SQLContext
+from pyspark.storagelevel import StorageLevel
 
 def _from_java_gf(jgf, sqlContext):
     """
