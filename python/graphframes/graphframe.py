@@ -112,7 +112,7 @@ class GraphFrame(object):
         self._jvm_graph.persist(javaStorageLevel)
         return self
 
-    def unpersist(self, blocking=True):
+    def unpersist(self, blocking=False):
         """Mark the dataframe representation of vertices and edges of the graph as non-persistent,
         and remove all blocks for it from memory and disk.
         """
