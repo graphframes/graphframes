@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.Path
 
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.{DataFrame, Row}
@@ -222,5 +223,15 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       (id, deg)
     }.toMap
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
+  }
+
+  test("cache") {
+    val g = GraphFrame(vertices, edges)
+
+    g.persist(StorageLevel.MEMORY_ONLY)
+
+    g.unpersist()
+    // org.apache.spark.sql.execution.columnar.InMemoryRelation is private and not accessible
+    // This has prevented us from validating DataFrame's are cached.
   }
 }

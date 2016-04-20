@@ -67,6 +67,11 @@ class GraphFrameTest(GraphFrameTestCase):
                             g.triplets.sort("src.id").select("src", "dst", "edge").take(1))
         assert tripletsFirst == [("A", "B", "love")]
 
+    def test_cache(self):
+        g = self.g
+        g.cache()
+        g.unpersist()
+
     def test_degrees(self):
         g = self.g
         outDeg = g.outDegrees
