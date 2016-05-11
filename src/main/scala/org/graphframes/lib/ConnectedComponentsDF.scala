@@ -132,146 +132,146 @@ private object ConnectedComponentsDF {
    * @return
    */
   def run(graph: GraphFrame): DataFrame = {
-  // Add initial component column
-  val NEW_COMPONENT_ID = "NEW_COMPONENT_ID"
-  val maxIterations = 100
+    // Add initial component column
+    val NEW_COMPONENT_ID = "NEW_COMPONENT_ID"
+    val maxIterations = 100
 
-  def computeNewComponents(v: DataFrame, e: DataFrame): DataFrame = {
-    // Send messages: smaller component ID -> replace larger component ID
-    val g = GraphFrame(v, e)
-    val triplets = g.triplets
-    val msgsToSrc = triplets.select(col(SRC)(ID).as(ID),
-      when(col(SRC)(COMPONENT_ID) > col(DST)(COMPONENT_ID),
-        col(DST)(COMPONENT_ID)).as(NEW_COMPONENT_ID))
-    val msgsToDst = triplets.select(col(DST)(ID).as(ID),
-      when(col(SRC)(COMPONENT_ID) < col(DST)(COMPONENT_ID),
-        col(SRC)(COMPONENT_ID)).as(NEW_COMPONENT_ID))
-    val msgs = msgsToSrc.unionAll(msgsToDst)
-    val newComponents = msgs.groupBy(ID)
-      .agg(min(NEW_COMPONENT_ID).as(NEW_COMPONENT_ID))
-      .where(col(NEW_COMPONENT_ID).isNotNull)
-    newComponents
-  }
+    def computeNewComponents(v: DataFrame, e: DataFrame): DataFrame = {
+      // Send messages: smaller component ID -> replace larger component ID
+      val g = GraphFrame(v, e)
+      val triplets = g.triplets
+      val msgsToSrc = triplets.select(col(SRC)(ID).as(ID),
+        when(col(SRC)(COMPONENT_ID) > col(DST)(COMPONENT_ID),
+          col(DST)(COMPONENT_ID)).as(NEW_COMPONENT_ID))
+      val msgsToDst = triplets.select(col(DST)(ID).as(ID),
+        when(col(SRC)(COMPONENT_ID) < col(DST)(COMPONENT_ID),
+          col(SRC)(COMPONENT_ID)).as(NEW_COMPONENT_ID))
+      val msgs = msgsToSrc.unionAll(msgsToDst)
+      val newComponents = msgs.groupBy(ID)
+        .agg(min(NEW_COMPONENT_ID).as(NEW_COMPONENT_ID))
+        .where(col(NEW_COMPONENT_ID).isNotNull)
+      newComponents
+    }
 
-  val numOrigVertices = graph.vertices.count()
-  val (origVertices0: DataFrame, edges0: DataFrame, idxDataType: DataType) =
-    getIndexedGraph(graph, numOrigVertices)
-  val origVertices: DataFrame = checkpointDataFrame(origVertices0)
+    val numOrigVertices = graph.vertices.count()
+    val (origVertices0: DataFrame, edges0: DataFrame, idxDataType: DataType) =
+      getIndexedGraph(graph, numOrigVertices)
+    val origVertices: DataFrame = checkpointDataFrame(origVertices0)
 
-  // Remove duplicate edges
-  val edges1 = edges0.select(when(col(SRC) < col(DST), col(SRC)).otherwise(col(DST)).as(SRC),
-    when(col(SRC) < col(DST), col(DST)).otherwise(col(SRC)).as(DST))
-    .distinct
-    .cache()
-  // Handle high-degree vertices.
-  val HANDLE_SKEW = false
-  val (edges2: DataFrame, bigComponents: Map[Long, DataFrame]) = if (HANDLE_SKEW) {
-    // If there is little skew, then edges2 can be the same DataFrame as edges1.
-    println(s"Handling skew...")
-    handleSkew(edges1, numOrigVertices)
-    println(s"Done handling skew.")
-  } else {
-    (edges1, Map.empty[Long, DataFrame])
-  }
-  // Construct vertices2 from edges2.
-  // This also handles vertices without edges, which will be added back in at the end.
-  val vInEdges2 = edges2.select(explode(array(SRC, DST)).as(ID)).distinct
-  val vertices2: DataFrame = origVertices.join(vInEdges2, ID)
-
-  var v: DataFrame = vertices2
-  val origEdges: DataFrame = checkpointDataFrame(edges2)
-  var e: DataFrame = origEdges
-  var iter = 0
-
-  var lastCachedVertices: DataFrame = null
-  var lastCachedEdges: DataFrame = null
-  var lastCachedNewComponents: DataFrame = null
-
-  v = checkpointDataFrame(v)
-  lastCachedVertices = v
-
-  // Send messages: smaller component ID -> replace larger component ID
-  // We copy this update of components before the loop to simplify the caching logic.
-  var newComponents: DataFrame = computeNewComponents(v, e)
-  newComponents.cache()
-  lastCachedNewComponents = newComponents
-  var activeMessageCount: Long = newComponents.count()
-  println(s"activeMessageCount: $activeMessageCount")
-
-  while (iter < maxIterations && activeMessageCount > 0) {
-    println(s"ITERATION $iter")
-    // Update vertices with new components
-    v = v.join(newComponents, v(ID) === newComponents(ID), "left_outer")
-      .select(col(ORIG_ID), v(ID),
-        coalesce(col(NEW_COMPONENT_ID), col(COMPONENT_ID)).as(COMPONENT_ID))
-
-    if (iter != 0 && iter % 4 == 0) {
-      v = checkpointDataFrame(v)
+    // Remove duplicate edges
+    val edges1 = edges0.select(when(col(SRC) < col(DST), col(SRC)).otherwise(col(DST)).as(SRC),
+      when(col(SRC) < col(DST), col(DST)).otherwise(col(SRC)).as(DST))
+      .distinct
+      .cache()
+    // Handle high-degree vertices.
+    val HANDLE_SKEW = false
+    val (edges2: DataFrame, bigComponents: Map[Long, DataFrame]) = if (HANDLE_SKEW) {
+      // If there is little skew, then edges2 can be the same DataFrame as edges1.
+      println(s"Handling skew...")
+      handleSkew(edges1, numOrigVertices)
+      println(s"Done handling skew.")
     } else {
-      v = cacheDataFrame(v)
+      (edges1, Map.empty[Long, DataFrame])
     }
+    // Construct vertices2 from edges2.
+    // This also handles vertices without edges, which will be added back in at the end.
+    val vInEdges2 = edges2.select(explode(array(SRC, DST)).as(ID)).distinct
+    val vertices2: DataFrame = origVertices.join(vInEdges2, ID)
 
-    if (iter != 0 && iter % 2 == 0) { // % x should have x >= 2
-      // % x should have x >= 2
-      // Update edges so each vertex connects to its component's master vertex.
-      val newEdges = v.where(col(ID) !== col(COMPONENT_ID))
-        .select(col(ID).as(SRC), col(COMPONENT_ID).as(DST))
-      e = origEdges.unionAll(newEdges)
-      e.cache()
-      if (lastCachedEdges != null) lastCachedEdges.unpersist(blocking = false)
-      lastCachedEdges = e
-    }
+    var v: DataFrame = vertices2
+    val origEdges: DataFrame = checkpointDataFrame(edges2)
+    var e: DataFrame = origEdges
+    var iter = 0
+
+    var lastCachedVertices: DataFrame = null
+    var lastCachedEdges: DataFrame = null
+    var lastCachedNewComponents: DataFrame = null
+
+    v = checkpointDataFrame(v)
+    lastCachedVertices = v
 
     // Send messages: smaller component ID -> replace larger component ID
-    newComponents = computeNewComponents(v, e)
+    // We copy this update of components before the loop to simplify the caching logic.
+    var newComponents: DataFrame = computeNewComponents(v, e)
     newComponents.cache()
-    activeMessageCount = newComponents.count()
+    lastCachedNewComponents = newComponents
+    var activeMessageCount: Long = newComponents.count()
     println(s"activeMessageCount: $activeMessageCount")
 
-    if (lastCachedVertices != null) lastCachedVertices.unpersist(blocking = false)
-    lastCachedVertices = v
+    while (iter < maxIterations && activeMessageCount > 0) {
+      println(s"ITERATION $iter")
+      // Update vertices with new components
+      v = v.join(newComponents, v(ID) === newComponents(ID), "left_outer")
+        .select(col(ORIG_ID), v(ID),
+          coalesce(col(NEW_COMPONENT_ID), col(COMPONENT_ID)).as(COMPONENT_ID))
+
+      if (iter != 0 && iter % 4 == 0) {
+        v = checkpointDataFrame(v)
+      } else {
+        v = cacheDataFrame(v)
+      }
+
+      if (iter != 0 && iter % 2 == 0) { // % x should have x >= 2
+        // % x should have x >= 2
+        // Update edges so each vertex connects to its component's master vertex.
+        val newEdges = v.where(col(ID) !== col(COMPONENT_ID))
+          .select(col(ID).as(SRC), col(COMPONENT_ID).as(DST))
+        e = origEdges.unionAll(newEdges)
+        e.cache()
+        if (lastCachedEdges != null) lastCachedEdges.unpersist(blocking = false)
+        lastCachedEdges = e
+      }
+
+      // Send messages: smaller component ID -> replace larger component ID
+      newComponents = computeNewComponents(v, e)
+      newComponents.cache()
+      activeMessageCount = newComponents.count()
+      println(s"activeMessageCount: $activeMessageCount")
+
+      if (lastCachedVertices != null) lastCachedVertices.unpersist(blocking = false)
+      lastCachedVertices = v
+      if (lastCachedNewComponents != null) lastCachedNewComponents.unpersist(blocking = false)
+      lastCachedNewComponents = newComponents
+
+      iter += 1
+    }
     if (lastCachedNewComponents != null) lastCachedNewComponents.unpersist(blocking = false)
-    lastCachedNewComponents = newComponents
+    if (lastCachedEdges != null) lastCachedEdges.unpersist(blocking = false)
+    // Unpersist here instead of before loop since we could have edges1 = edges2,
+    // and the link between edges2 and origEdges is unclear (need to check local checkpoint impl).
+    edges1.unpersist(blocking = false)
+    edges2.unpersist(blocking = false)
+    origEdges.unpersist(blocking = false)
 
-    iter += 1
-  }
-  if (lastCachedNewComponents != null) lastCachedNewComponents.unpersist(blocking = false)
-  if (lastCachedEdges != null) lastCachedEdges.unpersist(blocking = false)
-  // Unpersist here instead of before loop since we could have edges1 = edges2,
-  // and the link between edges2 and origEdges is unclear (need to check local checkpoint impl).
-  edges1.unpersist(blocking = false)
-  edges2.unpersist(blocking = false)
-  origEdges.unpersist(blocking = false)
-
-  // Handle bigComponents.
-  if (bigComponents.nonEmpty) {
-    println("Handling bigComponents...")
-    val bigComponentReps: Set[Long] = bigComponents.keys.toSet
-    val isBigRep = idxDataType match {
-      case _: LongType => udf { (vid: Long) => bigComponentReps.contains(vid) }
-      case _: IntegerType => udf { (vid: Int) => bigComponentReps.contains(vid.toLong) }
+    // Handle bigComponents.
+    if (bigComponents.nonEmpty) {
+      println("Handling bigComponents...")
+      val bigComponentReps: Set[Long] = bigComponents.keys.toSet
+      val isBigRep = idxDataType match {
+        case _: LongType => udf { (vid: Long) => bigComponentReps.contains(vid) }
+        case _: IntegerType => udf { (vid: Int) => bigComponentReps.contains(vid.toLong) }
+      }
+      // bigComponentIds: representative vertex ID -> component ID
+      val bigComponentIds: Map[Long, Long] =
+        origVertices.where(isBigRep(col(ID))).select(ID, COMPONENT_ID).map {
+          case Row(id: Long, comp: Long) => id -> comp
+          case Row(id: Int, comp: Int) => id.toLong -> comp.toLong
+        }.collect().toMap
+      bigComponents.foreach { case (vid: Long, compVertices: DataFrame) =>
+        val componentId = bigComponentIds(vid)
+        val component = origVertices.join(compVertices, ID)
+          .select(col(ID), col(ORIG_ID),
+            lit(componentId).cast(idxDataType.simpleString).as(COMPONENT_ID))
+        v = v.unionAll(component)
+      }
     }
-    // bigComponentIds: representative vertex ID -> component ID
-    val bigComponentIds: Map[Long, Long] =
-      origVertices.where(isBigRep(col(ID))).select(ID, COMPONENT_ID).map {
-        case Row(id: Long, comp: Long) => id -> comp
-        case Row(id: Int, comp: Int) => id.toLong -> comp.toLong
-      }.collect().toMap
-    bigComponents.foreach { case (vid: Long, compVertices: DataFrame) =>
-      val componentId = bigComponentIds(vid)
-      val component = origVertices.join(compVertices, ID)
-        .select(col(ID), col(ORIG_ID),
-          lit(componentId).cast(idxDataType.simpleString).as(COMPONENT_ID))
-      v = v.unionAll(component)
-    }
-  }
-  // Handle vertices without edges.
-  v = origVertices.join(v, origVertices(ID) === v(ID), "left_outer")
-    .select(origVertices(ID).cast("long"), origVertices(ORIG_ID),
-      coalesce(v(COMPONENT_ID), origVertices(COMPONENT_ID)).cast("long").as(COMPONENT_ID))
-  // TODO: unpersist origVertices, bigComponents?
-  // Join COMPONENT_ID column with original vertices.
-  graph.vertices.join(v.select(col(ORIG_ID).as(ID), col(COMPONENT_ID)), ID)
+    // Handle vertices without edges.
+    v = origVertices.join(v, origVertices(ID) === v(ID), "left_outer")
+      .select(origVertices(ID).cast("long"), origVertices(ORIG_ID),
+        coalesce(v(COMPONENT_ID), origVertices(COMPONENT_ID)).cast("long").as(COMPONENT_ID))
+    // TODO: unpersist origVertices, bigComponents?
+    // Join COMPONENT_ID column with original vertices.
+    graph.vertices.join(v.select(col(ORIG_ID).as(ID), col(COMPONENT_ID)), ID)
   }
 
   /**
