@@ -27,7 +27,7 @@ Refer to the [User Guide](user-guide.html) for a full list of queries and algori
 
 # Downloading
 
-Get GraphFrames from the [Spark Packages website](http://spark-packages.org).
+Get GraphFrames from the [Spark Packages website](http://spark-packages.org/package/graphframes/graphframes).
 This documentation is for GraphFrames version {{site.GRAPHFRAMES_VERSION}}.
 GraphFrames depends on Apache Spark, which is available for download from the
 [Apache Spark website](http://spark.apache.org).
