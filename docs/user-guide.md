@@ -146,8 +146,8 @@ g.edges.show()
 // |  a|  e|      friend|
 // +---+---+------------+
 
-// import SQL package
-import org.apache.spark.sql._
+// import Spark SQL package
+import org.apache.spark.sql.DataFrame
 
 // Get a DataFrame with columns "id" and "inDeg" (in-degree)
 val vertexInDegrees: DataFrame = g.inDegrees
