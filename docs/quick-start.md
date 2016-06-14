@@ -58,6 +58,8 @@ The following example shows how to create a GraphFrame, query it, and run the Pa
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
+// import graphframes package
+import org.graphframes._
 // Create a Vertex DataFrame with unique ID column "id"
 val v = sqlContext.createDataFrame(List(
   ("a", "Alice", 34),
