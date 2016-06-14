@@ -124,16 +124,16 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([
-        (0L, "a", "b")], ["id", "vattr", "gender"])
-        e = self.sqlContext.createDataFrame([(0L, 0L, 1L)], ["src", "dst", "test"]).filter("src > 10")
+        (0, "a", "b")], ["id", "vattr", "gender"])
+        e = self.sqlContext.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
         self._df_hasCols(comps, vcols=['id', 'component', 'vattr', 'gender'])
         self.assertEqual(comps.count(), 1)
 
     def test_connected_components2(self):
-        v = self.sqlContext.createDataFrame([(0L, "a0", "b0"), (1L, "a1", "b1")], ["id", "A", "B"])
-        e = self.sqlContext.createDataFrame([(0L, 1L, "a01", "b01")], ["src", "dst", "A", "B"])
+        v = self.sqlContext.createDataFrame([(0, "a0", "b0"), (1, "a1", "b1")], ["id", "A", "B"])
+        e = self.sqlContext.createDataFrame([(0, 1, "a01", "b01")], ["src", "dst", "A", "B"])
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
         self._df_hasCols(comps, vcols=['id', 'component', 'A', 'B'])
