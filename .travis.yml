@@ -11,6 +11,7 @@ cache:
     - $HOME/.cache/spark-versions
 env:
   matrix:
+    - SCALA_BINARY_VERSION="2.10" SPARK_VERSION=1.6.2RC2 SPARK_BUILD="spark-1.6.2-bin-hadoop2.6" SPARK_BUILD_URL="http://people.apache.org/~pwendell/spark-releases/spark-1.6.2-rc2-bin/spark-1.6.2-bin-hadoop2.6.tgz"
     - SPARK_VERSION=1.6.1 SPARK_BUILD="spark-1.6.1-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.1-bin-hadoop2.6.tgz"
     - SPARK_VERSION=1.5.2 SPARK_BUILD="spark-1.5.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.5.2-bin-hadoop2.6.tgz"
     - SPARK_VERSION=1.4.1 SPARK_BUILD="spark-1.4.1-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.4.1-bin-hadoop2.6.tgz"
