@@ -1,6 +1,9 @@
 // Your sbt build file. Guides on how to write one can be found at
 // http://www.scala-sbt.org/0.13/docs/index.html
 
+resolvers +=
+  "Spark 1.6.2 RC2 repo" at "https://repository.apache.org/content/repositories/orgapachespark-1186/"
+
 val sparkVer = sys.props.getOrElse("spark.version", "1.4.1")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
