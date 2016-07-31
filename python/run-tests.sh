@@ -32,8 +32,10 @@ done
 # The current directory of the script.
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+a=( ${SCALA_VERSION//./ } )
+scala_version_major_minor="${a[0]}.${a[1]}"
 echo "List of assembly jars found, the last one will be used:"
-assembly_path="$DIR/../target/scala-2.10"
+assembly_path="$DIR/../target/scala-$scala_version_major_minor"
 echo `ls $assembly_path/graphframes-assembly*.jar`
 JAR_PATH=""
 for assembly in $assembly_path/graphframes-assembly*.jar ; do

@@ -9,6 +9,12 @@ val defaultScalaVer = sparkBranch match {
   case "1.6" => "2.10.5"
   case "2.0" => "2.11.7"
 }
+val defaultScalaTestVer = sparkBranch match {
+  case "1.4" => "2.0"
+  case "1.5" => "2.0"
+  case "1.6" => "2.0"
+  case "2.0" => "2.2.6" // scalatest_2.11 does not have 2.0 published
+}
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
 
 sparkVersion := sparkVer
@@ -33,7 +39,7 @@ sparkComponents ++= Seq("graphx", "sql")
 // add any Spark Package dependencies using spDependencies.
 // e.g. spDependencies += "databricks/spark-avro:0.1"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "2.0" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % defaultScalaTestVer % "test"
 
 parallelExecution := false
 
