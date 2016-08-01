@@ -41,6 +41,12 @@ sparkComponents ++= Seq("graphx", "sql")
 
 libraryDependencies += "org.scalatest" %% "scalatest" % defaultScalaTestVer % "test"
 
+// These versions are ancient, but they cross-compile around scala 2.10 and 2.11.
+// Update them when dropping support for scala 2.10
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging-api" % "2.1.2"
+
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2"
+
 parallelExecution := false
 
 unmanagedSourceDirectories in Compile ++=
