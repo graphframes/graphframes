@@ -9,13 +9,12 @@ val defaultScalaVer = sparkBranch match {
   case "1.6" => "2.10.5"
   case "2.0" => "2.11.7"
 }
-val defaultScalaTestVer = sparkBranch match {
-  case "1.4" => "2.0"
-  case "1.5" => "2.0"
-  case "1.6" => "2.0"
-  case "2.0" => "2.2.6" // scalatest_2.11 does not have 2.0 published
-}
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
+val defaultScalaTestVer = scalaVer match {
+  case "2.10.4" => "2.0"
+  case "2.10.5" => "2.0"
+  case "2.11.7" => "2.2.6" // scalatest_2.11 does not have 2.0 published
+}
 
 sparkVersion := sparkVer
 
@@ -62,8 +61,9 @@ scalacOptions in (Compile, doc) ++= Seq(
 
 scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 
-// This fixes a class loader problem with scala.Tuple2 class in scala-2.11
+// This fixes a class loader problem with scala.Tuple2 class, scala-2.11, Spark 2.x
 // "scala.ScalaReflectionException: class scala.Tuple2 in JavaMirror with sbt.classpath.ClasspathFilter@61de7710 of type class sbt.classpath.ClasspathFilter with classpath [<unknown>] and parent being sbt.classpath.ClasspathUtilities$$anon$1@4b18bc2d of type class sbt.classpath.ClasspathUtilities$$anon$1 with classpath"
-fork in Test := true
+fork in Test :=
+  (if (sparkBranch.startsWith("2.") && scalaVer.startsWith("2.11.")) true else false)
 
 autoAPIMappings := true
