@@ -79,20 +79,20 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("construction from edge DataFrame") {
     val g = GraphFrame.fromEdges(edges)
     assert(g.vertices.columns === Array("id"))
-    val idsFromVertices = g.vertices.select("id").map(_.getLong(0)).collect()
+    val idsFromVertices = g.vertices.select("id").rdd.map(_.getLong(0)).collect()
     val idsFromVerticesSet = idsFromVertices.toSet
     assert(idsFromVertices.length === idsFromVerticesSet.size)
-    val idsFromEdgesSet = g.edges.select("src", "dst").flatMap { case Row(src: Long, dst: Long) =>
+    val idsFromEdgesSet = g.edges.select("src", "dst").rdd.flatMap { case Row(src: Long, dst: Long) =>
       Seq(src, dst)
     }.collect().toSet
     assert(idsFromVerticesSet === idsFromEdgesSet)
   }
 
   test("construction from GraphX") {
-    val vv: RDD[(Long, String)] = vertices.map { case Row(id: Long, name: String) =>
+    val vv: RDD[(Long, String)] = vertices.rdd.map { case Row(id: Long, name: String) =>
       (id, name)
     }
-    val ee: RDD[Edge[String]] = edges.map { case Row(src: Long, dst: Long, action: String) =>
+    val ee: RDD[Edge[String]] = edges.rdd.map { case Row(src: Long, dst: Long, action: String) =>
       Edge(src, dst, action)
     }
     val g = Graph(vv, ee)

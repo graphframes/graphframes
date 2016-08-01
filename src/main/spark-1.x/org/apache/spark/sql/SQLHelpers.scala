@@ -18,7 +18,8 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.types.{LongType, StructField, StructType}
+import org.apache.spark.sql.functions.callUDF
+import org.apache.spark.sql.types.{DataType, LongType, StructField, StructType}
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
@@ -38,5 +39,9 @@ object SQLHelpers {
     val outputSchema = StructType(Seq(
       StructField("row", schema, false), StructField("uniq_id", LongType, false)))
     sqlContext.createDataFrame(rdd, outputSchema)
+  }
+
+  def callUDF(f: Function1[_, _], returnType: DataType, arg1: Column): Column = {
+    org.apache.spark.sql.functions.callUDF(f, returnType, arg1)
   }
 }

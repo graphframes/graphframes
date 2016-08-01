@@ -50,7 +50,10 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "
 parallelExecution := false
 
 unmanagedSourceDirectories in Compile ++=
-  Seq(baseDirectory.value / "src" / "main" / (if (sparkBranch == "1.4") "spark-1.4" else "spark-x"))
+  Seq(baseDirectory.value / "src" / "main" /
+    (if (sparkBranch == "1.4") "spark-1.4"
+     else if (sparkBranch == "1.5" || sparkBranch == "1.6") "spark-1.x"
+     else "spark-2.x"))
 
 scalacOptions in (Compile, doc) ++= Seq(
   "-groups",
