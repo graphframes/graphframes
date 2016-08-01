@@ -168,10 +168,10 @@ class GraphFrameLibTest(GraphFrameTestCase):
         v2 = g.shortestPaths(landmarks)
         self._df_hasCols(v2, vcols=["id", "distances"])
 
-    def test_svd_plus_plus(self):
-        g = self._graph("ALSSyntheticData")
-        (v2, cost) = g.svdPlusPlus()
-        self._df_hasCols(v2, vcols=['id', 'column1', 'column2', 'column3', 'column4'])
+    # def test_svd_plus_plus(self):
+    #     g = self._graph("ALSSyntheticData")
+    #     (v2, cost) = g.svdPlusPlus()
+    #     self._df_hasCols(v2, vcols=['id', 'column1', 'column2', 'column3', 'column4'])
 
     def test_strongly_connected_components(self):
         # Simple island test
