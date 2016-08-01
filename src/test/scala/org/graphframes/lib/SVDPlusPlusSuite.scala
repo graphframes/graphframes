@@ -26,7 +26,7 @@ import org.graphframes.examples.Graphs
 
 class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  test("Test SVD++ with mean square error on training set") {
+  ignore("Test SVD++ with mean square error on training set") {
     val svdppErr = 8.0
     val g = Graphs.ALSSyntheticData()
 

@@ -62,4 +62,8 @@ scalacOptions in (Compile, doc) ++= Seq(
 
 scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 
+// This fixes a class loader problem with scala.Tuple2 class in scala-2.11
+// "scala.ScalaReflectionException: class scala.Tuple2 in JavaMirror with sbt.classpath.ClasspathFilter@61de7710 of type class sbt.classpath.ClasspathFilter with classpath [<unknown>] and parent being sbt.classpath.ClasspathUtilities$$anon$1@4b18bc2d of type class sbt.classpath.ClasspathUtilities$$anon$1 with classpath"
+fork in Test := true
+
 autoAPIMappings := true
