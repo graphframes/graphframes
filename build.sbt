@@ -66,4 +66,9 @@ scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 fork in Test :=
   (if (sparkBranch.startsWith("2.") && scalaVer.startsWith("2.11.")) true else false)
 
+javaOptions in Test ++= Seq("-Xmx2048m", "-XX:ReservedCodeCacheSize=384m", "-XX:MaxPermSize=384m")
+
+concurrentRestrictions in Global := Seq(
+  Tags.limitAll(1))
+
 autoAPIMappings := true
