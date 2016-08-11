@@ -23,7 +23,7 @@ scalaVersion := scalaVer
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := s"0.1.0-spark$sparkBranch-SNAPSHOT"
+version := s"0.2.0-spark$sparkBranch-SNAPSHOT"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
@@ -62,9 +62,7 @@ scalacOptions in (Compile, doc) ++= Seq(
 scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 
 // This fixes a class loader problem with scala.Tuple2 class, scala-2.11, Spark 2.x
-// "scala.ScalaReflectionException: class scala.Tuple2 in JavaMirror with sbt.classpath.ClasspathFilter@61de7710 of type class sbt.classpath.ClasspathFilter with classpath [<unknown>] and parent being sbt.classpath.ClasspathUtilities$$anon$1@4b18bc2d of type class sbt.classpath.ClasspathUtilities$$anon$1 with classpath"
 fork in Test := true
-//  (if (sparkBranch.startsWith("2.") && scalaVer.startsWith("2.11.")) true else false)
 
 // This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
 javaOptions in Test ++= Seq("-Xmx2048m", "-XX:ReservedCodeCacheSize=384m", "-XX:MaxPermSize=384m")

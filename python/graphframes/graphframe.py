@@ -164,10 +164,11 @@ class GraphFrame(object):
     @property
     def triplets(self):
         """
-        The triplets: (source vertex)-[edge]->(destination vertex) for all edges in the graph.
+        The triplets (source vertex)-[edge]->(destination vertex) for all edges in the graph.
+        
         Returned as a :class:`DataFrame` with three columns:
-         - 'src': source vertex with schema matching 'vertices'
-         - 'edge': edge with schema matching 'edges'
+         - "src": source vertex with schema matching 'vertices'
+         - "edge": edge with schema matching 'edges'
          - 'dst': destination vertex with schema matching 'vertices'
 
         :return:  DataFrame with columns 'src', 'edge', and 'dst'
