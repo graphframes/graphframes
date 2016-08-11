@@ -27,7 +27,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql.types.{IntegerType, MapType}
 
-import org.graphframes.{GraphFrame, Logging}
+import org.graphframes.GraphFrame
 
 /**
  * Computes shortest paths from every vertex to the given set of landmark vertices.
