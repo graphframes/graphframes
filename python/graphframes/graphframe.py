@@ -265,7 +265,7 @@ class GraphFrame(object):
 
         See Scala documentation for more details.
 
-        :return: DataFrame with new vertex columns storing learned model.
+        :return: Tuple of DataFrame with new vertex columns storing learned model, and loss value
         """
         # This call is actually useless, because one needs to build the configuration first...
         builder = self._jvm_graph.svdPlusPlus()
