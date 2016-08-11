@@ -1,7 +1,7 @@
 // Your sbt build file. Guides on how to write one can be found at
 // http://www.scala-sbt.org/0.13/docs/index.html
 
-val sparkVer = sys.props.getOrElse("spark.version", "1.4.1")
+val sparkVer = sys.props.getOrElse("spark.version", "2.0.0")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
   case "1.4" => "2.10.4"
@@ -63,8 +63,8 @@ scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 
 // This fixes a class loader problem with scala.Tuple2 class, scala-2.11, Spark 2.x
 // "scala.ScalaReflectionException: class scala.Tuple2 in JavaMirror with sbt.classpath.ClasspathFilter@61de7710 of type class sbt.classpath.ClasspathFilter with classpath [<unknown>] and parent being sbt.classpath.ClasspathUtilities$$anon$1@4b18bc2d of type class sbt.classpath.ClasspathUtilities$$anon$1 with classpath"
-fork in Test :=
-  (if (sparkBranch.startsWith("2.") && scalaVer.startsWith("2.11.")) true else false)
+fork in Test := true
+//  (if (sparkBranch.startsWith("2.") && scalaVer.startsWith("2.11.")) true else false)
 
 javaOptions in Test ++= Seq("-Xmx2048m", "-XX:ReservedCodeCacheSize=384m", "-XX:MaxPermSize=384m")
 

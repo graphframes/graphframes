@@ -101,9 +101,14 @@ private[graphframes] object GraphXConversions {
     val renamedSubfields = origSubfields.zip(fieldNames).map { case (orig, newName) =>
       orig.as(newName)
     }
-    val renamedStruct = struct(renamedSubfields : _*).as(structName)
     val otherFields = df.schema.fieldNames.filter(_ != structName).map(col)
-    df.select(renamedStruct +: otherFields : _*)
+    if (renamedSubfields.isEmpty) {
+      // Do not attempt to add an empty structure.
+      df.select(otherFields : _*)
+    } else {
+      val renamedStruct = struct(renamedSubfields : _*).as(structName)
+      df.select(renamedStruct +: otherFields : _*)
+    }
   }
 
   private def drop(df: DataFrame, cols: String*): DataFrame = {
