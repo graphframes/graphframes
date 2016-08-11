@@ -17,13 +17,12 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.Logging
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{Column, DataFrame, Row}
 
-import org.graphframes.GraphFrame
+import org.graphframes.{GraphFrame, Logging}
 import org.graphframes.GraphFrame.nestAsCol
 
 /**

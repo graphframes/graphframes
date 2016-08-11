@@ -17,12 +17,11 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.Logging
 import org.apache.spark.sql.SQLHelpers.expr
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{Column, DataFrame}
 
-import org.graphframes.GraphFrame
+import org.graphframes.{GraphFrame, Logging}
 
 /**
  * This is a primitive for implementing graph algorithms.

@@ -19,8 +19,8 @@
 // We can delete this file after Spark 1.4.2 and 1.5.3 are released.
 // package org.apache.spark.graphx.lib
 package org.apache.spark.graphx.lib.backport
+import org.graphframes.Logging
 
-import org.apache.spark.Logging
 import org.apache.spark.graphx._
 
 import scala.language.postfixOps

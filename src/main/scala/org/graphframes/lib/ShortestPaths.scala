@@ -23,7 +23,8 @@ import scala.collection.JavaConverters._
 
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.{Column, DataFrame, Row}
-import org.apache.spark.sql.functions.{callUDF, col}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql.types.{IntegerType, MapType}
 
 import org.graphframes.GraphFrame

@@ -17,15 +17,14 @@
 
 package org.apache.spark.sql
 
-import org.apache.spark.sql.catalyst.SqlParser
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.functions.callUDF
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.types.{DataType, LongType, StructField, StructType}
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
 
-  def expr(e: String): Column = new Column(new SqlParser().parseExpression(e))
+  def expr(e: String): Column = functions.expr(e)
 
   /**
    * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
@@ -43,6 +42,7 @@ object SQLHelpers {
   }
 
   def callUDF(f: Function1[_, _], returnType: DataType, arg1: Column): Column = {
-    org.apache.spark.sql.functions.callUDF(f, returnType, arg1)
+    val u = udf(f, returnType)
+    u(arg1)
   }
 }
