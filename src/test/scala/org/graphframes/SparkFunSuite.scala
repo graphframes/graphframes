@@ -19,8 +19,6 @@ package org.graphframes
 
 import org.scalatest.{FunSuite, Outcome}
 
-import org.apache.spark.Logging
-
 /**
  * Base abstract class for all unit tests in Spark for handling common functionality.
  */

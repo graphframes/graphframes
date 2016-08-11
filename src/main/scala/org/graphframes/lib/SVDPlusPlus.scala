@@ -20,7 +20,7 @@ package org.graphframes.lib
 import org.apache.spark.graphx.{Edge, lib => graphxlib}
 import org.apache.spark.sql.{DataFrame, Row}
 
-import org.graphframes.GraphFrame
+import org.graphframes.{GraphFrame, Logging}
 
 /**
  * Implement SVD++ based on "Factorization Meets the Neighborhood:
@@ -116,7 +116,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
 object SVDPlusPlus {
 
   private def run(graph: GraphFrame, conf: graphxlib.SVDPlusPlus.Conf): (DataFrame, Double) = {
-    val edges = graph.edges.select(GraphFrame.SRC, GraphFrame.DST, COLUMN_WEIGHT).map {
+    val edges = graph.edges.select(GraphFrame.SRC, GraphFrame.DST, COLUMN_WEIGHT).rdd.map {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
     }
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf)

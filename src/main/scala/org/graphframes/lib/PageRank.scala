@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.graphx.lib.backport
 
-import org.graphframes.GraphFrame
+import org.graphframes.{GraphFrame, Logging}
 
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank.
