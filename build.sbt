@@ -11,9 +11,8 @@ val defaultScalaVer = sparkBranch match {
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
 val defaultScalaTestVer = scalaVer match {
-  case "2.10.4" => "2.0"
-  case "2.10.5" => "2.0"
-  case "2.11.7" => "2.2.6" // scalatest_2.11 does not have 2.0 published
+  case s if s.startsWith("2.10") => "2.0"
+  case s if s.startsWith("2.11") => "2.2.6" // scalatest_2.11 does not have 2.0 published
 }
 
 sparkVersion := sparkVer
@@ -23,11 +22,12 @@ scalaVersion := scalaVer
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := s"0.2.0-spark$sparkBranch-SNAPSHOT"
+version := s"0.2.0-spark$sparkBranch"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
 
+spAppendScalaVersion := true
 
 // Add Spark components this package depends on, e.g, "mllib", ....
 sparkComponents ++= Seq("graphx", "sql")
