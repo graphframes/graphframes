@@ -23,11 +23,12 @@ scalaVersion := scalaVer
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := s"0.2.0-spark$sparkBranch-SNAPSHOT"
+version := s"0.2.0-spark$sparkBranch"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
 
+spAppendScalaVersion := true
 
 // Add Spark components this package depends on, e.g, "mllib", ....
 sparkComponents ++= Seq("graphx", "sql")
