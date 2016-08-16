@@ -27,3 +27,8 @@ Spark version.
 
 GraphFrames is collaborative effort among UC Berkeley, MIT, and Databricks.
 We welcome open source contributions as well!
+
+## Releases:
+
+ - 0.1.0 initial release
+ - 0.2.0 release for Spark 2.0 (work of @felixcheung)
