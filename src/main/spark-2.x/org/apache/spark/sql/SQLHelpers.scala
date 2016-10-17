@@ -18,8 +18,8 @@
 package org.apache.spark.sql
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.functions.udf
-import org.apache.spark.sql.types.{DataType, LongType, StructField, StructType}
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.DataType
 
 object SQLHelpers {
   def getExpr(col: Column): Expression = col.expr
@@ -28,17 +28,11 @@ object SQLHelpers {
 
   /**
    * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
-   * This is a workaround for SPARK-9020 and SPARK-13473.
    */
   def zipWithUniqueId(df: DataFrame): DataFrame = {
-    val sqlContext = df.sqlContext
-    val schema = df.schema
-    val rdd = df.rdd.zipWithUniqueId().map { case (row, id) =>
-      Row(row, id)
-    }
-    val outputSchema = StructType(Seq(
-      StructField("row", schema, false), StructField("uniq_id", LongType, false)))
-    sqlContext.createDataFrame(rdd, outputSchema)
+    df.select(
+      struct(df.columns.map(c => df(c)) :_*).as("row"),
+      monotonically_increasing_id().as("uniq_id"))
   }
 
   def callUDF(f: Function1[_, _], returnType: DataType, arg1: Column): Column = {
