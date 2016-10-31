@@ -31,7 +31,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val e = sqlContext.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test")
       .filter("src > 10")
     val g = GraphFrame(v, e)
-    val comps = ConnectedComponents.run(g)
+    val comps = g.connectedComponents.run()
     TestUtils.testSchemaInvariants(g, comps)
     TestUtils.checkColumnType(comps.schema, "component", DataTypes.LongType)
     assert(comps.count() === 1)
