@@ -1,13 +1,12 @@
 // Your sbt build file. Guides on how to write one can be found at
 // http://www.scala-sbt.org/0.13/docs/index.html
 
-val sparkVer = sys.props.getOrElse("spark.version", "2.0.0")
+val sparkVer = sys.props.getOrElse("spark.version", "2.0.1")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
-  case "1.4" => "2.10.4"
-  case "1.5" => "2.10.4"
   case "1.6" => "2.10.5"
   case "2.0" => "2.11.7"
+  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
 val defaultScalaTestVer = scalaVer match {
@@ -50,9 +49,7 @@ parallelExecution := false
 
 unmanagedSourceDirectories in Compile ++=
   Seq(baseDirectory.value / "src" / "main" /
-    (if (sparkBranch == "1.4") "spark-1.4"
-     else if (sparkBranch == "1.5" || sparkBranch == "1.6") "spark-1.x"
-     else "spark-2.x"))
+    (if (sparkBranch == "1.6") "spark-1.x" else "spark-2.x"))
 
 scalacOptions in (Compile, doc) ++= Seq(
   "-groups",

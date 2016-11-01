@@ -19,7 +19,7 @@ You will need to set `SPARK_HOME` to your local Spark installation directory.
 
 ## Spark version compatibility
 
-This project is compatible with Spark 1.4+.  However, significant speed improvements have been
+This project is compatible with Spark 1.6+.  However, significant speed improvements have been
 made to DataFrames in more recent versions of Spark, so you may see speedups from using the latest
 Spark version.
 
