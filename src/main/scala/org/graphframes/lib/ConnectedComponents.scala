@@ -200,7 +200,14 @@ private object ConnectedComponents extends Logging {
     hashJoined.union(broadcastJoined)
   }
 
-  def run(graph: GraphFrame, broadcastThreshold: Int): DataFrame = {
+  /**
+   * Runs connected components with default parameters.
+   */
+  def run(graph: GraphFrame): DataFrame = {
+    new ConnectedComponents(graph).run()
+  }
+
+  private def run(graph: GraphFrame, broadcastThreshold: Int): DataFrame = {
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
     logger.info(s"$logPrefix Start connected components with run ID $runId.")
