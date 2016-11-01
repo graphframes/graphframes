@@ -18,6 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes._
@@ -55,6 +56,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
 
   test("friends graph") {
     val friends = examples.Graphs.friends
-    friends.connectedComponents.run()
+    val components = friends.connectedComponents.run()
+    val numComponents = components.select(countDistinct("components")).head().getLong(0)
+    assert(numComponents === 2)
   }
 }
