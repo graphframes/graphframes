@@ -24,7 +24,7 @@ import scala.collection.mutable
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
 
 import org.graphframes.{GraphFrame, Logging}
@@ -88,12 +88,18 @@ private object ConnectedComponents extends Logging {
 
   /**
    * Returns the symmetric directed graph of the graph specified by input edges.
+   *
    * @param ee non-bidirectional edges
    */
   private def symmetrize(ee: DataFrame): DataFrame = {
-    val EDGE = "_edge"
-    ee.select(explode(array(struct(SRC, DST), struct(col(DST).as(SRC), col(SRC).as(DST)))).as(EDGE))
-      .select(col(s"$EDGE.$SRC").as(SRC), col(s"$EDGE.$DST").as(DST))
+    //// The following might work better but it doesn't compile in 1.6,
+    //// because DST is nullable from aggregation but SRC is not.
+    // val EDGE = "_edge"
+    // ee.select(explode(
+    //    array(struct(col(SRC), col(DST)), struct(col(DST).as(SRC), col(SRC).as(DST)))).as(EDGE))
+    //  .select(col(s"$EDGE.$SRC").as(SRC), col(s"$EDGE.$DST").as(DST))
+
+    ee.unionAll(ee.select(col(DST).as(SRC), col(SRC).as(DST)))
   }
 
   /**
@@ -117,7 +123,7 @@ private object ConnectedComponents extends Logging {
       // .distinct()
     val edges = graph.indexedEdges
       .select(col(LONG_SRC).as(SRC), col(LONG_DST).as(DST))
-    val orderedEdges = edges.filter(col(SRC) =!= col(DST))
+    val orderedEdges = edges.filter(col(SRC) !== col(DST))
       .select(minValue(col(SRC), col(DST)).as(SRC), maxValue(col(SRC), col(DST)).as(DST))
       .distinct()
     GraphFrame(vertices, orderedEdges)
@@ -128,6 +134,7 @@ private object ConnectedComponents extends Logging {
    *   - `src`, the ID of the vertex
    *   - `min_nbr`, the min ID of its neighbors
    *   - `cnt`, the total number of neighbors
+   *
    * @return a DataFrame with three columns
    */
   private def minNbrs(ee: DataFrame): DataFrame = {
@@ -151,12 +158,12 @@ private object ConnectedComponents extends Logging {
       minNbrs: DataFrame,
       broadcastThreshold: Int,
       logPrefix: String): DataFrame = {
-    import edges.sqlContext.implicits._
     val hubs = minNbrs.filter(col(CNT) > broadcastThreshold)
       .select(SRC, MIN_NBR)
-      .as[(Long, Long)]
       .collect()
-      .toMap // TODO: use OpenHashMap
+      .map { case Row(src: Long, minNbr: Long) =>
+        src -> minNbr
+      }.toMap // TODO: use OpenHashMap
     if (hubs.isEmpty) {
       return edges.join(minNbrs, SRC)
     } else {
@@ -173,7 +180,7 @@ private object ConnectedComponents extends Logging {
       .select(SRC, DST, MIN_NBR)
     val broadcastJoined = edges.filter(isHub(col(SRC)))
       .select(col(SRC), col(DST), minNbr(col(SRC)))
-    hashJoined.union(broadcastJoined)
+    hashJoined.unionAll(broadcastJoined)
   }
 
   /**
@@ -233,16 +240,16 @@ private object ConnectedComponents extends Logging {
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
       // connect self to the min neighbor
       ee = ee
-        .union(
+        .unionAll(
           minNbrs2.select( // src <= dst
             minValue(col(SRC), col(MIN_NBR)).as(SRC),
             maxValue(col(SRC), col(MIN_NBR)).as(DST)))
-        .filter(col(SRC) =!= col(DST)) // src < dst
+        .filter(col(SRC) !== col(DST)) // src < dst
         .distinct()
       // TODO: remove this after DataFrame.checkpoint is implemented
       val out = s"$checkpointDir/$k"
       ee.write.parquet(out)
-      if (k > 1) {
+      if (k > 0) {
         FileSystem.get(sc.hadoopConfiguration)
           .delete(new Path(s"$checkpointDir/${k - 1}"), true)
       }
