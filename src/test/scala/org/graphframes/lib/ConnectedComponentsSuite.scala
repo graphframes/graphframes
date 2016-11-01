@@ -32,7 +32,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val e = sqlContext.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test")
       .filter("src > 10")
     val g = GraphFrame(v, e)
-    val comps = g.connectedComponents.run()
+    val comps = ConnectedComponents.run(g)
     TestUtils.testSchemaInvariants(g, comps)
     TestUtils.checkColumnType(comps.schema, "component", DataTypes.LongType)
     assert(comps.count() === 1)
@@ -57,7 +57,16 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   test("friends graph") {
     val friends = examples.Graphs.friends
     val components = friends.connectedComponents.run()
-    val numComponents = components.select(countDistinct("components")).head().getLong(0)
+    val numComponents = components.select(countDistinct("component")).head().getLong(0)
+    assert(numComponents === 2)
+  }
+
+  test("friends graph w/ broadcast joins") {
+    val friends = examples.Graphs.friends
+    val components = friends.connectedComponents
+      .setBroadcastThreshold(1)
+      .run()
+    val numComponents = components.select(countDistinct("component")).head().getLong(0)
     assert(numComponents === 2)
   }
 }
