@@ -132,20 +132,19 @@ private object ConnectedComponents extends Logging {
    *   - column `src` stores the long ID of the source vertex,
    *   - column `dst` stores the long ID of the destination vertex,
    * where we always have `src` < `dst`.
-   * The returned graph is persisted in memory and disk.
    */
   private def prepare(graph: GraphFrame): GraphFrame = {
     // TODO: This assignment job might fail if the graph is skewed.
     val vertices = graph.indexedVertices
-      .select(col(LONG_ID).as(ID), col(ID).as(ORIG_ID))
-      .distinct()
+      .select(col(LONG_ID).as(ID), col(ATTR))
+      // TODO: confirm the contract for a graph and decide whether we need distinct here
+      // .distinct()
     val edges = graph.indexedEdges
       .select(col(LONG_SRC).as(SRC), col(LONG_DST).as(DST))
     val orderedEdges = edges.filter(col(SRC) =!= col(DST))
       .select(minValue(col(SRC), col(DST)).as(SRC), maxValue(col(SRC), col(DST)).as(DST))
       .distinct()
     GraphFrame(vertices, orderedEdges)
-      .persist(StorageLevel.MEMORY_AND_DISK)
   }
 
   /**
@@ -221,10 +220,9 @@ private object ConnectedComponents extends Logging {
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
     val vv = g.vertices
-    var ee = g.edges
-    val numVertices = vv.count()
+    var ee = g.edges.persist(StorageLevel.MEMORY_AND_DISK)
     val numEdges = ee.count()
-    logger.info(s"$logPrefix Found $numVertices vertices and $numEdges after preparation.")
+    logger.info(s"$logPrefix Found $numEdges edges after preparation.")
 
     var converged = false
     var k = 0
@@ -284,6 +282,7 @@ private object ConnectedComponents extends Logging {
 
     logger.info(s"$logPrefix Join and return component assignments with original vertex IDs.")
     vv.join(ee, vv(ID) === ee(DST), "left_outer")
-      .select(vv(ORIG_ID).as(ID), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
+      .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
+      .select(col(s"$ATTR.*"), col(COMPONENT))
   }
 }
