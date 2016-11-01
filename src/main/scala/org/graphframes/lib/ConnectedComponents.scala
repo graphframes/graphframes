@@ -68,35 +68,11 @@ class ConnectedComponents private[graphframes] (
     */
   def getBroadcastThreshold: Long = broadcastThreshold
 
-  // TODO: allow different checkpoint interval
-
-  private var checkpointInterval: Int = 1
-
-  /**
-    * Sets checkpoint interval in terms of number of iterations (default: 1).
-    * Checkpointing regularly helps recover from failures, clean shuffle files, and shorten the
-    * lineage of the computation graph.
-    * Checkpoint data is saved under [[org.apache.spark.SparkContext.getCheckpointDir]] with
-    * prefix "connected-components".
-    * Throws a [[java.io.IOException]] if the checkpoint directory is not set.
-    * Set the value to -1 to disable checkpointing (not recommended for large graphs).
-    */
-  def setCheckpointInterval(value: Int): this.type = {
-    assert(value == 1, "Only checkpointInterval=1 is supported right now.")
-    checkpointInterval = value
-    this
-  }
-
-  def getCheckpointInterval: Int = checkpointInterval
-
-
   /**
    * Runs the algorithm.
    */
   def run(): DataFrame = {
-    ConnectedComponents.run(
-      graph,
-      broadcastThreshold = broadcastThreshold)
+    ConnectedComponents.run(graph, broadcastThreshold = broadcastThreshold)
   }
 }
 
