@@ -24,7 +24,7 @@ import scala.collection.mutable
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{Column, DataFrame, Row}
+import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.storage.StorageLevel
 
 import org.graphframes.{GraphFrame, Logging}
@@ -158,12 +158,12 @@ private object ConnectedComponents extends Logging {
       minNbrs: DataFrame,
       broadcastThreshold: Int,
       logPrefix: String): DataFrame = {
+    import edges.sqlContext.implicits._
     val hubs = minNbrs.filter(col(CNT) > broadcastThreshold)
       .select(SRC, MIN_NBR)
+      .as[(Long, Long)]
       .collect()
-      .map { case Row(src: Long, minNbr: Long) =>
-        src -> minNbr
-      }.toMap // TODO: use OpenHashMap
+      .toMap // TODO: use OpenHashMap
     if (hubs.isEmpty) {
       return edges.join(minNbrs, SRC)
     } else {
