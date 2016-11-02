@@ -37,6 +37,9 @@ import org.graphframes.{GraphFrame, Logging}
  *
  * The computation is done using alternating large star and small star iterations proposed in
  * "Connected Components in MapReduce and Beyond" with skewed join optimization.
+ * Intermediate data is checkpointed under [[org.apache.spark.SparkContext.getCheckpointDir]]
+ * with prefix "connected-components".
+ * If the checkpoint directory is not set, this throws nn [[IOException]].
  *
  * The resulting DataFrame contains all the vertex information and one additional column:
  *  - component (`LongType`): unique ID for this component
@@ -51,22 +54,23 @@ class ConnectedComponents private[graphframes] (
   private var broadcastThreshold: Int = 1000000
 
   /**
-    * Sets broadcast threshold in propagating component assignments (default: 1000000).
-    * If a node degree is greater than this threshold at some iteration, its component assignment
-    * will be collected and then broadcasted back to propagate the assignment to its neighbors.
-    * Otherwise, the assignment propagation is done by a normal Spark join.
+   * Sets broadcast threshold in propagating component assignments (default: 1000000).
+   * If a node degree is greater than this threshold at some iteration, its component assignment
+   * will be collected and then broadcasted back to propagate the assignment to its neighbors.
+   * Otherwise, the assignment propagation is done by a normal Spark join.
    */
   def setBroadcastThreshold(value: Int): this.type = {
+    require(value >= 0, s"Broadcast threshold must be non-negative but got ${value}.")
     broadcastThreshold = value
     this
   }
 
   /**
-    * Gets broadcast threshold in propagating component assignment.
-    *
-    * @see [[setBroadcastThreshold()]]
-    */
-  def getBroadcastThreshold: Long = broadcastThreshold
+   * Gets broadcast threshold in propagating component assignment.
+   *
+   * @see [[setBroadcastThreshold()]]
+   */
+  def getBroadcastThreshold: Int = broadcastThreshold
 
   /**
    * Runs the algorithm.
@@ -106,10 +110,10 @@ private object ConnectedComponents extends Logging {
    * Prepares the input graph for computing connected components by:
    *   - de-duplicating vertices and assigning unique long IDs to each,
    *   - changing edge directions to have increasing long IDs from src to dst,
-   *   - de-duplicating edges and removing loops.
+   *   - de-duplicating edges and removing self-loops.
    * In the returned GraphFrame, the vertex DataFrame has two columns:
    *   - column `id` stores a long ID assigned to the vertex,
-   *   - column `orig_id` stores the original ID.
+   *   - column `attr` stores the original vertex attributes.
    * The edge DataFrame has two columns:
    *   - column `src` stores the long ID of the source vertex,
    *   - column `dst` stores the long ID of the destination vertex,
@@ -205,7 +209,7 @@ private object ConnectedComponents extends Logging {
       throw new IOException(
         "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir")
     }
-    logger.info(s"$logPrefix Use $checkpointDir for checkpointing.")
+    logger.info(s"$logPrefix Using $checkpointDir for checkpointing.")
 
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
@@ -215,26 +219,30 @@ private object ConnectedComponents extends Logging {
     logger.info(s"$logPrefix Found $numEdges edges after preparation.")
 
     var converged = false
-    var k = 0
+    var iteration = 0
     var prevSum = Long.MaxValue
     while (!converged) {
-      val toBeCleaned = mutable.ArrayBuffer.empty[DataFrame]
-      toBeCleaned += ee
+      val toBeUnpersisted = mutable.ArrayBuffer.empty[DataFrame]
+      toBeUnpersisted += ee
+
+      // large-star step
       // compute min neighbors including self
       val minNbrs1 = minNbrs(ee)
         .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)).as(MIN_NBR))
         .persist(StorageLevel.MEMORY_AND_DISK)
-      toBeCleaned += minNbrs1
+      toBeUnpersisted += minNbrs1
       // connect all strictly larger neighbors to the min neighbor (including self)
       ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
         .distinct()
         .persist(StorageLevel.MEMORY_AND_DISK)
-      toBeCleaned += ee
+      toBeUnpersisted += ee
+
+      // small-star step
       // compute min neighbors
       val minNbrs2 = minNbrs(ee)
         .persist(StorageLevel.MEMORY_AND_DISK)
-      toBeCleaned += minNbrs2
+      toBeUnpersisted += minNbrs2
       // connect all smaller neighbors to the min neighbor
       ee = skewedJoin(ee, minNbrs2, broadcastThreshold, logPrefix)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
@@ -246,29 +254,34 @@ private object ConnectedComponents extends Logging {
             maxValue(col(SRC), col(MIN_NBR)).as(DST)))
         .filter(col(SRC) !== col(DST)) // src < dst
         .distinct()
+
+      // checkpointing
       // TODO: remove this after DataFrame.checkpoint is implemented
-      val out = s"$checkpointDir/$k"
+      val out = s"$checkpointDir/$iteration"
       ee.write.parquet(out)
-      if (k > 0) {
+      if (iteration > 0) {
         FileSystem.get(sc.hadoopConfiguration)
-          .delete(new Path(s"$checkpointDir/${k - 1}"), true)
+          .delete(new Path(s"$checkpointDir/${iteration - 1}"), true)
       }
-      toBeCleaned.foreach(df => df.unpersist(true))
+      toBeUnpersisted.foreach(df => df.unpersist(true))
       System.gc() // hint Spark to clean shuffle directories
       // may hit S3 eventually consistent issue
       ee = sqlContext.read.parquet(out)
         .persist(StorageLevel.MEMORY_AND_DISK)
+
+      // test convergence
       val currSum = ee.select(sum(col(SRC))).as[Long].first()
-      logInfo(s"$logPrefix Sum of assigned components in iteration $k: $currSum.")
+      logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
         converged = true
       } else {
         prevSum = currSum
       }
-      k += 1
+
+      iteration += 1
     }
 
-    logger.info(s"$logPrefix Connected components converged in $k iterations.")
+    logger.info(s"$logPrefix Connected components converged in $iteration iterations.")
 
     logger.info(s"$logPrefix Join and return component assignments with original vertex IDs.")
     vv.join(ee, vv(ID) === ee(DST), "left_outer")
