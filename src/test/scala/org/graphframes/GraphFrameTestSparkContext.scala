@@ -17,6 +17,10 @@
 
 package org.graphframes
 
+import java.io.File
+import java.nio.file.Files
+
+import org.apache.commons.io.FileUtils
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import org.apache.spark.{SparkConf, SparkContext}
@@ -33,15 +37,21 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
       .setAppName("GraphFramesUnitTest")
       .set("spark.sql.shuffle.partitions", "4")  // makes small tests much faster
     sc = new SparkContext(conf)
+    val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
+    sc.setCheckpointDir(checkpointDir)
     sqlContext = new SQLContext(sc)
   }
 
   override def afterAll() {
+    val checkpointDir = sc.getCheckpointDir
     sqlContext = null
     if (sc != null) {
       sc.stop()
     }
     sc = null
+    checkpointDir.foreach { dir =>
+      FileUtils.deleteQuietly(new File(dir))
+    }
     super.afterAll()
   }
 }
