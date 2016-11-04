@@ -12,43 +12,43 @@ to learn more about the many queries and algorithms supported by GraphFrames.
 * Table of contents
 {:toc}
 
-# Getting started with Spark and Spark packages
+# Getting started with Apache Spark and Spark packages
 
-If you are new to using Spark, refer to the
-[Spark Documentation](http://spark.apache.org/docs/latest/index.html) and its
+If you are new to using Apache Spark, refer to the
+[Apache Spark Documentation](http://spark.apache.org/docs/latest/index.html) and its
 [Quick-Start Guide](http://spark.apache.org/docs/latest/quick-start.html) for more information.
 
-If you are new to using [Spark packages](http://spark-packages.org/), you can find more information
+If you are new to using [Spark packages](http://spark-packages.org/package/graphframes/graphframes), you can find more information
 in the [Spark User Guide on using the interactive shell](http://spark.apache.org/docs/latest/programming-guide.html#using-the-shell).
 You just need to make sure your Spark shell session has the package as a dependency.
 
 The following example shows how to run the Spark shell with the GraphFrames package.
+We use the `--packages` argument to download the graphframes package and any dependencies automatically.
 
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
 
-If you have GraphFrames available as a JAR `graphframes.jar`, you can add the JAR to the shell
-classpath:
-
 {% highlight bash %}
-$ ./bin/spark-shell --master local[4] --jars graphframes.jar
+$ ./bin/spark-shell --packages graphframes:graphframes:0.2.0-spark2.0-s_2.11
 {% endhighlight %}
 
 </div>
 
 <div data-lang="python"  markdown="1">
 
-If you have GraphFrames available as a JAR `graphframes.jar`, you can make GraphFrames available
-by passing the JAR to the pyspark shell script as follows:
-
 {% highlight bash %}
-$ ./bin/pyspark --master local[4] --py-files graphframes.jar --jars graphframes.jar
+$ ./bin/pyspark --packages graphframes:graphframes:0.2.0-spark2.0-s_2.11
 {% endhighlight %}
 
 </div>
 
 </div>
+
+The above examples of running the Spark shell with GraphFrames use a specific version of the GraphFrames
+package.  To use a different version, just change the last part of the `--packages` argument;
+for example, to run with version `0.1.0-spark1.6`, pass the argument
+`--packages graphframes:graphframes:0.1.0-spark1.6`.
 
 # Start using GraphFrames
 
