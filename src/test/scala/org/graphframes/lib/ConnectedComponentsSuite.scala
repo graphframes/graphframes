@@ -17,8 +17,9 @@
 
 package org.graphframes.lib
 
+import scala.reflect.ClassTag
+
 import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes._
@@ -67,14 +68,20 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
-  private def assertComponents[T](actual: DataFrame, expected: Set[Set[T]]): Unit = {
-    val actualComponents = actual.groupBy("component").agg(collect_list("id").as("ids"))
+  private def assertComponents[T: ClassTag](actual: DataFrame, expected: Set[Set[T]]): Unit = {
+    // note: not using agg + collect_list because collect_list is not available in 1.6.2
+    val actualComponents = actual.select("component", "id").rdd
+      .map { case Row(component: Long, id: T) =>
+        (component, id)
+      }.groupByKey()
+      .values
+      .map(_.toSeq)
       .collect()
-      .map { case Row(component: Long, ids: Seq[T]) =>
-        val distinctIds = ids.toSet
-        assert(ids.size === distinctIds.size,
+      .map { ids =>
+        val idSet = ids.toSet
+        assert(idSet.size === ids.size,
           s"Found duplicated component assignment in [${ids.mkString(",")}].")
-        distinctIds
+        idSet
       }.toSet
     assert(actualComponents === expected)
   }
