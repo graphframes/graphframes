@@ -20,8 +20,6 @@ package org.graphframes.lib
 import java.io.IOException
 import java.util.UUID
 
-import scala.collection.mutable
-
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame}
@@ -53,13 +51,14 @@ class ConnectedComponents private[graphframes] (
    * This parameter is only used when the algorithm is set to "graphframes".
    */
   def setBroadcastThreshold(value: Int): this.type = {
-    require(value >= 0, s"Broadcast threshold must be non-negative but got ${value}.")
+    require(value >= 0, s"Broadcast threshold must be non-negative but got $value.")
     broadcastThreshold = value
     this
   }
 
   /**
    * Gets broadcast threshold in propagating component assignment.
+   *
    * @see [[setBroadcastThreshold()]]
    */
   def getBroadcastThreshold: Int = broadcastThreshold
@@ -72,11 +71,9 @@ class ConnectedComponents private[graphframes] (
    *   - "graphframes": Uses alternating large star and small star iterations proposed in
    *     [[http://dx.doi.org/10.1145/2670979.2670997 Connected Components in MapReduce and Beyond]]
    *     with skewed join optimization.
-   *     Intermediate data is checkpointed under [[org.apache.spark.SparkContext.getCheckpointDir]]
-   *     with prefix "connected-components".
-   *     If the checkpoint directory is not set, this throws an [[IOException]].
    *   - "graphx": Converts the graph to a GraphX graph and then uses the connected components
    *     implementation in GraphX.
+   *
    * @see [[ConnectedComponents.supportedAlgorithms]]
    */
   def setAlgorithm(value: String): this.type = {
@@ -88,15 +85,46 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets the connected component algorithm to use.
+   *
    * @see [[setAlgorithm()]].
    */
   def getAlgorithm: String = algorithm
+
+  private var checkpointInterval: Int = 1
+
+  /**
+   * Sets checkpoint interval in terms of number of iterations (default: 1).
+   * Checkpointing regularly helps recover from failures, clean shuffle files, and shorten the
+   * lineage of the computation graph.
+   * Checkpoint data is saved under [[org.apache.spark.SparkContext.getCheckpointDir]] with
+   * prefix "connected-components".
+   * If the checkpoint directory is not set, this throws an [[java.io.IOException]].
+   * Set a nonpositive value to disable checkpointing (not recommended for large graphs).
+   * This parameter is only used when the algorithm is set to "graphframes".
+   * Its default value might change in the future.
+   *
+   * @see [[org.apache.spark.SparkContext.setCheckpointDir()]]
+   */
+  def setCheckpointInterval(value: Int): this.type = {
+    checkpointInterval = value
+    this
+  }
+
+  /**
+   * Gets checkpoint interval.
+   *
+   * @see [[setCheckpointInterval()]]
+   */
+  def getCheckpointInterval: Int = checkpointInterval
 
   /**
    * Runs the algorithm.
    */
   def run(): DataFrame = {
-    ConnectedComponents.run(graph, algorithm = algorithm, broadcastThreshold = broadcastThreshold)
+    ConnectedComponents.run(graph,
+      algorithm = algorithm,
+      broadcastThreshold = broadcastThreshold,
+      checkpointInterval = checkpointInterval)
   }
 }
 
@@ -227,7 +255,11 @@ private object ConnectedComponents extends Logging {
     GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
   }
 
-  private def run(graph: GraphFrame, algorithm: String, broadcastThreshold: Int): DataFrame = {
+  private def run(
+      graph: GraphFrame,
+      algorithm: String,
+      broadcastThreshold: Int,
+      checkpointInterval: Int): DataFrame = {
     if (algorithm == ALGO_GRAPHX) {
       return runGraphX(graph)
     }
@@ -240,13 +272,21 @@ private object ConnectedComponents extends Logging {
     val sc = sqlContext.sparkContext
     import sqlContext.implicits._
 
-    val checkpointDir = sc.getCheckpointDir.map { dir =>
-      new Path(dir, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
-    }.getOrElse {
-      throw new IOException(
-        "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir")
+    val shouldCheckpoint = checkpointInterval > 0
+    val checkpointDir: Option[String] = if (shouldCheckpoint) {
+      val dir = sc.getCheckpointDir.map { d =>
+        new Path(d, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
+      }.getOrElse {
+        throw new IOException(
+          "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir().")
+      }
+      logger.info(s"$logPrefix Using $dir for checkpointing with interval $checkpointInterval.")
+      Some(dir)
+    } else {
+      logger.info(
+        s"$logPrefix Checkpointing is disabled because checkpointInterval=$checkpointInterval.")
+      None
     }
-    logger.info(s"$logPrefix Using $checkpointDir for checkpointing.")
 
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
@@ -256,30 +296,24 @@ private object ConnectedComponents extends Logging {
     logger.info(s"$logPrefix Found $numEdges edges after preparation.")
 
     var converged = false
-    var iteration = 0
+    var iteration = 1
     var prevSum = Long.MaxValue
     while (!converged) {
-      val toBeUnpersisted = mutable.ArrayBuffer.empty[DataFrame]
-      toBeUnpersisted += ee
-
       // large-star step
       // compute min neighbors including self
       val minNbrs1 = minNbrs(ee)
         .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)).as(MIN_NBR))
         .persist(StorageLevel.MEMORY_AND_DISK)
-      toBeUnpersisted += minNbrs1
       // connect all strictly larger neighbors to the min neighbor (including self)
       ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
         .distinct()
         .persist(StorageLevel.MEMORY_AND_DISK)
-      toBeUnpersisted += ee
 
       // small-star step
       // compute min neighbors
       val minNbrs2 = minNbrs(ee)
         .persist(StorageLevel.MEMORY_AND_DISK)
-      toBeUnpersisted += minNbrs2
       // connect all smaller neighbors to the min neighbor
       ee = skewedJoin(ee, minNbrs2, broadcastThreshold, logPrefix)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
@@ -293,18 +327,23 @@ private object ConnectedComponents extends Logging {
         .distinct()
 
       // checkpointing
-      // TODO: remove this after DataFrame.checkpoint is implemented
-      val out = s"$checkpointDir/$iteration"
-      ee.write.parquet(out)
-      if (iteration > 0) {
-        FileSystem.get(sc.hadoopConfiguration)
-          .delete(new Path(s"$checkpointDir/${iteration - 1}"), true)
+      if (shouldCheckpoint && (iteration % checkpointInterval == 0)) {
+        // TODO: remove this after DataFrame.checkpoint is implemented
+        val out = s"${checkpointDir.get}/$iteration"
+        ee.write.parquet(out)
+        // may hit S3 eventually consistent issue
+        ee = sqlContext.read.parquet(out)
+
+        // remove previous checkpoint
+        if (iteration > checkpointInterval) {
+          FileSystem.get(sc.hadoopConfiguration)
+            .delete(new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}"), true)
+        }
+
+        System.gc() // hint Spark to clean shuffle directories
       }
-      toBeUnpersisted.foreach(df => df.unpersist(true))
-      System.gc() // hint Spark to clean shuffle directories
-      // may hit S3 eventually consistent issue
-      ee = sqlContext.read.parquet(out)
-        .persist(StorageLevel.MEMORY_AND_DISK)
+
+      ee.persist(StorageLevel.MEMORY_AND_DISK)
 
       // test convergence
       val currSum = ee.select(sum(col(SRC))).as[Long].first()
@@ -318,7 +357,7 @@ private object ConnectedComponents extends Logging {
       iteration += 1
     }
 
-    logger.info(s"$logPrefix Connected components converged in $iteration iterations.")
+    logger.info(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
 
     logger.info(s"$logPrefix Join and return component assignments with original vertex IDs.")
     vv.join(ee, vv(ID) === ee(DST), "left_outer")
