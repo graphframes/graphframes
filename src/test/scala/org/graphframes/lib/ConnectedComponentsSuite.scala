@@ -17,8 +17,9 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.functions._
+import scala.reflect.ClassTag
+
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes._
@@ -56,17 +57,32 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
 
   test("friends graph") {
     val friends = examples.Graphs.friends
-    val components = friends.connectedComponents.run()
-    val numComponents = components.select(countDistinct("component")).head().getLong(0)
-    assert(numComponents === 2)
+    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+    for ((algorithm, broadcastThreshold) <-
+         Seq(("graphx", 1000000), ("graphframes", 100000), ("graphframes", 1))) {
+      val components = friends.connectedComponents
+        .setAlgorithm(algorithm)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      assertComponents(components, expected)
+    }
   }
 
-  test("friends graph w/ broadcast joins") {
-    val friends = examples.Graphs.friends
-    val components = friends.connectedComponents
-      .setBroadcastThreshold(1)
-      .run()
-    val numComponents = components.select(countDistinct("component")).head().getLong(0)
-    assert(numComponents === 2)
+  private def assertComponents[T: ClassTag](actual: DataFrame, expected: Set[Set[T]]): Unit = {
+    // note: not using agg + collect_list because collect_list is not available in 1.6.2
+    val actualComponents = actual.select("component", "id").rdd
+      .map { case Row(component: Long, id: T) =>
+        (component, id)
+      }.groupByKey()
+      .values
+      .map(_.toSeq)
+      .collect()
+      .map { ids =>
+        val idSet = ids.toSet
+        assert(idSet.size === ids.size,
+          s"Found duplicated component assignment in [${ids.mkString(",")}].")
+        idSet
+      }.toSet
+    assert(actualComponents === expected)
   }
 }

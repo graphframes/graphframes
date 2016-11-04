@@ -35,21 +35,13 @@ import org.graphframes.{GraphFrame, Logging}
  * Computes the connected component membership of each vertex and returns a DataFrame of vertex
  * information with each vertex assigned a component ID.
  *
- * The computation is done using alternating large star and small star iterations proposed in
- * "Connected Components in MapReduce and Beyond" with skewed join optimization.
- * Intermediate data is checkpointed under [[org.apache.spark.SparkContext.getCheckpointDir]]
- * with prefix "connected-components".
- * If the checkpoint directory is not set, this throws nn [[IOException]].
- *
  * The resulting DataFrame contains all the vertex information and one additional column:
  *  - component (`LongType`): unique ID for this component
- *
- * The resulting edges DataFrame is the same as the original edges DataFrame.
- *
- * @see https://mmds-data.org/presentations/2014/vassilvitskii_mmds14.pdf
  */
 class ConnectedComponents private[graphframes] (
     private val graph: GraphFrame) extends Arguments with Logging {
+
+  import org.graphframes.lib.ConnectedComponents._
 
   private var broadcastThreshold: Int = 1000000
 
@@ -58,6 +50,7 @@ class ConnectedComponents private[graphframes] (
    * If a node degree is greater than this threshold at some iteration, its component assignment
    * will be collected and then broadcasted back to propagate the assignment to its neighbors.
    * Otherwise, the assignment propagation is done by a normal Spark join.
+   * This parameter is only used when the algorithm is set to "graphframes".
    */
   def setBroadcastThreshold(value: Int): this.type = {
     require(value >= 0, s"Broadcast threshold must be non-negative but got ${value}.")
@@ -67,16 +60,43 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets broadcast threshold in propagating component assignment.
-   *
    * @see [[setBroadcastThreshold()]]
    */
   def getBroadcastThreshold: Int = broadcastThreshold
+
+  private var algorithm: String = _
+
+  /**
+   * Sets the connected components algorithm to use (default: "graphframes").
+   * Supported algorithms are:
+   *   - "graphframes": Uses alternating large star and small star iterations proposed in
+   *     [[http://dx.doi.org/10.1145/2670979.2670997 Connected Components in MapReduce and Beyond]]
+   *     with skewed join optimization.
+   *     Intermediate data is checkpointed under [[org.apache.spark.SparkContext.getCheckpointDir]]
+   *     with prefix "connected-components".
+   *     If the checkpoint directory is not set, this throws an [[IOException]].
+   *   - "graphx": Converts the graph to a GraphX graph and then uses the connected components
+   *     implementation in GraphX.
+   * @see [[ConnectedComponents.supportedAlgorithms]]
+   */
+  def setAlgorithm(value: String): this.type = {
+    require(supportedAlgorithms.contains(value),
+      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $value.")
+    algorithm = value
+    this
+  }
+
+  /**
+   * Gets the connected component algorithm to use.
+   * @see [[setAlgorithm()]].
+   */
+  def getAlgorithm: String = algorithm
 
   /**
    * Runs the algorithm.
    */
   def run(): DataFrame = {
-    ConnectedComponents.run(graph, broadcastThreshold = broadcastThreshold)
+    ConnectedComponents.run(graph, algorithm = algorithm, broadcastThreshold = broadcastThreshold)
   }
 }
 
@@ -89,6 +109,14 @@ private object ConnectedComponents extends Logging {
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
+
+  private val ALGO_GRAPHX = "graphx"
+  private val ALGO_GRAPHFRAMES = "graphframes"
+
+  /**
+   * Supported algorithms in [[ConnectedComponents.setAlgorithm()]]: "graphframes" and "graphx".
+   */
+  val supportedAlgorithms: Array[String] = Array(ALGO_GRAPHX, ALGO_GRAPHFRAMES)
 
   /**
    * Returns the symmetric directed graph of the graph specified by input edges.
@@ -194,7 +222,16 @@ private object ConnectedComponents extends Logging {
     new ConnectedComponents(graph).run()
   }
 
-  private def run(graph: GraphFrame, broadcastThreshold: Int): DataFrame = {
+  private def runGraphX(graph: GraphFrame): DataFrame = {
+    val components = org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX)
+    GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
+  }
+
+  private def run(graph: GraphFrame, algorithm: String, broadcastThreshold: Int): DataFrame = {
+    if (algorithm == ALGO_GRAPHX) {
+      return runGraphX(graph)
+    }
+
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
     logger.info(s"$logPrefix Start connected components with run ID $runId.")
