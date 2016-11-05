@@ -17,6 +17,8 @@
 
 package org.graphframes.lib
 
+import java.io.IOException
+
 import scala.reflect.ClassTag
 
 import org.apache.spark.sql.{DataFrame, Row}
@@ -66,6 +68,49 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         .run()
       assertComponents(components, expected)
     }
+  }
+
+  test("checkpoint interval") {
+    val friends = examples.Graphs.friends
+    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+
+    val cc = new ConnectedComponents(friends)
+    assert(cc.getCheckpointInterval === 1,
+      s"Default checkpoint interval should be 1, but got ${cc.getCheckpointInterval}.")
+
+    val checkpointDir = sc.getCheckpointDir
+    assert(checkpointDir.nonEmpty)
+
+    sc.setCheckpointDir(null)
+    withClue("Should throw an IOException if sc.getCheckpointDir is empty " +
+      "and checkpointInterval is positive.") {
+      intercept[IOException] {
+        cc.run()
+      }
+    }
+
+    // Checks whether the input DataFrame is from some checkpoint data.
+    // TODO: The implemetnation is a little hacky.
+    def isFromCheckpoint(df: DataFrame): Boolean = {
+      df.queryExecution.logical.toString().contains("parquet")
+    }
+
+    val components0 = cc.setCheckpointInterval(0).run()
+    assertComponents(components0, expected)
+    assert(!isFromCheckpoint(components0),
+      "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
+
+    sc.setCheckpointDir(checkpointDir.get)
+
+    val components1 = cc.setCheckpointInterval(1).run()
+    assertComponents(components1, expected)
+    assert(isFromCheckpoint(components1),
+      "The result should depend on chekpoint data if checkpoint interval is 1.")
+
+    val components10 = cc.setCheckpointInterval(10).run()
+    assertComponents(components10, expected)
+    assert(!isFromCheckpoint(components10),
+      "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
   }
 
   private def assertComponents[T: ClassTag](actual: DataFrame, expected: Set[Set[T]]): Unit = {
