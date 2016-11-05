@@ -92,7 +92,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // Checks whether the input DataFrame is from some checkpoint data.
     // TODO: The implemetnation is a little hacky.
     def isFromCheckpoint(df: DataFrame): Boolean = {
-      df.queryExecution.logical.toString().contains("parquet")
+      df.queryExecution.logical.toString().toLowerCase.contains("parquet")
     }
 
     val components0 = cc.setCheckpointInterval(0).run()
