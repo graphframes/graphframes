@@ -30,6 +30,8 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.{DataFrame, Row}
 
+import org.graphframes.examples.Graphs
+
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -233,5 +235,14 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     g.unpersist()
     // org.apache.spark.sql.execution.columnar.InMemoryRelation is private and not accessible
     // This has prevented us from validating DataFrame's are cached.
+  }
+
+  test("basic operations on an empty graph") {
+    for (empty <- Seq(Graphs.empty[Int], Graphs.empty[Long], Graphs.empty[String])) {
+      assert(empty.inDegrees.count() === 0L)
+      assert(empty.outDegrees.count() === 0L)
+      assert(empty.degrees.count() === 0L)
+      assert(empty.triplets.count() === 0L)
+    }
   }
 }
