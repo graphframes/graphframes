@@ -17,17 +17,43 @@
 
 package org.graphframes.examples
 
+import scala.reflect.runtime.universe.TypeTag
+
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.functions.{col, randn, udf}
 
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFrame._
 
 class Graphs private[graphframes] () {
   // Note: these cannot be values: we are creating and destroying spark contexts during the tests,
   // and turning these into vals means we would hold onto a potentially destroyed spark context.
   private def sc: SparkContext = SparkContext.getOrCreate()
   private def sqlContext: SQLContext = SQLContext.getOrCreate(sc)
+
+  /**
+   * Returns an empty GraphFrame of the given ID type.
+   */
+  def empty[T: TypeTag]: GraphFrame = {
+    val sqlContext = this.sqlContext
+    import sqlContext.implicits._
+    val vertices = Seq.empty[Tuple1[T]].toDF(ID)
+    val edges = Seq.empty[(T, T)].toDF(SRC, DST)
+    GraphFrame(vertices, edges)
+  }
+
+  /**
+   * Returns a chain graph of the given size with Long ID type.
+   * The vertex IDs are 0, 1, ..., size-1, and the edges are (0, 1), (1, 2), ....
+   */
+  def chain(size: Long): GraphFrame = {
+    require(size >= 0, s"Chain graph size must be nonnegative but got $size.")
+    val vertices = sqlContext.range(size).toDF(ID)
+    val edges = sqlContext.range(size - 1L).toDF(ID)
+      .select(col(ID).as(SRC), (col(ID) + 1L).as(DST))
+    GraphFrame(vertices, edges)
+  }
 
   /**
    * Graph of friends in a social network.
