@@ -344,10 +344,16 @@ private object ConnectedComponents extends Logging {
       // Taking the sum in DecimalType to preserve precision.
       // We use 20 digits for long values and Spark SQL will add 10 digits for the sum.
       // It should be able to handle 100 billion edges without overflow.
-      val currSum = ee.select(sum(col(SRC).cast(DecimalType(20, 0)))).first().getAs[BigDecimal](0)
+      val (currSum, cnt) = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
+        .map { r =>
+          (r.getAs[BigDecimal](0), r.getLong(1))
+        }.first()
+      if (cnt != 0L && currSum == null) {
+        throw new ArithmeticException("The total sum of current assignments exceeded limit 1e30.")
+      }
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
-        // This also covers the case when currSum is null, which means no edges.
+        // This also covers the case when cnt = 0 and currSum is null, which means no edges.
         converged = true
       } else {
         prevSum = currSum
