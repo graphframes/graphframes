@@ -20,6 +20,7 @@ package org.graphframes.lib
 import java.io.IOException
 
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.types.DataTypes
@@ -180,7 +181,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val components1 = cc.setCheckpointInterval(1).run()
     assertComponents(components1, expected)
     assert(isFromCheckpoint(components1),
-      "The result should depend on chekpoint data if checkpoint interval is 1.")
+      "The result should depend on checkpoint data if checkpoint interval is 1.")
 
     val components10 = cc.setCheckpointInterval(10).run()
     assertComponents(components10, expected)
@@ -188,12 +189,13 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
   }
 
-  private def assertComponents[T: ClassTag](actual: DataFrame, expected: Set[Set[T]]): Unit = {
-    // note: not using agg + collect_list because collect_list is not available in 1.6.2
-    val actualComponents = actual.select("component", "id").rdd
-      .map { case Row(component: Long, id: T) =>
-        (component, id)
-      }.groupByKey()
+  private def assertComponents[T: ClassTag:TypeTag](
+      actual: DataFrame,
+      expected: Set[Set[T]]): Unit = {
+    import actual.sqlContext.implicits._
+    // note: not using agg + collect_list because collect_list is not available in 1.6.2 w/o hive
+    val actualComponents = actual.select("component", "id").as[(Long, T)].rdd
+      .groupByKey()
       .values
       .map(_.toSeq)
       .collect()
