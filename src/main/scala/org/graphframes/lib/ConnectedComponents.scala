@@ -63,7 +63,7 @@ class ConnectedComponents private[graphframes] (
    */
   def getBroadcastThreshold: Int = broadcastThreshold
 
-  private var algorithm: String = _
+  private var algorithm: String = ALGO_GRAPHFRAMES
 
   /**
    * Sets the connected components algorithm to use (default: "graphframes").
@@ -260,6 +260,9 @@ private object ConnectedComponents extends Logging {
       algorithm: String,
       broadcastThreshold: Int,
       checkpointInterval: Int): DataFrame = {
+    require(supportedAlgorithms.contains(algorithm),
+      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
+
     if (algorithm == ALGO_GRAPHX) {
       return runGraphX(graph)
     }

@@ -455,17 +455,19 @@ class GraphFrame private(
   }
 
   /**
-   * If the id type is not integral, it is the translation table that maps the original ids to the integral ids.
+   * Vertices with each vertex assigned a unique long ID.
+   * If the vertex ID type is integral, this casts the original IDs to long.
    *
    * Columns:
-   *  - $LONG_ID: the new ID
+   *  - $LONG_ID: the new ID of LongType
    *  - $ORIGINAL_ID: the ID provided by the user
    *  - $ATTR: all the original vertex attributes
    */
   private[graphframes] lazy val indexedVertices: DataFrame = {
     if (hasIntegralIdType) {
       val indexedVertices = vertices.select(nestAsCol(vertices, ATTR))
-      indexedVertices.select(col(ATTR + "." + ID).as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
+      indexedVertices.select(
+        col(ATTR + "." + ID).cast("long").as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     } else {
       val indexedVertices = zipWithUniqueId(vertices)
       indexedVertices.select(col("uniq_id").as(LONG_ID), col("row." + ID).as(ID), col("row").as(ATTR))

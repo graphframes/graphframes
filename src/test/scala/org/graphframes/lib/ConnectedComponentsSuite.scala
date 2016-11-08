@@ -25,8 +25,25 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes._
+import org.graphframes.GraphFrame._
+import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
+
+  test("default params") {
+    val g = Graphs.empty[Int]
+    val cc = g.connectedComponents
+    assert(cc.getAlgorithm === "graphframes")
+    assert(cc.getBroadcastThreshold === 1000000)
+    assert(cc.getCheckpointInterval === 1)
+  }
+
+  test("empty graph") {
+    for (empty <- Seq(Graphs.empty[Int], Graphs.empty[Long], Graphs.empty[String])) {
+      val components = empty.connectedComponents.run()
+      assert(components.count() === 0L)
+    }
+  }
 
   test("single vertex") {
     val v = sqlContext.createDataFrame(List(
@@ -43,6 +60,16 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       === Seq(Row(0L, 0L, "a", "b")))
   }
 
+  test("disconnected vertices") {
+    val n = 5L
+    val vertices = sqlContext.range(n).toDF(ID)
+    val edges = sqlContext.createDataFrame(Seq.empty[(Long, Long)]).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = (0L until n).map(Set(_)).toSet
+    assertComponents(components, expected)
+  }
+
   test("two connected vertices") {
     val v = sqlContext.createDataFrame(List(
       (0L, "a0", "b0"),
@@ -57,8 +84,56 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(List(Row(0L, 0L, "a0", "b0"), Row(1L, 0L, "a1", "b1")) === vxs)
   }
 
+  test("chain graph") {
+    val n = 5L
+    val g = Graphs.chain(5L)
+    val components = g.connectedComponents.run()
+    val expected = Set((0L until n).toSet)
+    assertComponents(components, expected)
+  }
+
+  test("star graph") {
+    val n = 5
+    val g = Graphs.star(5)
+    val components = g.connectedComponents.run()
+    val expected = Set((0 to n).toSet) // star graph uses Int IDs instead of Long
+    assertComponents(components, expected)
+  }
+
+  test("two blobs") {
+    val n = 5L
+    val g = Graphs.twoBlobs(n.toInt)
+    val components = g.connectedComponents.run()
+    val expected = Set((0L until 2 * n).toSet)
+    assertComponents(components, expected)
+  }
+
+  test("two components") {
+    val vertices = sqlContext.range(6L).toDF(ID)
+    val edges = sqlContext.createDataFrame(Seq(
+      (0L, 1L), (1L, 2L), (2L, 0L),
+      (3L, 4L), (4L, 5L), (5L, 3L)
+    )).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L))
+    assertComponents(components, expected)
+  }
+
+  test("two components and two dangling vertices") {
+    val vertices = sqlContext.range(8L).toDF(ID)
+    val edges = sqlContext.createDataFrame(Seq(
+      (0L, 1L), (1L, 2L), (2L, 0L),
+      (3L, 4L), (4L, 5L), (5L, 3L)
+    )).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
+    assertComponents(components, expected)
+  }
+
   test("friends graph") {
-    val friends = examples.Graphs.friends
+    val friends = Graphs.friends
     val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
     for ((algorithm, broadcastThreshold) <-
          Seq(("graphx", 1000000), ("graphframes", 100000), ("graphframes", 1))) {
@@ -71,7 +146,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("checkpoint interval") {
-    val friends = examples.Graphs.friends
+    val friends = Graphs.friends
     val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
 
     val cc = new ConnectedComponents(friends)
