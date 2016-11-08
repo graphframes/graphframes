@@ -35,6 +35,8 @@ import org.graphframes.examples.Graphs
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
+  import GraphFrame._
+
   var vertices: DataFrame = _
   val localVertices = Map(1L -> "A", 2L -> "B", 3L -> "C")
   val localEdges = Map((1L, 2L) -> "love", (2L, 1L) -> "hate", (2L, 3L) -> "follow")
@@ -244,5 +246,49 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       assert(empty.degrees.count() === 0L)
       assert(empty.triplets.count() === 0L)
     }
+  }
+
+  test("skewed long ID assignments") {
+    val sqlContext = this.sqlContext
+    import sqlContext.implicits._
+    val n = 5
+    // union a star graph and a chain graph and cast integral IDs to strings
+    val star = Graphs.star(n)
+    val chain = Graphs.chain(n + 1)
+    val vertices = star.vertices.select(col(ID).cast("string").as(ID))
+    val edges =
+      star.edges.select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST))
+        .unionAll(
+          chain.edges.select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST)))
+
+    val localVertices = vertices.select(ID).as[String].collect().toSet
+    val localEdges = edges.select(SRC, DST).as[(String, String)].collect().toSet
+
+    val defaultThreshold = GraphFrame.broadcastThreshold
+    assert(defaultThreshold === 1000000,
+      s"Default broadcast threshold should be 1000000 but got $defaultThreshold.")
+
+    for (threshold <- Seq(0, 4, 10)) {
+      GraphFrame.setBroadcastThreshold(threshold)
+
+      val g = GraphFrame(vertices, edges)
+      g.persist(StorageLevel.MEMORY_AND_DISK)
+
+      val indexedVertices = g.indexedVertices.select(ID, LONG_ID).as[(String, Long)].collect().toMap
+      assert(indexedVertices.keySet === localVertices)
+      assert(indexedVertices.values.toSeq.distinct.size === localVertices.size)
+      val origEdges = g.indexedEdges.select(SRC, DST).as[(String, String)].collect().toSet
+      assert(origEdges === localEdges)
+      g.indexedEdges
+        .select(SRC, LONG_SRC, DST, LONG_DST).as[(String, Long, String, Long)]
+        .collect()
+        .foreach {
+          case (src, longSrc, dst, longDst) =>
+            assert(indexedVertices(src) === longSrc)
+            assert(indexedVertices(dst) === longDst)
+        }
+    }
+
+    GraphFrame.setBroadcastThreshold(defaultThreshold)
   }
 }

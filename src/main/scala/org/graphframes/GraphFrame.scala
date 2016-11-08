@@ -21,12 +21,10 @@ import java.util.Random
 
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.log4j.PropertyConfigurator
-
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, col, count, explode, struct}
+import org.apache.spark.sql.functions.{array, col, count, explode, struct, udf}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 
@@ -482,11 +480,52 @@ class GraphFrame private(
    */
   private[graphframes] lazy val indexedEdges: DataFrame = {
     val packedEdges = edges.select(col(SRC), col(DST), nestAsCol(edges, ATTR))
-    val indexedSourceEdges = packedEdges
-      .join(indexedVertices.select(col(LONG_ID).as(LONG_SRC), col(ID).as(SRC)), SRC)
-    val indexedEdges = indexedSourceEdges.select(SRC, LONG_SRC, DST, ATTR)
-      .join(indexedVertices.select(col(LONG_ID).as(LONG_DST), col(ID).as(DST)), DST)
-    indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
+    if (hasIntegralIdType) {
+      packedEdges.select(
+        col(SRC), col(SRC).cast("long").as(LONG_SRC),
+        col(DST), col(DST).cast("long").as(LONG_DST),
+        col(ATTR))
+    } else {
+      val threshold = broadcastThreshold
+      val hubs = degrees.filter(col("degree") >= threshold).select(ID)
+        .collect().map(_.get(0)).toSet
+      val skewed = hubs.nonEmpty
+      if (skewed) {
+        logger.info(s"Graph contains ${hubs.size} hubs (with >=$threshold neighbors). " +
+          s"Use skewed join for long ID assignments.")
+        def isHub = udf { id: Any =>
+          hubs.contains(id)
+        }
+        val hubIDs = indexedVertices.filter(isHub(col(ID))).select(ID, LONG_ID)
+          .collect()
+          .map { case Row(id, longID: Long) =>
+            (id, longID)
+          }.toMap
+        val nonHubs = indexedVertices.filter(!isHub(col(ID))).select(ID, LONG_ID)
+        def getHubID = udf { id: Any =>
+          hubIDs(id)
+        }
+        val indexedSourceEdges =
+          packedEdges.filter(isHub(col(SRC))).withColumn(LONG_SRC, getHubID(col(SRC)))
+            .unionAll(
+              packedEdges.filter(!isHub(col(SRC)))
+                .join(nonHubs, col(ID) === col(SRC))
+                .select(col(SRC), col(DST), col(ATTR), col(LONG_ID).as(LONG_SRC)))
+        val indexedEdges =
+          indexedSourceEdges.filter(isHub(col(DST))).withColumn(LONG_DST, getHubID(col(DST)))
+            .unionAll(
+              indexedSourceEdges.filter(!isHub(col(DST)))
+                .join(nonHubs, col(ID) === col(DST))
+                .select(col(SRC), col(DST), col(ATTR), col(LONG_SRC), col(LONG_ID).as(LONG_DST)))
+        indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
+      } else {
+        val indexedSourceEdges = packedEdges
+          .join(indexedVertices.select(col(LONG_ID).as(LONG_SRC), col(ID).as(SRC)), SRC)
+        val indexedEdges = indexedSourceEdges.select(SRC, LONG_SRC, DST, ATTR)
+          .join(indexedVertices.select(col(LONG_ID).as(LONG_DST), col(ID).as(DST)), DST)
+        indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
+      }
+    }
   }
 
   /**
@@ -562,7 +601,6 @@ object GraphFrame extends Serializable {
    *
    * Note: The [[GraphFrame.vertices]] DataFrame will be persisted at level
    *       `StorageLevel.MEMORY_AND_DISK`.
- *
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
    * @return  New [[GraphFrame]] instance
@@ -826,4 +864,22 @@ object GraphFrame extends Serializable {
     }
   }
 
+  /**
+   * Controls broadcast threshold in skewed joins.
+   * Use normal joins for vertices with degrees less than the threshold,
+   * and broadcast joins otherwise.
+   * The default value is 1000000.
+   * If we have less than 100 billion edges, this would collect at most
+   * 2e11 / 1000000 = 200000 hubs, which could be handled by the driver.
+   */
+  private[this] var _broadcastThreshold: Int = 1000000
+
+  private[graphframes] def broadcastThreshold: Int = _broadcastThreshold
+
+  // for unit testing only
+  private[graphframes] def setBroadcastThreshold(value: Int): this.type = {
+    require(value >= 0)
+    _broadcastThreshold = value
+    this
+  }
 }
