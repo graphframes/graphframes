@@ -343,13 +343,19 @@ private object ConnectedComponents extends Logging {
 
       // Taking the sum in DecimalType to preserve precision.
       // We use 20 digits for long values and Spark SQL will add 10 digits for the sum.
-      // It should be able to handle 100 billion edges without overflow.
+      // It should be able to handle 200 billion edges without overflow.
       val (currSum, cnt) = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
         .map { r =>
           (r.getAs[BigDecimal](0), r.getLong(1))
         }.first()
       if (cnt != 0L && currSum == null) {
-        throw new ArithmeticException("The total sum of current assignments exceeded limit 1e30.")
+        throw new ArithmeticException(
+          s"""
+             |The total sum of edge src IDs is used to determine convergence during iterations.
+             |However, the total sum at iteration $iteration exceeded 30 digits (1e30),
+             |which should happen only if the graph contains more than 200 billion edges.
+             |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
+            """.stripMargin)
       }
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
