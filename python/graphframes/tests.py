@@ -37,6 +37,7 @@ class GraphFrameTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.sc = SparkContext('local[4]', cls.__name__)
+        cls.sc.setCheckpointDir("/tmp")
         cls.sql = SQLContext(cls.sc)
         # Small tests run much faster with spark.sql.shuffle.partitions=4
         cls.sql.setConf("spark.sql.shuffle.partitions", "4")

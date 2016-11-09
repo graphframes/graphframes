@@ -56,10 +56,12 @@ set -e
 # Horrible hack for spark 1.4: we manually remove some log lines to stay below the 4MB log limit on Travis.
 # To remove when we ditch spark 1.4.
 nosetests -v --all-modules -w $DIR  2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)"
-
+# Since we pipe to remove the output, we need to use some horrible BASH features:
+# http://stackoverflow.com/questions/1221833/bash-pipe-output-and-capture-exit-status
+test ${PIPESTATUS[0]} -eq 0 || exit 1
 
 # Run doc tests
 
 cd "$DIR"
 
-exec python -u ./graphframes/graphframe.py "$@"
+python -u ./graphframes/graphframe.py "$@"
