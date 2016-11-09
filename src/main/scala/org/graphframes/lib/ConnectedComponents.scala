@@ -18,10 +18,12 @@
 package org.graphframes.lib
 
 import java.io.IOException
+import java.math.BigDecimal
 import java.util.UUID
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.storage.StorageLevel
 
@@ -58,7 +60,6 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets broadcast threshold in propagating component assignment.
-   *
    * @see [[setBroadcastThreshold()]]
    */
   def getBroadcastThreshold: Int = broadcastThreshold
@@ -73,7 +74,6 @@ class ConnectedComponents private[graphframes] (
    *     with skewed join optimization.
    *   - "graphx": Converts the graph to a GraphX graph and then uses the connected components
    *     implementation in GraphX.
-   *
    * @see [[ConnectedComponents.supportedAlgorithms]]
    */
   def setAlgorithm(value: String): this.type = {
@@ -85,7 +85,6 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets the connected component algorithm to use.
-   *
    * @see [[setAlgorithm()]].
    */
   def getAlgorithm: String = algorithm
@@ -102,7 +101,6 @@ class ConnectedComponents private[graphframes] (
    * Set a nonpositive value to disable checkpointing (not recommended for large graphs).
    * This parameter is only used when the algorithm is set to "graphframes".
    * Its default value might change in the future.
-   *
    * @see [[org.apache.spark.SparkContext.setCheckpointDir()]]
    */
   def setCheckpointInterval(value: Int): this.type = {
@@ -112,7 +110,6 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets checkpoint interval.
-   *
    * @see [[setCheckpointInterval()]]
    */
   def getCheckpointInterval: Int = checkpointInterval
@@ -148,7 +145,6 @@ private object ConnectedComponents extends Logging {
 
   /**
    * Returns the symmetric directed graph of the graph specified by input edges.
-   *
    * @param ee non-bidirectional edges
    */
   private def symmetrize(ee: DataFrame): DataFrame = {
@@ -194,7 +190,6 @@ private object ConnectedComponents extends Logging {
    *   - `src`, the ID of the vertex
    *   - `min_nbr`, the min ID of its neighbors
    *   - `cnt`, the total number of neighbors
-   *
    * @return a DataFrame with three columns
    */
   private def minNbrs(ee: DataFrame): DataFrame = {
@@ -270,7 +265,6 @@ private object ConnectedComponents extends Logging {
 
     val sqlContext = graph.sqlContext
     val sc = sqlContext.sparkContext
-    import sqlContext.implicits._
 
     val shouldCheckpoint = checkpointInterval > 0
     val checkpointDir: Option[String] = if (shouldCheckpoint) {
@@ -297,7 +291,7 @@ private object ConnectedComponents extends Logging {
 
     var converged = false
     var iteration = 1
-    var prevSum = Long.MaxValue
+    var prevSum: BigDecimal = null
     while (!converged) {
       // large-star step
       // compute min neighbors including self
@@ -346,9 +340,26 @@ private object ConnectedComponents extends Logging {
       ee.persist(StorageLevel.MEMORY_AND_DISK)
 
       // test convergence
-      val currSum = ee.select(sum(col(SRC))).as[Long].first()
+
+      // Taking the sum in DecimalType to preserve precision.
+      // We use 20 digits for long values and Spark SQL will add 10 digits for the sum.
+      // It should be able to handle 200 billion edges without overflow.
+      val (currSum, cnt) = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
+        .map { r =>
+          (r.getAs[BigDecimal](0), r.getLong(1))
+        }.first()
+      if (cnt != 0L && currSum == null) {
+        throw new ArithmeticException(
+          s"""
+             |The total sum of edge src IDs is used to determine convergence during iterations.
+             |However, the total sum at iteration $iteration exceeded 30 digits (1e30),
+             |which should happen only if the graph contains more than 200 billion edges.
+             |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
+            """.stripMargin)
+      }
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
+        // This also covers the case when cnt = 0 and currSum is null, which means no edges.
         converged = true
       } else {
         prevSum = currSum
