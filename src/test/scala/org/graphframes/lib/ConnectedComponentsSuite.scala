@@ -23,6 +23,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes._
@@ -144,6 +145,17 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         .run()
       assertComponents(components, expected)
     }
+  }
+
+  test("really large long IDs") {
+    val max = Long.MaxValue
+    val chain = examples.Graphs.chain(10L)
+    val vertices = chain.vertices.select((lit(max) - col(ID)).as(ID))
+    val edges = chain.edges.select((lit(max) - col(SRC)).as(SRC), (lit(max) - col(DST)).as(DST))
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    assert(components.count() === 10L)
+    assert(components.groupBy("component").count().count() === 1L)
   }
 
   test("checkpoint interval") {
