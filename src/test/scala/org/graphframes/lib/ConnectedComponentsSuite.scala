@@ -95,10 +95,10 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("star graph") {
-    val n = 5
-    val g = Graphs.star(5)
+    val n = 5L
+    val g = Graphs.star(5L)
     val components = g.connectedComponents.run()
-    val expected = Set((0 to n).toSet) // star graph uses Int IDs instead of Long
+    val expected = Set((0L to n).toSet)
     assertComponents(components, expected)
   }
 
