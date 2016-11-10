@@ -215,27 +215,11 @@ private object ConnectedComponents extends Logging {
       logPrefix: String): DataFrame = {
     import edges.sqlContext.implicits._
     val hubs = minNbrs.filter(col(CNT) > broadcastThreshold)
-      .select(SRC, MIN_NBR)
-      .as[(Long, Long)]
+      .select(SRC)
+      .as[Long]
       .collect()
-      .toMap // TODO: use OpenHashMap
-    if (hubs.isEmpty) {
-      return edges.join(minNbrs, SRC)
-    } else {
-      logger.debug(s"$logPrefix Number of skewed keys: ${hubs.size}.")
-    }
-    val isHub = udf { id: Long =>
-      hubs.contains(id)
-    }
-    val minNbr = udf { id: Long =>
-      hubs(id)
-    }
-    val hashJoined = edges.filter(!isHub(col(SRC)))
-      .join(minNbrs.filter(!isHub(col(SRC))), SRC)
-      .select(SRC, DST, MIN_NBR)
-    val broadcastJoined = edges.filter(isHub(col(SRC)))
-      .select(col(SRC), col(DST), minNbr(col(SRC)))
-    hashJoined.unionAll(broadcastJoined)
+      .toSet
+    GraphFrame.skewedJoin(edges, minNbrs, SRC, hubs, logPrefix)
   }
 
   /**
