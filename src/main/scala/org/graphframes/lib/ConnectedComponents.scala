@@ -58,6 +58,11 @@ class ConnectedComponents private[graphframes] (
     this
   }
 
+  // python-friendly setter
+  private[graphframes] def setBroadcastThreshold(value: java.lang.Integer): this.type = {
+    setBroadcastThreshold(value.toInt)
+  }
+
   /**
    * Gets broadcast threshold in propagating component assignment.
    * @see [[setBroadcastThreshold()]]
@@ -106,6 +111,11 @@ class ConnectedComponents private[graphframes] (
   def setCheckpointInterval(value: Int): this.type = {
     checkpointInterval = value
     this
+  }
+
+  // python-friendly setter
+  private[graphframes] def setCheckpointInterval(value: java.lang.Integer): this.type = {
+    setCheckpointInterval(value.toInt)
   }
 
   /**

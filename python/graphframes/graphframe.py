@@ -207,15 +207,26 @@ class GraphFrame(object):
 
     # Standard algorithms
 
-    def connectedComponents(self):
+    def connectedComponents(self, algorithm = "graphframes", checkpointInterval = 1,
+                            broadcastThreshold = 1000000):
         """
         Computes the connected components of the graph.
 
         See Scala documentation for more details.
 
+        :param algorithm: connected components algorithm to use (default: "graphframes")
+          Supported algorithms are "graphframes" and "graphx".
+        :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 1)
+        :param broadcastThreshold: broadcast threshold in propagating component assignments
+          (default: 1000000)
+
         :return: DataFrame with new vertices column "component"
         """
-        jdf = self._jvm_graph.connectedComponents().run()
+        jdf = self._jvm_graph.connectedComponents() \
+            .setAlgorithm(algorithm) \
+            .setCheckpointInterval(checkpointInterval) \
+            .setBroadcastThreshold(broadcastThreshold) \
+            .run()
         return DataFrame(jdf, self._sqlContext)
 
     def labelPropagation(self, maxIter):
