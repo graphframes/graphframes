@@ -37,7 +37,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val cc = g.connectedComponents
     assert(cc.getAlgorithm === "graphframes")
     assert(cc.getBroadcastThreshold === 1000000)
-    assert(cc.getCheckpointInterval === 1)
+    assert(cc.getCheckpointInterval === 2)
   }
 
   test("empty graph") {
@@ -163,8 +163,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
 
     val cc = new ConnectedComponents(friends)
-    assert(cc.getCheckpointInterval === 1,
-      s"Default checkpoint interval should be 1, but got ${cc.getCheckpointInterval}.")
+    assert(cc.getCheckpointInterval === 2,
+      s"Default checkpoint interval should be 2, but got ${cc.getCheckpointInterval}.")
 
     val checkpointDir = sc.getCheckpointDir
     assert(checkpointDir.nonEmpty)
