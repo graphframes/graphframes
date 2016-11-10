@@ -24,6 +24,14 @@ if [ -z "$SPARK_HOME" ]; then
     exit 1
 fi
 
+# Honor the choice of python driver
+if [ -z "$PYSPARK_DRIVER_PYTHON" ]; then
+    PYSPARK_DRIVER_PYTHON=python
+fi
+python_major=$($PYSPARK_DRIVER_PYTHON -c 'import sys; print(".".join(map(str, sys.version_info[:1])))')
+
+echo $pyver
+
 LIBS=""
 for lib in "$SPARK_HOME/python/lib"/*zip ; do
   LIBS=$LIBS:$lib
@@ -53,16 +61,24 @@ set -e
 
 # Run test suites
 
-# Horrible hack for spark 1.4: we manually remove some log lines to stay below the 4MB log limit on Travis.
-# To remove when we ditch spark 1.4.
-nosetests -v --all-modules -w $DIR  2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)"
-# Exit immediately if the tests fail.
-# Since we pipe to remove the output, we need to use some horrible BASH features:
-# http://stackoverflow.com/questions/1221833/bash-pipe-output-and-capture-exit-status
-test ${PIPESTATUS[0]} -eq 0 || exit 1
+# Horrible hack for spark 1.x: we manually remove some log lines to stay below the 4MB log limit on Travis.
+if [[ "$python_major" == "2" ]]; then
+
+  nosetests -v --all-modules -w $DIR  2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
+
+  # Exit immediately if the tests fail.
+  # Since we pipe to remove the output, we need to use some horrible BASH features:
+  # http://stackoverflow.com/questions/1221833/bash-pipe-output-and-capture-exit-status
+  test ${PIPESTATUS[0]} -eq 0 || exit 1;
+
+else
+
+  $PYSPARK_DRIVER_PYTHON -m "nose" -v --all-modules -w $DIR ;
+
+fi
 
 # Run doc tests
 
 cd "$DIR"
 
-python -u ./graphframes/graphframe.py "$@"
+$PYSPARK_DRIVER_PYTHON -u ./graphframes/graphframe.py "$@"
