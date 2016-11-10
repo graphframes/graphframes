@@ -100,15 +100,23 @@ class ConnectedComponents private[graphframes] (
    * Sets checkpoint interval in terms of number of iterations (default: 2).
    * Checkpointing regularly helps recover from failures, clean shuffle files, shorten the
    * lineage of the computation graph, and reduce the complexity of plan optimization.
+   * As of Spark 2.0, the complexity of plan optimization would grow exponentially without
+   * checkpointing.
+   * Hence disabling or setting longer-than-default checkpoint intervals are not recommended.
    * Checkpoint data is saved under [[org.apache.spark.SparkContext.getCheckpointDir]] with
    * prefix "connected-components".
    * If the checkpoint directory is not set, this throws an [[java.io.IOException]].
-   * Set a nonpositive value to disable checkpointing (not recommended for large graphs).
+   * Set a nonpositive value to disable checkpointing.
    * This parameter is only used when the algorithm is set to "graphframes".
    * Its default value might change in the future.
    * @see [[org.apache.spark.SparkContext.setCheckpointDir()]]
    */
   def setCheckpointInterval(value: Int): this.type = {
+    if (value <= 0 || value > 2) {
+      logger.warn(
+        s"Set checkpointInterval to $value. This would blow up the query plan and hang the " +
+          "driver for large graphs.")
+    }
     checkpointInterval = value
     this
   }
