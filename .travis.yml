@@ -4,7 +4,9 @@ scala:
   - 2.11.7
 jdk:
   - oraclejdk7 # openJDK crashes sometimes
-sudo: false
+sudo: required
+dist: trusty
+
 cache:
   directories:
     - $HOME/.ivy2
