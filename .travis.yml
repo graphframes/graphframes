@@ -44,8 +44,8 @@ install:
  - pip3 install --user -r ./python/requirements.txt
 
 script:
-  - sbt -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
-  - sbt -Dspark.version=$SPARK_VERSION test
+  - sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$TRAVIS_SCALA_VERSION "set test in assembly := {}" assembly
+  - sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$TRAVIS_SCALA_VERSION test
   - ls target
   - ls target/scala-*/*
   - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD SCALA_VERSION=$TRAVIS_SCALA_VERSION ./python/run-tests.sh
