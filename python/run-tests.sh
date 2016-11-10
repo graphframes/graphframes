@@ -25,10 +25,10 @@ if [ -z "$SPARK_HOME" ]; then
 fi
 
 # Honor the choice of python driver
-if [ -z "$PYSPARK_DRIVER_PYTHON" ]; then
-    PYSPARK_DRIVER_PYTHON=python
+if [ -z "$PYSPARK_PYTHON" ]; then
+    PYSPARK_PYTHON=`which python`
 fi
-python_major=$($PYSPARK_DRIVER_PYTHON -c 'import sys; print(".".join(map(str, sys.version_info[:1])))')
+python_major=$($PYSPARK_PYTHON -c 'import sys; print(".".join(map(str, sys.version_info[:1])))')
 
 echo $pyver
 
@@ -73,7 +73,7 @@ if [[ "$python_major" == "2" ]]; then
 
 else
 
-  $PYSPARK_DRIVER_PYTHON -m "nose" -v --all-modules -w $DIR ;
+  $PYSPARK_PYTHON -m "nose" -v --all-modules -w $DIR ;
 
 fi
 
@@ -81,4 +81,4 @@ fi
 
 cd "$DIR"
 
-$PYSPARK_DRIVER_PYTHON -u ./graphframes/graphframe.py "$@"
+$PYSPARK_PYTHON -u ./graphframes/graphframe.py "$@"
