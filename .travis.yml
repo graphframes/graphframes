@@ -13,10 +13,13 @@ cache:
 env:
   matrix:
     - PYSPARK_PYTHON=python3 SPARK_VERSION=2.0.1 SPARK_BUILD="spark-2.0.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.1-bin-hadoop2.7.tgz"
-    - PYSPARK_PYTHON=python3 SPARK_VERSION=1.6.2 SPARK_BUILD="spark-1.6.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.2-bin-hadoop2.6.tgz"
-    - PYSPARK_PYTHON=python SPARK_VERSION=2.0.1 SPARK_BUILD="spark-2.0.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.1-bin-hadoop2.7.tgz"
-    - PYSPARK_PYTHON=python SPARK_VERSION=1.6.2 SPARK_BUILD="spark-1.6.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.2-bin-hadoop2.6.tgz"
-
+#    - PYSPARK_PYTHON=python3 SPARK_VERSION=1.6.2 SPARK_BUILD="spark-1.6.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.2-bin-hadoop2.6.tgz"
+#    - PYSPARK_PYTHON=python SPARK_VERSION=2.0.1 SPARK_BUILD="spark-2.0.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.1-bin-hadoop2.7.tgz"
+#    - PYSPARK_PYTHON=python SPARK_VERSION=1.6.2 SPARK_BUILD="spark-1.6.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.2-bin-hadoop2.6.tgz"
+addons:
+  apt:
+    packages:
+     - python3
 matrix:
   exclude:
   - scala: 2.10.5 # Spark 2.0.0 pre-built with Scala 2.11 in the tgz download
@@ -25,9 +28,9 @@ matrix:
     env: SPARK_VERSION=1.6.2 SPARK_BUILD="spark-1.6.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.2-bin-hadoop2.6.tgz"
 
 before_install:
- - sudo apt-get update
- - sudo apt-get install python3
  - ./bin/download_travis_dependencies.sh
+ #- sudo apt-get update
+ #- sudo apt-get install python3
 
 install:
  - pip install --user -r ./python/requirements.txt
