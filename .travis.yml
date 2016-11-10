@@ -25,10 +25,13 @@ matrix:
     env: SPARK_VERSION=1.6.2 SPARK_BUILD="spark-1.6.2-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.2-bin-hadoop2.6.tgz"
 
 before_install:
+ - sudo apt-get update
+ - sudo apt-get install python3
  - ./bin/download_travis_dependencies.sh
 
 install:
  - pip install --user -r ./python/requirements.txt
+ - pip3 install --user -r ./python/requirements.txt
 
 script:
   - sbt -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
