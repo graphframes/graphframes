@@ -20,7 +20,8 @@ addons:
   apt:
     packages:
      - python3
-     - pip3
+     - python3-pip
+
 matrix:
   exclude:
   - scala: 2.10.5 # Spark 2.0.0 pre-built with Scala 2.11 in the tgz download
@@ -35,6 +36,9 @@ before_install:
 
 install:
  - pip install --user -r ./python/requirements.txt
+ - which python3
+ - which pip
+ - which pip3
  - pip3 install --user -r ./python/requirements.txt
 
 script:
