@@ -224,7 +224,7 @@ class GraphFrame(object):
         """
         jdf = self._jvm_graph.connectedComponents() \
             .setAlgorithm(algorithm) \
-            .setCheckpointIterval(checkpointInterval) \
+            .setCheckpointInterval(checkpointInterval) \
             .setBroadcastThreshold(broadcastThreshold) \
             .run()
         return DataFrame(jdf, self._sqlContext)
