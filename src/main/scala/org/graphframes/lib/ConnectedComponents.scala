@@ -94,12 +94,12 @@ class ConnectedComponents private[graphframes] (
    */
   def getAlgorithm: String = algorithm
 
-  private var checkpointInterval: Int = 1
+  private var checkpointInterval: Int = 2
 
   /**
-   * Sets checkpoint interval in terms of number of iterations (default: 1).
-   * Checkpointing regularly helps recover from failures, clean shuffle files, and shorten the
-   * lineage of the computation graph.
+   * Sets checkpoint interval in terms of number of iterations (default: 2).
+   * Checkpointing regularly helps recover from failures, clean shuffle files, shorten the
+   * lineage of the computation graph, and reduce the complexity of plan optimization.
    * Checkpoint data is saved under [[org.apache.spark.SparkContext.getCheckpointDir]] with
    * prefix "connected-components".
    * If the checkpoint directory is not set, this throws an [[java.io.IOException]].

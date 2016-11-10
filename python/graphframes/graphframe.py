@@ -207,7 +207,7 @@ class GraphFrame(object):
 
     # Standard algorithms
 
-    def connectedComponents(self, algorithm = "graphframes", checkpointInterval = 1,
+    def connectedComponents(self, algorithm = "graphframes", checkpointInterval = 2,
                             broadcastThreshold = 1000000):
         """
         Computes the connected components of the graph.
@@ -216,7 +216,7 @@ class GraphFrame(object):
 
         :param algorithm: connected components algorithm to use (default: "graphframes")
           Supported algorithms are "graphframes" and "graphx".
-        :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 1)
+        :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
         :param broadcastThreshold: broadcast threshold in propagating component assignments
           (default: 1000000)
 
