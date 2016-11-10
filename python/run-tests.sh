@@ -66,18 +66,18 @@ export PYTHONPATH=$PYTHONPATH:graphframes
 if [[ "$python_major" == "2" ]]; then
 
   # Horrible hack for spark 1.x: we manually remove some log lines to stay below the 4MB log limit on Travis.
-  $PYSPARK_DRIVER_PYTHON `which nosetests` -v --all-modules -w $DIR  2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
-
-  # Exit immediately if the tests fail.
-  # Since we pipe to remove the output, we need to use some horrible BASH features:
-  # http://stackoverflow.com/questions/1221833/bash-pipe-output-and-capture-exit-status
-  test ${PIPESTATUS[0]} -eq 0 || exit 1;
+  $PYSPARK_DRIVER_PYTHON `which nosetests` -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
 
 else
 
-  $PYSPARK_DRIVER_PYTHON -m "nose" -v --all-modules -w $DIR ;
+  $PYSPARK_DRIVER_PYTHON -m "nose" -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
 
 fi
+
+# Exit immediately if the tests fail.
+# Since we pipe to remove the output, we need to use some horrible BASH features:
+# http://stackoverflow.com/questions/1221833/bash-pipe-output-and-capture-exit-status
+test ${PIPESTATUS[0]} -eq 0 || exit 1;
 
 # Run doc tests
 
