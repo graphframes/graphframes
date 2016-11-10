@@ -16,6 +16,8 @@
 #
 
 import sys
+import tempfile
+import shutil
 
 if sys.version_info[:2] <= (2, 6):
     try:
@@ -37,7 +39,8 @@ class GraphFrameTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.sc = SparkContext('local[4]', cls.__name__)
-        cls.sc.setCheckpointDir("/tmp")
+        cls.checkpointDir = tempfile.mkdtemp()
+        cls.sc.setCheckpointDir(cls.checkpointDir)
         cls.sql = SQLContext(cls.sc)
         # Small tests run much faster with spark.sql.shuffle.partitions=4
         cls.sql.setConf("spark.sql.shuffle.partitions", "4")
@@ -47,6 +50,7 @@ class GraphFrameTestCase(unittest.TestCase):
         cls.sc.stop()
         cls.sc = None
         cls.sql = None
+        shutil.rmtree(cls.checkpointDir)
 
 
 class GraphFrameTest(GraphFrameTestCase):
