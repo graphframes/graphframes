@@ -24,7 +24,7 @@ import scala.reflect.runtime.universe.TypeTag
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, col, count, explode, struct, udf}
+import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 
@@ -417,10 +417,9 @@ class GraphFrame private(
    *                  For instance, `"(a)-[e]->(b)"` is Seq("a", "e", "b")
    *                  `"(a)-[e]->(b); (b)-[]->(c)"` is Seq("a", "e", "b", "c")
    * @param remainingPatterns  Patterns not yet handled
-   * @return Tuple2[`DataFrame`, Seq[String]] `DataFrame` augmented with the next pattern,
-   *                                          or the previous DataFrame if done
-   *                                          Seq[String] sequence of column names for the `DataFrame`
-   *                                          appended to in order as specified by the next pattern
+   * @return `DataFrame` augmented with the next pattern, or the previous DataFrame if done
+   *        Seq[String] sequence of column names for the `DataFrame` appended to in order
+   *        as specified by the next pattern
    */
   private def findSimple(
       prevPatterns: Seq[Pattern],
@@ -487,44 +486,17 @@ class GraphFrame private(
         col(ATTR))
     } else {
       val threshold = broadcastThreshold
-      val hubs = degrees.filter(col("degree") >= threshold).select(ID)
+      val hubs: Set[Any] = degrees.filter(col("degree") >= threshold).select(ID)
         .collect().map(_.get(0)).toSet
-      val skewed = hubs.nonEmpty
-      if (skewed) {
-        logger.info(s"Graph contains ${hubs.size} hubs (with >=$threshold neighbors). " +
-          s"Use skewed join for long ID assignments.")
-        def isHub = udf { id: Any =>
-          hubs.contains(id)
-        }
-        val hubIDs = indexedVertices.filter(isHub(col(ID))).select(ID, LONG_ID)
-          .collect()
-          .map { case Row(id, longID: Long) =>
-            (id, longID)
-          }.toMap
-        val nonHubs = indexedVertices.filter(!isHub(col(ID))).select(ID, LONG_ID)
-        def getHubID = udf { id: Any =>
-          hubIDs(id)
-        }
-        val indexedSourceEdges =
-          packedEdges.filter(isHub(col(SRC))).withColumn(LONG_SRC, getHubID(col(SRC)))
-            .unionAll(
-              packedEdges.filter(!isHub(col(SRC)))
-                .join(nonHubs, col(ID) === col(SRC))
-                .select(col(SRC), col(DST), col(ATTR), col(LONG_ID).as(LONG_SRC)))
-        val indexedEdges =
-          indexedSourceEdges.filter(isHub(col(DST))).withColumn(LONG_DST, getHubID(col(DST)))
-            .unionAll(
-              indexedSourceEdges.filter(!isHub(col(DST)))
-                .join(nonHubs, col(ID) === col(DST))
-                .select(col(SRC), col(DST), col(ATTR), col(LONG_SRC), col(LONG_ID).as(LONG_DST)))
-        indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
-      } else {
-        val indexedSourceEdges = packedEdges
-          .join(indexedVertices.select(col(LONG_ID).as(LONG_SRC), col(ID).as(SRC)), SRC)
-        val indexedEdges = indexedSourceEdges.select(SRC, LONG_SRC, DST, ATTR)
-          .join(indexedVertices.select(col(LONG_ID).as(LONG_DST), col(ID).as(DST)), DST)
-        indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
-      }
+      val indexedSourceEdges = GraphFrame.skewedJoin(
+        packedEdges,
+        indexedVertices.select(col(ID).as(SRC), col(LONG_ID).as(LONG_SRC)),
+        SRC, hubs, "GraphFrame.indexedEdges:")
+      val indexedEdges = GraphFrame.skewedJoin(
+        indexedSourceEdges,
+        indexedVertices.select(col(ID).as(DST), col(LONG_ID).as(LONG_DST)),
+        DST, hubs, "GraphFrame.indexedEdges:")
+      indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
     }
   }
 
@@ -543,7 +515,41 @@ class GraphFrame private(
 }
 
 
-object GraphFrame extends Serializable {
+object GraphFrame extends Serializable with Logging {
+
+  /**
+   * Implements `a.join(b, joinCol)`, handling skew in the join keys.
+   * @param a  DataFrame which may have multiple rows with the same key in `joinCol`
+   * @param b  DataFrame which has exactly 1 row for every key in `a.joinCol`.
+   * @param joinCol  Name of column on which to do join
+   * @param hubs  Set of join keys which are high-degree (skewed)
+   * @param logPrefix  Prefix for logging, e.g., name of algorithm doing the join
+   * @return  `a.join(b, joinCol)`
+   * @tparam T  DataType for join key
+   */
+  private[graphframes] def skewedJoin[T : TypeTag](
+      a: DataFrame,
+      b: DataFrame,
+      joinCol: String,
+      hubs: Set[T],
+      logPrefix: String): DataFrame = {
+    val sqlContext = a.sqlContext
+    import sqlContext.implicits._
+    if (hubs.isEmpty) {
+      // No skew.  Do regular join.
+      a.join(b, joinCol)
+    } else {
+      logger.debug(s"$logPrefix Skewed join with ${hubs.size} high-degree keys.")
+      val isHub = udf { id: T =>
+        hubs.contains(id)
+      }
+      val hashJoined = a.filter(!isHub(col(joinCol)))
+        .join(b.filter(!isHub(col(joinCol))), joinCol)
+      val broadcastJoined = a.filter(isHub(col(joinCol)))
+        .join(broadcast(b.filter(isHub(col(joinCol)))), joinCol)
+      hashJoined.unionAll(broadcastJoined)
+    }
+  }
 
   /** Column name for vertex IDs in [[GraphFrame.vertices]] */
   val ID: String = "id"
