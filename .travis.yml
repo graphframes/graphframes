@@ -1,8 +1,8 @@
 jdk:
   - oraclejdk7 # openJDK crashes sometimes
 
-sudo: false
-group: beta
+sudo: required
+
 dist: trusty
 
 cache:
