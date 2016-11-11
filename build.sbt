@@ -68,3 +68,5 @@ concurrentRestrictions in Global := Seq(
   Tags.limitAll(1))
 
 autoAPIMappings := true
+
+coverageHighlighting := false
