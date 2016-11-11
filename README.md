@@ -1,5 +1,6 @@
 #graphframes
 [![Build Status](https://travis-ci.org/graphframes/graphframes.svg?branch=master)](https://travis-ci.org/graphframes/graphframes)
+[![codecov.io](http://codecov.io/github/graphframes/graphframes/coverage.svg?branch=master)](http://codecov.io/github/graphframes/graphframes?branch=master)
 
 
 # GraphFrames: DataFrame-based Graphs
