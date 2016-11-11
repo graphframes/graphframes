@@ -68,9 +68,9 @@ class GraphFrameTest(GraphFrameTestCase):
         assert sorted(vertexIDs) == [1, 2, 3]
         edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
         assert sorted(edgeActions) == ["follow", "hate", "love"]
-        tripletsFirst = map(lambda x: (x[0][1], x[1][1], x[2][2]),
-                            g.triplets.sort("src.id").select("src", "dst", "edge").take(1))
-        assert tripletsFirst == [("A", "B", "love")]
+        tripletsFirst = list(map(lambda x: (x[0][1], x[1][1], x[2][2]),
+                            g.triplets.sort("src.id").select("src", "dst", "edge").take(1)))
+        assert tripletsFirst == [("A", "B", "love")], tripletsFirst
 
     def test_cache(self):
         g = self.g

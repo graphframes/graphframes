@@ -17,12 +17,24 @@
 # limitations under the License.
 #
 
+# Return on any failure
+set -e
 
 # assumes run from python/ directory
 if [ -z "$SPARK_HOME" ]; then
     echo 'You need to set $SPARK_HOME to run these tests.' >&2
     exit 1
 fi
+
+# Honor the choice of python driver
+if [ -z "$PYSPARK_PYTHON" ]; then
+    PYSPARK_PYTHON=`which python`
+fi
+# Override the python driver version as well to make sure we are in sync in the tests.
+export PYSPARK_DRIVER_PYTHON=$PYSPARK_PYTHON
+python_major=$($PYSPARK_PYTHON -c 'import sys; print(".".join(map(str, sys.version_info[:1])))')
+
+echo $pyver
 
 LIBS=""
 for lib in "$SPARK_HOME/python/lib"/*zip ; do
@@ -48,21 +60,27 @@ export PYTHONPATH=$PYTHONPATH:$SPARK_HOME/python:$LIBS:.
 
 export PYTHONPATH=$PYTHONPATH:graphframes
 
-# Return on any failure
-set -e
 
 # Run test suites
 
-# Horrible hack for spark 1.4: we manually remove some log lines to stay below the 4MB log limit on Travis.
-# To remove when we ditch spark 1.4.
-nosetests -v --all-modules -w $DIR  2>&1 | grep -vE "INFO (ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)"
+if [[ "$python_major" == "2" ]]; then
+
+  # Horrible hack for spark 1.x: we manually remove some log lines to stay below the 4MB log limit on Travis.
+  $PYSPARK_DRIVER_PYTHON `which nosetests` -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
+
+else
+
+  $PYSPARK_DRIVER_PYTHON -m "nose" -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
+
+fi
+
 # Exit immediately if the tests fail.
 # Since we pipe to remove the output, we need to use some horrible BASH features:
 # http://stackoverflow.com/questions/1221833/bash-pipe-output-and-capture-exit-status
-test ${PIPESTATUS[0]} -eq 0 || exit 1
+test ${PIPESTATUS[0]} -eq 0 || exit 1;
 
 # Run doc tests
 
 cd "$DIR"
 
-python -u ./graphframes/graphframe.py "$@"
+$PYSPARK_PYTHON -u ./graphframes/graphframe.py "$@"
