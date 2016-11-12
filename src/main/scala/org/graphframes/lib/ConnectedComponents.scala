@@ -65,7 +65,7 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets broadcast threshold in propagating component assignment.
-   * @see [[setBroadcastThreshold()]]
+   * @see [[org.graphframes.lib.ConnectedComponents.setBroadcastThreshold]]
    */
   def getBroadcastThreshold: Int = broadcastThreshold
 
@@ -79,7 +79,7 @@ class ConnectedComponents private[graphframes] (
    *     with skewed join optimization.
    *   - "graphx": Converts the graph to a GraphX graph and then uses the connected components
    *     implementation in GraphX.
-   * @see [[ConnectedComponents.supportedAlgorithms]]
+   * @see [[org.graphframes.lib.ConnectedComponents.supportedAlgorithms]]
    */
   def setAlgorithm(value: String): this.type = {
     require(supportedAlgorithms.contains(value),
@@ -90,7 +90,7 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets the connected component algorithm to use.
-   * @see [[setAlgorithm()]].
+   * @see [[org.graphframes.lib.ConnectedComponents.setAlgorithm]].
    */
   def getAlgorithm: String = algorithm
 
@@ -103,13 +103,13 @@ class ConnectedComponents private[graphframes] (
    * As of Spark 2.0, the complexity of plan optimization would grow exponentially without
    * checkpointing.
    * Hence disabling or setting longer-than-default checkpoint intervals are not recommended.
-   * Checkpoint data is saved under [[org.apache.spark.SparkContext.getCheckpointDir]] with
+   * Checkpoint data is saved under `org.apache.spark.SparkContext.getCheckpointDir` with
    * prefix "connected-components".
-   * If the checkpoint directory is not set, this throws an [[java.io.IOException]].
+   * If the checkpoint directory is not set, this throws a `java.io.IOException`.
    * Set a nonpositive value to disable checkpointing.
    * This parameter is only used when the algorithm is set to "graphframes".
    * Its default value might change in the future.
-   * @see [[org.apache.spark.SparkContext.setCheckpointDir()]]
+   * @see `org.apache.spark.SparkContext.setCheckpointDir` in Spark API doc
    */
   def setCheckpointInterval(value: Int): this.type = {
     if (value <= 0 || value > 2) {
@@ -128,7 +128,7 @@ class ConnectedComponents private[graphframes] (
 
   /**
    * Gets checkpoint interval.
-   * @see [[setCheckpointInterval()]]
+   * @see [[org.graphframes.lib.ConnectedComponents.setCheckpointInterval]]
    */
   def getCheckpointInterval: Int = checkpointInterval
 
@@ -143,7 +143,7 @@ class ConnectedComponents private[graphframes] (
   }
 }
 
-private object ConnectedComponents extends Logging {
+object ConnectedComponents extends Logging {
 
   import org.graphframes.GraphFrame._
 
@@ -157,7 +157,8 @@ private object ConnectedComponents extends Logging {
   private val ALGO_GRAPHFRAMES = "graphframes"
 
   /**
-   * Supported algorithms in [[ConnectedComponents.setAlgorithm()]]: "graphframes" and "graphx".
+   * Supported algorithms in [[org.graphframes.lib.ConnectedComponents.setAlgorithm]]: "graphframes"
+   * and "graphx".
    */
   val supportedAlgorithms: Array[String] = Array(ALGO_GRAPHX, ALGO_GRAPHFRAMES)
 

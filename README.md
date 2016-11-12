@@ -31,5 +31,8 @@ We welcome open source contributions as well!
 
 ## Releases:
 
- - 0.1.0 initial release
- - 0.2.0 release for Spark 2.0 (work of @felixcheung)
+- 0.1.0 initial release
+- 0.2.0 release for Spark 2.0 (work of @felixcheung)
+- 0.3.0
+  - DataFrame-based connected components implementation
+  - removed support for Spark 1.4 and 1.5

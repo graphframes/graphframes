@@ -4,8 +4,8 @@
 val sparkVer = sys.props.getOrElse("spark.version", "2.0.1")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
-  case "1.6" => "2.10.5"
-  case "2.0" => "2.11.7"
+  case "1.6" => "2.10.6"
+  case "2.0" => "2.11.8"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
@@ -21,7 +21,7 @@ scalaVersion := scalaVer
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := s"0.2.0-spark$sparkBranch"
+version := s"0.3.0-spark$sparkBranch"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
