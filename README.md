@@ -35,4 +35,5 @@ We welcome open source contributions as well!
 - 0.2.0 release for Spark 2.0 (work of @felixcheung)
 - 0.3.0
   - DataFrame-based connected components implementation
+  - added support for Python 3
   - removed support for Spark 1.4 and 1.5
