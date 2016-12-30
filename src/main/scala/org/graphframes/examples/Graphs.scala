@@ -182,13 +182,11 @@ class Graphs private[graphframes] () {
    */
   def gridIsingModel(sqlContext: SQLContext, n: Int, vStd: Double, eStd: Double): GraphFrame = {
     require(n >= 1, s"Grid graph must have size >= 1, but was given invalid value n = $n")
-    val rows = sqlContext.createDataFrame(Range(0, n).map(i => Tuple1(i))).toDF("i")
-    val cols = rows.select(rows("i").as("j"))
 
-    // Cartesian join to create grid
-    // Handle SPARK-15425: check Spark version for >1.6.3 (ie. 2.x) to call crossJoin explicitly
-    val v = sqlContext.sparkContext.version
-    val coordinates = if (!v.startsWith("1.")) rows.crossJoin(cols) else rows.join(cols)
+    // To create grid
+    // Avoid Cartesian join due to SPARK-15425: use generator since n should be small
+    val res = for { x <- Range(0, n); y <- Range(0, n) } yield (x, y)
+    val coordinates = sqlContext.createDataFrame(res).toDF("i", "j")
 
     // Create SQL expression for converting coordinates (i,j) to a string ID "i,j"
     val toIDudf = udf { (i: Int, j: Int) => i.toString + "," + j.toString }
