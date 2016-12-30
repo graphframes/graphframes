@@ -186,7 +186,7 @@ class Graphs private[graphframes] () {
     val cols = rows.select(rows("i").as("j"))
 
     // Cartesian join to create grid
-    // Handle SPARK-15425: check Spark version for [2.0.0, 2.1.0) to call crossJoin explicitly
+    // Handle SPARK-15425: check Spark version for >1.6.3 (ie. 2.x) to call crossJoin explicitly
     val v = sqlContext.sparkContext.version
     val coordinates = if (!v.startsWith("1.")) rows.crossJoin(cols) else rows.join(cols)
 
