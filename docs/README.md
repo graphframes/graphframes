@@ -74,4 +74,4 @@ may take some time as it generates all of the scaladoc.  The jekyll plugin also 
 Python docs [Sphinx](http://sphinx-doc.org/).
 
 NOTE: To skip the step of building and copying over the Scala, Python API docs, run `SKIP_API=1
-jekyll`.
+jekyll build`. To skip building Scala API docs, run `SKIP_SCALADOC=1 jekyll build`; to skip building Python API docs, run `SKIP_PYTHONDOC=1 jekyll build`.
