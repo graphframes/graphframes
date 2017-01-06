@@ -156,6 +156,8 @@ object ConnectedComponents extends Logging {
   private val ALGO_GRAPHX = "graphx"
   private val ALGO_GRAPHFRAMES = "graphframes"
 
+  @transient private var fileSystem: FileSystem = null
+
   /**
    * Supported algorithms in [[org.graphframes.lib.ConnectedComponents.setAlgorithm]]: "graphframes"
    * and "graphx".
@@ -336,8 +338,11 @@ object ConnectedComponents extends Logging {
 
         // remove previous checkpoint
         if (iteration > checkpointInterval) {
-          FileSystem.get(sc.hadoopConfiguration)
-            .delete(new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}"), true)
+          val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
+          if (fileSystem == null) {
+            fileSystem = path.getFileSystem(sc.hadoopConfiguration)
+          }
+          fileSystem.delete(path, true)
         }
 
         System.gc() // hint Spark to clean shuffle directories
