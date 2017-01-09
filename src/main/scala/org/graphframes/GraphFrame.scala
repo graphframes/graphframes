@@ -612,6 +612,8 @@ object GraphFrame extends Serializable with Logging {
    * @param e  Edge DataFrame.  This must include columns "src" and "dst" containing source and
    *           destination vertex IDs.  All other columns are treated as edge attributes.
    * @return  New [[GraphFrame]] instance
+   *
+   * @group conversions
    */
   def fromEdges(e: DataFrame): GraphFrame = {
     val srcs = e.select(e("src").as("id"))
@@ -629,6 +631,8 @@ object GraphFrame extends Serializable with Logging {
    *
    * Vertex ID column names will be converted to "id" for the vertex DataFrame,
    * and to "src" and "dst" for the edge DataFrame.
+   *
+   * @group conversions
    */
   // TODO: Add version which takes explicit schemas.
   def fromGraphX[VD : TypeTag, ED : TypeTag](graph: Graph[VD, ED]): GraphFrame = {
@@ -676,6 +680,8 @@ object GraphFrame extends Serializable with Logging {
    * @tparam V the type of the vertex data
    * @tparam E the type of the edge data
    * @return original graph augmented with vertex and column attributes from the GraphX graph
+   *
+   * @group conversions
    */
   def fromGraphX[V : TypeTag, E : TypeTag](
       originalGraph: GraphFrame,
