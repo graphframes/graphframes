@@ -17,7 +17,7 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.lib.backport
+import org.apache.spark.graphx.{lib => graphxlib}
 
 import org.graphframes.{GraphFrame, Logging}
 
@@ -127,7 +127,7 @@ private object PageRank {
       resetProb: Double = 0.15,
       srcId: Option[Any] = None): GraphFrame = {
     val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
-    val gx = backport.PageRank.runWithOptions(
+    val gx = graphxlib.PageRank.runWithOptions(
       graph.cachedTopologyGraphX, maxIter, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }
@@ -149,7 +149,7 @@ private object PageRank {
       resetProb: Double = 0.15,
       srcId: Option[Any] = None): GraphFrame = {
     val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
-    val gx = backport.PageRank.runUntilConvergenceWithOptions(
+    val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(
       graph.cachedTopologyGraphX, tol, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }
