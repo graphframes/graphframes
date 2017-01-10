@@ -237,9 +237,9 @@ DSL for expressing structural patterns:
   * The names are used as column names in the result `DataFrame`.  If a motif contains
       named vertex `a`, then the result `DataFrame` will contain a column "a" which is a
       `StructType` with sub-fields equivalent to the schema (columns) of
-      [[GraphFrame.vertices]]. Similarly, an edge `e` in a motif will produce a column "e"
+      `GraphFrame.vertices`. Similarly, an edge `e` in a motif will produce a column "e"
       in the result `DataFrame` with sub-fields equivalent to the schema (columns) of
-      [[GraphFrame.edges]].
+      `GraphFrame.edges`.
 * It is acceptable to omit names for vertices or edges in motifs when not needed.
    E.g., `"(a)-[]->(b)"` expresses an edge between vertices `a,b` but does not assign a name
    to the edge.  There will be no column for the anonymous edge in the result `DataFrame`.
@@ -640,7 +640,7 @@ result.select("id", "label").show()
 
 There are two implementations of PageRank.
 
-* The first implementation uses the standalone [[GraphFrame]] interface and runs PageRank
+* The first implementation uses the standalone `GraphFrame` interface and runs PageRank
  for a fixed number of iterations.  This can be run by setting `maxIter`.
 * The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank
   until convergence.  This can be run by setting `tol`.
