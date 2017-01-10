@@ -7,7 +7,8 @@ SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
 
-export PYTHONPATH=$(realpath ..):$(realpath $(SPARK_HOME))/python:$(realpath $(SPARK_HOME))/python/lib/py4j-0.8.2.1-src.zip:$(realpath $(SPARK_HOME))/python/lib/py4j-0.10.1-src.zip
+export PYTHONPATH=$(realpath ..):$(realpath $(SPARK_HOME))/python:$(realpath $(SPARK_HOME))/python/lib/py4j-*-src.zip
+export PACKAGE_VERSION
 
 $(info $$PYTHONPATH is [${PYTHONPATH}])
 

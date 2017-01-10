@@ -7,7 +7,7 @@ Welcome to the GraphFrames Python API docs!
 ===========================================
 
 *Note that most of the Python API docs are currently stubs.  The APIs are designed to match
-the Scala APIs as closely as reasonable, so plese refer to the Scala API docs for more details
+the Scala APIs as closely as reasonable, so please refer to the Scala API docs for more details
 on both the algorithms and APIs (particularly DataFrame schema).*
 
 Contents:
@@ -31,4 +31,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

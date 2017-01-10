@@ -58,19 +58,24 @@ if not (ENV['SKIP_API'] == '1')
     File.open(css_file, 'a') { |f| f.write("\n" + css.join()) }
   end
 
-  # Build Sphinx docs for Python
+  if not (ENV['SKIP_PYTHONDOC'] == '1')
+    # Build Sphinx docs for Python
 
-  puts "Moving to python/docs directory and building sphinx."
-  cd("../python/docs")
-  system("make html") || raise("Python doc generation failed")
+    # Get and set release version
+    version = File.foreach('_config.yml').grep(/^GRAPHFRAMES_VERSION: (.+)$/){$1}.first
+    version ||= 'Unknown'
 
-  puts "Moving back into home dir."
-  cd("../../")
+    puts "Moving to python/docs directory and building sphinx."
+    cd("../python/docs")
+    system({"PACKAGE_VERSION"=>version}, "make html") || raise("Python doc generation failed")
 
-  puts "Making directory api/python"
-  mkdir_p "docs/api/python"
+    puts "Moving back into home dir."
+    cd("../../")
 
-  puts "cp -r python/docs/_build/html/. docs/api/python"
-  cp_r("python/docs/_build/html/.", "docs/api/python")
+    puts "Making directory api/python"
+    mkdir_p "docs/api/python"
 
+    puts "cp -r python/docs/_build/html/. docs/api/python"
+    cp_r("python/docs/_build/html/.", "docs/api/python")
+  end
 end
