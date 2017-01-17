@@ -336,8 +336,8 @@ object ConnectedComponents extends Logging {
 
         // remove previous checkpoint
         if (iteration > checkpointInterval) {
-          FileSystem.get(sc.hadoopConfiguration)
-            .delete(new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}"), true)
+          val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
+          path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
         }
 
         System.gc() // hint Spark to clean shuffle directories
