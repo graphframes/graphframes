@@ -17,6 +17,8 @@
 
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SQLContext
+from pyspark.sql.functions import col
+from pyspark.sql.column import Column
 from pyspark.storagelevel import StorageLevel
 
 def _from_java_gf(jgf, sqlContext):
@@ -165,7 +167,7 @@ class GraphFrame(object):
     def triplets(self):
         """
         The triplets (source vertex)-[edge]->(destination vertex) for all edges in the graph.
-        
+
         Returned as a :class:`DataFrame` with three columns:
          - "src": source vertex with schema matching 'vertices'
          - "edge": edge with schema matching 'edges'
@@ -203,6 +205,37 @@ class GraphFrame(object):
         if edgeFilter is not None:
             builder.edgeFilter(edgeFilter)
         jdf = builder.run()
+        return DataFrame(jdf, self._sqlContext)
+
+    def aggregateMessages(self, aggCol, msgToSrc=None, msgToDst=None):
+        """
+        Aggregates messages from the neighbours.
+
+        When specifying the messages and aggregation function, the user may reference columns using
+        the static methods in `graphframe.AggregateMessages`.
+
+        See Scala documentation for more details.
+
+        :param aggCol: `pyspark.sql.column.Column` for the requested aggregation output
+        :param msgToSrc: message sent to the source vertex of each triplet either as
+            `pyspark.sql.column.Column` or SQL expression string (default: None)
+        :param msgToDst: message sent to the destination vertex of each triplet either as
+            `pyspark.sql.column.Column` or SQL expression string (default: None)
+
+        :return: DataFrame with columns for the vertex ID and the resulting aggregated message
+        """
+        builder = self._jvm_graph.aggregateMessages()
+        if msgToSrc is not None:
+            if isinstance(msgToSrc, Column):
+                builder.sendToSrc(msgToSrc._jc)
+            else:
+                builder.sendToSrc(msgToSrc)
+        if msgToDst is not None:
+            if isinstance(msgToDst, Column):
+                builder.sendToDst(msgToDst._jc)
+            else:
+                builder.sendToDst(msgToDst)
+        jdf = builder.agg(aggCol._jc)
         return DataFrame(jdf, self._sqlContext)
 
     # Standard algorithms
@@ -321,6 +354,35 @@ class GraphFrame(object):
         """
         jdf = self._jvm_graph.triangleCount().run()
         return DataFrame(jdf, self._sqlContext)
+
+
+class AggregateMessages:
+
+    @staticmethod
+    def src():
+        """Reference for source column, used for specifying messages."""
+        return col('src')
+
+    @staticmethod
+    def dst():
+        """Reference for destination column, used for specifying messages."""
+        return col('dst')
+
+    @staticmethod
+    def edge():
+        """Reference for edge column, used for specifying messages."""
+        return col('edge')
+
+    @staticmethod
+    def msg():
+        """Reference for message column, used for specifying aggregation function."""
+        return col('msg')
+
+    @staticmethod
+    def getCachedDataFrame(df):
+        rdd = df.rdd.cache()
+        # rdd.count()
+        return df.sql_ctx.createDataFrame(rdd, df.schema)
 
 
 def _test():
