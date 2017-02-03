@@ -105,15 +105,19 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
       s" messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")
     val triplets = g.triplets
     val sentMsgsToSrc = msgToSrc.map { msg =>
-      val msgsToSrc = triplets.select(msg.as("MSG"), triplets(SRC)(ID).as(ID))
+      val msgsToSrc = triplets.select(
+        msg.as(AggregateMessages.MSG_COL_NAME),
+        triplets(SRC)(ID).as(ID))
       // Inner join: only send messages to vertices with edges
       msgsToSrc.join(g.vertices, ID)
-        .select(msgsToSrc("MSG"), col(ID))
+        .select(msgsToSrc(AggregateMessages.MSG_COL_NAME), col(ID))
     }
     val sentMsgsToDst = msgToDst.map { msg =>
-      val msgsToDst = triplets.select(msg.as("MSG"), triplets(DST)(ID).as(ID))
+      val msgsToDst = triplets.select(
+        msg.as(AggregateMessages.MSG_COL_NAME),
+        triplets(DST)(ID).as(ID))
       msgsToDst.join(g.vertices, ID)
-        .select(msgsToDst("MSG"), col(ID))
+        .select(msgsToDst(AggregateMessages.MSG_COL_NAME), col(ID))
     }
     val unionedMsgs = (sentMsgsToSrc, sentMsgsToDst) match {
       case (Some(toSrc), Some(toDst)) =>
@@ -130,6 +134,9 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
 
 object AggregateMessages extends Logging with Serializable {
 
+  /** Column name for aggregated messages, used in [[AggregateMessages.msg]] */
+  val MSG_COL_NAME: String = "MSG"
+
   /** Reference for source column, used for specifying messages */
   def src: Column = col(GraphFrame.SRC)
 
@@ -140,7 +147,7 @@ object AggregateMessages extends Logging with Serializable {
   def edge: Column = col(GraphFrame.EDGE)
 
   /** Reference for message column, used for specifying aggregation function */
-  def msg: Column = col("MSG")
+  def msg: Column = col(MSG_COL_NAME)
 
   /**
    * Cache a DataFrame, and returned the cached version. For iterative DataFrame-based algorithms.

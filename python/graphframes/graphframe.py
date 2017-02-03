@@ -356,33 +356,48 @@ class GraphFrame(object):
         return DataFrame(jdf, self._sqlContext)
 
 
-class AggregateMessages:
+class AggregateMessages(object):
+    """Collection of utilities usable with :method:`GraphFrame.aggregateMessages`."""
 
     @staticmethod
     def src():
         """Reference for source column, used for specifying messages."""
-        return col('src')
+        jvm_gf_api = _java_api(SparkContext)
+        return col(jvm_gf_api.ID())
 
     @staticmethod
     def dst():
         """Reference for destination column, used for specifying messages."""
-        return col('dst')
+        jvm_gf_api = _java_api(SparkContext)
+        return col(jvm_gf_api.DST())
 
     @staticmethod
     def edge():
         """Reference for edge column, used for specifying messages."""
-        return col('edge')
+        jvm_gf_api = _java_api(SparkContext)
+        return col(jvm_gf_api.EDGE())
 
     @staticmethod
     def msg():
         """Reference for message column, used for specifying aggregation function."""
-        return col('msg')
+        jvm_gf_api = _java_api(SparkContext)
+        return col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
 
     @staticmethod
     def getCachedDataFrame(df):
-        rdd = df.rdd.cache()
-        # rdd.count()
-        return df.sql_ctx.createDataFrame(rdd, df.schema)
+        """
+        Cache a DataFrame, and return the cached version.
+
+        This utility method is usefull for iterative DataFrame-based algorithms. See Scala
+        documentation for more details.
+
+        WARNING: This is NOT the same as `DataFrame.cache()`.
+                 The original DataFrame will NOT be cached.
+        """
+        sqlContext = df.sql_ctx
+        jvm_gf_api = _java_api(sqlContext._sc)
+        jdf = jvm_gf_api.aggregateMessages().getCachedDataFrame(df._jdf)
+        return DataFrame(jdf, sqlContext)
 
 
 def _test():
