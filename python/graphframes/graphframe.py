@@ -363,7 +363,7 @@ class AggregateMessages(object):
     def src():
         """Reference for source column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
-        return col(jvm_gf_api.ID())
+        return col(jvm_gf_api.SRC())
 
     @staticmethod
     def dst():
