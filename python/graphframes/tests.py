@@ -29,9 +29,9 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, SQLContext
+from pyspark.sql import DataFrame, SQLContext, functions as SQLFunctions
 
-from .graphframe import GraphFrame, _java_api, _from_java_gf
+from .graphframe import GraphFrame, AggregateMessages as AM, _java_api, _from_java_gf
 
 
 class GraphFrameTestCase(unittest.TestCase):
@@ -126,6 +126,31 @@ class GraphFrameLibTest(GraphFrameTestCase):
         examples = self.japi.examples()
         jgraph = getattr(examples, name)(*args)
         return _from_java_gf(jgraph, self.sqlContext)
+
+    def test_aggregate_messages(self):
+        g = self._graph("friends")
+        # For each user, sum the ages of the adjacent users,
+        # plus 1 for the src's sum if the edge is "friend".
+        msgToSrc = (
+            AM.dst()['age'] +
+            SQLFunctions.when(
+                AM.edge()['relationship'] == 'friend',
+                SQLFunctions.lit(1)
+            ).otherwise(0))
+        msgToDst = AM.src()['age']
+        agg = g.aggregateMessages(
+            SQLFunctions.sum(AM.msg()).alias('summedAges'),
+            msgToSrc=msgToSrc,
+            msgToDst=msgToDst)
+        # Convert agg to a mapping from id to the aggregated message.
+        aggMap = {id_: s for id_, s in agg.select('id', 'summedAges').collect()}
+        # Compute the truth via brute force.
+        user2age = {id_: age for id_, age in g.vertices.select('id', 'age').collect()}
+        trueAgg = {}
+        for src, dst, rel in g.edges.select("src", "dst", "relationship").collect():
+            trueAgg[src] = trueAgg.get(src, 0) + user2age[dst] + (1 if rel == 'friend' else 0)
+            trueAgg[dst] = trueAgg.get(dst, 0) + user2age[src]
+        self.assertEqual(aggMap, trueAgg)
 
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([
