@@ -26,7 +26,7 @@ Core classes:
 
     :class:`graphframes.AggregateMessages`
 
-    Collection of utilities usable with :meth:`GraphFrame.aggregateMessages()`.
+    Collection of utilities usable with :meth:`graphframes.GraphFrame.aggregateMessages()`.
 
 
 Indices and tables
