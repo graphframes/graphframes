@@ -212,7 +212,7 @@ class GraphFrame(object):
         Aggregates messages from the neighbours.
 
         When specifying the messages and aggregation function, the user may reference columns using
-        the static methods in `graphframe.AggregateMessages`.
+        the static methods in :class:`AggregateMessages`.
 
         See Scala documentation for more details.
 
@@ -357,7 +357,7 @@ class GraphFrame(object):
 
 
 class AggregateMessages(object):
-    """Collection of utilities usable with :method:`GraphFrame.aggregateMessages`."""
+    """Collection of utilities usable with :meth:`GraphFrame.aggregateMessages()`."""
 
     @staticmethod
     def src():

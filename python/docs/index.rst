@@ -24,6 +24,10 @@ Core classes:
 
     DataFrame-based Graph representation.
 
+    :class:`graphframes.AggregateMessages`
+
+    Collection of utilities usable with :meth:`GraphFrame.aggregateMessages()`.
+
 
 Indices and tables
 ==================
