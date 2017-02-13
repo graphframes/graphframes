@@ -7,7 +7,7 @@ from setuptools import find_packages
 
 setup(
     name="graphframes",
-    version="0.2.1",
+    version="0.3.0",
     description="GraphFrames: DataFrame-based Graphs",
     url="https://github.com/graphframes/graphframes",
     packages=find_packages(),
