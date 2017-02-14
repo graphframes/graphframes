@@ -16,9 +16,7 @@
 #
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, SQLContext
-from pyspark.sql.functions import col
-from pyspark.sql.column import Column
+from pyspark.sql import Column, DataFrame, functions as sqlfunctions, SQLContext
 from pyspark.storagelevel import StorageLevel
 
 def _from_java_gf(jgf, sqlContext):
@@ -224,6 +222,9 @@ class GraphFrame(object):
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
+        # Check that either msgToSrc, msgToDst, or both are provided
+        if msgToSrc is None and msgToDst is None:
+            raise ValueError("Either `msgToSrc`, `msgToDst`, or both have to be provided")
         builder = self._jvm_graph.aggregateMessages()
         if msgToSrc is not None:
             if isinstance(msgToSrc, Column):
@@ -363,30 +364,30 @@ class AggregateMessages(object):
     def src():
         """Reference for source column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
-        return col(jvm_gf_api.SRC())
+        return sqlfunctions.col(jvm_gf_api.SRC())
 
     @staticmethod
     def dst():
         """Reference for destination column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
-        return col(jvm_gf_api.DST())
+        return sqlfunctions.col(jvm_gf_api.DST())
 
     @staticmethod
     def edge():
         """Reference for edge column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
-        return col(jvm_gf_api.EDGE())
+        return sqlfunctions.col(jvm_gf_api.EDGE())
 
     @staticmethod
     def msg():
         """Reference for message column, used for specifying aggregation function."""
         jvm_gf_api = _java_api(SparkContext)
-        return col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
+        return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
 
     @staticmethod
     def getCachedDataFrame(df):
         """
-        Cache a DataFrame, and return the cached version.
+        Create a new cached copy of a DataFrame.
 
         This utility method is usefull for iterative DataFrame-based algorithms. See Scala
         documentation for more details.

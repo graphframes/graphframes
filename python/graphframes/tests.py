@@ -29,9 +29,9 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, SQLContext, functions as SQLFunctions
+from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 
-from .graphframe import GraphFrame, AggregateMessages as AM, _java_api, _from_java_gf
+from .graphframe import AggregateMessages as AM, GraphFrame, _java_api, _from_java_gf
 
 
 class GraphFrameTestCase(unittest.TestCase):
@@ -133,13 +133,13 @@ class GraphFrameLibTest(GraphFrameTestCase):
         # plus 1 for the src's sum if the edge is "friend".
         msgToSrc = (
             AM.dst()['age'] +
-            SQLFunctions.when(
+            sqlfunctions.when(
                 AM.edge()['relationship'] == 'friend',
-                SQLFunctions.lit(1)
+                sqlfunctions.lit(1)
             ).otherwise(0))
         msgToDst = AM.src()['age']
         agg = g.aggregateMessages(
-            SQLFunctions.sum(AM.msg()).alias('summedAges'),
+            sqlfunctions.sum(AM.msg()).alias('summedAges'),
             msgToSrc=msgToSrc,
             msgToDst=msgToDst)
         # Convert agg to a mapping from id to the aggregated message.

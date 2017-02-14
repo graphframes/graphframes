@@ -150,7 +150,7 @@ object AggregateMessages extends Logging with Serializable {
   def msg: Column = col(MSG_COL_NAME)
 
   /**
-   * Cache a DataFrame, and returned the cached version. For iterative DataFrame-based algorithms.
+   * Create a new cached copy of a DataFrame. For iterative DataFrame-based algorithms.
    *
    * WARNING: This is NOT the same as `DataFrame.cache()`.
    *          The original DataFrame will NOT be cached.
