@@ -236,7 +236,10 @@ class GraphFrame(object):
                 builder.sendToDst(msgToDst._jc)
             else:
                 builder.sendToDst(msgToDst)
-        jdf = builder.agg(aggCol._jc)
+        if isinstance(aggCol, Column):
+            jdf = builder.agg(aggCol._jc)
+        else:
+            jdf = builder.agg(aggCol)
         return DataFrame(jdf, self._sqlContext)
 
     # Standard algorithms

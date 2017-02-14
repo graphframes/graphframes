@@ -142,15 +142,23 @@ class GraphFrameLibTest(GraphFrameTestCase):
             sqlfunctions.sum(AM.msg()).alias('summedAges'),
             msgToSrc=msgToSrc,
             msgToDst=msgToDst)
-        # Convert agg to a mapping from id to the aggregated message.
+        # Run the aggregation again providing SQL expressions as String instead.
+        agg2 = g.aggregateMessages(
+            "sum(MSG) AS `summedAges`",
+            msgToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
+            msgToDst="src['age']")
+        # Convert agg and agg2 to a mapping from id to the aggregated message.
         aggMap = {id_: s for id_, s in agg.select('id', 'summedAges').collect()}
+        agg2Map = {id_: s for id_, s in agg2.select('id', 'summedAges').collect()}
         # Compute the truth via brute force.
         user2age = {id_: age for id_, age in g.vertices.select('id', 'age').collect()}
         trueAgg = {}
         for src, dst, rel in g.edges.select("src", "dst", "relationship").collect():
             trueAgg[src] = trueAgg.get(src, 0) + user2age[dst] + (1 if rel == 'friend' else 0)
             trueAgg[dst] = trueAgg.get(dst, 0) + user2age[src]
+        # Compare if the agg mappings match the brute force mapping
         self.assertEqual(aggMap, trueAgg)
+        self.assertEqual(agg2Map, trueAgg)
 
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([

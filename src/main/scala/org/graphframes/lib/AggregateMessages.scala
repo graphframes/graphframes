@@ -130,6 +130,13 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
     }
     unionedMsgs.groupBy(ID).agg(aggCol)
   }
+
+  /**
+   * Run the aggregation, specifying SQL expression as a String
+   *
+   * See the overloaded method documentation for more details.
+   */
+  def agg(aggCol: String): DataFrame = agg(expr(aggCol))
 }
 
 object AggregateMessages extends Logging with Serializable {
