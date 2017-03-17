@@ -23,6 +23,8 @@ import org.apache.spark.sql.types.DataTypes
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
+import scala.util.Try
+
 class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   val n = 100
@@ -45,5 +47,20 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val gRank = results.vertices.filter(col("id") === "g").select("pagerank").first().getDouble(0)
     assert(gRank === 0.0,
       s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got $gRank.")
+  }
+
+  test("invalid pageRank maxIter"){
+    val results = Try(Graphs.friends.pageRank.maxIter(0).run())
+    TestUtils.testIllegalArgumentCaught(results)
+  }
+
+  test("invalid pageRank tolerance"){
+    val results = Try(Graphs.friends.pageRank.tol(-1).run())
+    TestUtils.testIllegalArgumentCaught(results)
+  }
+
+  test("invalid pageRank resetProb"){
+    val results = Try(Graphs.friends.pageRank.resetProbability(2).run())
+    TestUtils.testIllegalArgumentCaught(results)
   }
 }

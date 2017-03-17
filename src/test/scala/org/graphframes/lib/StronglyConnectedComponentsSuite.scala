@@ -19,8 +19,11 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
+import org.graphframes.examples.Graphs
 
 import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, TestUtils}
+
+import scala.util.Try
 
 class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Island Strongly Connected Components") {
@@ -39,5 +42,10 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
          <- c.select("id", "component", "value").collect()) {
       assert(id === component)
     }
+  }
+
+  test("invalid stronglyConnectedComponents maxIter"){
+    val results = Try(Graphs.friends.stronglyConnectedComponents.maxIter(0).run())
+    TestUtils.testIllegalArgumentCaught(results)
   }
 }

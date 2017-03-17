@@ -80,16 +80,20 @@ class PageRank private[graphframes] (
 
   /** Reset probability "alpha" */
   def resetProbability(value: Double): this.type = {
+    require(value >= 0 && value <= 1, s"Random reset probability must belong" +
+      s" to [0, 1], but got ${value}")
     resetProb = Some(value)
     this
   }
 
   def tol(value: Double): this.type = {
+    require(value >= 0, s"Tolerance must be no less than 0, but got ${value}")
     tol = Some(value)
     this
   }
 
   def maxIter(value: Int): this.type = {
+    require(value > 0, "maxIter should be > 0")
     maxIter = Some(value)
     this
   }
