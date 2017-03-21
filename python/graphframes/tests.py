@@ -29,10 +29,10 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
+from pyspark.sql import DataFrame, functions as sqlFuncs, SQLContext
 
 from .graphframe import AggregateMessages as AM, GraphFrame, _java_api, _from_java_gf
-
+from .examples import Graphs, BeliefPropagation
 
 class GraphFrameTestCase(unittest.TestCase):
 
@@ -133,13 +133,13 @@ class GraphFrameLibTest(GraphFrameTestCase):
         # plus 1 for the src's sum if the edge is "friend".
         msgToSrc = (
             AM.dst()['age'] +
-            sqlfunctions.when(
+            sqlFuncs.when(
                 AM.edge()['relationship'] == 'friend',
-                sqlfunctions.lit(1)
+                sqlFuncs.lit(1)
             ).otherwise(0))
         msgToDst = AM.src()['age']
         agg = g.aggregateMessages(
-            sqlfunctions.sum(AM.msg()).alias('summedAges'),
+            sqlFuncs.sum(AM.msg()).alias('summedAges'),
             msgToSrc=msgToSrc,
             msgToDst=msgToDst)
         # Run the aggregation again providing SQL expressions as String instead.
@@ -237,3 +237,67 @@ class GraphFrameLibTest(GraphFrameTestCase):
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
             self.assertEqual(row.asDict()['count'], 1)
+
+class GraphFrameExamplesTest(GraphFrameTestCase):
+    def setUp(self):
+        super(GraphFrameExamplesTest, self).setUp()
+        self.sqlContext = self.sql
+        self.japi = _java_api(self.sqlContext._sc)
+
+    def test_belief_propagation(self):
+        # create graphical model g of size 3 x 3
+        g = Graphs(self.sqlContext).gridIsingModel(3)
+
+        # run BP for 5 iterations
+        numIter = 5
+        results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
+
+        # check beliefs are valid
+        for row in results.vertices.select('belief').collect():
+            belief = row['belief']
+            self.assertTrue(
+                0 <= belief <= 1,
+                msg="Expected belief to be probability in [0,1], but found {}".format(belief))
+
+    def test_graph_friends(self):
+        # construct graph
+        g = Graphs(self.sqlContext).friends()
+        # collect vertices
+        vertices = [v.asDict() for v in g.vertices.collect()]
+        # target
+        target_vertices = [
+            {'age': 34, 'id': 'a', 'name': 'Alice'},
+            {'age': 36, 'id': 'b', 'name': 'Bob'},
+            {'age': 30, 'id': 'c', 'name': 'Charlie'},
+            {'age': 29, 'id': 'd', 'name': 'David'},
+            {'age': 32, 'id': 'e', 'name': 'Esther'},
+            {'age': 36, 'id': 'f', 'name': 'Fanny'}]
+        # check that the rows match
+        self.assertEqual(len(vertices), len(target_vertices))
+        for v in vertices:
+            self.assertIn(v, target_vertices)
+        # collect edges
+        edges = [v.asDict() for v in g.edges.collect()]
+        # target
+        target_edges = [
+            {'dst': 'b', 'relationship': 'friend', 'src': 'a'},
+            {'dst': 'c', 'relationship': 'follow', 'src': 'b'},
+            {'dst': 'b', 'relationship': 'follow', 'src': 'c'},
+            {'dst': 'c', 'relationship': 'follow', 'src': 'f'},
+            {'dst': 'f', 'relationship': 'follow', 'src': 'e'},
+            {'dst': 'd', 'relationship': 'friend', 'src': 'e'},
+            {'dst': 'a', 'relationship': 'friend', 'src': 'd'}]
+        # check that the rows match
+        self.assertEqual(len(edges), len(target_edges))
+        for e in edges:
+            self.assertIn(e, target_edges)
+
+    def test_graph_grid_ising_model(self):
+        # construct graph
+        n = 3
+        g = Graphs(self.sqlContext).gridIsingModel(n)
+        # check that all the vertices exist
+        ids = [v['id'] for v in g.vertices.collect()]
+        for i in range(n):
+            for j in range(n):
+                self.assertIn('{},{}'.format(i, j), ids)
