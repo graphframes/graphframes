@@ -25,9 +25,7 @@ __all__ = ['Graphs', 'BeliefPropagation']
 
 
 class Graphs(object):
-    """
-    Example GraphFrames
-    """
+    """Example GraphFrames."""
 
     def __init__(self, sqlContext):
         """
@@ -66,19 +64,18 @@ class Graphs(object):
     def gridIsingModel(self, n, vStd=1.0, eStd=1.0):
         """Grid Ising model with random parameters.
 
-        Ising models are probabilistic graphical models over binary variables x,,i,,.
-        Each binary variable x,,i,, corresponds to one vertex, and it may take values -1 or +1.
-        The probability distribution P(X) (over all x,,i,,) is parameterized by vertex factors
-        a,,i,, and edge factors b,,ij,,:
-        {{{
-         P(X) = (1/Z) * exp[ \sum_i a_i x_i + \sum_{ij} b_{ij} x_i x_j ]
-        }}}
-        where Z is the normalization constant (partition function). See
-        https://en.wikipedia.org/wiki/Ising_model Wikipedia for more information on Ising
-        models.
+        Ising models are probabilistic graphical models over binary variables x\ :sub:`i`.
+        Each binary variable x\ :sub:`i` corresponds to one vertex, and it may take values -1 or +1.
+        The probability distribution P(X) (over all x\ :sub:`i`) is parameterized by vertex factors
+        a\ :sub:`i` and edge factors b\ :sub:`ij`:
 
-        Each vertex is parameterized by a single scalar a,,i,,.
-        Each edge is parameterized by a single scalar b,,ij,,.
+           P(X) = (1/Z) * exp[ \sum_i a_i x_i + \sum_{ij} b_{ij} x_i x_j ]
+
+        where Z is the normalization constant (partition function). See `Wikipedia
+        <https://en.wikipedia.org/wiki/Ising_model>`__ for more information on Ising models.
+
+        Each vertex is parameterized by a single scalar a\ :sub:`i`.
+        Each edge is parameterized by a single scalar b\ :sub:`ij`.
 
         :param n: Length of one side of the grid.  The grid will be of size n x n.
         :param vStd: Standard deviation of normal distribution used to generate vertex factors "a".
@@ -133,9 +130,42 @@ class Graphs(object):
 
 
 class BeliefPropagation(object):
+    """Example code for Belief Propagation (BP)
 
+    This provides a template for building customized BP algorithms for different types of graphical
+    models.
+
+    This example:
+
+    * Ising model on a grid
+    * Parallel Belief Propagation using colored fields
+
+    Ising models are probabilistic graphical models over binary variables
+    (see :meth:`Graphs.gridIsingModel()`).
+
+    Belief Propagation (BP) provides marginal probabilities of the values of the variables
+    x\ :sub:`i` i.e., P(x\ :sub:`i`) for each i.  This allows a user to understand likely values of
+    variables. See `Wikipedia <https://en.wikipedia.org/wiki/Belief_propagation>`__ for more
+    information on BP.
+
+    We use a batch synchronous BP algorithm, where batches of vertices are updated synchronously.
+    We follow the mean field update algorithm in Slide 13 of the
+    `talk slides <http://www.eecs.berkeley.edu/~wainwrig/Talks/A_GraphModel_Tutorial>`__ from:
+    Wainwright. "Graphical models, message-passing algorithms, and convex optimization."
+
+    The batches are chosen according to a coloring. For background on graph colorings for
+    inference, see for example: Gonzalez et al. "Parallel Gibbs Sampling: From Colored Fields to
+    Thin Junction Trees." AISTATS, 2011.
+
+    The BP algorithm works by:
+
+    * Coloring the graph by assigning a color to each vertex such that no neighboring vertices
+      share the same color.
+    * In each step of BP, update all vertices of a single color.  Alternate colors.
+     """
     @classmethod
     def main(cls):
+        """Run the algorithm for an example problem."""
         conf = SparkConf().setAppName("BeliefPropagation example")
         sc = SparkContext.getOrCreate(conf)
         sql = SQLContext.getOrCreate(sc)

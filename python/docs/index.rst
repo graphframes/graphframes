@@ -13,7 +13,7 @@ on both the algorithms and APIs (particularly DataFrame schema).*
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    graphframes
 
@@ -24,9 +24,13 @@ Core classes:
 
     DataFrame-based Graph representation.
 
-    :class:`graphframes.AggregateMessages`
+    :class:`graphframes.examples.Graphs`
 
-    Collection of utilities usable with :meth:`graphframes.GraphFrame.aggregateMessages()`.
+    Example GraphFrames.
+
+    :class:`graphframes.examples.BeliefPropagation`
+
+    Belief Propagation implementation example.
 
 
 Indices and tables
