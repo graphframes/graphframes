@@ -39,11 +39,12 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
       .sendToSrc(msgToSrc)
       .sendToDst(msgToDst)
       .agg(sum(AM.msg).as("summedAges"))
-    // Convert agg to a Map, and compute the truth via brute force for comparison.
+    // Convert agg to a Map.
     import org.apache.spark.sql._
     val aggMap: Map[String, Long] = agg.select("id", "summedAges").collect().map {
       case Row(id: String, s: Long) => id -> s
     }.toMap
+    // Compute the truth via brute force for comparison.
     val trueAgg: Map[String, Int] = {
       val user2age = g.vertices.select("id", "age").collect().map {
         case Row(id: String, age: Int) => id -> age
@@ -56,8 +57,24 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
       }
       a.toMap
     }
+    // Compare to the true values.
     aggMap.keys.foreach { case user =>
       assert(aggMap(user) === trueAgg(user), s"Failure on user $user")
+    }
+    // Perfom the aggregation againg, this timne providing the messages as Strings instead.
+    val msgToSrc2 = "(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)"
+    val msgToDst2 = "src['age']"
+    val agg2 = g.aggregateMessages
+      .sendToSrc(msgToSrc2)
+      .sendToDst(msgToDst2)
+      .agg("sum(MSG) AS `summedAges`")
+    // Convert agg2 to a Map.
+    val agg2Map: Map[String, Long] = agg2.select("id", "summedAges").collect().map {
+      case Row(id: String, s: Long) => id -> s
+    }.toMap
+    // Compare to the true values.
+    agg2Map.keys.foreach { case user =>
+      assert(agg2Map(user) === trueAgg(user), s"Failure on user $user")
     }
   }
 }
