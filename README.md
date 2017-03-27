@@ -37,3 +37,5 @@ We welcome open source contributions as well!
   - DataFrame-based connected components implementation
   - added support for Python 3
   - removed support for Spark 1.4 and 1.5
+- 0.4.0 release for Spark 2.1
+  - Fix for checkpointing issue in DataFrame-based connected components implementation (issue 160)
