@@ -61,7 +61,7 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     aggMap.keys.foreach { case user =>
       assert(aggMap(user) === trueAgg(user), s"Failure on user $user")
     }
-    // Perfom the aggregation againg, this timne providing the messages as Strings instead.
+    // Perfom the aggregation again, this time providing the messages as Strings instead.
     val msgToSrc2 = "(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)"
     val msgToDst2 = "src['age']"
     val agg2 = g.aggregateMessages

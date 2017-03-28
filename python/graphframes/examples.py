@@ -17,8 +17,10 @@
 
 import itertools
 import math
+
 from pyspark import SparkConf, SparkContext
-from pyspark.sql import SQLContext, functions as sqlFuncs, types
+from pyspark.sql import SQLContext, functions as sqlfunctions, types
+
 from .graphframe import GraphFrame, AggregateMessages as AM
 
 __all__ = ['Graphs', 'BeliefPropagation']
@@ -97,27 +99,27 @@ class Graphs(object):
 
         # create SQL expression for converting coordinates (i,j) to a string ID "i,j"
         # avoid Cartesian join due to SPARK-15425: use generator since n should be small
-        toIDudf = sqlFuncs.udf(lambda i, j: '{},{}'.format(i,j))
+        toIDudf = sqlfunctions.udf(lambda i, j: '{},{}'.format(i,j))
 
         # create the vertex DataFrame
         # create SQL expression for converting coordinates (i,j) to a string ID "i,j"
-        vIDcol = toIDudf(sqlFuncs.col('i'), sqlFuncs.col('j'))
+        vIDcol = toIDudf(sqlfunctions.col('i'), sqlfunctions.col('j'))
         # add random parameters generated from a normal distribution
         seed = 12345
         vertices = (coordinates.withColumn('id', vIDcol)
-            .withColumn('a', sqlFuncs.randn(seed) * vStd))
+            .withColumn('a', sqlfunctions.randn(seed) * vStd))
 
         # create the edge DataFrame
         # create SQL expression for converting coordinates (i,j+1) and (i+1,j) to string IDs
-        rightIDcol = toIDudf(sqlFuncs.col('i'), sqlFuncs.col('j') + 1)
-        downIDcol = toIDudf(sqlFuncs.col('i') + 1, sqlFuncs.col('j'))
-        horizontalEdges = (coordinates.filter(sqlFuncs.col('j') != n - 1)
+        rightIDcol = toIDudf(sqlfunctions.col('i'), sqlfunctions.col('j') + 1)
+        downIDcol = toIDudf(sqlfunctions.col('i') + 1, sqlfunctions.col('j'))
+        horizontalEdges = (coordinates.filter(sqlfunctions.col('j') != n - 1)
             .select(vIDcol.alias('src'), rightIDcol.alias('dst')))
-        verticalEdges = (coordinates.filter(sqlFuncs.col('i') != n - 1)
+        verticalEdges = (coordinates.filter(sqlfunctions.col('i') != n - 1)
             .select(vIDcol.alias('src'), downIDcol.alias('dst')))
         allEdges = horizontalEdges.unionAll(verticalEdges)
         # add random parameters from a normal distribution
-        edges = allEdges.withColumn('b', sqlFuncs.randn(seed + 1) * eStd)
+        edges = allEdges.withColumn('b', sqlfunctions.randn(seed + 1) * eStd)
 
         # create the GraphFrame
         g = GraphFrame(vertices, edges)
@@ -201,10 +203,8 @@ class BeliefPropagation(object):
 
         """
 
-        colorUDF = sqlFuncs.udf(
-            lambda i, j: 0 if (i + j) % 2 == 0 else 1,
-            returnType=types.IntegerType())
-        v = g.vertices.withColumn('color', colorUDF(sqlFuncs.col('i'), sqlFuncs.col('j')))
+        colorUDF = sqlfunctions.udf(lambda i, j: (i + j) % 2, returnType=types.IntegerType())
+        v = g.vertices.withColumn('color', colorUDF(sqlfunctions.col('i'), sqlfunctions.col('j')))
         return GraphFrame(v, g.edges)
 
     @classmethod
@@ -220,7 +220,7 @@ class BeliefPropagation(object):
         # TODO: handle vertices without any edges
 
         # initialize vertex beliefs at 0.0
-        gx = GraphFrame(colorG.vertices.withColumn('belief', sqlFuncs.lit(0.0)), colorG.edges)
+        gx = GraphFrame(colorG.vertices.withColumn('belief', sqlfunctions.lit(0.0)), colorG.edges)
 
         # run BP for numIter iterations
         for iter_ in range(numIter):
@@ -228,21 +228,21 @@ class BeliefPropagation(object):
             for color in range(numColors):
                 # Send messages to vertices of the current color.
                 # We may send to source or destination since edges are treated as undirected.
-                msgForSrc = sqlFuncs.when(
+                msgForSrc = sqlfunctions.when(
                     AM.src()['color'] == color,
                     AM.edge()['b'] * AM.dst()['belief'])
-                msgForDst = sqlFuncs.when(
+                msgForDst = sqlfunctions.when(
                     AM.dst()['color'] == color,
                     AM.edge()['b'] * AM.src()['belief'])
                 # numerically stable sigmoid
-                logistic = sqlFuncs.udf(cls._sigmoid, returnType=types.DoubleType())
+                logistic = sqlfunctions.udf(cls._sigmoid, returnType=types.DoubleType())
                 aggregates = gx.aggregateMessages(
-                    sqlFuncs.sum(AM.msg()).alias("aggMess"),
+                    sqlfunctions.sum(AM.msg()).alias("aggMess"),
                     msgToSrc=msgForSrc,
                     msgToDst=msgForDst)
                 v = gx.vertices
                 # receive messages and update beliefs for vertices of the current color
-                newBeliefCol = sqlFuncs.when(
+                newBeliefCol = sqlfunctions.when(
                     (v['color'] == color) & (aggregates['aggMess'].isNotNull()),
                     logistic(aggregates['aggMess'] + v['a'])
                 ).otherwise(v['belief'])  # keep old beliefs for other colors

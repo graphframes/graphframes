@@ -16,7 +16,7 @@
 #
 
 from pyspark import SparkContext
-from pyspark.sql import Column, DataFrame, functions as sqlFuncs, SQLContext
+from pyspark.sql import Column, DataFrame, functions as sqlfunctions, SQLContext
 from pyspark.storagelevel import StorageLevel
 
 def _from_java_gf(jgf, sqlContext):
@@ -214,7 +214,8 @@ class GraphFrame(object):
 
         See Scala documentation for more details.
 
-        :param aggCol: `pyspark.sql.column.Column` for the requested aggregation output
+        :param aggCol: the requested aggregation output either as
+            `pyspark.sql.column.Column` or SQL expression string
         :param msgToSrc: message sent to the source vertex of each triplet either as
             `pyspark.sql.column.Column` or SQL expression string (default: None)
         :param msgToDst: message sent to the destination vertex of each triplet either as
@@ -367,25 +368,25 @@ class AggregateMessages(object):
     def src():
         """Reference for source column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
-        return sqlFuncs.col(jvm_gf_api.SRC())
+        return sqlfunctions.col(jvm_gf_api.SRC())
 
     @staticmethod
     def dst():
         """Reference for destination column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
-        return sqlFuncs.col(jvm_gf_api.DST())
+        return sqlfunctions.col(jvm_gf_api.DST())
 
     @staticmethod
     def edge():
         """Reference for edge column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
-        return sqlFuncs.col(jvm_gf_api.EDGE())
+        return sqlfunctions.col(jvm_gf_api.EDGE())
 
     @staticmethod
     def msg():
         """Reference for message column, used for specifying aggregation function."""
         jvm_gf_api = _java_api(SparkContext)
-        return sqlFuncs.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
+        return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
 
     @staticmethod
     def getCachedDataFrame(df):
