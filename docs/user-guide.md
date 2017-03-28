@@ -525,6 +525,10 @@ assigned a component ID.
 
 See [Wikipedia](https://en.wikipedia.org/wiki/Connected_component_(graph_theory)) for background.
 
+NOTE: With GraphFrames 0.3.0 and later releases, the default Connected Components algorithm
+requires setting a Spark checkpoint directory.  Users can revert to the old algorithm using
+`.setAlgorithm("graphx")`.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
