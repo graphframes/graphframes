@@ -215,11 +215,11 @@ class GraphFrame(object):
         See Scala documentation for more details.
 
         :param aggCol: the requested aggregation output either as
-            `pyspark.sql.column.Column` or SQL expression string
+            `pyspark.sql.Column` or SQL expression string
         :param msgToSrc: message sent to the source vertex of each triplet either as
-            `pyspark.sql.column.Column` or SQL expression string (default: None)
+            `pyspark.sql.Column` or SQL expression string (default: None)
         :param msgToDst: message sent to the destination vertex of each triplet either as
-            `pyspark.sql.column.Column` or SQL expression string (default: None)
+            `pyspark.sql.Column` or SQL expression string (default: None)
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
