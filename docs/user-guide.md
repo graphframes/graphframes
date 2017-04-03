@@ -877,10 +877,10 @@ from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
 # For each user, sum the ages of the adjacent users.
-msgToSrc = AM.dst()["age"]
-msgToDst = AM.src()["age"]
+msgToSrc = AM.dst["age"]
+msgToDst = AM.src["age"]
 agg = g.aggregateMessages(
-    sqlsum(AM.msg()).alias("summedAges"),
+    sqlsum(AM.msg).alias("summedAges"),
     msgToSrc=msgToSrc,
     msgToDst=msgToDst)
 agg.show()
