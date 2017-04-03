@@ -361,29 +361,43 @@ class GraphFrame(object):
         return DataFrame(jdf, self._sqlContext)
 
 
+class _ClassProperty(object):
+    """Custom read-only class property descriptor.
+
+    The underlying method should take the class as the sole argument.
+    """
+
+    def __init__(self, f):
+        self.f = f
+        self.__doc__ = f.__doc__
+
+    def __get__(self, instance, owner):
+        return self.f(owner)
+
+
 class AggregateMessages(object):
     """Collection of utilities usable with :meth:`GraphFrame.aggregateMessages()`."""
 
-    @staticmethod
-    def src():
+    @_ClassProperty
+    def src(cls):
         """Reference for source column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.SRC())
 
-    @staticmethod
-    def dst():
+    @_ClassProperty
+    def dst(cls):
         """Reference for destination column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.DST())
 
-    @staticmethod
-    def edge():
+    @_ClassProperty
+    def edge(cls):
         """Reference for edge column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.EDGE())
 
-    @staticmethod
-    def msg():
+    @_ClassProperty
+    def msg(cls):
         """Reference for message column, used for specifying aggregation function."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())

@@ -82,15 +82,15 @@ class BeliefPropagation(object):
                 # Send messages to vertices of the current color.
                 # We may send to source or destination since edges are treated as undirected.
                 msgForSrc = sqlfunctions.when(
-                    AM.src()['color'] == color,
-                    AM.edge()['b'] * AM.dst()['belief'])
+                    AM.src['color'] == color,
+                    AM.edge['b'] * AM.dst['belief'])
                 msgForDst = sqlfunctions.when(
-                    AM.dst()['color'] == color,
-                    AM.edge()['b'] * AM.src()['belief'])
+                    AM.dst['color'] == color,
+                    AM.edge['b'] * AM.src['belief'])
                 # numerically stable sigmoid
                 logistic = sqlfunctions.udf(cls._sigmoid, returnType=types.DoubleType())
                 aggregates = gx.aggregateMessages(
-                    sqlfunctions.sum(AM.msg()).alias("aggMess"),
+                    sqlfunctions.sum(AM.msg).alias("aggMess"),
                     msgToSrc=msgForSrc,
                     msgToDst=msgForDst)
                 v = gx.vertices

@@ -132,14 +132,14 @@ class GraphFrameLibTest(GraphFrameTestCase):
         # For each user, sum the ages of the adjacent users,
         # plus 1 for the src's sum if the edge is "friend".
         msgToSrc = (
-            AM.dst()['age'] +
+            AM.dst['age'] +
             sqlfunctions.when(
-                AM.edge()['relationship'] == 'friend',
+                AM.edge['relationship'] == 'friend',
                 sqlfunctions.lit(1)
             ).otherwise(0))
-        msgToDst = AM.src()['age']
+        msgToDst = AM.src['age']
         agg = g.aggregateMessages(
-            sqlfunctions.sum(AM.msg()).alias('summedAges'),
+            sqlfunctions.sum(AM.msg).alias('summedAges'),
             msgToSrc=msgToSrc,
             msgToDst=msgToDst)
         # Run the aggregation again providing SQL expressions as String instead.
