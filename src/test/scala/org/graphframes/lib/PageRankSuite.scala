@@ -23,8 +23,6 @@ import org.apache.spark.sql.types.DataTypes
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
-import scala.util.Try
-
 class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   val n = 100
@@ -49,18 +47,26 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got $gRank.")
   }
 
-  test("invalid pageRank maxIter"){
-    val results = Try(Graphs.friends.pageRank.maxIter(0).run())
-    TestUtils.testIllegalArgumentCaught(results)
+  test("invalid PageRank parameters") {
+    val g = Graphs.friends
+
+    withClue("invalid pageRank maxIter") {
+      intercept[IllegalArgumentException]{
+        g.pageRank.maxIter(0).run()
+      }
+    }
+
+    withClue("invalid pageRank tolerance") {
+      intercept[IllegalArgumentException]{
+        g.pageRank.tol(-1).run()
+      }
+    }
+
+    withClue("invalid pageRank resetProb") {
+      intercept[IllegalArgumentException]{
+       g.pageRank.resetProbability(2).run()
+      }
+    }
   }
 
-  test("invalid pageRank tolerance"){
-    val results = Try(Graphs.friends.pageRank.tol(-1).run())
-    TestUtils.testIllegalArgumentCaught(results)
-  }
-
-  test("invalid pageRank resetProb"){
-    val results = Try(Graphs.friends.pageRank.resetProbability(2).run())
-    TestUtils.testIllegalArgumentCaught(results)
-  }
 }

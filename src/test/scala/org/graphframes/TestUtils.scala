@@ -5,8 +5,6 @@ import org.apache.spark.sql.types.{DataType, StructType}
 
 import org.graphframes.GraphFrame._
 
-import scala.util.Try
-
 object TestUtils {
 
   /**
@@ -85,14 +83,6 @@ object TestUtils {
    */
   def testSchemaInvariants(before: GraphFrame, afterVertices: DataFrame): Unit = {
     testSchemaInvariants(before, GraphFrame(afterVertices, before.edges))
-  }
-
-  def testIllegalArgumentCaught(trGf: Try[Any]): Unit = {
-    assert(trGf.isFailure, "expecting given arguments to have failed")
-    assert(trGf.failed.get match {
-      case a: IllegalArgumentException => true
-      case _ => false
-    }, s"expecting error to be of type IllegalArgument")
   }
 
 }

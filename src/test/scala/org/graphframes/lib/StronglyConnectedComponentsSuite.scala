@@ -44,8 +44,12 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
     }
   }
 
-  test("invalid stronglyConnectedComponents maxIter"){
-    val results = Try(Graphs.friends.stronglyConnectedComponents.maxIter(0).run())
-    TestUtils.testIllegalArgumentCaught(results)
+  test("invalid stronglyConnectedComponents parameters"){
+   withClue("invalid stronglyConnectedComponents maxIter"){
+     intercept[IllegalArgumentException]{
+      Graphs.friends.stronglyConnectedComponents.maxIter(-1).run()
+     }
+   }
+
   }
 }
