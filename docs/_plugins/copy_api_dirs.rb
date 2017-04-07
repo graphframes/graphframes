@@ -67,6 +67,10 @@ if not (ENV['SKIP_API'] == '1')
 
     puts "Moving to python/docs directory and building sphinx."
     cd("../python/docs")
+    if not (ENV['SPARK_HOME'])
+      raise("Python API docs cannot be generated if SPARK_HOME is not set.")
+    end
+    system({"PACKAGE_VERSION"=>version}, "make clean") || raise("Python doc clean failed")
     system({"PACKAGE_VERSION"=>version}, "make html") || raise("Python doc generation failed")
 
     puts "Moving back into home dir."

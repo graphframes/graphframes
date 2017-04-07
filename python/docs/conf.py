@@ -31,8 +31,7 @@ needs_sphinx = '1.2'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
-    'epytext',
-    'underscores'
+    'epytext'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
