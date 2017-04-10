@@ -21,10 +21,11 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes._
+import org.graphframes.examples.Graphs
 
 class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  test("Simple test") {
+  test("Simple ShortestPaths test") {
     val edgeSeq = Seq((1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)).flatMap {
       case e => Seq(e, e.swap)
     } .map { case (src, dst) => (src.toLong, dst.toLong) }
@@ -49,7 +50,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(results.toSet === shortestPaths)
   }
 
-  test("friends graph") {
+  test("ShortestPaths friends graph") {
     val friends = examples.Graphs.friends
     val v = friends.shortestPaths.landmarks(Seq("a", "d")).run()
     val expected = Set[(String, Map[String, Int])](("a", Map("a" -> 0, "d" -> 2)), ("b", Map.empty),
@@ -60,6 +61,16 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         (id, spMap)
     }.toSet
     assert(results === expected)
+  }
+
+  test("Invalid ShortestPaths parameters"){
+
+    withClue("ShortestPaths should have at least one landmark") {
+      val g = Graphs.empty[Int]
+      intercept[IllegalArgumentException]{
+        g.shortestPaths.landmarks(Seq.empty[String]).run()
+      }
+    }
   }
 
 }

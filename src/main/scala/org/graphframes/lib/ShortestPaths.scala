@@ -45,7 +45,7 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
    * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
    */
   def landmarks(value: Seq[Any]): this.type = {
-    // TODO(tjh) do some initial checks here, without running queries.
+    require(value.nonEmpty, "expecting at least one landmark")
     lmarks = Some(value)
     this
   }

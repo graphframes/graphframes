@@ -158,6 +158,24 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(components.groupBy("component").count().count() === 1L)
   }
 
+  test("Invalid ConnectedComponents parameters"){
+
+    withClue("ConnectedComponents broadcastThreshold should be non-negative") {
+      val g = Graphs.empty[Int]
+      intercept[IllegalArgumentException]{
+        g.connectedComponents.setBroadcastThreshold(-1).run()
+      }
+    }
+
+    withClue(s"ConnectedComponents setAlgorithm should be one of: ${ConnectedComponents.supportedAlgorithms.mkString(", ")}") {
+      val g = Graphs.empty[Int]
+      intercept[IllegalArgumentException]{
+        g.connectedComponents.setAlgorithm("xxx").run()
+      }
+    }
+
+  }
+
   test("checkpoint interval") {
     val friends = Graphs.friends
     val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))

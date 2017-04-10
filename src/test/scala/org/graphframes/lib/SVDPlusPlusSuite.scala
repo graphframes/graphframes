@@ -45,4 +45,32 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }.reduce(_ + _) / g.edges.count()
     assert(err <= svdppErr)
   }
+
+  test("Invalid SVDPlusPlus parameters"){
+    val g =  Graphs.empty[Int]
+
+    withClue("SVDPlusPlus rank should be greater than 0"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.rank(0).run()
+      }
+    }
+
+    withClue("SVDPlusPlus maxIter should be greater than 0"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.maxIter(0).run()
+      }
+    }
+
+    withClue("SVDPlusPlus minValue should be non-negative"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.minValue(-1.0).run()
+      }
+    }
+
+    withClue("SVDPlusPlus maxValue should be non-negative"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.maxValue(-1.0).run()
+      }
+    }
+  }
 }

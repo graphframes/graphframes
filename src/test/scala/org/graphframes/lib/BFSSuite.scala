@@ -173,7 +173,7 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("invalid BFS parameters"){
 
-    withClue("invalid BFS maxPathLength") {
+    withClue("BFS maxPathLength should be non-negative") {
       intercept[IllegalArgumentException]{
         g.bfs.maxPathLength(-1).run()
       }
