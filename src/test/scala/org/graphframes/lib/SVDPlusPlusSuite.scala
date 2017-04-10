@@ -17,7 +17,7 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{AnalysisException, Row}
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
@@ -61,15 +61,45 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       }
     }
 
-    withClue("SVDPlusPlus minValue should be non-negative"){
+    withClue("SVDPlusPlus minValue should not be NaN"){
       intercept[IllegalArgumentException]{
-        g.svdPlusPlus.minValue(-1.0).run()
+        g.svdPlusPlus.minValue(Double.NaN).run()
       }
     }
 
-    withClue("SVDPlusPlus maxValue should be non-negative"){
+    withClue("SVDPlusPlus maxValue should not be NaN"){
       intercept[IllegalArgumentException]{
-        g.svdPlusPlus.maxValue(-1.0).run()
+        g.svdPlusPlus.maxValue(Double.NaN).run()
+      }
+    }
+
+    withClue("SVDPlusPlus gamma1 should not be NaN"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.gamma1(Double.NaN).run()
+      }
+    }
+
+    withClue("SVDPlusPlus gamma2 should not be NaN"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.gamma2(Double.NaN).run()
+      }
+    }
+
+    withClue("SVDPlusPlus gamma6 should not be NaN"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.gamma6(Double.NaN).run()
+      }
+    }
+
+    withClue("SVDPlusPlus gamma7 should not be NaN"){
+      intercept[IllegalArgumentException]{
+        g.svdPlusPlus.gamma7(Double.NaN).run()
+      }
+    }
+
+    withClue("SVDPlusPlus minValue should not equal maxValue"){
+      intercept[AnalysisException]{
+        g.svdPlusPlus.minValue(1.0).maxValue(1.0).run()
       }
     }
   }

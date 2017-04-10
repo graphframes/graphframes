@@ -23,7 +23,6 @@ import org.graphframes.examples.Graphs
 
 import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, TestUtils}
 
-import scala.util.Try
 
 class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Island Strongly Connected Components") {
