@@ -17,12 +17,13 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.sql.Row
+
 import scala.collection.mutable
-
 import org.apache.spark.sql.functions._
-
+import org.apache.spark.sql.types._
 import org.graphframes.examples.Graphs
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
+import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
 
 class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkContext {
@@ -59,5 +60,34 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     aggMap.keys.foreach { case user =>
       assert(aggMap(user) === trueAgg(user), s"Failure on user $user")
     }
+  }
+
+  test("aggregateMessages with multiple message and aggregation columns") {
+    val AM = AggregateMessages
+    val vertices = sqlContext.createDataFrame(
+      List((1, 30, 3), (2, 40, 4), (3, 50, 5), (4, 60, 6))).toDF("id", "att1", "att2")
+    val edges = sqlContext.createDataFrame(List(1 -> 2, 2 -> 3, 1 -> 4)).toDF("src", "dst")
+    val expectedValues = Map(1 -> (100l, 5.0), 2 -> (80l, 4.0), 3 -> (40l, 4.0), 4 -> (30l, 3.0))
+
+    val g = GraphFrame(vertices, edges)
+    val agg = g.aggregateMessages
+      .sendToDst(AM.src("att1"))
+      .sendToSrc(AM.dst("att1"))
+      .sendToDst(AM.src("att2"))
+      .sendToSrc(AM.dst("att2"))
+      .agg(
+        sum(AM.msg("att1")).as("sum_att1"),
+        avg(AM.msg("att2")).as("avg_att2"))
+
+    //validate schema
+    assert(agg.schema.size === 3)
+    TestUtils.checkColumnType(agg.schema, "id", IntegerType)
+    TestUtils.checkColumnType(agg.schema, "sum_att1", LongType)
+    TestUtils.checkColumnType(agg.schema, "avg_att2", DoubleType)
+
+    //validate content
+    assert(agg.collect().map { case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
+      id -> (sumAtt1, avgAtt2)
+    }.toMap === expectedValues)
   }
 }
