@@ -19,8 +19,10 @@ import math
 
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext, functions as sqlfunctions, types
+from pyspark.tests import QuietTest as SuppressSparkLogs
 
 from graphframes import GraphFrame, AggregateMessages as AM
+from graphframes import examples
 
 __all__ = ['BeliefPropagation']
 
@@ -152,20 +154,22 @@ def main():
     sc = SparkContext.getOrCreate(conf)
     sql = SQLContext.getOrCreate(sc)
 
-    # create graphical model g of size 3 x 3
-    g = Graphs(sql).gridIsingModel(3)
-    print("Original Ising model:")
-    g.vertices.show()
-    g.edges.show()
+    with SuppressSparkLogs(sc):
 
-    # run BP for 5 iterations
-    numIter = 5
-    results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
+        # create graphical model g of size 3 x 3
+        g = examples.Graphs(sql).gridIsingModel(3)
+        print("Original Ising model:")
+        g.vertices.show()
+        g.edges.show()
 
-    # display beliefs
-    beliefs = results.vertices.select('id', 'belief')
-    print("Done with BP. Final beliefs after {} iterations:".format(numIter))
-    beliefs.show()
+        # run BP for 5 iterations
+        numIter = 5
+        results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
+
+        # display beliefs
+        beliefs = results.vertices.select('id', 'belief')
+        print("Done with BP. Final beliefs after {} iterations:".format(numIter))
+        beliefs.show()
 
     sc.stop()
 
