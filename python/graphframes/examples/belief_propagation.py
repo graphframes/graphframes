@@ -22,7 +22,9 @@ from pyspark.sql import SQLContext, functions as sqlfunctions, types
 from pyspark.tests import QuietTest as SuppressSparkLogs
 
 from graphframes import GraphFrame, AggregateMessages as AM
-from graphframes import examples
+# Import subpackage examples here explicitly so that this module can be
+# run directly with spark-submit.
+import graphframes.examples
 
 __all__ = ['BeliefPropagation']
 
@@ -157,7 +159,7 @@ def main():
     with SuppressSparkLogs(sc):
 
         # create graphical model g of size 3 x 3
-        g = examples.Graphs(sql).gridIsingModel(3)
+        g = graphframes.examples.Graphs(sql).gridIsingModel(3)
         print("Original Ising model:")
         g.vertices.show()
         g.edges.show()
