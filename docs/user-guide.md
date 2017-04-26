@@ -863,14 +863,40 @@ val agg = g.aggregateMessages
   .agg(sum(AM.msg).as("summedAges"))  // sum up ages, stored in AM.msg column
 agg.show()
 {% endhighlight %}
-</div>
-
-</div>
-
-`AggregateMessages` does not yet have a Python API, but we expect to add one in the future.
 
 For a more complex example, look at the code used to implement the
 [Belief Propagation example](api/scala/index.html#org.graphframes.examples.BeliefPropagation$).
+
+</div>
+
+<div data-lang="python"  markdown="1">
+
+For API details, refer to the
+[API docs](api/python/graphframes.html#graphframes.GraphFrame.aggregateMessages).
+
+{% highlight python %}
+from pyspark.sql.functions import sum as sqlsum
+from graphframes import AggregateMessages as AM
+from graphframes.examples import Graphs
+g = Graphs(sqlContext).friends()  # Get example graph
+
+# For each user, sum the ages of the adjacent users.
+msgToSrc = AM.dst["age"]
+msgToDst = AM.src["age"]
+agg = g.aggregateMessages(
+    sqlsum(AM.msg).alias("summedAges"),
+    msgToSrc=msgToSrc,
+    msgToDst=msgToDst)
+agg.show()
+
+{% endhighlight %}
+
+For a more complex example, look at the code used to implement the
+[Belief Propagation example](api/python/graphframes.examples.html#graphframes.examples.BeliefPropagation).
+
+</div>
+
+</div>
 
 # GraphX-GraphFrame conversions
 

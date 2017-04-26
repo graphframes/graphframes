@@ -16,7 +16,7 @@
 #
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, SQLContext
+from pyspark.sql import Column, DataFrame, functions as sqlfunctions, SQLContext
 from pyspark.storagelevel import StorageLevel
 
 def _from_java_gf(jgf, sqlContext):
@@ -165,7 +165,7 @@ class GraphFrame(object):
     def triplets(self):
         """
         The triplets (source vertex)-[edge]->(destination vertex) for all edges in the graph.
-        
+
         Returned as a :class:`DataFrame` with three columns:
          - "src": source vertex with schema matching 'vertices'
          - "edge": edge with schema matching 'edges'
@@ -203,6 +203,44 @@ class GraphFrame(object):
         if edgeFilter is not None:
             builder.edgeFilter(edgeFilter)
         jdf = builder.run()
+        return DataFrame(jdf, self._sqlContext)
+
+    def aggregateMessages(self, aggCol, msgToSrc=None, msgToDst=None):
+        """
+        Aggregates messages from the neighbours.
+
+        When specifying the messages and aggregation function, the user may reference columns using
+        the static methods in :class:`AggregateMessages`.
+
+        See Scala documentation for more details.
+
+        :param aggCol: the requested aggregation output either as
+            `pyspark.sql.Column` or SQL expression string
+        :param msgToSrc: message sent to the source vertex of each triplet either as
+            `pyspark.sql.Column` or SQL expression string (default: None)
+        :param msgToDst: message sent to the destination vertex of each triplet either as
+            `pyspark.sql.Column` or SQL expression string (default: None)
+
+        :return: DataFrame with columns for the vertex ID and the resulting aggregated message
+        """
+        # Check that either msgToSrc, msgToDst, or both are provided
+        if msgToSrc is None and msgToDst is None:
+            raise ValueError("Either `msgToSrc`, `msgToDst`, or both have to be provided")
+        builder = self._jvm_graph.aggregateMessages()
+        if msgToSrc is not None:
+            if isinstance(msgToSrc, Column):
+                builder.sendToSrc(msgToSrc._jc)
+            else:
+                builder.sendToSrc(msgToSrc)
+        if msgToDst is not None:
+            if isinstance(msgToDst, Column):
+                builder.sendToDst(msgToDst._jc)
+            else:
+                builder.sendToDst(msgToDst)
+        if isinstance(aggCol, Column):
+            jdf = builder.agg(aggCol._jc)
+        else:
+            jdf = builder.agg(aggCol)
         return DataFrame(jdf, self._sqlContext)
 
     # Standard algorithms
@@ -321,6 +359,64 @@ class GraphFrame(object):
         """
         jdf = self._jvm_graph.triangleCount().run()
         return DataFrame(jdf, self._sqlContext)
+
+
+class _ClassProperty(object):
+    """Custom read-only class property descriptor.
+
+    The underlying method should take the class as the sole argument.
+    """
+
+    def __init__(self, f):
+        self.f = f
+        self.__doc__ = f.__doc__
+
+    def __get__(self, instance, owner):
+        return self.f(owner)
+
+
+class AggregateMessages(object):
+    """Collection of utilities usable with :meth:`GraphFrame.aggregateMessages()`."""
+
+    @_ClassProperty
+    def src(cls):
+        """Reference for source column, used for specifying messages."""
+        jvm_gf_api = _java_api(SparkContext)
+        return sqlfunctions.col(jvm_gf_api.SRC())
+
+    @_ClassProperty
+    def dst(cls):
+        """Reference for destination column, used for specifying messages."""
+        jvm_gf_api = _java_api(SparkContext)
+        return sqlfunctions.col(jvm_gf_api.DST())
+
+    @_ClassProperty
+    def edge(cls):
+        """Reference for edge column, used for specifying messages."""
+        jvm_gf_api = _java_api(SparkContext)
+        return sqlfunctions.col(jvm_gf_api.EDGE())
+
+    @_ClassProperty
+    def msg(cls):
+        """Reference for message column, used for specifying aggregation function."""
+        jvm_gf_api = _java_api(SparkContext)
+        return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
+
+    @staticmethod
+    def getCachedDataFrame(df):
+        """
+        Create a new cached copy of a DataFrame.
+
+        This utility method is usefull for iterative DataFrame-based algorithms. See Scala
+        documentation for more details.
+
+        WARNING: This is NOT the same as `DataFrame.cache()`.
+                 The original DataFrame will NOT be cached.
+        """
+        sqlContext = df.sql_ctx
+        jvm_gf_api = _java_api(sqlContext._sc)
+        jdf = jvm_gf_api.aggregateMessages().getCachedDataFrame(df._jdf)
+        return DataFrame(jdf, sqlContext)
 
 
 def _test():
