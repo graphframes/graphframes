@@ -19,6 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.Row
 import org.apache.spark.ml.linalg.{SQLDataTypes, SparseVector}
 
 import org.graphframes.examples.Graphs
@@ -88,10 +89,13 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       val pr = prc.run()
       val prInvalid = pr.vertices
         .select("pagerank")
-        .filter(vertexIds.size != _.get(0).asInstanceOf[SparseVector].size)
-      val prInvalidSize = prInvalid.count()
+        .collect()
+        .filter { row: Row =>
+          vertexIds.size != row.get(0).asInstanceOf[SparseVector].size
+        }
+      val prInvalidSize = prInvalid.size
       if (0L != prInvalidSize) {
-        prInvalid.show(10)
+        //prInvalid.show(10)
         assert(false,
           s"found $prInvalidSize entries with invalid number of returned personalized pagerank vector")
       }
