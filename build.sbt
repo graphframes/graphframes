@@ -44,15 +44,21 @@ libraryDependencies += "org.scalatest" %% "scalatest" % defaultScalaTestVer % "t
 
 // These versions are ancient, but they cross-compile around scala 2.10 and 2.11.
 // Update them when dropping support for scala 2.10
-libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging-api" % "2.1.2"
-
-libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2"
+libraryDependencies ++= Seq(
+  "com.typesafe.scala-logging" %% "scala-logging-api" % "2.1.2",
+  "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2"
+)
 
 parallelExecution := false
 
 unmanagedSourceDirectories in Compile ++=
-  Seq(baseDirectory.value / "src" / "main" /
-    (if (sparkBranch == "1.6") "spark-1.x" else "spark-2.x"))
+  Seq(baseDirectory.value / "src" / "main" / {
+    sparkBranch match {
+      case ver if ver.startsWith("1.") => "spark-1.x"
+      case ver if ver.startsWith("2.0") => "spark-2.0"
+      case _ => "spark-2.x"
+    }
+  })
 
 scalacOptions in (Compile, doc) ++= Seq(
   "-groups",

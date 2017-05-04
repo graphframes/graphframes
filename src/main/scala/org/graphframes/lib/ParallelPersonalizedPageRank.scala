@@ -18,7 +18,6 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
-
 import org.graphframes.{GraphFrame, Logging}
 
 class ParallelPersonalizedPageRank private[graphframes] (
@@ -75,7 +74,7 @@ private object ParallelPersonalizedPageRank {
     resetProb: Double = 0.15,
     sources: Array[Any]): GraphFrame = {
     val longSrcIds = sources.map(GraphXConversions.integralId(graph, _))
-    val gx = graphxlib.PageRank.runParallelPersonalizedPageRank(
+    val gx = graphxlib.GraphXHelpers.runParallelPersonalizedPageRank(
       graph.cachedTopologyGraphX, numIter, resetProb, longSrcIds)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }

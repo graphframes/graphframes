@@ -29,6 +29,7 @@ import org.apache.spark.sql.SQLContext
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
+  @transient var spVers: Seq[Int] = _
 
   override def beforeAll() {
     super.beforeAll()
@@ -40,6 +41,7 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
     sc.setCheckpointDir(checkpointDir)
     sqlContext = new SQLContext(sc)
+    spVers = sc.version.split('.').map(_.toInt)
   }
 
   override def afterAll() {
