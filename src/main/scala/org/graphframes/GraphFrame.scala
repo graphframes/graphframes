@@ -367,6 +367,15 @@ class GraphFrame private(
   def pageRank: PageRank = new PageRank(this)
 
   /**
+    * Parallel personalized PageRank algorithm.
+    * 
+    * See [[org.graphframes.lib.ParallelPersonalizedPageRank]] for more details.
+    * 
+    * @group stdlib
+    */
+  def parallelPersonalizedPageRank: ParallelPersonalizedPageRank = new ParallelPersonalizedPageRank(this)
+
+  /**
    * Shortest paths algorithm.
    *
    * See [[org.graphframes.lib.ShortestPaths]] for more details.
