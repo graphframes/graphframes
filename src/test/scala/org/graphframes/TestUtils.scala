@@ -2,6 +2,7 @@ package org.graphframes
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types.{DataType, StructType}
+import org.apache.spark.ml.linalg.VectorUDT
 
 import org.graphframes.GraphFrame._
 

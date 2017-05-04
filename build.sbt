@@ -31,7 +31,8 @@ licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0")
 spAppendScalaVersion := true
 
 // Add Spark components this package depends on, e.g, "mllib", ....
-sparkComponents ++= Seq("graphx", "sql")
+// We need mllib for sparse vector encoded parallel personalized PageRank
+sparkComponents ++= Seq("graphx", "sql", "mllib")
 
 // uncomment and change the value below to change the directory where your zip artifact will be created
 // spDistDirectory := target.value
