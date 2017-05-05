@@ -17,19 +17,8 @@
 
 package org.apache.spark.ml.linalg
 
-import org.apache.spark.annotation.{DeveloperApi, Since}
-import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.{DataType, NullType}
 
-// private[spark] class MatrixUDT extends UserDefinedType[Double]
-// private[spark] class VectorUDT extends UserDefinedType[Double]
-
-/**
- * :: DeveloperApi ::
- * SQL data types for vectors and matrices.
- */
-@Since("2.0.0")
-@DeveloperApi
 object SQLDataTypes {
 
   /** Data type for [[Vector]]. */
@@ -39,21 +28,15 @@ object SQLDataTypes {
   val MatrixType: DataType = NullType
 }
 
-sealed trait Vector
-sealed trait Matrix
 /**
- * A sparse vector represented by an index array and a value array.
- *
- * @param size size of the vector.
- * @param indices index array, assume to be strictly increasing.
- * @param values value array, must have the same length as the index array.
+ * This is a shim for the SparseVector type
  */
-case class SparseVector(
-    size: Int,
-    indices: Array[Int],
-    values: Array[Double]) extends Vector {
+case class SparseVector(size: Int, indices: Array[Int], values: Array[Double]) {
   def numNonzeros: Int = {
-    throw new NotImplementedError("SparseVector type is only supported in Spark 2.0+")
+    throw new NotImplementedError(
+      """
+        |This error should never happen;
+        |if it does, please file a bug report on the GraphFrames Github page.
+      """.stripMargin)
   }
 }
-

@@ -29,7 +29,20 @@ import org.apache.spark.sql.SQLContext
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
-  @transient var spVers: Seq[Int] = _
+  @transient var sparkVersionMajor: Int = _
+  @transient var sparkVersionMinor: Int = _
+
+  private[this] val majorMinorRegex = """^(\d+)\.(\d+)(\..*)?$""".r
+
+  def majorMinorVersion(sparkVersion: String): (Int, Int) = {
+    majorMinorRegex.findFirstMatchIn(sparkVersion) match {
+      case Some(m) =>
+        (m.group(1).toInt, m.group(2).toInt)
+      case None =>
+        throw new IllegalArgumentException(s"Spark tried to parse '$sparkVersion' as a Spark" +
+          s" version string, but it could not find the major and minor version numbers.")
+    }
+  }
 
   override def beforeAll() {
     super.beforeAll()
@@ -39,9 +52,11 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
       .set("spark.sql.shuffle.partitions", "4")  // makes small tests much faster
     sc = new SparkContext(conf)
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
-    sc.setCheckpointDir(checkpointDir)
+    sc.setCheckpointDir(checkpointDir)    
     sqlContext = new SQLContext(sc)
-    spVers = sc.version.split('.').map(_.toInt)
+    val (verMajor, verMinor) = majorMinorVersion(sc.version)
+    sparkVersionMajor = verMajor
+    sparkVersionMinor = verMinor
   }
 
   override def afterAll() {

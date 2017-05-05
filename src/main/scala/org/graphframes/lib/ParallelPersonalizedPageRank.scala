@@ -21,11 +21,11 @@ import org.apache.spark.graphx.{lib => graphxlib}
 import org.graphframes.{GraphFrame, Logging}
 
 class ParallelPersonalizedPageRank private[graphframes] (
-  private val graph: GraphFrame) extends Arguments {
+      private val graph: GraphFrame) extends Arguments {
 
   private var resetProb: Option[Double] = Some(0.15)
   private var numIter: Option[Int] = Some(10)
-  private var srcIds : Array[Any] = Array()
+  private var srcIds: Array[Any] = Array()
 
   /** Source vertex for a Personalized Page Rank (optional) */
   def sources(values: Array[Any]): this.type = {
@@ -52,38 +52,36 @@ class ParallelPersonalizedPageRank private[graphframes] (
 
 private object ParallelPersonalizedPageRank {
 
-  /**
-    * Run Personalized PageRank for a fixed number of iterations, for a
-    * set of starting nodes in parallel. Returns a graph with vertex attributes
-    * containing the pagerank relative to all starting nodes (as a sparse vector) and
-    * edge attributes the normalized edge weight
-    *
-    *
-    * @param graph The graph on which to compute personalized pagerank
-    * @param numIter The number of iterations to run
-    * @param resetProb The random reset probability
-    * @param sources The list of sources to compute personalized pagerank from
-    * @return the graph with vertex attributes
-    *         containing the pagerank relative to all starting nodes (as a sparse vector
-    *         indexed by the position of nodes in the sources list) and
-    *         edge attributes the normalized edge weight
-    */
-  def run(
-    graph: GraphFrame,
-    numIter: Int,
-    resetProb: Double = 0.15,
-    sources: Array[Any]): GraphFrame = {
-    val longSrcIds = sources.map(GraphXConversions.integralId(graph, _))
-    val gx = graphxlib.GraphXHelpers.runParallelPersonalizedPageRank(
-      graph.cachedTopologyGraphX, numIter, resetProb, longSrcIds)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
-  }
-
   /** Default name for the pagerank column. */
   private val PAGERANK = "pagerank"
 
   /** Default name for the weight column. */
   private val WEIGHT = "weight"
+
+  /**
+   * Run Personalized PageRank for a fixed number of iterations, for a
+   * set of starting nodes in parallel. Returns a graph with vertex attributes
+   * containing the pagerank relative to all starting nodes (as a sparse vector) and
+   * edge attributes the normalized edge weight
+   *
+   * @param graph     The graph on which to compute personalized pagerank
+   * @param numIter   The number of iterations to run
+   * @param resetProb The random reset probability
+   * @param sources   The list of sources to compute personalized pagerank from
+   * @return the graph with vertex attributes
+   *         containing the pagerank relative to all starting nodes (as a sparse vector
+   *         indexed by the position of nodes in the sources list) and
+   *         edge attributes the normalized edge weight
+   */
+  def run(
+      graph: GraphFrame, 
+      numIter: Int, 
+      resetProb: Double, 
+      sources: Array[Any]): GraphFrame = {
+
+    val longSrcIds = sources.map(GraphXConversions.integralId(graph, _))
+    val gx = graphxlib.GraphXHelpers.runParallelPersonalizedPageRank(
+      graph.cachedTopologyGraphX, numIter, resetProb, longSrcIds)
+    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
+  }
 }
-
-
