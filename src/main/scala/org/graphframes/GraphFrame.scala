@@ -466,8 +466,8 @@ class GraphFrame private(
         col(ATTR + "." + ID).cast("long").as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     } else {
       val withLongIds = vertices.select(ID)
+        .repartition(col(ID))
         .distinct()
-        .repartition(1024, col(ID))
         .sortWithinPartitions(ID)
         .withColumn(LONG_ID, monotonically_increasing_id())
         .persist(StorageLevel.MEMORY_AND_DISK)
