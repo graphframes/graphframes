@@ -38,6 +38,27 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     }
   }
 
+  test("Illegal function call argument setting") {
+    val g = Graphs.star(n)
+    val vertexIds: Array[Any] = Array(1L, 2L, 3L)
+
+    def checkPageRankRun(prc: ParallelPersonalizedPageRank): Unit = {
+      if (isLaterVersion("2.1")) {
+        intercept[IllegalArgumentException] { prc.run() }
+      } else {
+        intercept[NotImplementedError] { prc.run() }
+      }
+    }
+
+    lazy val prcSansNumIter = g.parallelPersonalizedPageRank
+      .sources(vertexIds)
+    checkPageRankRun(prcSansNumIter)
+
+    lazy val prcSansVertexIds = g.parallelPersonalizedPageRank
+      .numIter(15)
+    checkPageRankRun(prcSansVertexIds)
+  }
+
   test("Star example parallel personalized PageRank") {
     val g = Graphs.star(n)
     val resetProb = 0.15

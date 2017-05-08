@@ -26,7 +26,7 @@ import org.apache.spark.ml.linalg.{Vector, Vectors}
 
 object GraphXHelpers {
   def runParallelPersonalizedPageRank[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED],
-      numIter: Int, resetProb: Double = 0.15,
+      numIter: Int, resetProb: Double,
       sources: Array[VertexId]): Graph[Vector, Double] = {
       throw new NotImplementedError(
         "parallel personalized PageRank only supported in Apache Spark version 2.1+")

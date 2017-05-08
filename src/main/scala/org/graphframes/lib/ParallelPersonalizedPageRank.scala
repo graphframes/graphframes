@@ -24,7 +24,7 @@ class ParallelPersonalizedPageRank private[graphframes] (
       private val graph: GraphFrame) extends Arguments {
 
   private var resetProb: Option[Double] = Some(0.15)
-  private var numIter: Option[Int] = Some(10)
+  private var numIter: Option[Int] = None
   private var srcIds: Array[Any] = Array()
 
   /** Source vertex for a Personalized Page Rank (optional) */
@@ -46,6 +46,8 @@ class ParallelPersonalizedPageRank private[graphframes] (
   }
 
   def run(): GraphFrame = {
+    require(numIter != None, s"Number of iterations must be provided")
+    require(srcIds.nonEmpty, s"Source vertices Ids must be provided")
     ParallelPersonalizedPageRank.run(graph, numIter.get, resetProb.get, srcIds)
   }
 }
@@ -69,8 +71,7 @@ private object ParallelPersonalizedPageRank {
    * @param resetProb The random reset probability
    * @param sources   The list of sources to compute personalized pagerank from
    * @return the graph with vertex attributes
-   *         containing the pagerank relative to all starting nodes (as a sparse vector
-   *         indexed by the position of nodes in the sources list) and
+   *         containing the pagerank relative to all starting nodes as a vector
    *         edge attributes the normalized edge weight
    */
   def run(

@@ -52,7 +52,7 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
       .set("spark.sql.shuffle.partitions", "4")  // makes small tests much faster
     sc = new SparkContext(conf)
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
-    sc.setCheckpointDir(checkpointDir)    
+    sc.setCheckpointDir(checkpointDir)
     sqlContext = new SQLContext(sc)
     val (verMajor, verMinor) = majorMinorVersion(sc.version)
     sparkVersionMajor = verMajor
