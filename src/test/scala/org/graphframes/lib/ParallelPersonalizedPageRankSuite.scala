@@ -21,7 +21,6 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.Row
 import org.apache.spark.ml.linalg.{SQLDataTypes, SparseVector}
-import org.apache.spark.util.VersionUtils
 
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
