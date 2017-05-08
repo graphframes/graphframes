@@ -29,18 +29,16 @@ import org.apache.spark.sql.SQLContext
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
-  @transient var sparkVersionMajor: Int = _
-  @transient var sparkVersionMinor: Int = _
+  @transient var sparkMajorVersion: Int = _
+  @transient var sparkMinorVersion: Int = _
 
-  private[this] val majorMinorRegex = """^(\d+)\.(\d+)(\..*)?$""".r
-
-  def majorMinorVersion(sparkVersion: String): (Int, Int) = {
-    majorMinorRegex.findFirstMatchIn(sparkVersion) match {
-      case Some(m) =>
-        (m.group(1).toInt, m.group(2).toInt)
-      case None =>
-        throw new IllegalArgumentException(s"Spark tried to parse '$sparkVersion' as a Spark" +
-          s" version string, but it could not find the major and minor version numbers.")
+  /** Check if current spark version is at least of the provided minimum version */
+  def isLaterVersion(minVersion: String): Boolean = {
+    val (minMajorVersion, minMinorVersion) = TestUtils.majorMinorVersion(minVersion)
+    if (sparkMajorVersion != minMajorVersion) {
+      return sparkMajorVersion > minMajorVersion
+    } else {
+      return sparkMinorVersion >= minMinorVersion
     }
   }
 
@@ -54,9 +52,9 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
     sc.setCheckpointDir(checkpointDir)
     sqlContext = new SQLContext(sc)
-    val (verMajor, verMinor) = majorMinorVersion(sc.version)
-    sparkVersionMajor = verMajor
-    sparkVersionMinor = verMinor
+    val (verMajor, verMinor) = TestUtils.majorMinorVersion(sc.version)
+    sparkMajorVersion = verMajor
+    sparkMinorVersion = verMinor
   }
 
   override def afterAll() {

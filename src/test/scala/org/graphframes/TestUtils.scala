@@ -7,6 +7,19 @@ import org.graphframes.GraphFrame._
 
 object TestUtils {
 
+  private[this] val majorMinorRegex = """^(\d+)\.(\d+)(\..*)?$""".r
+
+  /** Extract major/minor version integer pairs from a version string */
+  def majorMinorVersion(sparkVersion: String): (Int, Int) = {
+    majorMinorRegex.findFirstMatchIn(sparkVersion) match {
+      case Some(m) =>
+        (m.group(1).toInt, m.group(2).toInt)
+      case None =>
+        throw new IllegalArgumentException(s"Spark tried to parse '$sparkVersion' as a Spark" +
+          s" version string, but it could not find the major and minor version numbers.")
+    }
+  }
+
   /**
    * Check whether the given schema contains a column of the required data type.
    *
