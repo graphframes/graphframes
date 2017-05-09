@@ -17,10 +17,10 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.ml.linalg.{SparseVector, SQLDataTypes}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.Row
-import org.apache.spark.ml.linalg.{SparseVector, SQLDataTypes}
 
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
@@ -38,12 +38,12 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
       g.parallelPersonalizedPageRank.sourceIds(vertexIds).run()
     }
 
-    // Not providing sources
+    // Not providing sourceIds
     intercept[IllegalArgumentException] {
       g.parallelPersonalizedPageRank.maxIter(15).run()
     }
 
-    // Provided empty sources
+    // Provided empty sourceIds
     intercept[IllegalArgumentException] {
       g.parallelPersonalizedPageRank.maxIter(15).sourceIds(Array()).run()
     }

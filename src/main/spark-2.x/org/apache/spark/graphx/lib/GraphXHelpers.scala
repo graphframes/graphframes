@@ -30,7 +30,7 @@ object GraphXHelpers {
       graph: Graph[VD, ED],
       numIter: Int, 
       resetProb: Double,
-      sources: Array[VertexId]): Graph[Vector, Double] = {
-    PageRank.runParallelPersonalizedPageRank(graph, numIter, resetProb, sources)
+      sourceIds: Array[VertexId]): Graph[Vector, Double] = {
+    PageRank.runParallelPersonalizedPageRank(graph, numIter, resetProb, sourceIds)
   }
 }
