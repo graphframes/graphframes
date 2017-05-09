@@ -320,6 +320,28 @@ class GraphFrame(object):
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
 
+    def parallelPersonalizedPageRank(self, resetProbability = 0.15, sourceIds = None,
+                                     maxIter = None):
+        """
+        Run the personalized PageRank algorithm on the graph,
+        from the provided list of sources in parallel for a fixed number of iterations.
+
+        See Scala documentation for more details.
+
+        :param resetProbability: Probability of resetting to a random vertex
+        :param sourceIds: the source vertices for a personalized PageRank
+        :param maxIter: the fixed number of iterations this algorithm runs
+        :return:  GraphFrame with new vertices column "pageranks" and new edges column "weight"
+        """
+        assert sourceIds is not None, "Source vertices Ids sourceIds must be provided"
+        assert maxIter is not None, "Max number of iterations maxIter must be provided"
+        builder = self._jvm_graph.parallelPersonalizedPageRank()
+        builder.resetProbability(resetProbability)
+        builder.sourceIds(sourceIds)
+        builder.maxIter(maxIter)
+        jgf = builder.run()
+        return _from_java_gf(jgf, self._sqlContext)
+
     def shortestPaths(self, landmarks):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
