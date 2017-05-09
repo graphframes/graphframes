@@ -26,13 +26,15 @@ import org.graphframes.{GraphFrame, Logging}
  * The first implementation uses the standalone [[GraphFrame]] interface and
  * runs personalized PageRank in parallel for a fixed number of iterations.
  * This can be run by setting `numIter`.
+ * The source vertex Ids are set in `sourceIds`.
  * {{{
- * var PR = Array.fill(n)( 1.0 )
- * val oldPR = Array.fill(n)( 1.0 )
+ * var oldPR = Array.fill(n)( 1.0 )
+ * val PR = (0 until n).map(i => if sourceIds.contains(i) alpha else 0.0)
  * for( iter <- 0 until maxIter ) {
  *   swap(oldPR, PR)
  *   for( i <- 0 until n ) {
- *     PR[i] = alpha + (1 - alpha) * inNbrs[i].map(j => oldPR[j] / outDeg[j]).sum
+ *     PR[i] = (1 - alpha) * inNbrs[i].map(j => oldPR[j] / outDeg[j]).sum
+ *     if (sourceIds.contains(i)) PR[i] += alpha
  *   }
  * }
  * }}}
