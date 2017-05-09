@@ -29,6 +29,18 @@ import org.apache.spark.sql.SQLContext
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
+  @transient var sparkMajorVersion: Int = _
+  @transient var sparkMinorVersion: Int = _
+
+  /** Check if current spark version is at least of the provided minimum version */
+  def isLaterVersion(minVersion: String): Boolean = {
+    val (minMajorVersion, minMinorVersion) = TestUtils.majorMinorVersion(minVersion)
+    if (sparkMajorVersion != minMajorVersion) {
+      return sparkMajorVersion > minMajorVersion
+    } else {
+      return sparkMinorVersion >= minMinorVersion
+    }
+  }
 
   override def beforeAll() {
     super.beforeAll()
@@ -40,6 +52,9 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
     sc.setCheckpointDir(checkpointDir)
     sqlContext = new SQLContext(sc)
+    val (verMajor, verMinor) = TestUtils.majorMinorVersion(sc.version)
+    sparkMajorVersion = verMajor
+    sparkMinorVersion = verMinor
   }
 
   override def afterAll() {
