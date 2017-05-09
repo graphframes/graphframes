@@ -227,6 +227,15 @@ class GraphFrameLibTest(GraphFrameTestCase):
         pr = g.pageRank(resetProb, tol=errorTol)
         self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
 
+    def test_parallel_personalized_page_rank(self):
+        n = 100
+        g = self._graph("star", n)
+        resetProb = 0.15
+        maxIter = 15
+        sourceIds = [1, 2, 3, 4]
+        pr = g.parallelPersonalizedPageRank(resetProb, maxIter, sourceIds)
+        self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
+
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
         all_edges = [z for (a, b) in edges for z in [(a, b), (b, a)]]
