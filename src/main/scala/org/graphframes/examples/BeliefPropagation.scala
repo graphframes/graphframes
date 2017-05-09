@@ -103,7 +103,7 @@ object BeliefPropagation {
    * @return  Same graph, but with a new vertex column "color" of type Int (0 or 1)
    */
   private def colorGraph(g: GraphFrame): GraphFrame = {
-    val colorUDF = udf { (i: Int, j: Int) => if ((i + j) % 2 == 0) 0 else 1 }
+    val colorUDF = udf { (i: Int, j: Int) => (i + j) % 2 }
     val v = g.vertices.withColumn("color", colorUDF(col("i"), col("j")))
     GraphFrame(v, g.edges)
   }

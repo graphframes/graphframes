@@ -29,10 +29,10 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, SQLContext
+from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 
-from .graphframe import GraphFrame, _java_api, _from_java_gf
-
+from .graphframe import AggregateMessages as AM, GraphFrame, _java_api, _from_java_gf
+from .examples import Graphs, BeliefPropagation
 
 class GraphFrameTestCase(unittest.TestCase):
 
@@ -127,6 +127,39 @@ class GraphFrameLibTest(GraphFrameTestCase):
         jgraph = getattr(examples, name)(*args)
         return _from_java_gf(jgraph, self.sqlContext)
 
+    def test_aggregate_messages(self):
+        g = self._graph("friends")
+        # For each user, sum the ages of the adjacent users,
+        # plus 1 for the src's sum if the edge is "friend".
+        msgToSrc = (
+            AM.dst['age'] +
+            sqlfunctions.when(
+                AM.edge['relationship'] == 'friend',
+                sqlfunctions.lit(1)
+            ).otherwise(0))
+        msgToDst = AM.src['age']
+        agg = g.aggregateMessages(
+            sqlfunctions.sum(AM.msg).alias('summedAges'),
+            msgToSrc=msgToSrc,
+            msgToDst=msgToDst)
+        # Run the aggregation again providing SQL expressions as String instead.
+        agg2 = g.aggregateMessages(
+            "sum(MSG) AS `summedAges`",
+            msgToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
+            msgToDst="src['age']")
+        # Convert agg and agg2 to a mapping from id to the aggregated message.
+        aggMap = {id_: s for id_, s in agg.select('id', 'summedAges').collect()}
+        agg2Map = {id_: s for id_, s in agg2.select('id', 'summedAges').collect()}
+        # Compute the truth via brute force.
+        user2age = {id_: age for id_, age in g.vertices.select('id', 'age').collect()}
+        trueAgg = {}
+        for src, dst, rel in g.edges.select("src", "dst", "relationship").collect():
+            trueAgg[src] = trueAgg.get(src, 0) + user2age[dst] + (1 if rel == 'friend' else 0)
+            trueAgg[dst] = trueAgg.get(dst, 0) + user2age[src]
+        # Compare if the agg mappings match the brute force mapping
+        self.assertEqual(aggMap, trueAgg)
+        self.assertEqual(agg2Map, trueAgg)
+
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([
         (0, "a", "b")], ["id", "vattr", "gender"])
@@ -204,3 +237,38 @@ class GraphFrameLibTest(GraphFrameTestCase):
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
             self.assertEqual(row.asDict()['count'], 1)
+
+class GraphFrameExamplesTest(GraphFrameTestCase):
+    def setUp(self):
+        super(GraphFrameExamplesTest, self).setUp()
+        self.sqlContext = self.sql
+        self.japi = _java_api(self.sqlContext._sc)
+
+    def test_belief_propagation(self):
+        # create graphical model g of size 3 x 3
+        g = Graphs(self.sqlContext).gridIsingModel(3)
+        # run BP for 5 iterations
+        numIter = 5
+        results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
+        # check beliefs are valid
+        for row in results.vertices.select('belief').collect():
+            belief = row['belief']
+            self.assertTrue(
+                0 <= belief <= 1,
+                msg="Expected belief to be probability in [0,1], but found {}".format(belief))
+
+    def test_graph_friends(self):
+        # construct graph
+        g = Graphs(self.sqlContext).friends()
+        # check that a GraphFrame instance was returned
+        self.assertIsInstance(g, GraphFrame)
+
+    def test_graph_grid_ising_model(self):
+        # construct graph
+        n = 3
+        g = Graphs(self.sqlContext).gridIsingModel(n)
+        # check that all the vertices exist
+        ids = [v['id'] for v in g.vertices.collect()]
+        for i in range(n):
+            for j in range(n):
+                self.assertIn('{},{}'.format(i, j), ids)

@@ -109,10 +109,10 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
       case cn  => cn
     }
     def msgColumn(df: DataFrame) = df.columns.filter(_ != ID) match {
-      case Array(c) => df.withColumnRenamed(c, "MSG")
+      case Array(c) => df.withColumnRenamed(c, AggregateMessages.MSG_COL_NAME)
       case columns => df.select(
         df(ID),
-        struct(columns.map(c => df(s"`${c}`").as(removeColumnNamePrefix(c))) :_*).as("MSG"))
+        struct(columns.map(c => df(s"`${c}`").as(removeColumnNamePrefix(c))) :_*).as(AggregateMessages.MSG_COL_NAME))
     }
     require(msgToSrc.nonEmpty || msgToDst.nonEmpty, s"To run GraphFrame.aggregateMessages," +
       s" messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")
@@ -121,12 +121,13 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
       val msgsToSrc = msgColumn(triplets.select((msgToSrc :+ triplets(SRC)(ID).as(ID)): _*))
       // Inner join: only send messages to vertices with edges
       msgsToSrc.join(g.vertices, ID)
-        .select(msgsToSrc("MSG"), col(ID))
+        .select(msgsToSrc(AggregateMessages.MSG_COL_NAME), col(ID))
     }
     val sentMsgsToDst = msgToDst.headOption.map { _ =>
       val msgsToDst = msgColumn(triplets.select((msgToDst :+ triplets(DST)(ID).as(ID)): _*))
+
       msgsToDst.join(g.vertices, ID)
-        .select(msgsToDst("MSG"), col(ID))
+        .select(msgsToDst(AggregateMessages.MSG_COL_NAME), col(ID))
     }
     val unionedMsgs = (sentMsgsToSrc, sentMsgsToDst) match {
       case (Some(toSrc), Some(toDst)) =>
@@ -139,9 +140,19 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
     }
     unionedMsgs.groupBy(ID).agg(aggCol, aggCols:_*)
   }
+
+  /**
+   * Run the aggregation, specifying SQL expression as a String
+   *
+   * See the overloaded method documentation for more details.
+   */
+  def agg(aggCol: String): DataFrame = agg(expr(aggCol))
 }
 
 object AggregateMessages extends Logging with Serializable {
+
+  /** Column name for aggregated messages, used in [[AggregateMessages.msg]] */
+  val MSG_COL_NAME: String = "MSG"
 
   /** Reference for source column, used for specifying messages */
   def src: Column = col(GraphFrame.SRC)
@@ -153,10 +164,10 @@ object AggregateMessages extends Logging with Serializable {
   def edge: Column = col(GraphFrame.EDGE)
 
   /** Reference for message column, used for specifying aggregation function */
-  def msg: Column = col("MSG")
+  def msg: Column = col(MSG_COL_NAME)
 
   /**
-   * Cache a DataFrame, and returned the cached version. For iterative DataFrame-based algorithms.
+   * Create a new cached copy of a DataFrame. For iterative DataFrame-based algorithms.
    *
    * WARNING: This is NOT the same as `DataFrame.cache()`.
    *          The original DataFrame will NOT be cached.
