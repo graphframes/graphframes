@@ -102,17 +102,36 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
    * }}}
    */
   def agg(aggCol: Column, aggCols: Column*): DataFrame = {
-    def removeColumnNamePrefix(columnName: String) = columnName match {
-      case cn if cn.startsWith(s"${GraphFrame.SRC}.") => cn.substring(s"${GraphFrame.SRC}.".length)
-      case cn if cn.startsWith(s"${GraphFrame.DST}.") => cn.substring(s"${GraphFrame.DST}.".length)
-      case cn if cn.startsWith(s"${GraphFrame.EDGE}.") => cn.substring(s"${GraphFrame.EDGE}.".length)
+    def containsStructNameForSpark2(columnName: String, structName: String) =
+      columnName.startsWith(s"${structName}.")
+    def containsStructNameForSpark16(columnName: String, structName: String) =
+      columnName.startsWith(s"${structName}[")
+    def removeStructNameForSpark2(columnName: String, structName: String) =
+      columnName.substring(s"${structName}.".length)
+    def removeStructNameForSpark16(columnName: String, structName: String) =
+      columnName.substring(s"${structName}[".length, columnName.length - 1)
+
+    def removeStructName(columnName: String) = columnName match {
+      case cn if containsStructNameForSpark16(cn, s"${GraphFrame.SRC}") =>
+        removeStructNameForSpark16(cn, s"${GraphFrame.SRC}")
+      case cn if containsStructNameForSpark16(cn, s"${GraphFrame.DST}") =>
+        removeStructNameForSpark16(cn, s"${GraphFrame.DST}")
+      case cn if containsStructNameForSpark16(cn, s"${GraphFrame.EDGE}") =>
+        removeStructNameForSpark16(cn, s"${GraphFrame.EDGE}")
+      case cn if containsStructNameForSpark2(cn, s"${GraphFrame.SRC}") =>
+        removeStructNameForSpark2(cn, s"${GraphFrame.SRC}")
+      case cn if containsStructNameForSpark2(cn, s"${GraphFrame.DST}") =>
+        removeStructNameForSpark2(cn, s"${GraphFrame.DST}")
+      case cn if containsStructNameForSpark2(cn, s"${GraphFrame.EDGE}") =>
+        removeStructNameForSpark2(cn, s"${GraphFrame.EDGE}")
       case cn  => cn
     }
     def msgColumn(df: DataFrame) = df.columns.filter(_ != ID) match {
       case Array(c) => df.withColumnRenamed(c, AggregateMessages.MSG_COL_NAME)
       case columns => df.select(
         df(ID),
-        struct(columns.map(c => df(s"`${c}`").as(removeColumnNamePrefix(c))) :_*).as(AggregateMessages.MSG_COL_NAME))
+        struct(columns.sorted.map(c => col(s"`${c}`").as(removeStructName(c))) :_*)
+          .as(AggregateMessages.MSG_COL_NAME))
     }
     require(msgToSrc.nonEmpty || msgToDst.nonEmpty, s"To run GraphFrame.aggregateMessages," +
       s" messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")

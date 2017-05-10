@@ -89,9 +89,9 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     val g = GraphFrame(vertices, edges)
     val agg = g.aggregateMessages
       .sendToDst(AM.src("att1"))
-      .sendToSrc(AM.dst("att1"))
-      .sendToDst(AM.src("att2"))
       .sendToSrc(AM.dst("att2"))
+      .sendToDst(AM.src("att2"))
+      .sendToSrc(AM.dst("att1"))
       .agg(
         sum(AM.msg("att1")).as("sum_att1"),
         avg(AM.msg("att2")).as("avg_att2"))
