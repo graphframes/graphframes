@@ -19,6 +19,8 @@ import sys
 if sys.version > '3':
     basestring = str
 
+from py4j.java_gateway import JavaGateway
+
 from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, SQLContext
 from pyspark.storagelevel import StorageLevel
@@ -333,12 +335,18 @@ class GraphFrame(object):
         :param maxIter: the fixed number of iterations this algorithm runs
         :return:  GraphFrame with new vertices column "pageranks" and new edges column "weight"
         """
-        assert sourceIds is not None, "Source vertices Ids sourceIds must be provided"
+        assert sourceIds is not None and len(sourceIds) > 0, "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
+        if isinstance(sourceIds, list):
+            _gateway = self._sc._gateway
+            _srcIds = _gateway.new_array(_gateway.jvm.Object, len(sourceIds))
+            for i, vid in enumerate(sourceIds):
+                _srcIds[i] = vid
+            sourceIds = _srcIds
         builder = self._jvm_graph.parallelPersonalizedPageRank()
-        builder.resetProbability(resetProbability)
-        builder.sourceIds(sourceIds)
-        builder.maxIter(maxIter)
+        builder = builder.resetProbability(resetProbability)
+        builder = builder.sourceIds(sourceIds)
+        builder = builder.maxIter(maxIter)
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
 

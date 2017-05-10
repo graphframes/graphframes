@@ -233,7 +233,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         resetProb = 0.15
         maxIter = 15
         sourceIds = [1, 2, 3, 4]
-        pr = g.parallelPersonalizedPageRank(resetProb, maxIter, sourceIds)
+        pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
         self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
 
     def test_shortest_paths(self):
