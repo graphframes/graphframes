@@ -183,10 +183,14 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       df.queryExecution.logical.toString().toLowerCase.contains("parquet")
     }
 
-    val components0 = cc.setCheckpointInterval(0).run()
-    assertComponents(components0, expected)
-    assert(!isFromCheckpoint(components0),
-      "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
+    // [#194] Prior to Apache Spark version 2.0, not having checkpoint
+    //        causes the test to run for too long, resulting in Travis CI to abort the build
+    if (isLaterVersion("2.0")) {
+      val components0 = cc.setCheckpointInterval(0).run()
+      assertComponents(components0, expected)
+      assert(!isFromCheckpoint(components0),
+        "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
+    }
 
     sc.setCheckpointDir(checkpointDir.get)
 
@@ -195,10 +199,14 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(isFromCheckpoint(components1),
       "The result should depend on checkpoint data if checkpoint interval is 1.")
 
-    val components10 = cc.setCheckpointInterval(10).run()
-    assertComponents(components10, expected)
-    assert(!isFromCheckpoint(components10),
-      "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
+    // [#194] Prior to Apache Spark version 2.0, having long checkpoint interval
+    //        causes the test to run for too long, resulting in Travis CI to abort the build
+    if (isLaterVersion("2.0")) {
+      val components10 = cc.setCheckpointInterval(10).run()
+      assertComponents(components10, expected)
+      assert(!isFromCheckpoint(components10),
+        "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
+    }
   }
 
   private def assertComponents[T: ClassTag:TypeTag](
