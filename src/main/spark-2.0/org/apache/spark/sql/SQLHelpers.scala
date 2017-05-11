@@ -26,21 +26,6 @@ object SQLHelpers {
 
   def expr(e: String): Column = functions.expr(e)
 
-  /**
-   * Appends each record with a unique ID (uniq_id) and groups existing fields under column "row".
-   * This is a workaround for SPARK-9020 and SPARK-13473.
-   */
-  def zipWithUniqueId(df: DataFrame): DataFrame = {
-    val sqlContext = df.sqlContext
-    val schema = df.schema
-    val rdd = df.rdd.zipWithUniqueId().map { case (row, id) =>
-      Row(row, id)
-    }
-    val outputSchema = StructType(Seq(
-      StructField("row", schema, false), StructField("uniq_id", LongType, false)))
-    sqlContext.createDataFrame(rdd, outputSchema)
-  }
-
   def callUDF(f: Function1[_, _], returnType: DataType, arg1: Column): Column = {
     val u = udf(f, returnType)
     u(arg1)
