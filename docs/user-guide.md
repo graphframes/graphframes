@@ -885,8 +885,8 @@ msgToSrc = AM.dst["age"]
 msgToDst = AM.src["age"]
 agg = g.aggregateMessages(
     sqlsum(AM.msg).alias("summedAges"),
-    msgToSrc=msgToSrc,
-    msgToDst=msgToDst)
+    sendToSrc=msgToSrc,
+    sendToDst=msgToDst)
 agg.show()
 
 {% endhighlight %}

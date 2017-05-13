@@ -209,7 +209,7 @@ class GraphFrame(object):
         jdf = builder.run()
         return DataFrame(jdf, self._sqlContext)
 
-    def aggregateMessages(self, aggCol, msgToSrc=None, msgToDst=None):
+    def aggregateMessages(self, aggCol, sendToSrc=None, sendToDst=None):
         """
         Aggregates messages from the neighbours.
 
@@ -220,29 +220,29 @@ class GraphFrame(object):
 
         :param aggCol: the requested aggregation output either as
             :class:`pyspark.sql.Column` or SQL expression string
-        :param msgToSrc: message sent to the source vertex of each triplet either as
+        :param sendToSrc: message sent to the source vertex of each triplet either as
             :class:`pyspark.sql.Column` or SQL expression string (default: None)
-        :param msgToDst: message sent to the destination vertex of each triplet either as
+        :param sendToDst: message sent to the destination vertex of each triplet either as
             :class:`pyspark.sql.Column` or SQL expression string (default: None)
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
-        # Check that either msgToSrc, msgToDst, or both are provided
-        if msgToSrc is None and msgToDst is None:
-            raise ValueError("Either `msgToSrc`, `msgToDst`, or both have to be provided")
+        # Check that either sendToSrc, sendToDst, or both are provided
+        if sendToSrc is None and sendToDst is None:
+            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
         builder = self._jvm_graph.aggregateMessages()
-        if msgToSrc is not None:
-            if isinstance(msgToSrc, Column):
-                builder.sendToSrc(msgToSrc._jc)
-            elif isinstance(msgToSrc, basestring):
-                builder.sendToSrc(msgToSrc)
+        if sendToSrc is not None:
+            if isinstance(sendToSrc, Column):
+                builder.sendToSrc(sendToSrc._jc)
+            elif isinstance(sendToSrc, basestring):
+                builder.sendToSrc(sendToSrc)
             else:
                 raise TypeError("Provide message either as `Column` or `str`")
-        if msgToDst is not None:
-            if isinstance(msgToDst, Column):
-                builder.sendToDst(msgToDst._jc)
-            elif isinstance(msgToDst, basestring):
-                builder.sendToDst(msgToDst)
+        if sendToDst is not None:
+            if isinstance(sendToDst, Column):
+                builder.sendToDst(sendToDst._jc)
+            elif isinstance(sendToDst, basestring):
+                builder.sendToDst(sendToDst)
             else:
                 raise TypeError("Provide message either as `Column` or `str`")
         if isinstance(aggCol, Column):

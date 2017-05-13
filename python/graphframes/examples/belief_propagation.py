@@ -95,8 +95,8 @@ class BeliefPropagation(object):
                 logistic = sqlfunctions.udf(cls._sigmoid, returnType=types.DoubleType())
                 aggregates = gx.aggregateMessages(
                     sqlfunctions.sum(AM.msg).alias("aggMess"),
-                    msgToSrc=msgForSrc,
-                    msgToDst=msgForDst)
+                    sendToSrc=msgForSrc,
+                    sendToDst=msgForDst)
                 v = gx.vertices
                 # receive messages and update beliefs for vertices of the current color
                 newBeliefCol = sqlfunctions.when(

@@ -131,22 +131,22 @@ class GraphFrameLibTest(GraphFrameTestCase):
         g = self._graph("friends")
         # For each user, sum the ages of the adjacent users,
         # plus 1 for the src's sum if the edge is "friend".
-        msgToSrc = (
+        sendToSrc = (
             AM.dst['age'] +
             sqlfunctions.when(
                 AM.edge['relationship'] == 'friend',
                 sqlfunctions.lit(1)
             ).otherwise(0))
-        msgToDst = AM.src['age']
+        sendToDst = AM.src['age']
         agg = g.aggregateMessages(
             sqlfunctions.sum(AM.msg).alias('summedAges'),
-            msgToSrc=msgToSrc,
-            msgToDst=msgToDst)
+            sendToSrc=sendToSrc,
+            sendToDst=sendToDst)
         # Run the aggregation again providing SQL expressions as String instead.
         agg2 = g.aggregateMessages(
             "sum(MSG) AS `summedAges`",
-            msgToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
-            msgToDst="src['age']")
+            sendToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
+            sendToDst="src['age']")
         # Convert agg and agg2 to a mapping from id to the aggregated message.
         aggMap = {id_: s for id_, s in agg.select('id', 'summedAges').collect()}
         agg2Map = {id_: s for id_, s in agg2.select('id', 'summedAges').collect()}
@@ -159,6 +159,17 @@ class GraphFrameLibTest(GraphFrameTestCase):
         # Compare if the agg mappings match the brute force mapping
         self.assertEqual(aggMap, trueAgg)
         self.assertEqual(agg2Map, trueAgg)
+        # Check that TypeError is raises with messages of wrong type
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                "sum(MSG) AS `summedAges`",
+                sendToSrc=object(),
+                sendToDst="src['age']")
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                "sum(MSG) AS `summedAges`",
+                sendToSrc=dst['age'],
+                sendToDst=object())
 
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([
