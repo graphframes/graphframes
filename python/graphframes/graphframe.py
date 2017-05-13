@@ -15,6 +15,10 @@
 # limitations under the License.
 #
 
+import sys
+if sys.version > '3':
+    basestring = str
+
 from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, functions as sqlfunctions, SQLContext
 from pyspark.storagelevel import StorageLevel
@@ -215,11 +219,11 @@ class GraphFrame(object):
         See Scala documentation for more details.
 
         :param aggCol: the requested aggregation output either as
-            `pyspark.sql.Column` or SQL expression string
+            :class:`pyspark.sql.Column` or SQL expression string
         :param msgToSrc: message sent to the source vertex of each triplet either as
-            `pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column` or SQL expression string (default: None)
         :param msgToDst: message sent to the destination vertex of each triplet either as
-            `pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column` or SQL expression string (default: None)
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
@@ -230,13 +234,17 @@ class GraphFrame(object):
         if msgToSrc is not None:
             if isinstance(msgToSrc, Column):
                 builder.sendToSrc(msgToSrc._jc)
-            else:
+            elif isinstance(msgToSrc, basestring):
                 builder.sendToSrc(msgToSrc)
+            else:
+                raise TypeError("Provide message either as `Column` or `str`")
         if msgToDst is not None:
             if isinstance(msgToDst, Column):
                 builder.sendToDst(msgToDst._jc)
-            else:
+            elif isinstance(msgToDst, basestring):
                 builder.sendToDst(msgToDst)
+            else:
+                raise TypeError("Provide message either as `Column` or `str`")
         if isinstance(aggCol, Column):
             jdf = builder.agg(aggCol._jc)
         else:
