@@ -415,7 +415,7 @@ class AggregateMessages(object):
         """
         Create a new cached copy of a DataFrame.
 
-        This utility method is usefull for iterative DataFrame-based algorithms. See Scala
+        This utility method is useful for iterative DataFrame-based algorithms. See Scala
         documentation for more details.
 
         WARNING: This is NOT the same as `DataFrame.cache()`.
