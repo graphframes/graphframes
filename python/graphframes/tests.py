@@ -31,8 +31,10 @@ else:
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 
-from .graphframe import AggregateMessages as AM, GraphFrame, _java_api, _from_java_gf
+from .graphframe import GraphFrame, _java_api, _from_java_gf
+from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
+
 
 class GraphFrameTestCase(unittest.TestCase):
 
@@ -101,6 +103,7 @@ class GraphFrameTest(GraphFrameTestCase):
         self.assertEqual(paths2.count(), 0)
         paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
         self.assertEqual(paths3.count(), 0)
+
 
 class GraphFrameLibTest(GraphFrameTestCase):
     def setUp(self):
@@ -248,6 +251,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
             self.assertEqual(row.asDict()['count'], 1)
+
 
 class GraphFrameExamplesTest(GraphFrameTestCase):
     def setUp(self):

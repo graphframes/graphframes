@@ -876,7 +876,7 @@ For API details, refer to the
 
 {% highlight python %}
 from pyspark.sql.functions import sum as sqlsum
-from graphframes import AggregateMessages as AM
+from graphframes.lib import AggregateMessages as AM
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 

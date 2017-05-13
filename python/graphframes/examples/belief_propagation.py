@@ -21,7 +21,8 @@ from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext, functions as sqlfunctions, types
 from pyspark.tests import QuietTest as SuppressSparkLogs
 
-from graphframes import GraphFrame, AggregateMessages as AM
+from graphframes import GraphFrame
+from graphframes.lib import AggregateMessages as AM
 # Import subpackage examples here explicitly so that this module can be
 # run directly with spark-submit.
 import graphframes.examples
