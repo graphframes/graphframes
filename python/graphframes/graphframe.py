@@ -71,15 +71,19 @@ class GraphFrame(object):
         self.DST = self._jvm_gf_api.DST()
         self._ATTR = self._jvm_gf_api.ATTR()
 
-        assert self.ID in v.columns,\
-            "Vertex ID column '%s' missing from vertex DataFrame, which has columns: %s" %\
-            (self.ID, ",".join(v.columns))
-        assert self.SRC in e.columns,\
-            "Source vertex ID column '%s' missing from edge DataFrame, which has columns: %s" %\
-            (self.SRC, ",".join(e.columns))
-        assert self.DST in e.columns,\
-            "Destination vertex ID column '%s' missing from edge DataFrame, which has columns: %s"%\
-            (self.DST, ",".join(e.columns))
+        # Check that provided DataFrames contain required columns
+        if self.ID not in v.columns:
+            raise ValueError(
+                "Vertex ID column {} missing from vertex DataFrame, which has columns: {}"
+                .format(self.ID, ",".join(v.columns)))
+        if self.SRC not in e.columns:
+            raise ValueError(
+                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}"
+                .format(self.SRC, ",".join(e.columns)))
+        if self.DST not in e.columns:
+            raise ValueError(
+                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}"
+                .format(self.DST, ",".join(e.columns)))
 
     @property
     def vertices(self):
