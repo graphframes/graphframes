@@ -58,8 +58,8 @@ class GraphFrameTestCase(unittest.TestCase):
 class GraphFrameTest(GraphFrameTestCase):
     def setUp(self):
         super(GraphFrameTest, self).setUp()
-        localVertices = [(1,"A"), (2,"B"), (3, "C")]
-        localEdges = [(1,2,"love"), (2,1,"hate"), (2,3,"follow")]
+        localVertices = [(1, "A"), (2, "B"), (3, "C")]
+        localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
         v = self.sql.createDataFrame(localVertices, ["id", "name"])
         e = self.sql.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
@@ -73,6 +73,13 @@ class GraphFrameTest(GraphFrameTestCase):
         tripletsFirst = list(map(lambda x: (x[0][1], x[1][1], x[2][2]),
                             g.triplets.sort("src.id").select("src", "dst", "edge").take(1)))
         assert tripletsFirst == [("A", "B", "love")], tripletsFirst
+        # Try with invalid vertices and edges DataFrames
+        v_invalid = self.sql.createDataFrame(
+            [(1, "A"), (2, "B"), (3, "C")], ["invalid_colname_1", "invalid_colname_2"])
+        e_invalid = self.sql.createDataFrame(
+            [(1, 2), (2, 3), (3, 1)], ["invalid_colname_3", "invalid_colname_4"])
+        with self.assertRaises(ValueError):
+            GraphFrame(v_invalid, e_invalid)
 
     def test_cache(self):
         g = self.g

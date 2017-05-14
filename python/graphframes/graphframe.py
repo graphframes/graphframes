@@ -64,7 +64,6 @@ class GraphFrame(object):
         self._sc = self._sqlContext._sc
         self._sc._jvm.org.apache.spark.ml.feature.Tokenizer()
         self._jvm_gf_api = _java_api(self._sc)
-        self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
         self.ID = self._jvm_gf_api.ID()
         self.SRC = self._jvm_gf_api.SRC()
@@ -84,6 +83,8 @@ class GraphFrame(object):
             raise ValueError(
                 "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}"
                 .format(self.DST, ",".join(e.columns)))
+
+        self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
     @property
     def vertices(self):
