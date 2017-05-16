@@ -21,7 +21,8 @@ from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext, functions as sqlfunctions, types
 from pyspark.tests import QuietTest as SuppressSparkLogs
 
-from graphframes import GraphFrame, AggregateMessages as AM
+from graphframes import GraphFrame
+from graphframes.lib import AggregateMessages as AM
 # Import subpackage examples here explicitly so that this module can be
 # run directly with spark-submit.
 import graphframes.examples
@@ -95,8 +96,8 @@ class BeliefPropagation(object):
                 logistic = sqlfunctions.udf(cls._sigmoid, returnType=types.DoubleType())
                 aggregates = gx.aggregateMessages(
                     sqlfunctions.sum(AM.msg).alias("aggMess"),
-                    msgToSrc=msgForSrc,
-                    msgToDst=msgForDst)
+                    sendToSrc=msgForSrc,
+                    sendToDst=msgForDst)
                 v = gx.vertices
                 # receive messages and update beliefs for vertices of the current color
                 newBeliefCol = sqlfunctions.when(

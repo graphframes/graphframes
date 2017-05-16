@@ -15,8 +15,12 @@
 # limitations under the License.
 #
 
+import sys
+if sys.version > '3':
+    basestring = str
+
 from pyspark import SparkContext
-from pyspark.sql import Column, DataFrame, functions as sqlfunctions, SQLContext
+from pyspark.sql import Column, DataFrame, SQLContext
 from pyspark.storagelevel import StorageLevel
 
 def _from_java_gf(jgf, sqlContext):
@@ -60,22 +64,27 @@ class GraphFrame(object):
         self._sc = self._sqlContext._sc
         self._sc._jvm.org.apache.spark.ml.feature.Tokenizer()
         self._jvm_gf_api = _java_api(self._sc)
-        self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
         self.ID = self._jvm_gf_api.ID()
         self.SRC = self._jvm_gf_api.SRC()
         self.DST = self._jvm_gf_api.DST()
         self._ATTR = self._jvm_gf_api.ATTR()
 
-        assert self.ID in v.columns,\
-            "Vertex ID column '%s' missing from vertex DataFrame, which has columns: %s" %\
-            (self.ID, ",".join(v.columns))
-        assert self.SRC in e.columns,\
-            "Source vertex ID column '%s' missing from edge DataFrame, which has columns: %s" %\
-            (self.SRC, ",".join(e.columns))
-        assert self.DST in e.columns,\
-            "Destination vertex ID column '%s' missing from edge DataFrame, which has columns: %s"%\
-            (self.DST, ",".join(e.columns))
+        # Check that provided DataFrames contain required columns
+        if self.ID not in v.columns:
+            raise ValueError(
+                "Vertex ID column {} missing from vertex DataFrame, which has columns: {}"
+                .format(self.ID, ",".join(v.columns)))
+        if self.SRC not in e.columns:
+            raise ValueError(
+                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}"
+                .format(self.SRC, ",".join(e.columns)))
+        if self.DST not in e.columns:
+            raise ValueError(
+                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}"
+                .format(self.DST, ",".join(e.columns)))
+
+        self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
     @property
     def vertices(self):
@@ -205,38 +214,42 @@ class GraphFrame(object):
         jdf = builder.run()
         return DataFrame(jdf, self._sqlContext)
 
-    def aggregateMessages(self, aggCol, msgToSrc=None, msgToDst=None):
+    def aggregateMessages(self, aggCol, sendToSrc=None, sendToDst=None):
         """
         Aggregates messages from the neighbours.
 
         When specifying the messages and aggregation function, the user may reference columns using
-        the static methods in :class:`AggregateMessages`.
+        the static methods in :class:`graphframes.lib.AggregateMessages`.
 
         See Scala documentation for more details.
 
         :param aggCol: the requested aggregation output either as
-            `pyspark.sql.Column` or SQL expression string
-        :param msgToSrc: message sent to the source vertex of each triplet either as
-            `pyspark.sql.Column` or SQL expression string (default: None)
-        :param msgToDst: message sent to the destination vertex of each triplet either as
-            `pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column` or SQL expression string
+        :param sendToSrc: message sent to the source vertex of each triplet either as
+            :class:`pyspark.sql.Column` or SQL expression string (default: None)
+        :param sendToDst: message sent to the destination vertex of each triplet either as
+            :class:`pyspark.sql.Column` or SQL expression string (default: None)
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
-        # Check that either msgToSrc, msgToDst, or both are provided
-        if msgToSrc is None and msgToDst is None:
-            raise ValueError("Either `msgToSrc`, `msgToDst`, or both have to be provided")
+        # Check that either sendToSrc, sendToDst, or both are provided
+        if sendToSrc is None and sendToDst is None:
+            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
         builder = self._jvm_graph.aggregateMessages()
-        if msgToSrc is not None:
-            if isinstance(msgToSrc, Column):
-                builder.sendToSrc(msgToSrc._jc)
+        if sendToSrc is not None:
+            if isinstance(sendToSrc, Column):
+                builder.sendToSrc(sendToSrc._jc)
+            elif isinstance(sendToSrc, basestring):
+                builder.sendToSrc(sendToSrc)
             else:
-                builder.sendToSrc(msgToSrc)
-        if msgToDst is not None:
-            if isinstance(msgToDst, Column):
-                builder.sendToDst(msgToDst._jc)
+                raise TypeError("Provide message either as `Column` or `str`")
+        if sendToDst is not None:
+            if isinstance(sendToDst, Column):
+                builder.sendToDst(sendToDst._jc)
+            elif isinstance(sendToDst, basestring):
+                builder.sendToDst(sendToDst)
             else:
-                builder.sendToDst(msgToDst)
+                raise TypeError("Provide message either as `Column` or `str`")
         if isinstance(aggCol, Column):
             jdf = builder.agg(aggCol._jc)
         else:
@@ -359,64 +372,6 @@ class GraphFrame(object):
         """
         jdf = self._jvm_graph.triangleCount().run()
         return DataFrame(jdf, self._sqlContext)
-
-
-class _ClassProperty(object):
-    """Custom read-only class property descriptor.
-
-    The underlying method should take the class as the sole argument.
-    """
-
-    def __init__(self, f):
-        self.f = f
-        self.__doc__ = f.__doc__
-
-    def __get__(self, instance, owner):
-        return self.f(owner)
-
-
-class AggregateMessages(object):
-    """Collection of utilities usable with :meth:`GraphFrame.aggregateMessages()`."""
-
-    @_ClassProperty
-    def src(cls):
-        """Reference for source column, used for specifying messages."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.SRC())
-
-    @_ClassProperty
-    def dst(cls):
-        """Reference for destination column, used for specifying messages."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.DST())
-
-    @_ClassProperty
-    def edge(cls):
-        """Reference for edge column, used for specifying messages."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.EDGE())
-
-    @_ClassProperty
-    def msg(cls):
-        """Reference for message column, used for specifying aggregation function."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
-
-    @staticmethod
-    def getCachedDataFrame(df):
-        """
-        Create a new cached copy of a DataFrame.
-
-        This utility method is usefull for iterative DataFrame-based algorithms. See Scala
-        documentation for more details.
-
-        WARNING: This is NOT the same as `DataFrame.cache()`.
-                 The original DataFrame will NOT be cached.
-        """
-        sqlContext = df.sql_ctx
-        jvm_gf_api = _java_api(sqlContext._sc)
-        jdf = jvm_gf_api.aggregateMessages().getCachedDataFrame(df._jdf)
-        return DataFrame(jdf, sqlContext)
 
 
 def _test():

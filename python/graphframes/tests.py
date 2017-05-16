@@ -31,8 +31,10 @@ else:
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 
-from .graphframe import AggregateMessages as AM, GraphFrame, _java_api, _from_java_gf
+from .graphframe import GraphFrame, _java_api, _from_java_gf
+from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
+
 
 class GraphFrameTestCase(unittest.TestCase):
 
@@ -56,8 +58,8 @@ class GraphFrameTestCase(unittest.TestCase):
 class GraphFrameTest(GraphFrameTestCase):
     def setUp(self):
         super(GraphFrameTest, self).setUp()
-        localVertices = [(1,"A"), (2,"B"), (3, "C")]
-        localEdges = [(1,2,"love"), (2,1,"hate"), (2,3,"follow")]
+        localVertices = [(1, "A"), (2, "B"), (3, "C")]
+        localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
         v = self.sql.createDataFrame(localVertices, ["id", "name"])
         e = self.sql.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
@@ -71,6 +73,13 @@ class GraphFrameTest(GraphFrameTestCase):
         tripletsFirst = list(map(lambda x: (x[0][1], x[1][1], x[2][2]),
                             g.triplets.sort("src.id").select("src", "dst", "edge").take(1)))
         assert tripletsFirst == [("A", "B", "love")], tripletsFirst
+        # Try with invalid vertices and edges DataFrames
+        v_invalid = self.sql.createDataFrame(
+            [(1, "A"), (2, "B"), (3, "C")], ["invalid_colname_1", "invalid_colname_2"])
+        e_invalid = self.sql.createDataFrame(
+            [(1, 2), (2, 3), (3, 1)], ["invalid_colname_3", "invalid_colname_4"])
+        with self.assertRaises(ValueError):
+            GraphFrame(v_invalid, e_invalid)
 
     def test_cache(self):
         g = self.g
@@ -102,6 +111,7 @@ class GraphFrameTest(GraphFrameTestCase):
         paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
         self.assertEqual(paths3.count(), 0)
 
+
 class GraphFrameLibTest(GraphFrameTestCase):
     def setUp(self):
         super(GraphFrameLibTest, self).setUp()
@@ -131,22 +141,22 @@ class GraphFrameLibTest(GraphFrameTestCase):
         g = self._graph("friends")
         # For each user, sum the ages of the adjacent users,
         # plus 1 for the src's sum if the edge is "friend".
-        msgToSrc = (
+        sendToSrc = (
             AM.dst['age'] +
             sqlfunctions.when(
                 AM.edge['relationship'] == 'friend',
                 sqlfunctions.lit(1)
             ).otherwise(0))
-        msgToDst = AM.src['age']
+        sendToDst = AM.src['age']
         agg = g.aggregateMessages(
             sqlfunctions.sum(AM.msg).alias('summedAges'),
-            msgToSrc=msgToSrc,
-            msgToDst=msgToDst)
+            sendToSrc=sendToSrc,
+            sendToDst=sendToDst)
         # Run the aggregation again providing SQL expressions as String instead.
         agg2 = g.aggregateMessages(
             "sum(MSG) AS `summedAges`",
-            msgToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
-            msgToDst="src['age']")
+            sendToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
+            sendToDst="src['age']")
         # Convert agg and agg2 to a mapping from id to the aggregated message.
         aggMap = {id_: s for id_, s in agg.select('id', 'summedAges').collect()}
         agg2Map = {id_: s for id_, s in agg2.select('id', 'summedAges').collect()}
@@ -159,6 +169,17 @@ class GraphFrameLibTest(GraphFrameTestCase):
         # Compare if the agg mappings match the brute force mapping
         self.assertEqual(aggMap, trueAgg)
         self.assertEqual(agg2Map, trueAgg)
+        # Check that TypeError is raises with messages of wrong type
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                "sum(MSG) AS `summedAges`",
+                sendToSrc=object(),
+                sendToDst="src['age']")
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                "sum(MSG) AS `summedAges`",
+                sendToSrc=dst['age'],
+                sendToDst=object())
 
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([
@@ -237,6 +258,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
             self.assertEqual(row.asDict()['count'], 1)
+
 
 class GraphFrameExamplesTest(GraphFrameTestCase):
     def setUp(self):

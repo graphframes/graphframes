@@ -85,8 +85,11 @@ class Graphs(object):
             run on this model. Vertex IDs are of the form "i,j".  E.g., vertex "1,3" is in the
             second row and fourth column of the grid.
         """
-        assert n >= 1,\
-            "Grid graph must have size >= 1, but was given invalid value n = {}".format(n)
+        # check param n
+        if n < 1:
+            raise ValueError(
+                "Grid graph must have size >= 1, but was given invalid value n = {}"
+                .format(n))
 
         # create coodinates grid
         coordinates = self._sql.createDataFrame(
