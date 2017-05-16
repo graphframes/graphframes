@@ -677,6 +677,9 @@ val results2 = g.pageRank.resetProbability(0.15).maxIter(10).run()
 
 // Run PageRank personalized for vertex "a"
 val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
+
+# Run PageRank personalized for vertex ["a", "b", "c", "d"] in parallel
+val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceIds(Array("a", "b", "c", "d")).run()
 {% endhighlight %}
 </div>
 
@@ -701,7 +704,11 @@ results2 = g.pageRank(resetProbability=0.15, maxIter=10)
 
 # Run PageRank personalized for vertex "a"
 results3 = g.pageRank(resetProbability=0.15, maxIter=10, sourceId="a")
+
+# Run PageRank personalized for vertex ["a", "b", "c", "d"] in parallel
+results4 = g.parallelPersonalizedPageRank(resetProbability=0.15, sourceIds=["a", "b", "c", "d"], maxIter=10)
 {% endhighlight %}
+
 </div>
 
 </div>
