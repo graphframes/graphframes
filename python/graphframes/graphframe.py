@@ -19,8 +19,6 @@ import sys
 if sys.version > '3':
     basestring = str
 
-from py4j.java_gateway import JavaGateway
-
 from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, SQLContext
 from pyspark.storagelevel import StorageLevel
@@ -337,12 +335,7 @@ class GraphFrame(object):
         """
         assert sourceIds is not None and len(sourceIds) > 0, "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
-        if isinstance(sourceIds, list):
-            _gateway = self._sc._gateway
-            _srcIds = _gateway.new_array(_gateway.jvm.Object, len(sourceIds))
-            for i, vid in enumerate(sourceIds):
-                _srcIds[i] = vid
-            sourceIds = _srcIds
+        sourceIds = self._sc._jvm.PythonUtils.toArray(sourceIds)
         builder = self._jvm_graph.parallelPersonalizedPageRank()
         builder = builder.resetProbability(resetProbability)
         builder = builder.sourceIds(sourceIds)
