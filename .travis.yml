@@ -15,10 +15,10 @@ env:
   matrix:
     - PYSPARK_PYTHON=python2 SCALA_VERSION=2.10.6 SPARK_VERSION=1.6.3 SPARK_BUILD="spark-1.6.3-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.3-bin-hadoop2.6.tgz"
     - PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-2.0.2-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.2-bin-hadoop2.7.tgz"
-    - PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.0 SPARK_BUILD="spark-2.1.0-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.0-bin-hadoop2.7.tgz"
+    - PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-2.1.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.1-bin-hadoop2.7.tgz"
     - PYSPARK_PYTHON=python3 SCALA_VERSION=2.10.6 SPARK_VERSION=1.6.3 SPARK_BUILD="spark-1.6.3-bin-hadoop2.6" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-1.6.3-bin-hadoop2.6.tgz"
     - PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-2.0.2-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.2-bin-hadoop2.7.tgz"
-    - PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.0 SPARK_BUILD="spark-2.1.0-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.0-bin-hadoop2.7.tgz"
+    - PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-2.1.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.1-bin-hadoop2.7.tgz"
 
 before_install:
  - ./bin/download_travis_dependencies.sh
