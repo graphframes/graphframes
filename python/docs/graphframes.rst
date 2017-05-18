@@ -9,6 +9,8 @@ Subpackages
 
     graphframes.examples
 
+    graphframes.lib
+
 Contents
 --------
 

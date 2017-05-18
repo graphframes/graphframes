@@ -15,18 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+package org.apache.spark.ml.linalg
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.functions.callUDF
-import org.apache.spark.sql.types.{DataType, LongType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, NullType}
 
-object SQLHelpers {
-  def getExpr(col: Column): Expression = col.expr
+object SQLDataTypes {
 
-  def expr(e: String): Column = functions.expr(e)
+  /** Data type for [[Vector]]. */
+  val VectorType: DataType = NullType
 
-  def callUDF(f: Function1[_, _], returnType: DataType, arg1: Column): Column = {
-    org.apache.spark.sql.functions.callUDF(f, returnType, arg1)
+  /** Data type for [[Matrix]]. */
+  val MatrixType: DataType = NullType
+}
+
+/**
+ * This is a shim for the SparseVector type
+ */
+case class SparseVector(size: Int, indices: Array[Int], values: Array[Double]) {
+  def numNonzeros: Int = {
+    throw new NotImplementedError(
+      """
+        |This error should never happen;
+        |if it does, please file a bug report on the GraphFrames Github page.
+      """.stripMargin)
   }
 }

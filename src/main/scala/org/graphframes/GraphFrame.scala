@@ -22,9 +22,8 @@ import java.util.Random
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.graphx.{Edge, Graph}
-import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf}
+import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf, monotonically_increasing_id}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 
@@ -367,6 +366,16 @@ class GraphFrame private(
   def pageRank: PageRank = new PageRank(this)
 
   /**
+    * Parallel personalized PageRank algorithm.
+    *
+    * See [[org.graphframes.lib.ParallelPersonalizedPageRank]] for more details.
+    *
+    * @group stdlib
+    */
+  def parallelPersonalizedPageRank: ParallelPersonalizedPageRank =
+    new ParallelPersonalizedPageRank(this)
+
+  /**
    * Shortest paths algorithm.
    *
    * See [[org.graphframes.lib.ShortestPaths]] for more details.
@@ -466,8 +475,15 @@ class GraphFrame private(
       indexedVertices.select(
         col(ATTR + "." + ID).cast("long").as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     } else {
-      val indexedVertices = zipWithUniqueId(vertices)
-      indexedVertices.select(col("uniq_id").as(LONG_ID), col("row." + ID).as(ID), col("row").as(ATTR))
+      val withLongIds = vertices.select(ID)
+        .repartition(col(ID))
+        .distinct()
+        .sortWithinPartitions(ID)
+        .withColumn(LONG_ID, monotonically_increasing_id())
+        .persist(StorageLevel.MEMORY_AND_DISK)
+      vertices.select(col(ID), nestAsCol(vertices, ATTR))
+        .join(withLongIds, ID)
+        .select(LONG_ID, ID, ATTR)
     }
   }
 

@@ -15,18 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+package org.apache.spark.graphx.lib
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.functions.callUDF
-import org.apache.spark.sql.types.{DataType, LongType, StructField, StructType}
+import scala.reflect.ClassTag
 
-object SQLHelpers {
-  def getExpr(col: Column): Expression = col.expr
+import breeze.linalg.{Vector => BV}
 
-  def expr(e: String): Column = functions.expr(e)
+import org.apache.spark.graphx._
+import org.apache.spark.ml.linalg.{Vector, Vectors}
 
-  def callUDF(f: Function1[_, _], returnType: DataType, arg1: Column): Column = {
-    org.apache.spark.sql.functions.callUDF(f, returnType, arg1)
+object GraphXHelpers {
+  def runParallelPersonalizedPageRank[VD: ClassTag, ED: ClassTag] (
+      graph: Graph[VD, ED],
+      numIter: Int, 
+      resetProb: Double,
+      sourceIds: Array[VertexId]): Graph[Vector, Double] = {
+    throw new NotImplementedError(
+      "parallel personalized PageRank only supported in Apache Spark version 2.1+")
   }
 }

@@ -1,4 +1,4 @@
 
-from .graphframe import GraphFrame, AggregateMessages
+from .graphframe import GraphFrame
 
-__all__ = ['GraphFrame', 'AggregateMessages']
+__all__ = ['GraphFrame']
