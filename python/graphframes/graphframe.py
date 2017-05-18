@@ -18,6 +18,7 @@
 from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, functions as sqlfunctions, SQLContext
 from pyspark.storagelevel import StorageLevel
+from pyspark.sql.column import _to_seq
 
 def _from_java_gf(jgf, sqlContext):
     """
@@ -230,15 +231,23 @@ class GraphFrame(object):
         if msgToSrc is not None:
             if isinstance(msgToSrc, Column):
                 builder.sendToSrc(msgToSrc._jc)
+            elif isinstance(msgToSrc, list):
+                for col in msgToSrc:
+                    builder.sendToSrc(col._jc) 
             else:
                 builder.sendToSrc(msgToSrc)
         if msgToDst is not None:
             if isinstance(msgToDst, Column):
                 builder.sendToDst(msgToDst._jc)
+            elif isinstance(msgToDst, list):
+                for col in msgToDst:
+                    builder.sendToDst(col._jc)
             else:
                 builder.sendToDst(msgToDst)
         if isinstance(aggCol, Column):
-            jdf = builder.agg(aggCol._jc)
+            jdf = builder.agg(aggCol._jc, _to_seq(self._sc, []))
+        elif isinstance(aggCol, list):
+            jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [c._jc for c in aggCol[1:]]))
         else:
             jdf = builder.agg(aggCol)
         return DataFrame(jdf, self._sqlContext)
