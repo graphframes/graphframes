@@ -240,8 +240,8 @@ class GraphFrame(object):
         if sendToSrc is not None:
             if isinstance(sendToSrc, Column):
                 builder.sendToSrc(sendToSrc._jc)
-            elif isinstance(msgToSrc, list):
-                for col in msgToSrc:
+            elif isinstance(sendToSrc, list):
+                for col in sendToSrc:
                     builder.sendToSrc(col._jc)
             elif isinstance(sendToSrc, basestring):
                 builder.sendToSrc(sendToSrc)
@@ -250,8 +250,8 @@ class GraphFrame(object):
         if sendToDst is not None:
             if isinstance(sendToDst, Column):
                 builder.sendToDst(sendToDst._jc)
-            elif isinstance(msgToDst, list):
-                for col in msgToDst:
+            elif isinstance(sendToDst, list):
+                for col in sendToDst:
                     builder.sendToDst(col._jc)
             elif isinstance(sendToDst, basestring):
                 builder.sendToDst(sendToDst)

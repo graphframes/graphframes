@@ -184,13 +184,13 @@ class GraphFrameLibTest(GraphFrameTestCase):
     def test_aggregate_messages_multiple_columns(self):
         v = self.sqlContext.createDataFrame([(1, 30, 3), (2, 40, 4), (3, 50, 5), (4, 60, 6)], ["id", "att1", "att2"])
         e = self.sqlContext.createDataFrame([(1, 2), (2, 3), (1, 4)], ["src", "dst"])
-        expectedValues = {1: (100l, 5.0), 2: (80l, 4.0), 3: (40l, 4.0), 4: (30l, 3.0)}
+        expectedValues = {1: (100, 5.0), 2: (80, 4.0), 3: (40, 4.0), 4: (30, 3.0)}
 
         g = GraphFrame(v, e)
         agg = g.aggregateMessages(
             aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
-            msgToSrc = [AM.dst['att1'], AM.dst['att2']], 
-            msgToDst = [AM.src['att2'], AM.src['att1']])
+            sendToSrc = [AM.dst['att1'], AM.dst['att2']], 
+            sendToDst = [AM.src['att2'], AM.src['att1']])
 
         #validate content
         output = {id: (sumAtt1, avgAtt2) for id, sumAtt1, avgAtt2 in agg.collect()}
