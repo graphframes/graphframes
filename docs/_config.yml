@@ -14,7 +14,7 @@ include:
 
 # These allow the documentation to be updated with newer releases
 # of Spark, Scala, and Mesos.
-GRAPHFRAMES_VERSION: 0.4.0
+GRAPHFRAMES_VERSION: 0.5.0
 #SCALA_BINARY_VERSION: "2.10"
 #SCALA_VERSION: "2.10.4"
 #MESOS_VERSION: 0.21.0

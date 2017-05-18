@@ -1,7 +1,7 @@
 // Your sbt build file. Guides on how to write one can be found at
 // http://www.scala-sbt.org/0.13/docs/index.html
 
-val sparkVer = sys.props.getOrElse("spark.version", "2.1.0")
+val sparkVer = sys.props.getOrElse("spark.version", "2.1.1")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
   case "1.6" => "2.10.6"
@@ -23,7 +23,7 @@ scalaVersion := scalaVer
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := s"0.4.0-SNAPSHOT-spark$sparkBranch"
+version := s"0.5.0-spark$sparkBranch"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
