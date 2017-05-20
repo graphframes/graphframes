@@ -219,17 +219,17 @@ class GraphFrame(object):
         """
         Aggregates messages from the neighbours.
 
-        When specifying the messages and aggregation function, the user may reference columns using
+        When specifying the messages and aggregation functions, the user may reference columns using
         the static methods in :class:`graphframes.lib.AggregateMessages`.
 
         See Scala documentation for more details.
 
         :param aggCol: the requested aggregation output either as
-            :class:`pyspark.sql.Column` or SQL expression string
+            :class:`pyspark.sql.Column`, list of :class:`pyspark.sql.Column` or SQL expression string
         :param sendToSrc: message sent to the source vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column`, list of :class:`pyspark.sql.Column` or SQL expression string (default: None)
         :param sendToDst: message sent to the destination vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column`, list of :class:`pyspark.sql.Column` or SQL expression string (default: None)
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
@@ -241,28 +241,39 @@ class GraphFrame(object):
             if isinstance(sendToSrc, Column):
                 builder.sendToSrc(sendToSrc._jc)
             elif isinstance(sendToSrc, list):
-                for col in sendToSrc:
-                    builder.sendToSrc(col._jc)
+                if all(isinstance(c, Column) for c in sendToSrc):
+                    for col in sendToSrc:
+                        builder.sendToSrc(col._jc)
+                else:
+                    raise TypeError("`sendToSrc` must be a list of `Column`")
             elif isinstance(sendToSrc, basestring):
                 builder.sendToSrc(sendToSrc)
             else:
-                raise TypeError("Provide message either as `Column` or `str`")
+                raise TypeError("Provide message either as `Column`, list of `Column` or `str`")
         if sendToDst is not None:
             if isinstance(sendToDst, Column):
                 builder.sendToDst(sendToDst._jc)
             elif isinstance(sendToDst, list):
-                for col in sendToDst:
-                    builder.sendToDst(col._jc)
+                if all(isinstance(c, Column) for c in sendToDst):
+                    for col in sendToDst:
+                        builder.sendToDst(col._jc)
+                else:
+                    raise TypeError("`sendToDst` must be a list of `Column`")
             elif isinstance(sendToDst, basestring):
                 builder.sendToDst(sendToDst)
             else:
-                raise TypeError("Provide message either as `Column` or `str`")
+                raise TypeError("Provide message either as `Column`, list of `Column` or `str`")
         if isinstance(aggCol, Column):
             jdf = builder.agg(aggCol._jc, _to_seq(self._sc, []))
         elif isinstance(aggCol, list):
-            jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [c._jc for c in aggCol[1:]]))
-        else:
+            if all(isinstance(c, Column) for c in aggCol):
+                jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [c._jc for c in aggCol[1:]]))
+            else:
+                raise TypeError("`aggCol` must be a list of `Column`")
+        elif isinstance(aggCol, basestring):
             jdf = builder.agg(aggCol)
+        else:
+            raise TypeError("Provide aggregation either as `Column`, list of `Column` or `str`")
         return DataFrame(jdf, self._sqlContext)
 
     # Standard algorithms

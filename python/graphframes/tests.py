@@ -178,8 +178,13 @@ class GraphFrameLibTest(GraphFrameTestCase):
         with self.assertRaises(TypeError):
             g.aggregateMessages(
                 "sum(MSG) AS `summedAges`",
-                sendToSrc=dst['age'],
+                sendToSrc=AM.dst['age'],
                 sendToDst=object())
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                object(),
+                sendToSrc="dst['age']",
+                sendToDst="src['age']")
 
     def test_aggregate_messages_multiple_columns(self):
         v = self.sqlContext.createDataFrame([(1, 30, 3), (2, 40, 4), (3, 50, 5), (4, 60, 6)], ["id", "att1", "att2"])
@@ -195,6 +200,23 @@ class GraphFrameLibTest(GraphFrameTestCase):
         #validate content
         output = {id: (sumAtt1, avgAtt2) for id, sumAtt1, avgAtt2 in agg.collect()}
         self.assertEqual(output, expectedValues)
+
+        #check that TypeError is raised when it is not a list of Column objects
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), object()],
+                sendToSrc = [AM.dst['att1'], AM.dst['att2']], 
+                sendToDst = [AM.src['att2'], AM.src['att1']])
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
+                sendToSrc = [AM.dst['att1'], object()], 
+                sendToDst = [AM.src['att2'], AM.src['att1']])
+        with self.assertRaises(TypeError):
+            g.aggregateMessages(
+                aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
+                sendToSrc = [AM.dst['att1'], AM.dst['att2']], 
+                sendToDst = [AM.src['att2'], object()])
 
     def test_connected_components(self):
         v = self.sqlContext.createDataFrame([
