@@ -87,6 +87,7 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     val expectedValues = Map(1 -> (100l, 5.0), 2 -> (80l, 4.0), 3 -> (40l, 4.0), 4 -> (30l, 3.0))
 
     val g = GraphFrame(vertices, edges)
+    //aggregateMessages with columns
     val agg = g.aggregateMessages
       .sendToDst(AM.src("att1"))
       .sendToSrc(AM.dst("att2"))
@@ -96,15 +97,35 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
         sum(AM.msg("att1")).as("sum_att1"),
         avg(AM.msg("att2")).as("avg_att2"))
 
+    //aggregateMessages with column expressions
+    val agg2 = g.aggregateMessages
+      .sendToDst("src['att1']")
+      .sendToSrc("dst['att2']")
+      .sendToDst("src['att2']")
+      .sendToSrc("dst['att1']")
+      .agg(
+        "sum(MSG['att1']) AS sum_att1",
+        "avg(MSG['att2']) AS avg_att2")
+
     //validate schema
     assert(agg.schema.size === 3)
     TestUtils.checkColumnType(agg.schema, "id", IntegerType)
     TestUtils.checkColumnType(agg.schema, "sum_att1", LongType)
     TestUtils.checkColumnType(agg.schema, "avg_att2", DoubleType)
 
+    assert(agg2.schema.size === 3)
+    TestUtils.checkColumnType(agg2.schema, "id", IntegerType)
+    TestUtils.checkColumnType(agg2.schema, "sum_att1", LongType)
+    TestUtils.checkColumnType(agg2.schema, "avg_att2", DoubleType)
+
     //validate content
-    assert(agg.collect().map { case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
+    val output1 = agg.collect().map { case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
       id -> (sumAtt1, avgAtt2)
-    }.toMap === expectedValues)
+    }.toMap
+    val output2 = agg2.collect().map { case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
+      id -> (sumAtt1, avgAtt2)
+    }.toMap
+    assert(output1 === expectedValues)
+    assert(output2 === expectedValues)
   }
 }

@@ -165,7 +165,7 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
    *
    * See the overloaded method documentation for more details.
    */
-  def agg(aggCol: String): DataFrame = agg(expr(aggCol))
+  def agg(aggCol: String, aggCols: String*): DataFrame = agg(expr(aggCol), aggCols.map(expr(_)):_*)
 }
 
 object AggregateMessages extends Logging with Serializable {

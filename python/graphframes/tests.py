@@ -192,14 +192,23 @@ class GraphFrameLibTest(GraphFrameTestCase):
         expectedValues = {1: (100, 5.0), 2: (80, 4.0), 3: (40, 4.0), 4: (30, 3.0)}
 
         g = GraphFrame(v, e)
+        #aggregateMessages with columns
         agg = g.aggregateMessages(
             aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
             sendToSrc = [AM.dst['att1'], AM.dst['att2']], 
             sendToDst = [AM.src['att2'], AM.src['att1']])
 
+        #aggregateMessages with column expressions
+        agg2 = g.aggregateMessages(
+            aggCol = ["sum(MSG['att1']) AS sum_att1", "avg(MSG['att2']) AS avg_att2"],
+            sendToSrc = ["dst['att1']", "dst['att2']"], 
+            sendToDst = ["src['att2']", "src['att1']"])
+
         #validate content
         output = {id: (sumAtt1, avgAtt2) for id, sumAtt1, avgAtt2 in agg.collect()}
+        output2 = {id: (sumAtt1, avgAtt2) for id, sumAtt1, avgAtt2 in agg2.collect()}
         self.assertEqual(output, expectedValues)
+        self.assertEqual(output2, expectedValues)
 
         #check that TypeError is raised when it is not a list of Column objects
         with self.assertRaises(TypeError):

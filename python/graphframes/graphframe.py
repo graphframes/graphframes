@@ -225,11 +225,14 @@ class GraphFrame(object):
         See Scala documentation for more details.
 
         :param aggCol: the requested aggregation output either as
-            :class:`pyspark.sql.Column`, list of :class:`pyspark.sql.Column` or SQL expression string
+            :class:`pyspark.sql.Column`, :class:`list` of :class:`pyspark.sql.Column`, SQL expression string
+            or :class:`list` of SQL expression string
         :param sendToSrc: message sent to the source vertex of each triplet either as
-            :class:`pyspark.sql.Column`, list of :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column`, :class:`list` of :class:`pyspark.sql.Column`, SQL expression string
+            or :class:`list` of SQL expression string (default: None)
         :param sendToDst: message sent to the destination vertex of each triplet either as
-            :class:`pyspark.sql.Column`, list of :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column`, :class:`list` of :class:`pyspark.sql.Column`, SQL expression string
+            or :class:`list` of SQL expression string (default: None)
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
@@ -244,12 +247,15 @@ class GraphFrame(object):
                 if all(isinstance(c, Column) for c in sendToSrc):
                     for col in sendToSrc:
                         builder.sendToSrc(col._jc)
+                elif all(isinstance(c, basestring) for c in sendToSrc):
+                    for col in sendToSrc:
+                        builder.sendToSrc(col)        
                 else:
-                    raise TypeError("`sendToSrc` must be a list of `Column`")
+                    raise TypeError("`sendToSrc` must be a list of `Column` or `str`")
             elif isinstance(sendToSrc, basestring):
                 builder.sendToSrc(sendToSrc)
             else:
-                raise TypeError("Provide message either as `Column`, list of `Column` or `str`")
+                raise TypeError("Provide message either as `Column`, list of `Column`, `str` or list of `str`")
         if sendToDst is not None:
             if isinstance(sendToDst, Column):
                 builder.sendToDst(sendToDst._jc)
@@ -257,23 +263,28 @@ class GraphFrame(object):
                 if all(isinstance(c, Column) for c in sendToDst):
                     for col in sendToDst:
                         builder.sendToDst(col._jc)
+                elif all(isinstance(c, basestring) for c in sendToDst):
+                    for col in sendToDst:
+                        builder.sendToDst(col)
                 else:
-                    raise TypeError("`sendToDst` must be a list of `Column`")
+                    raise TypeError("`sendToDst` must be a list of `Column` or `str`")
             elif isinstance(sendToDst, basestring):
                 builder.sendToDst(sendToDst)
             else:
-                raise TypeError("Provide message either as `Column`, list of `Column` or `str`")
+                raise TypeError("Provide message either as `Column`, list of `Column`, `str` or list of `str`")
         if isinstance(aggCol, Column):
             jdf = builder.agg(aggCol._jc, _to_seq(self._sc, []))
         elif isinstance(aggCol, list):
             if all(isinstance(c, Column) for c in aggCol):
                 jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [c._jc for c in aggCol[1:]]))
+            elif all(isinstance(c, basestring) for c in aggCol):
+                jdf = builder.agg(aggCol[0], _to_seq(self._sc, aggCol[1:]))
             else:
-                raise TypeError("`aggCol` must be a list of `Column`")
+                raise TypeError("`aggCol` must be a list of `Column` or `str`")
         elif isinstance(aggCol, basestring):
-            jdf = builder.agg(aggCol)
+            jdf = builder.agg(aggCol, _to_seq(self._sc, []))
         else:
-            raise TypeError("Provide aggregation either as `Column`, list of `Column` or `str`")
+            raise TypeError("Provide aggregation either as `Column`, list of `Column`, `str` or list of `str`")
         return DataFrame(jdf, self._sqlContext)
 
     # Standard algorithms
