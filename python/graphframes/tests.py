@@ -261,17 +261,16 @@ class GraphFrameLibTest(GraphFrameTestCase):
         pr = g.pageRank(resetProb, tol=errorTol)
         self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
 
+    @unittest.skipIf(not GraphFrameTestUtils.is_later_version("2.1"),
+                     "Parallel Personalized PageRank is only available in Apache Spark 2.1+")
     def test_parallel_personalized_page_rank(self):
-        if GraphFrameTestUtils.is_later_version("2.1"):
-            n = 100
-            g = self._graph("star", n)
-            resetProb = 0.15
-            maxIter = 15
-            sourceIds = [1, 2, 3, 4]
-            pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
-            self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
-        else:
-            self.assertTrue("Parallel Personalized PageRank is only available in Apache Spark 2.1+")
+        n = 100
+        g = self._graph("star", n)
+        resetProb = 0.15
+        maxIter = 15
+        sourceIds = [1, 2, 3, 4]
+        pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
+        self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
 
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
