@@ -54,7 +54,7 @@ class GraphFrameTestUtils(object):
         cls.spark_minor_version = _minor_ver
 
     @classmethod
-    def is_later_version(cls, version_str):
+    def spark_at_least_of_version(cls, version_str):
         _major_ver, _minor_ver = cls.parse_spark_version(version_str)
         required_major_version = _major_ver
         required_minor_version = _minor_ver
@@ -235,7 +235,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
         # [#194] Prior to Apache Spark version 2.0, no checkpoint or large checkpoint interval
         #        causes the test to run for too long, resulting in Travis CI to abort the build
-        if GraphFrameTestUtils.is_later_version("2.0"):
+        if GraphFrameTestUtils.spark_at_least_of_version("2.0"):
             comps_tests += [g.connectedComponents(checkpointInterval=0)]
             comps_tests += [g.connectedComponents(checkpointInterval=10)]
         comps_tests += [g.connectedComponents(algorithm="graphx")]
@@ -261,16 +261,17 @@ class GraphFrameLibTest(GraphFrameTestCase):
         pr = g.pageRank(resetProb, tol=errorTol)
         self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
 
-    @unittest.skipIf(not GraphFrameTestUtils.is_later_version("2.1"),
-                     "Parallel Personalized PageRank is only available in Apache Spark 2.1+")
     def test_parallel_personalized_page_rank(self):
-        n = 100
-        g = self._graph("star", n)
-        resetProb = 0.15
-        maxIter = 15
-        sourceIds = [1, 2, 3, 4]
-        pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
-        self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
+        if GraphFrameTestUtils.spark_at_least_of_version("2.1"):
+            n = 100
+            g = self._graph("star", n)
+            resetProb = 0.15
+            maxIter = 15
+            sourceIds = [1, 2, 3, 4]
+            pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
+            self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
+        else:
+            self.assertTrue("Parallel Personalized PageRank is only available in Apache Spark 2.1+")
 
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
