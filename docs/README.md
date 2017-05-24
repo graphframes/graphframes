@@ -27,6 +27,11 @@ in some cases:
     $ sudo gem install jekyll
     $ sudo gem install jekyll-redirect-from
 
+On macOS, with the default Ruby, please install Jekyll with Bundler as [instructed on offical website](https://jekyllrb.com/docs/quickstart/). Otherwise the build script might fail to resolve dependencies.
+
+    $ sudo gem install jekyll bundler
+    $ sudo gem install jekyll-redirect-from
+
 Execute `jekyll build` from the `docs/` directory to compile the site. Compiling the site with Jekyll will create a directory
 called `_site` containing index.html as well as the rest of the compiled files.
 
@@ -40,6 +45,8 @@ You can modify the default Jekyll build as follows:
     $ PRODUCTION=1 jekyll build
 
 Note that `SPARK_HOME` must be set to your local Spark installation in order to generate the docs.
+To manually point to a specific `Spark` installation,
+    $ SPARK_HOME=<your-path-to-spark-home> PRODUCTION=1 jekyll build
 
 ## Pygments
 
