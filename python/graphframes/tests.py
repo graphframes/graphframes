@@ -40,28 +40,49 @@ class GraphFrameTestUtils(object):
 
     @classmethod
     def parse_spark_version(cls, version_str):
+        """ take an input version string
+            return version items in a dictionary
+        """
         _sc_ver_patt = r'(\d+)\.(\d+)(\.(\d+)(-(.+))?)?'
         m = re.match(_sc_ver_patt, version_str)
-        _major_version = m.group(1)
-        _minor_version = m.group(2)
-        return _major_version, _minor_version
+        if not m:
+            raise TypeError("version {} shoud be in <major>.<minor>.<maintenance>".format(version_str))
+        version_info = {}
+        try:
+            version_info['major'] = int(m.group(1))
+        except:
+            raise TypeError("invalid minor version")
+        try:
+            version_info['minor'] = int(m.group(2))
+        except:
+            raise TypeError("invalid major version")
+        try:
+            version_info['maintenance'] = int(m.group(4))
+        except:
+            version_info['maintenance'] = 0
+        try:
+            version_info['special'] = m.group(6)
+        except:
+            pass
+        return version_info
 
     @classmethod
     def register(cls, sc):
         cls.sc = sc
-        _major_ver, _minor_ver = cls.parse_spark_version(sc.version)
-        cls.spark_major_version = _major_ver
-        cls.spark_minor_version = _minor_ver
+        cls.spark_version = cls.parse_spark_version(sc.version)
 
     @classmethod
     def spark_at_least_of_version(cls, version_str):
-        _major_ver, _minor_ver = cls.parse_spark_version(version_str)
-        required_major_version = _major_ver
-        required_minor_version = _minor_ver
-        if cls.spark_major_version != required_major_version:
-            return cls.spark_major_version > required_major_version
-        else:
-            return cls.spark_minor_version >= required_minor_version
+        assert hasattr(cls, 'spark_version')
+        required_version = cls.parse_spark_version(version_str)
+        spark_version = cls.spark_version
+        for _name in ['major', 'minor', 'maintenance']:
+            sc_ver = spark_version[_name]
+            req_ver = required_version[_name]
+            if sc_ver != req_ver:
+                return sc_ver > req_ver
+        # All major.minor.maintenance equal
+        return True
 
 
 class GraphFrameTestCase(unittest.TestCase):
@@ -92,6 +113,16 @@ class GraphFrameTest(GraphFrameTestCase):
         v = self.sql.createDataFrame(localVertices, ["id", "name"])
         e = self.sql.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
+
+    def test_spark_version_check(self):
+        gtu = GraphFrameTestUtils
+        gtu.spark_version = gtu.parse_spark_version("2.0.2")
+        self.assertTrue(gtu.spark_at_least_of_version("1.7"))
+        self.assertTrue(gtu.spark_at_least_of_version("2.0"))
+        self.assertTrue(gtu.spark_at_least_of_version("2.0.1"))
+        self.assertTrue(gtu.spark_at_least_of_version("2.0.2"))
+        self.assertFalse(gtu.spark_at_least_of_version("2.0.3"))
+        self.assertFalse(gtu.spark_at_least_of_version("2.1"))
 
     def test_construction(self):
         g = self.g
