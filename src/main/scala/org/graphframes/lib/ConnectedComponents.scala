@@ -167,14 +167,12 @@ object ConnectedComponents extends Logging {
    * @param ee non-bidirectional edges
    */
   private def symmetrize(ee: DataFrame): DataFrame = {
-    //// The following might work better but it doesn't compile in 1.6,
-    //// because DST is nullable from aggregation but SRC is not.
-    // val EDGE = "_edge"
-    // ee.select(explode(
-    //    array(struct(col(SRC), col(DST)), struct(col(DST).as(SRC), col(SRC).as(DST)))).as(EDGE))
-    //  .select(col(s"$EDGE.$SRC").as(SRC), col(s"$EDGE.$DST").as(DST))
-
-    ee.unionAll(ee.select(col(DST).as(SRC), col(SRC).as(DST)))
+    val EDGE = "_edge"
+    ee.select(explode(array(
+          struct(col(SRC), col(DST)),
+          struct(col(DST).as(SRC), col(SRC).as(DST)))
+        ).as(EDGE))
+      .select(col(s"$EDGE.$SRC").as(SRC), col(s"$EDGE.$DST").as(DST))
   }
 
   /**
