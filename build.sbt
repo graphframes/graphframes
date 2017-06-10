@@ -4,7 +4,6 @@
 val sparkVer = sys.props.getOrElse("spark.version", "2.1.1")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
-  case "1.6" => "2.10.6"
   case "2.0" => "2.11.8"
   case "2.1" => "2.11.8"
   case "2.2" => "2.11.8"
@@ -53,7 +52,6 @@ parallelExecution := false
 unmanagedSourceDirectories in Compile ++=
   Seq(baseDirectory.value / "src" / "main" / {
     sparkBranch match {
-      case ver if ver.startsWith("1.") => "spark-1.x"
       case ver if ver.startsWith("2.0") => "spark-2.0"
       case _ => "spark-2.x"
     }
