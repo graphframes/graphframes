@@ -19,6 +19,8 @@ sparkVersion := sparkVer
 
 scalaVersion := scalaVer
 
+name := "graphframes"
+
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
