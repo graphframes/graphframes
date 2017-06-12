@@ -1,9 +1,9 @@
-all: 2.1.1s2.10 1.6.3 2.0.2 2.1.1
+all: 2.1.1s2.10 2.0.2 2.1.1
 
 clean:
 	rm -rf target/graphframes_*.zip
 
-1.6.3 2.0.2 2.1.1:
+2.0.2 2.1.1:
 	build/sbt -Dspark.version=$@ spDist
 
 2.1.1s2.10:
