@@ -203,14 +203,15 @@ object ConnectedComponents extends Logging {
   }
 
   /**
-   * Returns the min neighbors of each vertex in a DataFrame with three columns:
+   * Returns the min vertex among each vertex and its neighbors in a DataFrame with three columns:
    *   - `src`, the ID of the vertex
-   *   - `min_nbr`, the min ID of its neighbors
+   *   - `min_nbr`, the min vertex ID among itself and its neighbors
    *   - `cnt`, the total number of neighbors
-   * @return a DataFrame with three columns
    */
   private def minNbrs(ee: DataFrame): DataFrame = {
-    symmetrize(ee).groupBy(SRC).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT))
+    symmetrize(ee)
+      .groupBy(SRC).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT))
+      .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)))
   }
 
   private def minValue(x: Column, y: Column): Column = {
@@ -289,7 +290,7 @@ object ConnectedComponents extends Logging {
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
     val vv = g.vertices
-    var ee = g.edges.persist(StorageLevel.MEMORY_AND_DISK)
+    var ee = g.edges.persist(StorageLevel.MEMORY_AND_DISK) // src < dst
     val numEdges = ee.count()
     logger.info(s"$logPrefix Found $numEdges edges after preparation.")
 
@@ -298,9 +299,8 @@ object ConnectedComponents extends Logging {
     var prevSum: BigDecimal = null
     while (!converged) {
       // large-star step
-      // compute min neighbors including self
-      val minNbrs1 = minNbrs(ee)
-        .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)).as(MIN_NBR))
+      // compute min neighbors (including self-min)
+      val minNbrs1 = minNbrs(ee) // src >= min_nbr
         .persist(StorageLevel.MEMORY_AND_DISK)
       // connect all strictly larger neighbors to the min neighbor (including self)
       ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
@@ -309,19 +309,15 @@ object ConnectedComponents extends Logging {
         .persist(StorageLevel.MEMORY_AND_DISK)
 
       // small-star step
-      // compute min neighbors
-      val minNbrs2 = minNbrs(ee)
+      // compute min neighbors (excluding self-min)
+      val minNbrs2 = ee.groupBy(col(SRC)).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT)) // src > min_nbr
         .persist(StorageLevel.MEMORY_AND_DISK)
       // connect all smaller neighbors to the min neighbor
       ee = skewedJoin(ee, minNbrs2, broadcastThreshold, logPrefix)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
+        .filter(col(SRC) =!= col(DST)) // src < dst
       // connect self to the min neighbor
-      ee = ee
-        .unionAll(
-          minNbrs2.select( // src <= dst
-            minValue(col(SRC), col(MIN_NBR)).as(SRC),
-            maxValue(col(SRC), col(MIN_NBR)).as(DST)))
-        .filter(col(SRC) !== col(DST)) // src < dst
+      ee = ee.union(minNbrs2.select(col(MIN_NBR).as(SRC), col(SRC).as(DST))) // src < dst
         .distinct()
 
       // checkpointing

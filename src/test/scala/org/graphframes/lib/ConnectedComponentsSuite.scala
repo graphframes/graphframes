@@ -122,6 +122,18 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assertComponents(components, expected)
   }
 
+  test("one component, differing edge directions") {
+    val vertices = sqlContext.range(5L).toDF(ID)
+    val edges = sqlContext.createDataFrame(Seq(
+      // 0 -> 4 -> 3 <- 2 -> 1
+      (0L, 4L), (4L, 3L), (2L, 3L), (2L, 1L)
+    )).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = Set((0L to 4L).toSet)
+    assertComponents(components, expected)
+  }
+
   test("two components and two dangling vertices") {
     val vertices = sqlContext.range(8L).toDF(ID)
     val edges = sqlContext.createDataFrame(Seq(
