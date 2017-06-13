@@ -126,7 +126,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val vertices = sqlContext.range(5L).toDF(ID)
     val edges = sqlContext.createDataFrame(Seq(
       // 0 -> 4 -> 3 <- 2 -> 1
-      0L -> 4L, 4L -> 3L, 2L -> 3L, 2L -> 1L
+      (0L, 4L), (4L, 3L), (2L, 3L), (2L, 1L)
     )).toDF(SRC, DST)
     val g = GraphFrame(vertices, edges)
     val components = g.connectedComponents.run()
