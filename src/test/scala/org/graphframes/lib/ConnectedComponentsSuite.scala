@@ -21,10 +21,12 @@ import java.io.IOException
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
+
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.storage.StorageLevel
+
 import org.graphframes._
 import org.graphframes.GraphFrame._
 import org.graphframes.examples.Graphs
@@ -118,6 +120,18 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val g = GraphFrame(vertices, edges)
     val components = g.connectedComponents.run()
     val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L))
+    assertComponents(components, expected)
+  }
+
+  test("one component, differing edge directions") {
+    val vertices = sqlContext.range(5L).toDF(ID)
+    val edges = sqlContext.createDataFrame(Seq(
+      // 0 -> 4 -> 3 <- 2 -> 1
+      (0L, 4L), (4L, 3L), (2L, 3L), (2L, 1L)
+    )).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = Set((0L to 4L).toSet)
     assertComponents(components, expected)
   }
 
