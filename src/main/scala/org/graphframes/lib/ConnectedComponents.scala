@@ -132,6 +132,22 @@ class ConnectedComponents private[graphframes] (
    */
   def getCheckpointInterval: Int = checkpointInterval
 
+
+  private var intermediateStorageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
+
+  /**
+   * Sets storage level for intermediate datasets that requires multiple passes (default: ``MEMORY_AND_DISK``).
+   */
+  def setIntermediateStorageLevel(value: StorageLevel): this.type = {
+    intermediateStorageLevel = value
+    this
+  }
+
+  /**
+   * Gets storage level for intermediate datasets that requires multiple passes.
+   */
+  def getIntermediateStorageLevel: StorageLevel = intermediateStorageLevel
+
   /**
    * Runs the algorithm.
    */
@@ -139,7 +155,8 @@ class ConnectedComponents private[graphframes] (
     ConnectedComponents.run(graph,
       algorithm = algorithm,
       broadcastThreshold = broadcastThreshold,
-      checkpointInterval = checkpointInterval)
+      checkpointInterval = checkpointInterval,
+      intermediateStorageLevel = intermediateStorageLevel)
   }
 }
 
@@ -255,7 +272,8 @@ object ConnectedComponents extends Logging {
       graph: GraphFrame,
       algorithm: String,
       broadcastThreshold: Int,
-      checkpointInterval: Int): DataFrame = {
+      checkpointInterval: Int,
+      intermediateStorageLevel: StorageLevel): DataFrame = {
     require(supportedAlgorithms.contains(algorithm),
       s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
 
@@ -289,7 +307,7 @@ object ConnectedComponents extends Logging {
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
     val vv = g.vertices
-    var ee = g.edges.persist(StorageLevel.MEMORY_AND_DISK)
+    var ee = g.edges.persist(intermediateStorageLevel)
     val numEdges = ee.count()
     logger.info(s"$logPrefix Found $numEdges edges after preparation.")
 
@@ -301,17 +319,17 @@ object ConnectedComponents extends Logging {
       // compute min neighbors including self
       val minNbrs1 = minNbrs(ee)
         .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)).as(MIN_NBR))
-        .persist(StorageLevel.MEMORY_AND_DISK)
+        .persist(intermediateStorageLevel)
       // connect all strictly larger neighbors to the min neighbor (including self)
       ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
         .distinct()
-        .persist(StorageLevel.MEMORY_AND_DISK)
+        .persist(intermediateStorageLevel)
 
       // small-star step
       // compute min neighbors
       val minNbrs2 = minNbrs(ee)
-        .persist(StorageLevel.MEMORY_AND_DISK)
+        .persist(intermediateStorageLevel)
       // connect all smaller neighbors to the min neighbor
       ee = skewedJoin(ee, minNbrs2, broadcastThreshold, logPrefix)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
@@ -341,7 +359,7 @@ object ConnectedComponents extends Logging {
         System.gc() // hint Spark to clean shuffle directories
       }
 
-      ee.persist(StorageLevel.MEMORY_AND_DISK)
+      ee.persist(intermediateStorageLevel)
 
       // test convergence
 
