@@ -25,6 +25,7 @@ import scala.reflect.runtime.universe.TypeTag
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.storage.StorageLevel
 
 import org.graphframes._
 import org.graphframes.GraphFrame._
@@ -211,6 +212,22 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assertComponents(components10, expected)
     assert(!isFromCheckpoint(components10),
       "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
+  }
+
+  test("intermediate storage level") {
+    val friends = Graphs.friends
+    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+
+    val cc = friends.connectedComponents
+    assert(cc.getIntermediateStorageLevel === StorageLevel.MEMORY_AND_DISK)
+
+    for (storageLevel <- Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY, StorageLevel.NONE)) {
+      // TODO: it is not trivial to confirm the actual storage level used
+      val components = cc
+        .setIntermediateStorageLevel(storageLevel)
+        .run()
+      assertComponents(components, expected)
+    }
   }
 
   private def assertComponents[T: ClassTag:TypeTag](
