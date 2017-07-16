@@ -291,4 +291,42 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     GraphFrame.setBroadcastThreshold(defaultThreshold)
   }
+
+  test("partitionBy strategy") {
+    import org.apache.spark.graphx.PartitionStrategy._
+
+    val sqlContext = this.sqlContext
+    import sqlContext.implicits._
+
+    def mkGraph(edges: List[(Long, Long)]): GraphFrame = {
+      GraphFrame.fromEdges(sc.parallelize(edges, 2)
+        .toDF("src", "dst")
+        .withColumn("rel", lit(0)))
+    }
+
+    def nonemptyParts(graph: GraphFrame): DataFrame = {
+      val partitionSizeDf = graph.edges.mapPartitions { iter =>
+        Iterator(iter.size)
+      }.toDF("size")
+      partitionSizeDf.where(col("size") > 0)
+    }
+
+    val identicalEdges = List((0L, 1L), (0L, 1L))
+    val canonicalEdges = List((0L, 1L), (1L, 0L))
+    val sameSrcEdges   = List((0L, 1L), (0L, 2L))
+
+    // partitionBy(RandomVertexCut) puts identical edges in the same partition
+    assert(nonemptyParts(mkGraph(identicalEdges).partitionBy(RandomVertexCut)).count === 1)
+
+    // partitionBy(EdgePartition1D) puts same-source edges in the same partition
+    assert(nonemptyParts(mkGraph(sameSrcEdges).partitionBy(EdgePartition1D)).count === 1)
+
+    // partitionBy(CanonicalRandomVertexCut) puts edges that are identical modulo direction into
+    // the same partition
+    assert(
+      nonemptyParts(mkGraph(canonicalEdges).partitionBy(CanonicalRandomVertexCut)).count === 1)
+
+    // partitionBy(EdgePartition2D) puts identical edges in the same partition
+    assert(nonemptyParts(mkGraph(identicalEdges).partitionBy(EdgePartition2D)).count === 1)
+  }
 }
