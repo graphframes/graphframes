@@ -21,9 +21,10 @@ import java.util.Random
 
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.Partitioner
+import org.apache.spark.graphx.{Edge, Graph, PartitionID, PartitionStrategy}
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf, monotonically_increasing_id}
+import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf, monotonically_increasing_id, lit}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 
@@ -263,6 +264,84 @@ class GraphFrame private(
    */
   @transient lazy val degrees: DataFrame = {
     edges.select(explode(array(SRC, DST)).as(ID)).groupBy(ID).agg(count("*").cast("int").as("degree"))
+  }
+
+  // ========================= Partition By ====================================
+  val PARTITION_ID: String = "partition_id"
+
+  /**
+   * A [[org.apache.spark.Partitioner]] that use the key of PairRDD as partition
+   * id number.
+   */
+  class ExactAsKeyPartitioner(partitions: Int) extends Partitioner {
+    require(partitions >= 0, s"Number of partitions ($partitions) cannot be negative.")
+
+    def numPartitions: Int = partitions
+
+    def getPartition(key: Any): Int = {
+      val partitionIdAsKey = key.asInstanceOf[Int]
+      return partitionIdAsKey
+    }
+  }
+
+  /**
+   * Implements a watered down version of Graphx partitionBy.
+   *
+   * @param numPartitions Number of partitions to be split by
+   * @param strategy any case object of Graphx's PartitionStrategy trait
+   *
+   * @return A new `GraphFrame` constructed from new edges and existing vertices
+   */
+  def partitionBy(numPartitions: Int, strategy: PartitionStrategy): GraphFrame = {
+    val getPartitionIdUdf = udf[PartitionID, Long, Long, Int] {
+      (src, dst, numParts) => strategy.getPartition(src, dst, numParts)
+    }
+
+    // Remove 'src' and 'dst' and get original 'attr' cols
+    val (unnestedAttrCols, _) = edgeColumnMap.filter { p => 
+        val key = p._1
+        key != SRC && key != DST
+      }
+      .toSeq.sortBy(_._2)
+      .unzip
+
+    //  Construct the flatten columns of edges + new partition id col
+    val edgesWithPartitionIdColumns = Seq(
+      Seq(col(SRC), col(DST)),
+      unnestedAttrCols.map(c => col(ATTR + "." + c)),
+      Seq(col(PARTITION_ID))).flatten
+
+    val edgesWithPartitionId = indexedEdges
+      .withColumn(PARTITION_ID,
+                  getPartitionIdUdf(col(LONG_SRC), col(LONG_DST), lit(numPartitions)))
+      .drop(LONG_SRC, LONG_DST)
+      .select(edgesWithPartitionIdColumns:_*)
+
+    // Use low level rdd partitioner to manipulate the data splitting
+    val partitioned = edgesWithPartitionId.rdd
+      .map(r => (r.getAs[Int](PARTITION_ID), r))
+      .partitionBy(new ExactAsKeyPartitioner(numPartitions))
+      .values
+
+    val partitionIdStructField: StructField = StructField(
+      PARTITION_ID, IntegerType, false)
+    val intermediateSchema = edges.schema.add(partitionIdStructField)
+
+    // Construct new edges from our partitioned & intermediate schema
+    val newEdges = edges.sqlContext
+      .createDataFrame(partitioned, intermediateSchema)
+      .drop(PARTITION_ID)
+
+    new GraphFrame(vertices, newEdges)
+  }
+
+
+  /**
+   * Another version of partitionBy without specifying the numPartitions params.
+   * Default to the length of edges partitions
+   */
+  def partitionBy(strategy: PartitionStrategy): GraphFrame = {
+    partitionBy(edges.rdd.partitions.length, strategy)
   }
 
   // ============================ Motif finding ========================================
