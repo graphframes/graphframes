@@ -18,7 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.types.DataTypes
-
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 import org.graphframes.examples.Graphs
 
@@ -38,5 +38,26 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
       labels.filter(s"id >= $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique2.size === 1)
     assert(clique1 !== clique2)
+  }
+
+  test("intermediate storage levels") {
+    val lb = Graphs.friends.labelPropagation.maxIter(2)
+    assert(lb.getIntermediateVertexStorageLevel === StorageLevel.MEMORY_ONLY)
+    assert(lb.getIntermediateEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
+    val expected = lb.run().collect().map(r => r.getAs[String]("id") -> r.getAs[Long]("label")).toMap
+
+    val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.NONE, StorageLevel.MEMORY_AND_DISK)
+    for(vLevel <- levels; eLevel <- levels) {
+      val output = lb
+        .setIntermediateVertexStorageLevel(vLevel)
+        .setIntermediateEdgeStorageLevel(eLevel)
+        .run()
+        .collect()
+        .map(r => r.getAs[String]("id") -> r.getAs[Long]("label"))
+        .toMap
+      assert(output === expected)
+      assert(lb.getIntermediateVertexStorageLevel === vLevel)
+      assert(lb.getIntermediateEdgeStorageLevel === eLevel)
+    }
   }
 }

@@ -526,6 +526,30 @@ class GraphFrame private(
   }
 
   /**
+    * creates a new GraphX `Graph` from the cachedTopologyGraphX `Graph` with the vertex and edge storage levels passed
+    * in this method
+    * @param vertexStorageLevel vertex storage level set in the returned GraphX `Graph` instance
+    * @param edgeStorageLevel edge storage level set in the returned GraphX `Graph` instance
+    * @return a copy of the cachedTopologyGraphX `Graph` instance with the provided storage levels or the
+    *         cachedTopologyGraphX instance if the default storage level values are provided (``MEMORY_ONLY`` in both cases)
+    *
+    */
+  private[graphframes] def cachedTopologyGraphXWithStorageLevel(
+      vertexStorageLevel: StorageLevel,
+      edgeStorageLevel: StorageLevel) =
+    if(vertexStorageLevel == StorageLevel.MEMORY_ONLY && edgeStorageLevel == StorageLevel.MEMORY_ONLY) {
+      cachedTopologyGraphX
+    } else {
+      Graph(
+        vertices = cachedTopologyGraphX.vertices,
+        edges = cachedTopologyGraphX.edges,
+        defaultVertexAttr = null.asInstanceOf[Unit],
+        vertexStorageLevel = vertexStorageLevel,
+        edgeStorageLevel = edgeStorageLevel
+      )
+    }
+
+  /**
    * A cached conversion of this graph to the GraphX structure, with the data stored for each edge and vertex.
    */
   @transient private lazy val cachedGraphX: Graph[Row, Row] = { toGraphX }
