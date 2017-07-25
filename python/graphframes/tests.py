@@ -35,6 +35,7 @@ from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 from .graphframe import GraphFrame, _java_api, _from_java_gf
 from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
+from pyspark.storagelevel import StorageLevel
 
 class GraphFrameTestUtils(object):
 
@@ -283,6 +284,17 @@ class GraphFrameLibTest(GraphFrameTestCase):
         labels2 = labels.filter("id >= 5").select("label").collect()
         all2 = set([x.label for x in labels2])
         self.assertEqual(all2, set([n]))
+
+    def test_label_progagation_intermediate_storage_level(self):
+        g = self._graph("friends")
+        expected = { ID: label for ID, label in g.labelPropagation(maxIter=1).select("id", "label").collect() }
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for vLabel in levels:
+            for eLabel in levels:
+                lp = g.labelPropagation(maxIter=1, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel).select("id", "label").collect()
+                out = { ID: label for ID, label in lp }
+                self.assertEqual(out, expected)
+
 
     def test_page_rank(self):
         n = 100

@@ -280,7 +280,8 @@ class GraphFrame(object):
             .run()
         return DataFrame(jdf, self._sqlContext)
 
-    def labelPropagation(self, maxIter):
+    def labelPropagation(self, maxIter, intermediateVertexStorageLevel = StorageLevel.MEMORY_ONLY, 
+                         intermediateEdgeStorageLevel = StorageLevel.MEMORY_ONLY):
         """
         Runs static label propagation for detecting communities in networks.
 
@@ -289,7 +290,13 @@ class GraphFrame(object):
         :param maxIter: the number of iterations to be performed
         :return: DataFrame with new vertices column "label"
         """
-        jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
+
+        javaVertexStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
+        javaEdgeStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
+        jdf = self._jvm_graph.labelPropagation().maxIter(maxIter) \
+            .setIntermediateVertexStorageLevel(javaVertexStorageLevel) \
+            .setIntermediateEdgeStorageLevel(javaEdgeStorageLevel) \
+            .run()
         return DataFrame(jdf, self._sqlContext)
 
     def pageRank(self, resetProbability = 0.15, sourceId = None, maxIter = None,
