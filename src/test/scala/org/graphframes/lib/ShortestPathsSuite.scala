@@ -19,8 +19,9 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
-
+import org.apache.spark.storage.StorageLevel
 import org.graphframes._
+import org.graphframes.examples.Graphs
 
 class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -60,6 +61,26 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         (id, spMap)
     }.toSet
     assert(results === expected)
+  }
+
+  test("intermediate storage levels") {
+    val sp = Graphs.friends.shortestPaths.landmarks(Seq("a", "d"))
+    assert(sp.getIntermediateVertexStorageLevel === StorageLevel.MEMORY_ONLY)
+    assert(sp.getIntermediateEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
+
+    val expected = sp.run().collect()
+
+    val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK)
+    for (vLevel <- levels; eLevel <- levels) {
+      val output = sp
+        .setIntermediateVertexStorageLevel(vLevel)
+        .setIntermediateEdgeStorageLevel(eLevel)
+        .run()
+
+      assert(output.collect() === expected)
+      assert(sp.getIntermediateVertexStorageLevel === vLevel)
+      assert(sp.getIntermediateEdgeStorageLevel === eLevel)
+    }
   }
 
 }
