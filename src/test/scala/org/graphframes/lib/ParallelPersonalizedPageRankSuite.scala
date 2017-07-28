@@ -17,11 +17,11 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.ml.linalg.{SparseVector, SQLDataTypes}
+import org.apache.spark.ml.linalg.{SQLDataTypes, SparseVector}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.Row
-
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
@@ -99,6 +99,28 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
         s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got ${gRank.numNonzeros}.")
     } else {
       intercept[NotImplementedError] { prc.run() }
+    }
+  }
+
+  test("intermediate storage levels") {
+    val ppr = Graphs.friends.parallelPersonalizedPageRank.maxIter(1).sourceIds(Array("a", "b"))
+    assert(ppr.getIntermediateVertexStorageLevel === StorageLevel.MEMORY_ONLY)
+    assert(ppr.getIntermediateEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
+
+    val graph = ppr.run()
+    val expected = (graph.vertices.collect(), graph.edges.collect())
+
+    val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK)
+    for (vLevel <- levels; eLevel <- levels) {
+      val graph = ppr
+        .setIntermediateVertexStorageLevel(vLevel)
+        .setIntermediateEdgeStorageLevel(eLevel)
+        .run()
+
+      assert(graph.vertices.collect() === expected._1)
+      assert(graph.edges.collect() === expected._2)
+      assert(ppr.getIntermediateVertexStorageLevel === vLevel)
+      assert(ppr.getIntermediateEdgeStorageLevel === eLevel)
     }
   }
 
