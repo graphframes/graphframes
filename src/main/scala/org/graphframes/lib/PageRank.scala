@@ -18,7 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
-
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.{GraphFrame, Logging}
 
 /**
@@ -71,6 +71,34 @@ class PageRank private[graphframes] (
   private var resetProb: Option[Double] = Some(0.15)
   private var maxIter: Option[Int] = None
   private var srcId : Option[Any] = None
+  private var intermediateVertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+  private var intermediateEdgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+
+  /**
+    * Sets storage level for intermediate `Graph` vertices that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateVertexStorageLevel(value: StorageLevel): this.type = {
+    intermediateVertexStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` vertices that require multiple passes.
+    */
+  def getIntermediateVertexStorageLevel: StorageLevel = intermediateVertexStorageLevel
+
+  /**
+    * Sets storage level for intermediate `Graph` edges that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateEdgeStorageLevel(value: StorageLevel): this.type = {
+    intermediateEdgeStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` edges that require multiple passes.
+    */
+  def getIntermediateEdgeStorageLevel: StorageLevel = intermediateEdgeStorageLevel
 
   /** Source vertex for a Personalized Page Rank (optional) */
   def sourceId(value: Any): this.type = {
@@ -99,9 +127,9 @@ class PageRank private[graphframes] (
       case Some(t) =>
         assert(maxIter.isEmpty,
           "You cannot specify maxIter() and tol() at the same time.")
-        PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
+        PageRank.runUntilConvergence(graph, t, resetProb.get, srcId, intermediateVertexStorageLevel, intermediateEdgeStorageLevel)
       case None =>
-        PageRank.run(graph, check(maxIter, "maxIter"), resetProb.get, srcId)
+        PageRank.run(graph, check(maxIter, "maxIter"), resetProb.get, srcId, intermediateVertexStorageLevel, intermediateEdgeStorageLevel)
     }
   }
 }
@@ -125,10 +153,12 @@ private object PageRank {
       graph: GraphFrame,
       maxIter: Int,
       resetProb: Double = 0.15,
-      srcId: Option[Any] = None): GraphFrame = {
+      srcId: Option[Any] = None,
+      intermediateVertexStorageLevel: StorageLevel,
+      intermediateEdgeStorageLevel: StorageLevel): GraphFrame = {
     val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
     val gx = graphxlib.PageRank.runWithOptions(
-      graph.cachedTopologyGraphX, maxIter, resetProb, longSrcId)
+      graph.cachedTopologyGraphXWithStorageLevel(intermediateVertexStorageLevel, intermediateEdgeStorageLevel), maxIter, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }
 
@@ -147,10 +177,12 @@ private object PageRank {
       graph: GraphFrame,
       tol: Double,
       resetProb: Double = 0.15,
-      srcId: Option[Any] = None): GraphFrame = {
+      srcId: Option[Any] = None,
+      intermediateVertexStorageLevel: StorageLevel,
+      intermediateEdgeStorageLevel: StorageLevel): GraphFrame = {
     val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
     val gx = graphxlib.PageRank.runUntilConvergenceWithOptions(
-      graph.cachedTopologyGraphX, tol, resetProb, longSrcId)
+      graph.cachedTopologyGraphXWithStorageLevel(intermediateVertexStorageLevel, intermediateEdgeStorageLevel), tol, resetProb, longSrcId)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
   }
 
