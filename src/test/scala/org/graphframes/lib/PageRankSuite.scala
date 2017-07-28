@@ -55,9 +55,11 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(prConv.getIntermediateVertexStorageLevel === StorageLevel.MEMORY_ONLY)
     assert(prConv.getIntermediateEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
 
+    val graphIter = prIter.run()
+    val graphConv = prConv.run()
     val expected = Seq(
-      (prIter.run().vertices.collect(), prIter.run().edges.collect()),
-      (prConv.run().vertices.collect(), prConv.run().edges.collect()))
+      (graphIter.vertices.collect(), graphIter.edges.collect()),
+      (graphConv.vertices.collect(), graphConv.edges.collect()))
 
     val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK)
     for(vLevel <- levels; eLevel <- levels; prExpected <- Seq(prIter, prConv).zip(expected)) {
