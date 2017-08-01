@@ -230,6 +230,26 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  test("intermediate storage level for graphx") {
+    val friends = Graphs.friends
+    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+
+    val cc = friends.connectedComponents.setAlgorithm("graphx")
+    assert(cc.getIntermediateGraphxVertexStorageLevel === StorageLevel.MEMORY_ONLY)
+    assert(cc.getIntermediateGraphxEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
+
+    val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK)
+    for (vLevel <- levels; eLevel <- levels) {
+      val components = cc
+        .setIntermediateGraphxVertexStorageLevel(vLevel)
+        .setIntermediateGraphxEdgeStorageLevel(eLevel)
+        .run()
+      assertComponents(components, expected)
+      assert(cc.getIntermediateGraphxVertexStorageLevel === vLevel)
+      assert(cc.getIntermediateGraphxEdgeStorageLevel === eLevel)
+    }
+  }
+
   private def assertComponents[T: ClassTag:TypeTag](
       actual: DataFrame,
       expected: Set[Set[T]]): Unit = {
