@@ -1,6 +1,3 @@
-jdk:
-  - oraclejdk7 # openJDK crashes sometimes
-
 sudo: required
 
 dist: trusty
