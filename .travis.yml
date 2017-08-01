@@ -10,15 +10,15 @@ cache:
 
 matrix:
   include:
-    - jdk: oraclejdk7 # openJDK crashes sometimes
+    - jdk: openjdk7 # openJDK crashes sometimes
       env: PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-2.0.2-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.2-bin-hadoop2.7.tgz"
-    - jdk: oraclejdk7
+    - jdk: oraclejdk8
       env: PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-2.1.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.1-bin-hadoop2.7.tgz"
     - jdk: oraclejdk8
       env: PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.2.0 SPARK_BUILD="spark-2.2.0-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz"
-    - jdk: oraclejdk7
+    - jdk: openjdk7
       env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-2.0.2-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.2-bin-hadoop2.7.tgz"
-    - jdk: oraclejdk7
+    - jdk: oraclejdk8
       env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-2.1.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.1-bin-hadoop2.7.tgz"
     - jdk: oraclejdk8
       env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.2.0 SPARK_BUILD="spark-2.2.0-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz"
