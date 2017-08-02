@@ -259,7 +259,10 @@ class GraphFrame(object):
     # Standard algorithms
 
     def connectedComponents(self, algorithm = "graphframes", checkpointInterval = 2,
-                            broadcastThreshold = 1000000):
+                            broadcastThreshold = 1000000, 
+                            intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+                            intermediateGraphxVertexStorageLevel = StorageLevel.MEMORY_ONLY,
+                            intermediateGraphxEdgeStorageLevel = StorageLevel.MEMORY_ONLY):
         """
         Computes the connected components of the graph.
 
@@ -270,6 +273,14 @@ class GraphFrame(object):
         :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
         :param broadcastThreshold: broadcast threshold in propagating component assignments
           (default: 1000000)
+        :param intermediateStorageLevel: storage level for intermediate datasets that require 
+               multiple passes (default: ``MEMORY_AND_DISK``)  
+        :param intermediateGraphxVertexStorageLevel: storage level for intermediate `Graph` vertices that 
+               require multiple passes (default: `MEMORY_ONLY`). This parameter is only used when the 
+               algorithm is set to "graphx"
+        :param intermediateGraphxEdgeStorageLevel: storage level for intermediate `Graph` edges that 
+               require multiple passes (default: `MEMORY_ONLY`). This parameter is only used when the 
+               algorithm is set to "graphx"
 
         :return: DataFrame with new vertices column "component"
         """
@@ -277,6 +288,9 @@ class GraphFrame(object):
             .setAlgorithm(algorithm) \
             .setCheckpointInterval(checkpointInterval) \
             .setBroadcastThreshold(broadcastThreshold) \
+            .setIntermediateStorageLevel(self._sc._getJavaStorageLevel(intermediateStorageLevel)) \
+            .setIntermediateGraphxVertexStorageLevel(self._sc._getJavaStorageLevel(intermediateGraphxVertexStorageLevel)) \
+            .setIntermediateGraphxEdgeStorageLevel(self._sc._getJavaStorageLevel(intermediateGraphxEdgeStorageLevel)) \
             .run()
         return DataFrame(jdf, self._sqlContext)
 
@@ -288,11 +302,15 @@ class GraphFrame(object):
         See Scala documentation for more details.
 
         :param maxIter: the number of iterations to be performed
+        :param intermediateVertexStorageLevel: storage level for intermediate `Graph` vertices that 
+               require multiple passes (default: `MEMORY_ONLY`).
+        :param intermediateEdgeStorageLevel: storage level for intermediate `Graph` edges that 
+               require multiple passes (default: `MEMORY_ONLY`).
         :return: DataFrame with new vertices column "label"
         """
 
         javaVertexStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
-        javaEdgeStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
+        javaEdgeStorageLevel = self._sc._getJavaStorageLevel(intermediateEdgeStorageLevel)
         jdf = self._jvm_graph.labelPropagation().maxIter(maxIter) \
             .setIntermediateVertexStorageLevel(javaVertexStorageLevel) \
             .setIntermediateEdgeStorageLevel(javaEdgeStorageLevel) \
@@ -300,7 +318,8 @@ class GraphFrame(object):
         return DataFrame(jdf, self._sqlContext)
 
     def pageRank(self, resetProbability = 0.15, sourceId = None, maxIter = None,
-                 tol = None):
+                 tol = None, intermediateVertexStorageLevel = StorageLevel.MEMORY_ONLY, 
+                 intermediateEdgeStorageLevel = StorageLevel.MEMORY_ONLY):
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
@@ -313,8 +332,14 @@ class GraphFrame(object):
                of iterations. This may not be set if the `tol` parameter is set.
         :param tol: If set, the algorithm is run until the given tolerance.
                This may not be set if the `numIter` parameter is set.
+        :param intermediateVertexStorageLevel: storage level for intermediate `Graph` vertices that 
+               require multiple passes (default: `MEMORY_ONLY`).
+        :param intermediateEdgeStorageLevel: storage level for intermediate `Graph` edges that 
+               require multiple passes (default: `MEMORY_ONLY`).
         :return:  GraphFrame with new vertices column "pagerank" and new edges column "weight"
         """
+        javaVertexStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
+        javaEdgeStorageLevel = self._sc._getJavaStorageLevel(intermediateEdgeStorageLevel)
         builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
         if sourceId is not None:
             builder = builder.sourceId(sourceId)
@@ -324,11 +349,15 @@ class GraphFrame(object):
         else:
             assert tol is not None, "Exactly one of maxIter or tol should be set."
             builder = builder.tol(tol)
-        jgf = builder.run()
+        jgf = builder.setIntermediateVertexStorageLevel(javaVertexStorageLevel) \
+            .setIntermediateEdgeStorageLevel(javaEdgeStorageLevel) \
+            .run()
         return _from_java_gf(jgf, self._sqlContext)
 
     def parallelPersonalizedPageRank(self, resetProbability = 0.15, sourceIds = None,
-                                     maxIter = None):
+                                     maxIter = None, 
+                                     intermediateVertexStorageLevel = StorageLevel.MEMORY_ONLY,
+                                     intermediateEdgeStorageLevel = StorageLevel.MEMORY_ONLY):
         """
         Run the personalized PageRank algorithm on the graph,
         from the provided list of sources in parallel for a fixed number of iterations.
@@ -338,6 +367,10 @@ class GraphFrame(object):
         :param resetProbability: Probability of resetting to a random vertex
         :param sourceIds: the source vertices for a personalized PageRank
         :param maxIter: the fixed number of iterations this algorithm runs
+        :param intermediateVertexStorageLevel: storage level for intermediate `Graph` vertices that 
+               require multiple passes (default: `MEMORY_ONLY`).
+        :param intermediateEdgeStorageLevel: storage level for intermediate `Graph` edges that 
+               require multiple passes (default: `MEMORY_ONLY`).
         :return:  GraphFrame with new vertices column "pageranks" and new edges column "weight"
         """
         assert sourceIds is not None and len(sourceIds) > 0, "Source vertices Ids sourceIds must be provided"
@@ -347,31 +380,55 @@ class GraphFrame(object):
         builder = builder.resetProbability(resetProbability)
         builder = builder.sourceIds(sourceIds)
         builder = builder.maxIter(maxIter)
+        javaVertexStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
+        builder = builder.setIntermediateVertexStorageLevel(javaVertexStorageLevel)
+        javaEdgeStorageLevel = self._sc._getJavaStorageLevel(intermediateEdgeStorageLevel)
+        builder = builder.setIntermediateEdgeStorageLevel(javaEdgeStorageLevel)
         jgf = builder.run()
         return _from_java_gf(jgf, self._sqlContext)
 
-    def shortestPaths(self, landmarks):
+    def shortestPaths(self, landmarks, intermediateVertexStorageLevel = StorageLevel.MEMORY_ONLY, 
+                      intermediateEdgeStorageLevel = StorageLevel.MEMORY_ONLY):
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
 
         See Scala documentation for more details.
 
         :param landmarks: a set of one or more landmarks
+        :param intermediateVertexStorageLevel: storage level for intermediate `Graph` vertices that 
+               require multiple passes (default: `MEMORY_ONLY`).
+        :param intermediateEdgeStorageLevel: storage level for intermediate `Graph` edges that 
+               require multiple passes (default: `MEMORY_ONLY`).
         :return: DataFrame with new vertices column "distances"
         """
-        jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
+        javaVertexStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
+        javaEdgeStorageLevel = self._sc._getJavaStorageLevel(intermediateEdgeStorageLevel)
+        jdf = self._jvm_graph.shortestPaths().landmarks(landmarks) \
+            .setIntermediateVertexStorageLevel(javaVertexStorageLevel) \
+            .setIntermediateEdgeStorageLevel(javaEdgeStorageLevel) \
+            .run()
         return DataFrame(jdf, self._sqlContext)
 
-    def stronglyConnectedComponents(self, maxIter):
+    def stronglyConnectedComponents(self, maxIter, intermediateVertexStorageLevel = StorageLevel.MEMORY_ONLY, 
+                                    intermediateEdgeStorageLevel = StorageLevel.MEMORY_ONLY):
         """
         Runs the strongly connected components algorithm on this graph.
 
         See Scala documentation for more details.
 
         :param maxIter: the number of iterations to run
+        :param intermediateVertexStorageLevel: storage level for intermediate `Graph` vertices that 
+               require multiple passes (default: `MEMORY_ONLY`).
+        :param intermediateEdgeStorageLevel: storage level for intermediate `Graph` edges that 
+               require multiple passes (default: `MEMORY_ONLY`).
         :return: DataFrame with new vertex column "component"
         """
-        jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
+        javaVertexStorageLevel = self._sc._getJavaStorageLevel(intermediateVertexStorageLevel)
+        javaEdgeStorageLevel = self._sc._getJavaStorageLevel(intermediateEdgeStorageLevel)
+        jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter) \
+            .setIntermediateVertexStorageLevel(javaVertexStorageLevel) \
+            .setIntermediateEdgeStorageLevel(javaEdgeStorageLevel) \
+            .run()
         return DataFrame(jdf, self._sqlContext)
 
     def svdPlusPlus(self, rank = 10, maxIter = 2, minValue = 0.0, maxValue = 5.0,
