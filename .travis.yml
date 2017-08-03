@@ -1,5 +1,5 @@
 jdk:
-  - oraclejdk7 # openJDK crashes sometimes
+  - openjdk7 # openJDK crashes sometimes
 
 sudo: required
 
