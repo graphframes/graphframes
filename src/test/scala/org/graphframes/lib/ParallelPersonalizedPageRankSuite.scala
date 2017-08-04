@@ -107,20 +107,24 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     assert(ppr.getIntermediateVertexStorageLevel === StorageLevel.MEMORY_ONLY)
     assert(ppr.getIntermediateEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
 
-    val graph = ppr.run()
-    val expected = (graph.vertices.collect(), graph.edges.collect())
+    if (isLaterVersion("2.1")) {
+      val graph = ppr.run()
+      val expected = (graph.vertices.collect(), graph.edges.collect())
 
-    val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK)
-    for (vLevel <- levels; eLevel <- levels) {
-      val graph = ppr
-        .setIntermediateVertexStorageLevel(vLevel)
-        .setIntermediateEdgeStorageLevel(eLevel)
-        .run()
+      val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK)
+      for (vLevel <- levels; eLevel <- levels) {
+        val graph = ppr
+          .setIntermediateVertexStorageLevel(vLevel)
+          .setIntermediateEdgeStorageLevel(eLevel)
+          .run()
 
-      assert(graph.vertices.collect() === expected._1)
-      assert(graph.edges.collect() === expected._2)
-      assert(ppr.getIntermediateVertexStorageLevel === vLevel)
-      assert(ppr.getIntermediateEdgeStorageLevel === eLevel)
+        assert(graph.vertices.collect() === expected._1)
+        assert(graph.edges.collect() === expected._2)
+        assert(ppr.getIntermediateVertexStorageLevel === vLevel)
+        assert(ppr.getIntermediateEdgeStorageLevel === eLevel)
+      }
+    } else {
+      intercept[NotImplementedError] { ppr.run() }
     }
   }
 

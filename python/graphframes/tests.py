@@ -356,6 +356,8 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
 
     def test_parallel_personalized_page_rank_intermediate_storage_level(self):
+        if not GraphFrameTestUtils.spark_at_least_of_version("2.1"):
+            self.skipTest("Parallel Personalized PageRank is only available in Apache Spark 2.1+")
         g = self._graph("friends")
         sourceIds = ["a", "b"]
         ppr = g.parallelPersonalizedPageRank(maxIter=1, sourceIds=sourceIds)
