@@ -19,14 +19,14 @@ package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
 
-import org.graphframes.{GraphFrame, Logging}
+import org.graphframes.GraphFrame
 
 /**
- * PageRank algorithm implementation. There are two implementations of PageRank. Both of them use
- * the `org.apache.spark.graphx.Pregel` interface, however, they differ on the stopping condition.
+ * PageRank algorithm implementation. There are two implementations of PageRank.
  *
- * The first one runs PageRank for a fixed number of iterations and this can be run by setting `maxIter`.
- * Conceptually, the algorithm does the following:
+ * The first one uses the `org.apache.spark.graphx.graph` interface with `aggregateMessages` and runs
+ * PageRank for a fixed number of iterations. This can be executed by setting `maxIter`. Conceptually,
+ * the algorithm does the following:
  * {{{
  * var PR = Array.fill(n)( 1.0 )
  * val oldPR = Array.fill(n)( 1.0 )
@@ -38,8 +38,8 @@ import org.graphframes.{GraphFrame, Logging}
  * }
  * }}}
  *
- * The second implementation runs PageRank until convergence and this can be run by setting `tol`.
- * Conceptually, the algorithm does the following:
+ * The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank until
+ * convergence and this can be run by setting `tol`. Conceptually, the algorithm does the following:
  * {{{
  * var PR = Array.fill(n)( 1.0 )
  * val oldPR = Array.fill(n)( 0.0 )
