@@ -28,7 +28,7 @@ before_install:
 
 install:
  - pip install --user -r ./python/requirements.txt
- - pip3 install --user -r ./python/requirements.txt
+ - pip3  install --user -r ./python/requirements.txt
 
 script:
   - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$SCALA_VERSION "set test in assembly := {}" assembly
