@@ -28,8 +28,8 @@ before_install:
 
 install:
  - pyenv versions
- - python2.7 -m pip install --user -r ./python/requirements.txt
- - python3.5 -m pip install --user -r ./python/requirements.txt
+ - python2.7  -m pip install --user -r ./python/requirements.txt
+ - python3.5  -m pip install --user -r ./python/requirements.txt
 
 script:
   - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$SCALA_VERSION "set test in assembly := {}" assembly
