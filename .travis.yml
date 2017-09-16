@@ -27,8 +27,10 @@ before_install:
  - ./bin/download_travis_dependencies.sh
 
 install:
- - pip install --user -r ./python/requirements.txt
- - pip3 install --user -r ./python/requirements.txt
+ - pyenv versions
+ - pyenv global 2.7 3.5
+ - python2 -m pip install --user -r ./python/requirements.txt
+ - python3 -m pip install --user -r ./python/requirements.txt
 
 script:
   - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$SCALA_VERSION "set test in assembly := {}" assembly
