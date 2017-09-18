@@ -312,8 +312,9 @@ class GraphFrame private(
       Seq(col(PARTITION_ID))).flatten
 
     val edgesWithPartitionId = indexedEdges
-      .withColumn(PARTITION_ID,
-                  getPartitionIdUdf(col(LONG_SRC), col(LONG_DST), lit(numPartitions)))
+      .withColumn(
+        PARTITION_ID,
+        getPartitionIdUdf(col(LONG_SRC), col(LONG_DST), lit(numPartitions)))
       .drop(LONG_SRC, LONG_DST)
       .select(edgesWithPartitionIdColumns:_*)
 
