@@ -80,11 +80,7 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
       .sourceIds(vertexIds)
       .resetProbability(resetProb)
 
-    if (isLaterVersion("2.2")) {
-      // in Spark 2.2, sourceIds must be smaller than Int.MaxValue
-      // which might not be the case for LONG_ID in graph.indexedVertices
-      intercept[java.lang.IllegalArgumentException] { prc.run() }
-    } else if (isLaterVersion("2.1")) {
+    if (isLaterVersion("2.1")) {
       val pr = prc.run()
       val prInvalid = pr.vertices
         .select("pageranks")
