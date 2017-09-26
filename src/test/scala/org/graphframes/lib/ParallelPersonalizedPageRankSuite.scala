@@ -111,7 +111,9 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     assert(ppr.getIntermediateVertexStorageLevel === StorageLevel.MEMORY_ONLY)
     assert(ppr.getIntermediateEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
 
-    if (isLaterVersion("2.1")) {
+    if (isLaterVersion("2.2")) {
+      intercept[java.lang.IllegalArgumentException] { ppr.run() }
+    } else if (isLaterVersion("2.1")) {
       val graph = ppr.run()
       val expected = (graph.vertices.collect(), graph.edges.collect())
 

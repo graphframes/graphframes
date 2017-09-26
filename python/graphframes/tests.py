@@ -322,7 +322,6 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
     def test_page_rank_intermediate_storage_level(self):
         g = self._graph("friends")
-        #page rank - iterations
         pr = g.pageRank(maxIter=1)
         expected_vertex = pr.vertices.collect()
         expected_edge = pr.edges.collect()
@@ -330,17 +329,6 @@ class GraphFrameLibTest(GraphFrameTestCase):
         for vLabel in levels:
             for eLabel in levels:
                 pr_out = g.pageRank(maxIter=1, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel)
-                self.assertEqual(pr_out.vertices.collect(), expected_vertex)
-                self.assertEqual(pr_out.edges.collect(), expected_edge)
-
-        #page rank - convergence
-        pr = g.pageRank(tol=0.9)
-        expected_vertex = pr.vertices.collect()
-        expected_edge = pr.edges.collect()
-        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
-        for vLabel in levels:
-            for eLabel in levels:
-                pr_out = g.pageRank(tol=0.9, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel)
                 self.assertEqual(pr_out.vertices.collect(), expected_vertex)
                 self.assertEqual(pr_out.edges.collect(), expected_edge)
 
@@ -356,6 +344,9 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
 
     def test_parallel_personalized_page_rank_intermediate_storage_level(self):
+        if GraphFrameTestUtils.spark_at_least_of_version("2.2"):
+            self.skipTest("in Spark 2.2, sourceIds must be smaller than Int.MaxValue \
+                which might not be the case for LONG_ID in graph.indexedVertices")
         if not GraphFrameTestUtils.spark_at_least_of_version("2.1"):
             self.skipTest("Parallel Personalized PageRank is only available in Apache Spark 2.1+")
         g = self._graph("friends")
