@@ -644,10 +644,10 @@ result.select("id", "label").show()
 
 There are two implementations of PageRank.
 
-* The first implementation uses the standalone `GraphFrame` interface and runs PageRank
- for a fixed number of iterations.  This can be run by setting `maxIter`.
-* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank
-  until convergence.  This can be run by setting `tol`.
+* The first one uses the `org.apache.spark.graphx.graph` interface with `aggregateMessages` and runs
+PageRank for a fixed number of iterations. This can be executed by setting `maxIter`.
+* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank until
+convergence and this can be run by setting `tol`.
 
 Both implementations support non-personalized and personalized PageRank, where setting a `sourceId`
 personalizes the results for that vertex.
