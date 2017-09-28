@@ -285,20 +285,20 @@ class GraphFrame private(
   }
 
   /**
-   * Implements a watered down version of Graphx partitionBy.
+   * Repartitions the edges in the graph according to partitionStrategy.
    *
-   * @param numPartitions Number of partitions to be split by
-   * @param strategy any case object of Graphx's PartitionStrategy trait
+   * @param partitionStrategy the partitioning strategy to use when partitioning the edges in the graph.
+   * @param numPartitions the number of edge partitions in the new graph.
    *
    * @return A new `GraphFrame` constructed from new edges and existing vertices
    */
-  def partitionBy(numPartitions: Int, strategy: PartitionStrategy): GraphFrame = {
+  def partitionBy(partitionStrategy: PartitionStrategy, numPartitions: Int): GraphFrame = {
     val getPartitionIdUdf = udf[PartitionID, Long, Long, Int] {
-      (src, dst, numParts) => strategy.getPartition(src, dst, numParts)
+      (src, dst, numParts) => partitionStrategy.getPartition(src, dst, numParts)
     }
 
     // Remove 'src' and 'dst' and get original 'attr' cols
-    val (unnestedAttrCols, _) = edgeColumnMap.filter { p => 
+    val (unnestedAttrCols, _) = edgeColumnMap.filter { p =>
         val key = p._1
         key != SRC && key != DST
       }
@@ -338,11 +338,14 @@ class GraphFrame private(
 
 
   /**
-   * Another version of partitionBy without specifying the numPartitions params.
-   * Default to the length of edges partitions
+   * Repartitions the edges in the graph according to partitionStrategy.
+   *
+   * @param partitionStrategy the partitioning strategy to use when partitioning the edges in the graph.
+   *
+   * @return A new `GraphFrame` constructed from new edges and existing vertices
    */
-  def partitionBy(strategy: PartitionStrategy): GraphFrame = {
-    partitionBy(edges.rdd.partitions.length, strategy)
+  def partitionBy(partitionStrategy: PartitionStrategy): GraphFrame = {
+    partitionBy(partitionStrategy, edges.rdd.getNumPartitions)
   }
 
   // ============================ Motif finding ========================================
