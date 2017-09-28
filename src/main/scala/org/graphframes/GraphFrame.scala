@@ -306,10 +306,12 @@ class GraphFrame private(
       .unzip
 
     //  Construct the flatten columns of edges + new partition id col
-    val edgesWithPartitionIdColumns = Seq(
-      Seq(col(SRC), col(DST)),
-      unnestedAttrCols.map(c => col(ATTR + "." + c)),
-      Seq(col(PARTITION_ID))).flatten
+    val edgesWithPartitionIdColumns = new scala.collection.mutable.ListBuffer[Column]()
+      .+=(col(SRC))
+      .+=(col(DST))
+      .++=(unnestedAttrCols.map(c => col(ATTR + "." + c)))
+      .+=(col(PARTITION_ID))
+      .toSeq
 
     val edgesWithPartitionId = indexedEdges
       .withColumn(
