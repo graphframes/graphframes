@@ -267,13 +267,13 @@ class GraphFrame private(
   }
 
   // ========================= Partition By ====================================
-  val PARTITION_ID: String = "partition_id"
+  private val PARTITION_ID: String = "partition_id"
 
   /**
    * A [[org.apache.spark.Partitioner]] that use the key of PairRDD as partition
    * id number.
    */
-  class ExactAsKeyPartitioner(partitions: Int) extends Partitioner {
+  private class ExactAsKeyPartitioner(partitions: Int) extends Partitioner {
     require(partitions >= 0, s"Number of partitions ($partitions) cannot be negative.")
 
     def numPartitions: Int = partitions
