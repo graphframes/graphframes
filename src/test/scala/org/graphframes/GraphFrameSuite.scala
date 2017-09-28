@@ -314,12 +314,14 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val identicalEdges = List((0L, 1L), (0L, 1L))
     val canonicalEdges = List((0L, 1L), (1L, 0L))
     val sameSrcEdges   = List((0L, 1L), (0L, 2L))
+    val sameSrcTwoPartitionsEdges = List((0L, 1L), (0L, 2L), (1L, 1L))
 
     // partitionBy(RandomVertexCut) puts identical edges in the same partition
     assert(nonemptyParts(mkGraph(identicalEdges).partitionBy(RandomVertexCut)).count === 1)
 
     // partitionBy(EdgePartition1D) puts same-source edges in the same partition
     assert(nonemptyParts(mkGraph(sameSrcEdges).partitionBy(EdgePartition1D)).count === 1)
+    assert(nonemptyParts(mkGraph(sameSrcTwoPartitionsEdges).partitionBy(EdgePartition1D)).count > 1)
 
     // partitionBy(CanonicalRandomVertexCut) puts edges that are identical modulo direction into
     // the same partition
