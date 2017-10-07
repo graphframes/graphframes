@@ -644,10 +644,10 @@ result.select("id", "label").show()
 
 There are two implementations of PageRank.
 
-* The first implementation uses the standalone `GraphFrame` interface and runs PageRank
- for a fixed number of iterations.  This can be run by setting `maxIter`.
-* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank
-  until convergence.  This can be run by setting `tol`.
+* The first one uses the `org.apache.spark.graphx.graph` interface with `aggregateMessages` and runs
+PageRank for a fixed number of iterations. This can be executed by setting `maxIter`.
+* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank until
+convergence and this can be run by setting `tol`.
 
 Both implementations support non-personalized and personalized PageRank, where setting a `sourceId`
 personalizes the results for that vertex.
@@ -677,6 +677,9 @@ val results2 = g.pageRank.resetProbability(0.15).maxIter(10).run()
 
 // Run PageRank personalized for vertex "a"
 val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
+
+# Run PageRank personalized for vertex ["a", "b", "c", "d"] in parallel
+val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceIds(Array("a", "b", "c", "d")).run()
 {% endhighlight %}
 </div>
 
@@ -701,7 +704,11 @@ results2 = g.pageRank(resetProbability=0.15, maxIter=10)
 
 # Run PageRank personalized for vertex "a"
 results3 = g.pageRank(resetProbability=0.15, maxIter=10, sourceId="a")
+
+# Run PageRank personalized for vertex ["a", "b", "c", "d"] in parallel
+results4 = g.parallelPersonalizedPageRank(resetProbability=0.15, sourceIds=["a", "b", "c", "d"], maxIter=10)
 {% endhighlight %}
+
 </div>
 
 </div>
