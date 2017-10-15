@@ -247,30 +247,40 @@ class GraphFrameLibTest(GraphFrameTestCase):
                 sendToDst="src['age']")
 
     def test_aggregate_messages_multiple_columns(self):
-        v = self.sqlContext.createDataFrame([(1, 30, 3), (2, 40, 4), (3, 50, 5), (4, 60, 6)], ["id", "att1", "att2"])
-        e = self.sqlContext.createDataFrame([(1, 2), (2, 3), (1, 4)], ["src", "dst"])
-        expectedValues = {1: (100, 5.0), 2: (80, 4.0), 3: (40, 4.0), 4: (30, 3.0)}
+        v = self.sqlContext.createDataFrame([(1, 30), (2, 40), (3, 50), (4, 60)], ["id", "att1"])
+        e = self.sqlContext.createDataFrame([(1, 2, 4), (2, 3, 5), (1, 4, 6)], ["src", "dst", "att2"])
+        expectedValues = {1: (100, 5.0), 2: (80, 4.5), 3: (40, 5.0), 4: (30, 6.0)}
 
         g = GraphFrame(v, e)
         #aggregateMessages with columns
         agg = g.aggregateMessages(
-            aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
-            sendToSrc = [AM.dst['att1'], AM.dst['att2']], 
-            sendToDst = [AM.src['att2'], AM.src['att1']])
+            aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), \
+                sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
+            sendToSrc = [AM.dst['att1'].alias("att1"), AM.edge['att2'].alias("att2")], 
+            sendToDst = [AM.src['att1'].alias("att1"), AM.edge['att2'].alias("att2")])
+
+        #aggregateMessages with columns and no aliases
+        agg2 = g.aggregateMessages(
+            aggCol = [sqlfunctions.sum(AM.msg["col1"]).alias("sum_att1"), \
+                sqlfunctions.avg(AM.msg["col2"]).alias("avg_att2")],
+            sendToSrc = [AM.dst['att1'], AM.edge['att2']], 
+            sendToDst = [AM.src['att1'], AM.edge['att2']])
 
         #aggregateMessages with column expressions
-        agg2 = g.aggregateMessages(
+        agg3 = g.aggregateMessages(
             aggCol = ["sum(MSG['att1']) AS sum_att1", "avg(MSG['att2']) AS avg_att2"],
-            sendToSrc = ["dst['att1']", "dst['att2']"], 
-            sendToDst = ["src['att2']", "src['att1']"])
+            sendToSrc = ["dst['att1'] as att1", "edge['att2'] as att2"], 
+            sendToDst = ["src['att1'] as att1", "edge['att2'] as att2"])
 
         #validate content
         output = {id: (sumAtt1, avgAtt2) for id, sumAtt1, avgAtt2 in agg.collect()}
         output2 = {id: (sumAtt1, avgAtt2) for id, sumAtt1, avgAtt2 in agg2.collect()}
+        output3 = {id: (sumAtt1, avgAtt2) for id, sumAtt1, avgAtt2 in agg3.collect()}
         self.assertEqual(output, expectedValues)
         self.assertEqual(output2, expectedValues)
+        self.assertEqual(output3, expectedValues)
 
-        #check that TypeError is raised when it is not a list of Column objects
+        #check that TypeError is raised when it is not a list of Column or String elements
         with self.assertRaises(TypeError):
             g.aggregateMessages(
                 aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), object()],
@@ -278,12 +288,14 @@ class GraphFrameLibTest(GraphFrameTestCase):
                 sendToDst = [AM.src['att2'], AM.src['att1']])
         with self.assertRaises(TypeError):
             g.aggregateMessages(
-                aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
+                aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), \
+                    sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
                 sendToSrc = [AM.dst['att1'], object()], 
                 sendToDst = [AM.src['att2'], AM.src['att1']])
         with self.assertRaises(TypeError):
             g.aggregateMessages(
-                aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
+                aggCol = [sqlfunctions.sum(AM.msg["att1"]).alias("sum_att1"), \
+                    sqlfunctions.avg(AM.msg["att2"]).alias("avg_att2")],
                 sendToSrc = [AM.dst['att1'], AM.dst['att2']], 
                 sendToDst = [AM.src['att2'], object()])
 

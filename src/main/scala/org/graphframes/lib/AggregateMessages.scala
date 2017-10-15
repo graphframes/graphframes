@@ -65,24 +65,24 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
   private var msgToSrc: Seq[Column] = Vector()
 
   /** Send message to source vertex */
-  def sendToSrc(value: Column): this.type = {
-    msgToSrc :+= value
+  def sendToSrc(value: Column, values: Column*): this.type = {
+    msgToSrc = value +: values
     this
   }
 
   /** Send message to source vertex, specifying SQL expression as a String */
-  def sendToSrc(value: String): this.type = sendToSrc(expr(value))
+  def sendToSrc(value: String, values: String*): this.type = sendToSrc(expr(value), values.map(expr) : _*)
 
   private var msgToDst: Seq[Column] = Vector()
 
   /** Send message to destination vertex */
-  def sendToDst(value: Column): this.type = {
-    msgToDst :+= value
+  def sendToDst(value: Column, values: Column*): this.type = {
+    msgToDst = value +: values
     this
   }
 
   /** Send message to destination vertex, specifying SQL expression as a String */
-  def sendToDst(value: String): this.type = sendToDst(expr(value))
+  def sendToDst(value: String, values: String*): this.type = sendToDst(expr(value), values.map(expr) : _*)
 
   /**
    * Run the aggregation, returning the resulting DataFrame of aggregated messages.
@@ -102,48 +102,23 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
    * }}}
    */
   def agg(aggCol: Column, aggCols: Column*): DataFrame = {
-    def containsStructNameForSpark2(columnName: String, structName: String) =
-      columnName.startsWith(s"${structName}.")
-    def containsStructNameForSpark16(columnName: String, structName: String) =
-      columnName.startsWith(s"${structName}[")
-    def removeStructNameForSpark2(columnName: String, structName: String) =
-      columnName.substring(s"${structName}.".length)
-    def removeStructNameForSpark16(columnName: String, structName: String) =
-      columnName.substring(s"${structName}[".length, columnName.length - 1)
-
-    def removeStructName(columnName: String) = columnName match {
-      case cn if containsStructNameForSpark16(cn, s"${GraphFrame.SRC}") =>
-        removeStructNameForSpark16(cn, s"${GraphFrame.SRC}")
-      case cn if containsStructNameForSpark16(cn, s"${GraphFrame.DST}") =>
-        removeStructNameForSpark16(cn, s"${GraphFrame.DST}")
-      case cn if containsStructNameForSpark16(cn, s"${GraphFrame.EDGE}") =>
-        removeStructNameForSpark16(cn, s"${GraphFrame.EDGE}")
-      case cn if containsStructNameForSpark2(cn, s"${GraphFrame.SRC}") =>
-        removeStructNameForSpark2(cn, s"${GraphFrame.SRC}")
-      case cn if containsStructNameForSpark2(cn, s"${GraphFrame.DST}") =>
-        removeStructNameForSpark2(cn, s"${GraphFrame.DST}")
-      case cn if containsStructNameForSpark2(cn, s"${GraphFrame.EDGE}") =>
-        removeStructNameForSpark2(cn, s"${GraphFrame.EDGE}")
-      case cn  => cn
-    }
-    def msgColumn(df: DataFrame) = df.columns.filter(_ != ID) match {
-      case Array(c) => df.withColumnRenamed(c, AggregateMessages.MSG_COL_NAME)
-      case columns => df.select(
-        df(ID),
-        struct(columns.sorted.map(c => col(s"`${c}`").as(removeStructName(c))) :_*)
-          .as(AggregateMessages.MSG_COL_NAME))
-    }
     require(msgToSrc.nonEmpty || msgToDst.nonEmpty, s"To run GraphFrame.aggregateMessages," +
       s" messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")
     val triplets = g.triplets
+    def msgColumn(columns: Seq[Column], idColumn: Column) = columns match {
+      case Seq(c) => triplets.select(idColumn.as(ID), c.as(AggregateMessages.MSG_COL_NAME))
+      case columns => triplets.select(
+        idColumn.as(ID),
+        struct(columns : _*).as(AggregateMessages.MSG_COL_NAME))
+    }
     val sentMsgsToSrc = msgToSrc.headOption.map { _ =>
-      val msgsToSrc = msgColumn(triplets.select((msgToSrc :+ triplets(SRC)(ID).as(ID)): _*))
+      val msgsToSrc = msgColumn(msgToSrc, triplets(SRC)(ID))
       // Inner join: only send messages to vertices with edges
       msgsToSrc.join(g.vertices, ID)
         .select(msgsToSrc(AggregateMessages.MSG_COL_NAME), col(ID))
     }
     val sentMsgsToDst = msgToDst.headOption.map { _ =>
-      val msgsToDst = msgColumn(triplets.select((msgToDst :+ triplets(DST)(ID).as(ID)): _*))
+      val msgsToDst = msgColumn(msgToDst, triplets(DST)(ID))
 
       msgsToDst.join(g.vertices, ID)
         .select(msgsToDst(AggregateMessages.MSG_COL_NAME), col(ID))
@@ -157,7 +132,7 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
         // Should never happen. Specify this case to avoid compilation warnings.
         throw new RuntimeException("AggregateMessages: No messages were specified to be sent.")
     }
-    unionedMsgs.groupBy(ID).agg(aggCol, aggCols:_*)
+    unionedMsgs.groupBy(ID).agg(aggCol, aggCols : _*)
   }
 
   /**
@@ -165,7 +140,7 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
    *
    * See the overloaded method documentation for more details.
    */
-  def agg(aggCol: String, aggCols: String*): DataFrame = agg(expr(aggCol), aggCols.map(expr(_)):_*)
+  def agg(aggCol: String, aggCols: String*): DataFrame = agg(expr(aggCol), aggCols.map(expr(_)) : _*)
 }
 
 object AggregateMessages extends Logging with Serializable {

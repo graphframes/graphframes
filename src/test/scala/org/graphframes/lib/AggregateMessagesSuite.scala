@@ -82,27 +82,32 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
   test("aggregateMessages with multiple message and aggregation columns") {
     val AM = AggregateMessages
     val vertices = sqlContext.createDataFrame(
-      List((1, 30, 3), (2, 40, 4), (3, 50, 5), (4, 60, 6))).toDF("id", "att1", "att2")
-    val edges = sqlContext.createDataFrame(List(1 -> 2, 2 -> 3, 1 -> 4)).toDF("src", "dst")
-    val expectedValues = Map(1 -> (100l, 5.0), 2 -> (80l, 4.0), 3 -> (40l, 4.0), 4 -> (30l, 3.0))
+      List((1, 30), (2, 40), (3, 50), (4, 60))).toDF("id", "att1")
+    val edges = sqlContext.createDataFrame(
+      List((1, 2, 4), (2, 3, 5), (1, 4, 6))).toDF("src", "dst", "att2")
+    val expectedValues = Map(1 -> (100l, 5.0), 2 -> (80l, 4.5), 3 -> (40l, 5.0), 4 -> (30l, 6.0))
 
     val g = GraphFrame(vertices, edges)
     //aggregateMessages with columns
     val agg = g.aggregateMessages
-      .sendToDst(AM.src("att1"))
-      .sendToSrc(AM.dst("att2"))
-      .sendToDst(AM.src("att2"))
-      .sendToSrc(AM.dst("att1"))
+      .sendToDst(AM.src("att1").as("att1"), AM.edge("att2").as("att2"))
+      .sendToSrc(AM.dst("att1").as("att1"), AM.edge("att2").as("att2"))
       .agg(
         sum(AM.msg("att1")).as("sum_att1"),
         avg(AM.msg("att2")).as("avg_att2"))
 
-    //aggregateMessages with column expressions
+    //aggregateMessages with columns and no aliases
     val agg2 = g.aggregateMessages
-      .sendToDst("src['att1']")
-      .sendToSrc("dst['att2']")
-      .sendToDst("src['att2']")
-      .sendToSrc("dst['att1']")
+      .sendToDst(AM.src("att1"), AM.edge("att2"))
+      .sendToSrc(AM.dst("att1"), AM.edge("att2"))
+      .agg(
+        sum(AM.msg("col1")).as("sum_att1"),
+        avg(AM.msg("col2")).as("avg_att2"))
+
+    //aggregateMessages with column expressions
+    val agg3 = g.aggregateMessages
+      .sendToDst("src['att1'] as att1", "edge['att2'] as att2")
+      .sendToSrc("dst['att1'] as att1", "edge['att2'] as att2")
       .agg(
         "sum(MSG['att1']) AS sum_att1",
         "avg(MSG['att2']) AS avg_att2")
@@ -113,10 +118,8 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     TestUtils.checkColumnType(agg.schema, "sum_att1", LongType)
     TestUtils.checkColumnType(agg.schema, "avg_att2", DoubleType)
 
-    assert(agg2.schema.size === 3)
-    TestUtils.checkColumnType(agg2.schema, "id", IntegerType)
-    TestUtils.checkColumnType(agg2.schema, "sum_att1", LongType)
-    TestUtils.checkColumnType(agg2.schema, "avg_att2", DoubleType)
+    assert(agg.schema === agg2.schema)
+    assert(agg.schema === agg3.schema)
 
     //validate content
     val output1 = agg.collect().map { case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
@@ -125,7 +128,11 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     val output2 = agg2.collect().map { case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
       id -> (sumAtt1, avgAtt2)
     }.toMap
+    val output3 = agg3.collect().map { case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
+      id -> (sumAtt1, avgAtt2)
+    }.toMap
     assert(output1 === expectedValues)
     assert(output2 === expectedValues)
+    assert(output3 === expectedValues)
   }
 }
