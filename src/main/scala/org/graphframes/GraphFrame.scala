@@ -19,16 +19,15 @@ package org.graphframes
 
 import java.util.Random
 
-import scala.reflect.runtime.universe.TypeTag
-
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf, monotonically_increasing_id}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
-
 import org.graphframes.lib._
 import org.graphframes.pattern._
+
+import scala.reflect.runtime.universe.TypeTag
 
 /**
  * A representation of a graph using `DataFrame`s.
@@ -476,11 +475,15 @@ class GraphFrame private(
         col(ATTR + "." + ID).cast("long").as(LONG_ID), col(ATTR + "." + ID).as(ID), col(ATTR))
     } else {
       val repartitionedVertices = vertices.repartition(vertices.rdd.getNumPartitions, col(ID))
-      val withLongIds = repartitionedVertices.select(ID)
-        .distinct()
-        .sortWithinPartitions(ID)
-        .withColumn(LONG_ID, monotonically_increasing_id())
-        .persist(StorageLevel.MEMORY_AND_DISK)
+      val idDF = repartitionedVertices.select(ID)
+      val idType = idDF.schema(0)
+      // DF monotonically_increasing_id() method assign id that are greater them max int,
+      // GraphX algorithm require id to be less then max int.
+      // DF has no zipWithIndex method, so we convert it to rdd and back
+      val inputRows = idDF.distinct.sortWithinPartitions(ID).rdd.zipWithIndex.map{
+        case (r: Row, id: Long) => Row(id,r.get(0))}
+      val withLongIds = sqlContext.createDataFrame(inputRows,
+        StructType(Seq(StructField(LONG_ID, LongType, false), idType))).persist(StorageLevel.MEMORY_AND_DISK)
       repartitionedVertices.select(col(ID), nestAsCol(repartitionedVertices, ATTR))
         .join(withLongIds, ID)
         .select(LONG_ID, ID, ATTR)
@@ -552,7 +555,6 @@ object GraphFrame extends Serializable with Logging {
       hubs: Set[T],
       logPrefix: String): DataFrame = {
     val sqlContext = a.sqlContext
-    import sqlContext.implicits._
     if (hubs.isEmpty) {
       // No skew.  Do regular join.
       a.join(b, joinCol)
