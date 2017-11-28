@@ -18,6 +18,7 @@
 import sys
 import tempfile
 import shutil
+import re
 
 if sys.version_info[:2] <= (2, 6):
     try:
@@ -35,6 +36,54 @@ from .graphframe import GraphFrame, _java_api, _from_java_gf
 from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
 
+class GraphFrameTestUtils(object):
+
+    @classmethod
+    def parse_spark_version(cls, version_str):
+        """ take an input version string
+            return version items in a dictionary
+        """
+        _sc_ver_patt = r'(\d+)\.(\d+)(\.(\d+)(-(.+))?)?'
+        m = re.match(_sc_ver_patt, version_str)
+        if not m:
+            raise TypeError("version {} shoud be in <major>.<minor>.<maintenance>".format(version_str))
+        version_info = {}
+        try:
+            version_info['major'] = int(m.group(1))
+        except:
+            raise TypeError("invalid minor version")
+        try:
+            version_info['minor'] = int(m.group(2))
+        except:
+            raise TypeError("invalid major version")
+        try:
+            version_info['maintenance'] = int(m.group(4))
+        except:
+            version_info['maintenance'] = 0
+        try:
+            version_info['special'] = m.group(6)
+        except:
+            pass
+        return version_info
+
+    @classmethod
+    def register(cls, sc):
+        cls.sc = sc
+        cls.spark_version = cls.parse_spark_version(sc.version)
+
+    @classmethod
+    def spark_at_least_of_version(cls, version_str):
+        assert hasattr(cls, 'spark_version')
+        required_version = cls.parse_spark_version(version_str)
+        spark_version = cls.spark_version
+        for _name in ['major', 'minor', 'maintenance']:
+            sc_ver = spark_version[_name]
+            req_ver = required_version[_name]
+            if sc_ver != req_ver:
+                return sc_ver > req_ver
+        # All major.minor.maintenance equal
+        return True
+
 
 class GraphFrameTestCase(unittest.TestCase):
 
@@ -46,6 +95,7 @@ class GraphFrameTestCase(unittest.TestCase):
         cls.sql = SQLContext(cls.sc)
         # Small tests run much faster with spark.sql.shuffle.partitions=4
         cls.sql.setConf("spark.sql.shuffle.partitions", "4")
+        GraphFrameTestUtils.register(cls.sc)
 
     @classmethod
     def tearDownClass(cls):
@@ -63,6 +113,16 @@ class GraphFrameTest(GraphFrameTestCase):
         v = self.sql.createDataFrame(localVertices, ["id", "name"])
         e = self.sql.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
+
+    def test_spark_version_check(self):
+        gtu = GraphFrameTestUtils
+        gtu.spark_version = gtu.parse_spark_version("2.0.2")
+        self.assertTrue(gtu.spark_at_least_of_version("1.7"))
+        self.assertTrue(gtu.spark_at_least_of_version("2.0"))
+        self.assertTrue(gtu.spark_at_least_of_version("2.0.1"))
+        self.assertTrue(gtu.spark_at_least_of_version("2.0.2"))
+        self.assertFalse(gtu.spark_at_least_of_version("2.0.3"))
+        self.assertFalse(gtu.spark_at_least_of_version("2.1"))
 
     def test_construction(self):
         g = self.g
@@ -200,12 +260,17 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
     def test_connected_components_friends(self):
         g = self._graph("friends")
-        comps0 = g.connectedComponents()
-        comps1 = g.connectedComponents(broadcastThreshold=1)
-        comps2 = g.connectedComponents(checkpointInterval=0)
-        comps3 = g.connectedComponents(checkpointInterval=10)
-        compsX = g.connectedComponents(algorithm="graphx")
-        for c in [comps0, comps1, comps2, comps3, compsX]:
+        comps_tests = []
+        comps_tests += [g.connectedComponents()]
+        comps_tests += [g.connectedComponents(broadcastThreshold=1)]
+
+        # [#194] Prior to Apache Spark version 2.0, no checkpoint or large checkpoint interval
+        #        causes the test to run for too long, resulting in Travis CI to abort the build
+        if GraphFrameTestUtils.spark_at_least_of_version("2.0"):
+            comps_tests += [g.connectedComponents(checkpointInterval=0)]
+            comps_tests += [g.connectedComponents(checkpointInterval=10)]
+        comps_tests += [g.connectedComponents(algorithm="graphx")]
+        for c in comps_tests:
             self.assertEqual(c.groupBy("component").count().count(), 2)
 
     def test_label_progagation(self):
@@ -226,6 +291,17 @@ class GraphFrameLibTest(GraphFrameTestCase):
         errorTol = 1.0e-5
         pr = g.pageRank(resetProb, tol=errorTol)
         self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
+
+    def test_parallel_personalized_page_rank(self):
+        if not GraphFrameTestUtils.spark_at_least_of_version("2.1"):
+            self.skipTest("Parallel Personalized PageRank is only available in Apache Spark 2.1+")
+        n = 100
+        g = self._graph("star", n)
+        resetProb = 0.15
+        maxIter = 15
+        sourceIds = [1, 2, 3, 4]
+        pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
+        self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
 
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]

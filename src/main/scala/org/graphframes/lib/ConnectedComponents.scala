@@ -132,6 +132,21 @@ class ConnectedComponents private[graphframes] (
    */
   def getCheckpointInterval: Int = checkpointInterval
 
+  private var intermediateStorageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
+
+  /**
+   * Sets storage level for intermediate datasets that require multiple passes (default: ``MEMORY_AND_DISK``).
+   */
+  def setIntermediateStorageLevel(value: StorageLevel): this.type = {
+    intermediateStorageLevel = value
+    this
+  }
+
+  /**
+   * Gets storage level for intermediate datasets that require multiple passes.
+   */
+  def getIntermediateStorageLevel: StorageLevel = intermediateStorageLevel
+
   /**
    * Runs the algorithm.
    */
@@ -139,7 +154,8 @@ class ConnectedComponents private[graphframes] (
     ConnectedComponents.run(graph,
       algorithm = algorithm,
       broadcastThreshold = broadcastThreshold,
-      checkpointInterval = checkpointInterval)
+      checkpointInterval = checkpointInterval,
+      intermediateStorageLevel = intermediateStorageLevel)
   }
 }
 
@@ -167,14 +183,12 @@ object ConnectedComponents extends Logging {
    * @param ee non-bidirectional edges
    */
   private def symmetrize(ee: DataFrame): DataFrame = {
-    //// The following might work better but it doesn't compile in 1.6,
-    //// because DST is nullable from aggregation but SRC is not.
-    // val EDGE = "_edge"
-    // ee.select(explode(
-    //    array(struct(col(SRC), col(DST)), struct(col(DST).as(SRC), col(SRC).as(DST)))).as(EDGE))
-    //  .select(col(s"$EDGE.$SRC").as(SRC), col(s"$EDGE.$DST").as(DST))
-
-    ee.unionAll(ee.select(col(DST).as(SRC), col(SRC).as(DST)))
+    val EDGE = "_edge"
+    ee.select(explode(array(
+          struct(col(SRC), col(DST)),
+          struct(col(DST).as(SRC), col(SRC).as(DST)))
+        ).as(EDGE))
+      .select(col(s"$EDGE.$SRC").as(SRC), col(s"$EDGE.$DST").as(DST))
   }
 
   /**
@@ -205,14 +219,15 @@ object ConnectedComponents extends Logging {
   }
 
   /**
-   * Returns the min neighbors of each vertex in a DataFrame with three columns:
+   * Returns the min vertex among each vertex and its neighbors in a DataFrame with three columns:
    *   - `src`, the ID of the vertex
-   *   - `min_nbr`, the min ID of its neighbors
+   *   - `min_nbr`, the min vertex ID among itself and its neighbors
    *   - `cnt`, the total number of neighbors
-   * @return a DataFrame with three columns
    */
   private def minNbrs(ee: DataFrame): DataFrame = {
-    symmetrize(ee).groupBy(SRC).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT))
+    symmetrize(ee)
+      .groupBy(SRC).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT))
+      .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)))
   }
 
   private def minValue(x: Column, y: Column): Column = {
@@ -257,7 +272,8 @@ object ConnectedComponents extends Logging {
       graph: GraphFrame,
       algorithm: String,
       broadcastThreshold: Int,
-      checkpointInterval: Int): DataFrame = {
+      checkpointInterval: Int,
+      intermediateStorageLevel: StorageLevel): DataFrame = {
     require(supportedAlgorithms.contains(algorithm),
       s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
 
@@ -291,7 +307,7 @@ object ConnectedComponents extends Logging {
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
     val vv = g.vertices
-    var ee = g.edges.persist(StorageLevel.MEMORY_AND_DISK)
+    var ee = g.edges.persist(intermediateStorageLevel) // src < dst
     val numEdges = ee.count()
     logger.info(s"$logPrefix Found $numEdges edges after preparation.")
 
@@ -300,30 +316,25 @@ object ConnectedComponents extends Logging {
     var prevSum: BigDecimal = null
     while (!converged) {
       // large-star step
-      // compute min neighbors including self
-      val minNbrs1 = minNbrs(ee)
-        .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)).as(MIN_NBR))
-        .persist(StorageLevel.MEMORY_AND_DISK)
+      // compute min neighbors (including self-min)
+      val minNbrs1 = minNbrs(ee) // src >= min_nbr
+        .persist(intermediateStorageLevel)
       // connect all strictly larger neighbors to the min neighbor (including self)
       ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
         .distinct()
-        .persist(StorageLevel.MEMORY_AND_DISK)
+        .persist(intermediateStorageLevel)
 
       // small-star step
-      // compute min neighbors
-      val minNbrs2 = minNbrs(ee)
-        .persist(StorageLevel.MEMORY_AND_DISK)
+      // compute min neighbors (excluding self-min)
+      val minNbrs2 = ee.groupBy(col(SRC)).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT)) // src > min_nbr
+        .persist(intermediateStorageLevel)
       // connect all smaller neighbors to the min neighbor
       ee = skewedJoin(ee, minNbrs2, broadcastThreshold, logPrefix)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
+        .filter(col(SRC) =!= col(DST)) // src < dst
       // connect self to the min neighbor
-      ee = ee
-        .unionAll(
-          minNbrs2.select( // src <= dst
-            minValue(col(SRC), col(MIN_NBR)).as(SRC),
-            maxValue(col(SRC), col(MIN_NBR)).as(DST)))
-        .filter(col(SRC) !== col(DST)) // src < dst
+      ee = ee.union(minNbrs2.select(col(MIN_NBR).as(SRC), col(SRC).as(DST))) // src < dst
         .distinct()
 
       // checkpointing
@@ -343,7 +354,7 @@ object ConnectedComponents extends Logging {
         System.gc() // hint Spark to clean shuffle directories
       }
 
-      ee.persist(StorageLevel.MEMORY_AND_DISK)
+      ee.persist(intermediateStorageLevel)
 
       // test convergence
 

@@ -25,6 +25,7 @@ import scala.reflect.runtime.universe.TypeTag
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.storage.StorageLevel
 
 import org.graphframes._
 import org.graphframes.GraphFrame._
@@ -122,6 +123,18 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assertComponents(components, expected)
   }
 
+  test("one component, differing edge directions") {
+    val vertices = sqlContext.range(5L).toDF(ID)
+    val edges = sqlContext.createDataFrame(Seq(
+      // 0 -> 4 -> 3 <- 2 -> 1
+      (0L, 4L), (4L, 3L), (2L, 3L), (2L, 1L)
+    )).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = Set((0L to 4L).toSet)
+    assertComponents(components, expected)
+  }
+
   test("two components and two dangling vertices") {
     val vertices = sqlContext.range(8L).toDF(ID)
     val edges = sqlContext.createDataFrame(Seq(
@@ -183,14 +196,10 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       df.queryExecution.logical.toString().toLowerCase.contains("parquet")
     }
 
-    // [#194] Prior to Apache Spark version 2.0, not having checkpoint
-    //        causes the test to run for too long, resulting in Travis CI to abort the build
-    if (isLaterVersion("2.0")) {
-      val components0 = cc.setCheckpointInterval(0).run()
-      assertComponents(components0, expected)
-      assert(!isFromCheckpoint(components0),
-        "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
-    }
+    val components0 = cc.setCheckpointInterval(0).run()
+    assertComponents(components0, expected)
+    assert(!isFromCheckpoint(components0),
+      "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
 
     sc.setCheckpointDir(checkpointDir.get)
 
@@ -199,13 +208,25 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(isFromCheckpoint(components1),
       "The result should depend on checkpoint data if checkpoint interval is 1.")
 
-    // [#194] Prior to Apache Spark version 2.0, having long checkpoint interval
-    //        causes the test to run for too long, resulting in Travis CI to abort the build
-    if (isLaterVersion("2.0")) {
-      val components10 = cc.setCheckpointInterval(10).run()
-      assertComponents(components10, expected)
-      assert(!isFromCheckpoint(components10),
-        "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
+    val components10 = cc.setCheckpointInterval(10).run()
+    assertComponents(components10, expected)
+    assert(!isFromCheckpoint(components10),
+      "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
+  }
+
+  test("intermediate storage level") {
+    val friends = Graphs.friends
+    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+
+    val cc = friends.connectedComponents
+    assert(cc.getIntermediateStorageLevel === StorageLevel.MEMORY_AND_DISK)
+
+    for (storageLevel <- Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY, StorageLevel.NONE)) {
+      // TODO: it is not trivial to confirm the actual storage level used
+      val components = cc
+        .setIntermediateStorageLevel(storageLevel)
+        .run()
+      assertComponents(components, expected)
     }
   }
 
