@@ -2,3 +2,4 @@
 docs/_build/
 build/
 dist/
+graphframes.egg-info

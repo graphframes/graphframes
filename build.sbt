@@ -4,9 +4,9 @@
 val sparkVer = sys.props.getOrElse("spark.version", "2.2.0")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
-  case "2.0" => "2.11.8"
-  case "2.1" => "2.11.8"
-  case "2.2" => "2.11.8"
+  case "2.0" => "2.11.11"
+  case "2.1" => "2.11.11"
+  case "2.2" => "2.11.11"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
@@ -20,11 +20,11 @@ sparkVersion := sparkVer
 scalaVersion := scalaVer
 
 name := "graphframes"
-
+organization := "graphframes"
 spName := "graphframes/graphframes"
 
 // Don't forget to set the version
-version := s"0.6.0-SNAPSHOT-spark$sparkBranch"
+version := s"0.5.9-spark$sparkBranch"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
@@ -78,3 +78,36 @@ concurrentRestrictions in Global := Seq(
 autoAPIMappings := true
 
 coverageHighlighting := false
+
+val metisArtifactRepoBaseURL = "s3://s3-us-east-1.amazonaws.com/metis-artifacts/"
+// set up publishing to our private repo on S3
+def myPublishTo = Command.command("mpublish") { state =>
+  val extracted = Project.extract(state)
+  Project.runTask(
+    publish in Compile,
+    extracted.append(List(publishTo :=  Some(Resolver.file("file", new File(System.getProperty("user.home")
+      + "/.m2/repository")))), state),
+    true
+  )
+  Project.runTask(
+    publish in Compile,
+    extracted.append(List(publishTo := {
+      if (isSnapshot.value)
+        Some("snapshots" at metisArtifactRepoBaseURL + "snapshots")
+      else
+        Some("releases"  at metisArtifactRepoBaseURL + "releases")
+    }), state),
+    true
+  )
+  state
+}
+
+commands += myPublishTo
+
+publishTo := {
+  if (isSnapshot.value)
+    Some("snapshots" at metisArtifactRepoBaseURL + "snapshots")
+  else
+    Some("releases"  at metisArtifactRepoBaseURL + "releases")
+}
+
