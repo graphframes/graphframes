@@ -78,3 +78,36 @@ concurrentRestrictions in Global := Seq(
 autoAPIMappings := true
 
 coverageHighlighting := false
+
+val metisArtifactRepoBaseURL = "s3://s3-us-east-1.amazonaws.com/metis-artifacts/"
+// set up publishing to our private repo on S3
+def myPublishTo = Command.command("mpublish") { state =>
+  val extracted = Project.extract(state)
+  Project.runTask(
+    publish in Compile,
+    extracted.append(List(publishTo :=  Some(Resolver.file("file", new File(System.getProperty("user.home")
+      + "/.m2/repository")))), state),
+    true
+  )
+  Project.runTask(
+    publish in Compile,
+    extracted.append(List(publishTo := {
+      if (isSnapshot.value)
+        Some("snapshots" at metisArtifactRepoBaseURL + "snapshots")
+      else
+        Some("releases"  at metisArtifactRepoBaseURL + "releases")
+    }), state),
+    true
+  )
+  state
+}
+
+commands += myPublishTo
+
+publishTo := {
+  if (isSnapshot.value)
+    Some("snapshots" at metisArtifactRepoBaseURL + "snapshots")
+  else
+    Some("releases"  at metisArtifactRepoBaseURL + "releases")
+}
+
