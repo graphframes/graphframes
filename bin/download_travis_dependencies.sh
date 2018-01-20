@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-${SPARK_VERSION}-bin-hadoop2.7.tgz"
+
 echo "Downloading Spark if necessary"
 echo "Spark version = $SPARK_VERSION"
 echo "Spark build = $SPARK_BUILD"
