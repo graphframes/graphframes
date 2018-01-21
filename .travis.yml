@@ -1,6 +1,4 @@
-sudo: required
-
-dist: trusty
+group: travis_lts
 
 cache:
   directories:
@@ -8,29 +6,36 @@ cache:
     - $HOME/.sbt/launchers/
     - $HOME/.cache/spark-versions
 
+env:
+  global:
+    - SCALA_VERSION=2.11.8
+
 matrix:
   include:
     - jdk: openjdk7 # openJDK crashes sometimes
-      env: PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-2.0.2-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.2-bin-hadoop2.7.tgz"
+      env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-2.1.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.1-bin-hadoop2.7.tgz"
+      env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.2.0 SPARK_BUILD="spark-2.2.0-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz"
+      env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.2.0 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: openjdk7
-      env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-2.0.2-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.0.2-bin-hadoop2.7.tgz"
+      env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.0.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-2.1.1-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.1.1-bin-hadoop2.7.tgz"
+      env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.1.1 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.2.0 SPARK_BUILD="spark-2.2.0-bin-hadoop2.7" SPARK_BUILD_URL="http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz"
+      env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.2.0 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
 
 before_install:
  - ./bin/download_travis_dependencies.sh
 
 install:
- - pyenv versions
- - pyenv global 2.7 3.5
- - python2 -m pip install --user -r ./python/requirements.txt
- - python3 -m pip install --user -r ./python/requirements.txt
+  - if [[ "${PYSPARK_PYTHON}" == "python2" ]]; then
+      pyenv install -f 2.7.13 && pyenv global 2.7.13;
+      python2 -m pip install --user -r ./python/requirements.txt;
+    else
+      pyenv install -f 3.5.4 && pyenv global 3.5.4;
+      python3 -m pip install --user -r ./python/requirements.txt;
+    fi
 
 script:
   - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$SCALA_VERSION "set test in assembly := {}" assembly
