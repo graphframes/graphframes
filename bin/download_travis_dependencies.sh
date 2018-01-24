@@ -4,27 +4,38 @@ set -eux -o pipefail
 
 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
 
+_script_dir_="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 function try_download_from_apache {
     local spark_tarball="${SPARK_BUILD}.tgz"
-    local apache_archive_prefix="https://archive.apache.org/dist"
+    local apache_mirror_cgi="https://www.apache.org/dyn/closer.lua"
     local spark_rel_path="spark/spark-${SPARK_VERSION}/${spark_tarball}"
-    local spark_bin_url="${apache_archive_prefix}/${spark_rel_path}"
-    local spark_md5_url="${apache_archive_prefix}/${spark_rel_path}.md5"
+    local spark_url="${apache_mirror_cgi}?path=${spark_rel_path}"
 
     echo "Downloading Spark if necessary"
     echo "Spark version = $SPARK_VERSION"
     echo "Spark build = $SPARK_BUILD"
-    echo "Spark build URL = ${spark_bin_url}"
+    echo "Spark build URL = $spark_url"
 
-    # Existing files might be corrupt, clean them up.
-    rm -f "${spark_tarball}" "${spark_tarball}.md5"
+    # Remove existing Spark tarball in case it is corrupted.
+    rm -f "${spark_tarball}"
 
-    curl --retry 3 --retry-delay 7 -O "${spark_bin_url}"
-    curl --retry 3 --retry-delay 7 -O "${spark_md5_url}"
+    # Grab the actual download location from the Apache mirror's gateway.
+    # The JSON field "preferred" stores this address.
+    curl --silent --location "${spark_url}&asjson=1" | \
+        python <(cat << __PY_SCRIPT_EOF__
+import sys, json
+pkg_info = json.load(sys.stdin)
+print("{}/${spark_rel_path}".format(pkg_info["preferred"]))
+__PY_SCRIPT_EOF__
+) | xargs curl --retry 3 --retry-delay 7 -O
 
     echo "Content of directory:"
     ls -la
+
+    # Compare signature
     gpg --print-md MD5 "${spark_tarball}" | tee "${spark_tarball}.gen.md5"
+    cp "${_script_dir_}/${spark_tarball}.md5" .
     diff "${spark_tarball}.gen.md5" "${spark_tarball}.md5"
     tar -zxf "${spark_tarball}"
 }
