@@ -32,11 +32,6 @@ __PY_SCRIPT_EOF__
 
     echo "Content of directory:"
     ls -la
-
-    # Compare signature
-    gpg --print-md MD5 "${spark_tarball}" | tee "${spark_tarball}.gen.md5"
-    cp "${_script_dir_}/${spark_tarball}.md5" .
-    diff "${spark_tarball}.gen.md5" "${spark_tarball}.md5"
     tar -zxf "${spark_tarball}"
 }
 
