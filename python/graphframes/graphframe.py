@@ -62,7 +62,6 @@ class GraphFrame(object):
         self._edges = e
         self._sqlContext = v.sql_ctx
         self._sc = self._sqlContext._sc
-        self._sc._jvm.org.apache.spark.ml.feature.Tokenizer()
         self._jvm_gf_api = _java_api(self._sc)
 
         self.ID = self._jvm_gf_api.ID()
