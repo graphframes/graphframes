@@ -317,6 +317,20 @@ class GraphFrame private(
     if (names.isEmpty) df else df.select(names.head, names.tail : _*)
   }
 
+  /**
+   * connection makes motif with hops
+   * E.g., connection(3) returns ``"(v1)-[]-(v2);(v2)-[]-(v3);(v3)-[]-(v4)"`
+   * @param hops
+   * @return pattern String
+   * @group motif
+   */
+  def connection(hops: Int): String = {
+    val a = (1 to hops).toArray
+    val b = a.map(x => x+1)
+    val z = a.zip(b)
+    z.map(x => s"(v${x._1})-[]->(v${x._2})").mkString(";")
+  }
+
   // ======================== Other queries ===================================
 
   /**
