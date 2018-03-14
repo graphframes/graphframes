@@ -7,6 +7,7 @@ val defaultScalaVer = sparkBranch match {
   case "2.0" => "2.11.8"
   case "2.1" => "2.11.8"
   case "2.2" => "2.11.8"
+  case "2.3" => "2.11.8"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
