@@ -12,7 +12,7 @@ val defaultScalaVer = sparkBranch match {
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
 val defaultScalaTestVer = scalaVer match {
-  case s if s.startsWith("2.10") => "2.2.6"
+  case s if s.startsWith("2.10") => "2.0"
   case s if s.startsWith("2.11") => "2.2.6" // scalatest_2.11 does not have 2.0 published
 }
 
