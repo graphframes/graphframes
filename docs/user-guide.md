@@ -115,7 +115,7 @@ as `vertices` and `edges` fields in the GraphFrame.
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes._
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Display the vertex and edge DataFrames
