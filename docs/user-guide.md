@@ -331,8 +331,8 @@ def sumFriends(cnt: Column, relationship: Column): Column = {
 }
 //  (b) Use sequence operation to apply method to sequence of elements in motif.
 //      In this case, the elements are the 3 edges.
-val condition = Seq("ab", "bc", "cd").
-  foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship")))
+val condition = { Seq("ab", "bc", "cd")
+  .foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship"))) }
 //  (c) Apply filter to DataFrame.
 val chainWith2Friends2 = chain4.where(condition >= 2)
 chainWith2Friends2.show()
@@ -422,9 +422,9 @@ val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Select subgraph based on edges "e" of type "follow"
 // pointing from a younger user "a" to an older user "b".
-val paths = g.find("(a)-[e]->(b)").
-  filter("e.relationship = 'follow'").
-  filter("a.age < b.age")
+val paths = { g.find("(a)-[e]->(b)")
+  .filter("e.relationship = 'follow'")
+  .filter("a.age < b.age") }
 // "paths" contains vertex info. Extract the edges.
 val e2 = paths.select("e.src", "e.dst", "e.relationship")
 // In Spark 1.5+, the user may simplify this call:
@@ -492,9 +492,9 @@ val paths = g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32").run()
 paths.show()
 
 // Specify edge filters or max path lengths.
-g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32").
-  edgeFilter("relationship != 'friend'").
-  maxPathLength(3).run()
+{ g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32")
+  .edgeFilter("relationship != 'friend'")
+  .maxPathLength(3).run() }
 {% endhighlight %}
 </div>
 
@@ -865,10 +865,10 @@ val AM = AggregateMessages
 // For each user, sum the ages of the adjacent users.
 val msgToSrc = AM.dst("age")
 val msgToDst = AM.src("age")
-val agg = g.aggregateMessages.
-  sendToSrc(msgToSrc).  // send destination user's age to source
-  sendToDst(msgToDst).  // send source user's age to destination
-  agg(sum(AM.msg).as("summedAges"))  // sum up ages, stored in AM.msg column
+val agg = { g.aggregateMessages
+  .sendToSrc(msgToSrc)  // send destination user's age to source
+  .sendToDst(msgToDst)  // send source user's age to destination
+  .agg(sum(AM.msg).as("summedAges")) } // sum up ages, stored in AM.msg column
 agg.show()
 {% endhighlight %}
 
