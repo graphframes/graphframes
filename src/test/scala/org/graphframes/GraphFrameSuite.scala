@@ -43,6 +43,16 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   var edges: DataFrame = _
   var tempDir: File = _
 
+  val shuffledGraphPartitions = 10
+  // return the same vertices but in different order
+  def shuffledVertices: DataFrame = sqlContext.createDataFrame(sc.parallelize((1 to shuffledGraphPartitions*2)
+    .map(i => (i.toString,i.toString)))).toDF("id", "name")
+    .repartition(shuffledGraphPartitions).orderBy(rand())
+  // return the same edges but in different order
+  def shuffledEdges: DataFrame = sqlContext.createDataFrame(sc.parallelize((1 to shuffledGraphPartitions*2)
+    .map(i => (i.toString,i.toString, i.toString)))).toDF("src", "dst", "action")
+    .repartition(shuffledGraphPartitions).orderBy(rand())
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     tempDir = Files.createTempDir()
@@ -188,6 +198,43 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
+  test("convert to GraphX: with shuffled DFs") {
+    try {
+
+      val gf = GraphFrame(shuffledVertices, shuffledEdges)
+      val g = gf.toGraphX
+      // String IDs will be re-indexed, so ID values may not match.
+      val vCols = gf.vertexColumnMap
+      val eCols = gf.edgeColumnMap
+      // First, get index.
+      val new2oldID: Map[Long, String] = g.vertices.map { case (id: Long, attr: Row) =>
+        (id, attr.getString(vCols("id")))
+      }.collect().toMap
+      // Same as in test with Int IDs, but with re-indexing
+      g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
+        val id1 = attr.getString(vCols("id"))
+        val name = attr.getString(vCols("name"))
+        assert(new2oldID(id0) === id1)
+        assert(new2oldID(id0) === name)
+        assert(id0>=0 && id0 < Int.MaxValue)
+      }
+      g.edges.collect().foreach {
+        case Edge(src0: Long, dst0: Long, attr: Row) =>
+          val src1 = attr.getString(eCols("src"))
+          val dst1 = attr.getString(eCols("dst"))
+          val action = attr.getString(eCols("action"))
+          assert(new2oldID(src0) === src1)
+          assert(new2oldID(dst0) === dst1)
+          assert(new2oldID(src0) === action)
+          assert(src0>=0 && src0 < Int.MaxValue)
+          assert(dst0>=0 && dst0 < Int.MaxValue)
+      }
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        throw e
+    }
+  }
   test("save/load") {
     val g0 = GraphFrame(vertices, edges)
     val vPath = new Path(tempDir.getPath, "vertices").toString
