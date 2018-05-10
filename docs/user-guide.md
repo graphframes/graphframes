@@ -35,6 +35,7 @@ The following example demonstrates how to create a GraphFrame from vertex and ed
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
+import org.graphframes.GraphFrame
 // Vertex DataFrame
 val v = sqlContext.createDataFrame(List(
   ("a", "Alice", 34),
@@ -62,7 +63,7 @@ val g = GraphFrame(v, e)
 
 The GraphFrame constructed above is available in the GraphFrames package:
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends
 {% endhighlight %}
 </div>
@@ -115,7 +116,7 @@ as `vertices` and `edges` fields in the GraphFrame.
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Display the vertex and edge DataFrames
@@ -259,11 +260,11 @@ can be expressed by applying filters to the result `DataFrame`.
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.GraphFrame).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Search for pairs of vertices with edges in both directions between them.
-val motifs: DataFrame = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
+val motifs: GraphFrame = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
 motifs.show()
 
 // More complex queries can be expressed by applying filters.
@@ -316,9 +317,9 @@ In this example, the state is the current count of "friend" edges; in general, i
 {% highlight scala %}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{col, when}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 
-val g = examples.Graphs.friends  // get example graph
+val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Find chains of 4 vertices.
 val chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
@@ -330,8 +331,8 @@ def sumFriends(cnt: Column, relationship: Column): Column = {
 }
 //  (b) Use sequence operation to apply method to sequence of elements in motif.
 //      In this case, the elements are the 3 edges.
-val condition = Seq("ab", "bc", "cd").
-  foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship")))
+val condition = { Seq("ab", "bc", "cd")
+  .foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship"))) }
 //  (c) Apply filter to DataFrame.
 val chainWith2Friends2 = chain4.where(condition >= 2)
 chainWith2Friends2.show()
@@ -383,7 +384,7 @@ The following example shows how to select a subgraph based upon vertex and edge 
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends
 
 // Select subgraph of users older than 30, and edges of type "friend"
@@ -416,14 +417,14 @@ triplets by using more complex motifs.
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Select subgraph based on edges "e" of type "follow"
 // pointing from a younger user "a" to an older user "b".
-val paths = g.find("(a)-[e]->(b)")
+val paths = { g.find("(a)-[e]->(b)")
   .filter("e.relationship = 'follow'")
-  .filter("a.age < b.age")
+  .filter("a.age < b.age") }
 // "paths" contains vertex info. Extract the edges.
 val e2 = paths.select("e.src", "e.dst", "e.relationship")
 // In Spark 1.5+, the user may simplify this call:
@@ -483,18 +484,17 @@ The following code snippets search for people connected to the user "Bob."
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.BFS).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Search from "Esther" for users of age <= 32.
-val paths: DataFrame = g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32").run()
+val paths = g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32").run()
 paths.show()
 
 // Specify edge filters or max path lengths.
-g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32")
+{ g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32")
   .edgeFilter("relationship != 'friend'")
-  .maxPathLength(3)
-  .run()
+  .maxPathLength(3).run() }
 {% endhighlight %}
 </div>
 
@@ -527,7 +527,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Connected_component_(graph_theory)
 
 NOTE: With GraphFrames 0.3.0 and later releases, the default Connected Components algorithm
 requires setting a Spark checkpoint directory.  Users can revert to the old algorithm using
-`.setAlgorithm("graphx")`.
+`connectedComponents.setAlgorithm("graphx")`.
 
 <div class="codetabs">
 
@@ -536,7 +536,7 @@ requires setting a Spark checkpoint directory.  Users can revert to the old algo
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.ConnectedComponents).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.connectedComponents.run()
@@ -573,7 +573,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Strongly_connected_component) for 
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.StronglyConnectedComponents).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.stronglyConnectedComponents.maxIter(10).run()
@@ -617,7 +617,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Label_Propagation_Algorithm) for b
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.LabelPropagation).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val result = g.labelPropagation.maxIter(5).run()
@@ -661,7 +661,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/PageRank) for background.
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.PageRank).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Run PageRank until convergence to tolerance "tol".
@@ -678,8 +678,9 @@ val results2 = g.pageRank.resetProbability(0.15).maxIter(10).run()
 // Run PageRank personalized for vertex "a"
 val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
 
-# Run PageRank personalized for vertex ["a", "b", "c", "d"] in parallel
-val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceIds(Array("a", "b", "c", "d")).run()
+// Run PageRank personalized for vertex ["a", "b", "c", "d"] in parallel
+// Works only in Spark 2.1+
+val results3 = g.parallelPersonalizedPageRank.resetProbability(0.15).maxIter(10).sourceIds(Array("a", "b", "c", "d")).run()
 {% endhighlight %}
 </div>
 
@@ -727,7 +728,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Shortest_path_problem) for backgro
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.ShortestPaths).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val results = g.shortestPaths.landmarks(Seq("a", "d")).run()
@@ -761,7 +762,7 @@ Computes the number of triangles passing through each vertex.
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.TriangleCount).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 val results = g.triangleCount.run()
@@ -797,7 +798,7 @@ The below example shows how to save and then load a graph.
 
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Save vertices and edges as Parquet to some location.
@@ -854,7 +855,7 @@ of adjacent users.
 For API details, refer to the [API docs](api/scala/index.html#org.graphframes.lib.AggregateMessages).
 
 {% highlight scala %}
-import org.graphframes.examples
+import org.graphframes.{examples,GraphFrame}
 import org.graphframes.lib.AggregateMessages
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
@@ -864,10 +865,10 @@ val AM = AggregateMessages
 // For each user, sum the ages of the adjacent users.
 val msgToSrc = AM.dst("age")
 val msgToDst = AM.src("age")
-val agg = g.aggregateMessages
+val agg = { g.aggregateMessages
   .sendToSrc(msgToSrc)  // send destination user's age to source
   .sendToDst(msgToDst)  // send source user's age to destination
-  .agg(sum(AM.msg).as("summedAges"))  // sum up ages, stored in AM.msg column
+  .agg(sum(AM.msg).as("summedAges")) } // sum up ages, stored in AM.msg column
 agg.show()
 {% endhighlight %}
 
@@ -964,8 +965,8 @@ For API details, refer to the API docs for:
 
 {% highlight scala %}
 import org.apache.spark.graphx.Graph
-import org.apache.spark.Row
-import org.graphframes.examples
+import org.apache.spark.sql.Row
+import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Convert to GraphX
