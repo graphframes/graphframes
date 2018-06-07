@@ -161,6 +161,40 @@ class GraphFrameTest(GraphFrameTestCase):
         assert motifs.count() == 3
         self.assertSetEqual(set(motifs.columns), {"a", "e", "b"})
 
+    def test_filterVertices(self):
+        g = self.g
+        conditions = ["id < 3", g.vertices.id < 3]
+        expected_v = [(1, "A"), (2, "B")]
+        expected_e = [(1, 2, "love"), (2, 1, "hate")]
+        for cond in conditions:
+            g2 = g.filterVertices(cond)
+            v2 = g2.vertices.select("id", "name").collect()
+            e2 = g2.edges.select("src", "dst", "action").collect()
+            self.assertEqual(v2, expected_v)
+            self.assertEqual(e2, expected_e)
+
+    def test_filterEdges(self):
+        g = self.g
+        conditions = ["dst > 2", g.edges.dst > 2]
+        expected_v = [(1, "A"), (2, "B"), (3, "C")]
+        expected_e = [(2, 3, "follow")]
+        for cond in conditions:
+            g2 = g.filterEdges(cond)
+            v2 = g2.vertices.select("id", "name").collect()
+            e2 = g2.edges.select("src", "dst", "action").collect()
+            self.assertEqual(v2, expected_v)
+            self.assertEqual(e2, expected_e)
+
+    def test_dropIsolatedVertices(self):
+        g = self.g
+        g2 = g.filterEdges("dst > 2").dropIsolatedVertices()
+        v2 = g2.vertices.select("id", "name").collect()
+        e2 = g2.edges.select("src", "dst", "action").collect()
+        expected_v = set([(2, "B"), (3, "C")])
+        expected_e = [(2, 3, "follow")]
+        self.assertEqual(set(v2), expected_v)
+        self.assertEqual(e2, expected_e)
+
     def test_bfs(self):
         g = self.g
         paths = g.bfs("name='A'", "name='C'")

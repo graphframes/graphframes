@@ -377,7 +377,8 @@ class GraphFrame private(
    */
   def dropIsolatedVertices(): GraphFrame = {
     val ee = edges
-    val vv = vertices.join(ee, vertices(ID) === ee(SRC) or vertices(ID) === ee(DST), "left_semi")
+    val e1 = ee.withColumn(ID, explode(array(col(SRC), col(DST))))
+    val vv = vertices.join(e1, Seq(ID), "left_semi")
     GraphFrame(vv, ee)
   }
 
