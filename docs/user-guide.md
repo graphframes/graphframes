@@ -477,7 +477,8 @@ See [Wikipedia on BFS](https://en.wikipedia.org/wiki/Breadth-first_search) for m
 
 <div class="codetabs">
 
-The following code snippets search for people connected to the user "Bob."
+The following code snippets uses BFS to find path between 
+vertex with name "Esther" to a vertex with age < 32.
 
 <div data-lang="scala"  markdown="1">
 
@@ -487,7 +488,7 @@ For API details, refer to the [API docs](api/scala/index.html#org.graphframes.li
 import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-// Search from "Esther" for users of age <= 32.
+// Search from "Esther" for users of age < 32.
 val paths = g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32").run()
 paths.show()
 
