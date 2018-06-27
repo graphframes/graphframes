@@ -198,18 +198,17 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // TODO: The implemetnation is a little hacky.
     def isFromCheckpoint(df: DataFrame): Boolean = {
       df.queryExecution.logical.toString().toLowerCase.contains("parquet")
-      //df.queryExecution.logical.toString().contains("LogicalRDD")
     }
 
     val components0 = cc.setCheckpointInterval(0).run()
     assertComponents(components0, expected)
     assert(!isFromCheckpoint(components0),
       "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
+    
     sc.setCheckpointDir(checkpointDir.get)
 
     val components1 = cc.setCheckpointInterval(1).run()
     assertComponents(components1, expected)
-
     assert(isFromCheckpoint(components1),
       "The result should depend on checkpoint data if checkpoint interval is 1.")
 
@@ -217,7 +216,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assertComponents(components10, expected)
     assert(!isFromCheckpoint(components10),
       "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
-  } 
+  }
 
   test("intermediate storage level") {
     val friends = Graphs.friends
@@ -253,5 +252,4 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       }.toSet
     assert(actualComponents === expected)
   }
-
 }
