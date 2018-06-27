@@ -401,7 +401,7 @@ object ConnectedComponents extends Logging {
     var iteration = 1
     var prevSum: BigDecimal = null
     var old_ee: DataFrame = null
-    var old_vv: DataFrame = vv
+    var new_vv: DataFrame = null
 
     while (!converged) {
       // large-star step
@@ -479,24 +479,37 @@ object ConnectedComponents extends Logging {
       ee.persist(intermediateStorageLevel)
 
 
-      if(iteration == pruneNodeIter) 
+      //if(iteration == pruneNodeIter) 
+
+      if(edgeCnt < sparsityThreshold * numNodes && isOptimized == false)
       {
         
-        old_ee = ee
- 
-        // Pruning Leaf Nodes
-        val r = pruneLeafNodes(ee, intermediateStorageLevel)
+        // if a graph does not have edges, do not perform pruning node optimization
+        if(edgeCnt == 0) 
+          attempt = maxAttempts + 1
+
+        if(attempt <= maxAttempts)
+        {
+          old_ee = ee
+   
+          // Pruning Leaf Nodes
+          val r = pruneLeafNodes(ee, intermediateStorageLevel)
+          
+          // Keep Source Nodes, prune other nodes
+          //val r = keepSrcNodes(ee, intermediateStorageLevel)
+
+          new_vv = r._1
+          ee = r._2
+
+          // number of nodes in the shrinked graph
+          numNodes = new_vv.count()
+          ee.persist(intermediateStorageLevel)
         
-        // Keep Source Nodes, prune other nodes
-        //val r = keepSrcNodes(ee, intermediateStorageLevel)
 
-        new_vv = r._1
-        ee = r._2
+          isOptimized = true
+          attempt = attempt + 1
+        }
 
-        // number of nodes in the shrinked graph
-        numNodes = new_vv.count()
-        isOptimized = true
-        ee.persist(intermediateStorageLevel)
 
       }
 
@@ -511,8 +524,8 @@ object ConnectedComponents extends Logging {
         if(edgeCnt == 0) 
           attempt = maxAttempts + 1
         
-        if(attempt <= maxAttempts)
-        {
+                {
+                  {
           ee.persist(intermediateStorageLevel)
 
           // vertices set of the small graph
@@ -573,8 +586,8 @@ object ConnectedComponents extends Logging {
 
     logger.info(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
     logger.info(s"$logPrefix Join and return component assignments with original vertex IDs.")
-    old_vv.join(ee, old_vv(ID) === ee(DST), "left_outer")
-      .select(old_vv(ATTR), when(ee(SRC).isNull, old_vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
+    vv.join(ee, vv(ID) === ee(DST), "left_outer")
+      .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
       .select(col(s"$ATTR.*"), col(COMPONENT))
       .persist(intermediateStorageLevel)
   }
