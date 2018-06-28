@@ -26,7 +26,6 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.sql.execution.LogicalRDD
 
 import org.graphframes._
 import org.graphframes.GraphFrame._
@@ -204,7 +203,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assertComponents(components0, expected)
     assert(!isFromCheckpoint(components0),
       "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
-    
+
     sc.setCheckpointDir(checkpointDir.get)
 
     val components1 = cc.setCheckpointInterval(1).run()

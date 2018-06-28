@@ -100,9 +100,7 @@ class ConnectedComponents private[graphframes] (
 
   private var sparsityThreshold: Double = 2
 
-  private var maxAttempts: Int = 3
-
-  private var shrinkageThreshold: Double = 5
+  private var shrinkageThreshold: Double = 2
 
 
   /**
@@ -191,8 +189,7 @@ class ConnectedComponents private[graphframes] (
       intermediateStorageLevel = intermediateStorageLevel,
       pruneNodeIter = pruneNodeIter,
       sparsityThreshold = sparsityThreshold,
-      shrinkageThreshold = shrinkageThreshold,
-      maxAttempts = maxAttempts)
+      shrinkageThreshold = shrinkageThreshold)
   }
 }
 
@@ -205,6 +202,7 @@ object ConnectedComponents extends Logging {
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
+  private val TMP = "tmp" // temporary column name 
 
   private val ALGO_GRAPHX = "graphx"
   private val ALGO_GRAPHFRAMES = "graphframes"
@@ -297,29 +295,41 @@ object ConnectedComponents extends Logging {
 
   private def pruneLeafNodes(
     edges: DataFrame,
-    intermediateStorageLevel: StorageLevel) = {
+    intermediateStorageLevel: StorageLevel,
+    numNodes: Long) = {
 
     // vertices whose indegree > 1.
-    val v1 = edges.groupBy(DST).agg(count("*").as("count"))
-      .filter(col("count") > 1).select(DST)
-    //  .persist(intermediateStorageLevel) 
+    val v1 = edges.groupBy(DST).agg(count("*").as(CNT))
+      .filter(col(CNT) > 1).select(DST)
        
     // vertices whose outdegree > 0 or indegree > 1.
     val new_vv = edges.select(SRC).union(v1).distinct().withColumnRenamed(SRC, ID)
       .persist(intermediateStorageLevel)
 
-    val new_ee = edges.join(new_vv.withColumnRenamed(ID, DST), DST)
-    (new_vv, new_ee)
+    val new_vv_cnt = new_vv.count()
+
+    var ret: (DataFrame, DataFrame, Long) = null
+
+    if(new_vv_cnt * 2 < numNodes) // Can be optimized
+    {
+      val new_ee = edges.join(new_vv.withColumnRenamed(ID, DST), DST)
+      ret = (new_vv, new_ee, new_vv_cnt)
+    }
+    else{
+      new_vv.unpersist(false)
+    }
+    ret
   }
+
 
   // keep source nodes in the edge set, prune other nodes.
   private def keepSrcNodes(
     edges: DataFrame,
     intermediateStorageLevel: StorageLevel) = {
-    val TMP = "tmp"  // temporary column name
+
     var new_vv = edges.select(col(SRC)).distinct()
         .persist(intermediateStorageLevel)
-
+    val new_vv_cnt = new_vv.count()
     val je = edges.union(new_vv.withColumn(DST, col(SRC))) 
     
     // edges set of the small graph
@@ -327,8 +337,14 @@ object ConnectedComponents extends Logging {
           .select(SRC, TMP).withColumnRenamed(TMP, DST)
           .filter(col(SRC) < col(DST))
           .distinct() // src < dst
+    
+    //val s = ee.groupBy(DST).agg(count("*").as("count")).groupBy("count").agg(count("*").as("cnt"))
+    //          .select(sum(col("count") * col("count") * col("cnt")).as(TMP)).agg(sum(TMP)).first().getLong(0)
+
+    //if(s < edgeCnt * 10)
+
     new_vv = new_vv.withColumnRenamed(SRC, ID)
-    (new_vv, new_ee)
+    (new_vv, new_ee, new_vv_cnt)
   }
 
   /**
@@ -351,8 +367,7 @@ object ConnectedComponents extends Logging {
       intermediateStorageLevel: StorageLevel,
       pruneNodeIter: Int,
       sparsityThreshold: Double,
-      shrinkageThreshold: Double,
-      maxAttempts: Int): DataFrame = {
+      shrinkageThreshold: Double): DataFrame = {
     require(supportedAlgorithms.contains(algorithm),
       s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
 
@@ -366,7 +381,6 @@ object ConnectedComponents extends Logging {
 
     val sqlContext = graph.sqlContext
     val sc = sqlContext.sparkContext
-    val TMP = "tmp"  // temporary column name
 
 
     val shouldCheckpoint = checkpointInterval > 0
@@ -389,8 +403,8 @@ object ConnectedComponents extends Logging {
     val g = prepare(graph)
     var vv = g.vertices.persist(intermediateStorageLevel)
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
-    var attempt = 1
     var isOptimized = false
+    var tryOptimize = false
 
     var numEdges = ee.count()
     var numNodes = vv.count()
@@ -478,86 +492,34 @@ object ConnectedComponents extends Logging {
   
       ee.persist(intermediateStorageLevel)
 
-
-      //if(iteration == pruneNodeIter) 
-
-      if(edgeCnt < sparsityThreshold * numNodes && isOptimized == false)
+      if((edgeCnt < sparsityThreshold * numNodes) && 
+        (iteration >= pruneNodeIter) && (tryOptimize == false))
       {
-        
-        // if a graph does not have edges, do not perform pruning node optimization
-        if(edgeCnt == 0) 
-          attempt = maxAttempts + 1
 
-        if(attempt <= maxAttempts)
+        // if a graph does not have edges, do not perform pruning node optimization
+        if(edgeCnt > 0) 
         {
+          
           old_ee = ee
    
           // Pruning Leaf Nodes
-          val r = pruneLeafNodes(ee, intermediateStorageLevel)
+          val r = pruneLeafNodes(ee, intermediateStorageLevel, numNodes)
           
           // Keep Source Nodes, prune other nodes
           //val r = keepSrcNodes(ee, intermediateStorageLevel)
-
-          new_vv = r._1
-          ee = r._2
-
-          // number of nodes in the shrinked graph
-          numNodes = new_vv.count()
-          ee.persist(intermediateStorageLevel)
-        
-
-          isOptimized = true
-          attempt = attempt + 1
-        }
-
-
-      }
-
-    
-
-/*
-      if(edgeCnt < sparsityThreshold * numNodes && isOptimized == false) // sparse graph condition 
-      {
-        //if(iteration == pruneNodeIter)  Remove pruneNodeIter
-
-        // if a graph does not have edges, do not perform pruning node optimization
-        if(edgeCnt == 0) 
-          attempt = maxAttempts + 1
-        
-                {
-                  {
-          ee.persist(intermediateStorageLevel)
-
-          // vertices set of the small graph
-          new_vv = ee.select(col(SRC)).distinct()
-            .persist(intermediateStorageLevel)
-          val new_numNodes = new_vv.count()
-
-          if(new_numNodes * shrinkageThreshold < numNodes) // the small graph should have fewer nodes
-
-          if(new_numNodes * 5 < numNodes) // the small graph should have fewer nodes
+          if(r != null)
           {
-            val s = ee.groupBy(DST).agg(count("*").as("count")).groupBy("count").agg(count("*").as("cnt"))
-              .select(sum(col("count") * col("count") * col("cnt")).as(TMP)).agg(sum(TMP)).first().getLong(0)
-
-            if(s < edgeCnt * 10)
-            {
-              opt = true
-              numNodes = new_numNodes
-              val je = ee.union(new_vv.withColumn(DST, col(SRC))) 
-              old_ee = ee
-              // edges set of the small graph
-              ee = je.join(je.withColumnRenamed(SRC, TMP), DST)
-                .select(SRC, TMP).withColumnRenamed(TMP, DST)
-                .filter(col(SRC) < col(DST))
-                .distinct() // src < dst
-              new_vv = new_vv.withColumnRenamed(SRC, ID)
-            }  
+            new_vv = r._1
+            ee = r._2
+            // number of nodes in the shrinked graph
+            numNodes = r._3   //new_vv.count()
+            ee.persist(intermediateStorageLevel)
+            isOptimized = true
           }
-          attempt = attempt + 1
         }
+        tryOptimize = true
       }
-*/
+
       logInfo(s"In iteration $iteration: edge cnt: $edgeCnt , node cnt: $numNodes")//, ratio : $ratio")
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
 
