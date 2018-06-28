@@ -912,4 +912,12 @@ object GraphFrame extends Serializable with Logging {
     _broadcastThreshold = value
     this
   }
+
+  /**
+   * Return the given DataFrame with columns in a given order.
+   * @param names This method assumes that names is exactly the set of columns in the DataFrame.
+   */
+  private[graphframes] def enforceColumnOrder(df: DataFrame, names: Seq[String]): DataFrame = {
+    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
+  }
 }

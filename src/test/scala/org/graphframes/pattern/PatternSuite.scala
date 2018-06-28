@@ -54,9 +54,75 @@ class PatternSuite extends SparkFunSuite {
         Pattern.parse("->(a)")
       }
     }
+    withClue("Failed to catch parse error with negated vertex") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!(a)")
+      }
+    }
+    withClue("Failed to catch parse error with negated named edge") {
+      val msg = intercept[InvalidParseException] {
+        Pattern.parse("!(a)-[ab]->(b)")
+      }
+      assert(msg.getMessage.contains("does not support negated named edges"))
+    }
+    withClue("Failed to catch parse error with double negative") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!!(a)-[]->(b)")
+      }
+    }
+    withClue("Failed to catch parse error with completely anonymous edge ()-[]->()") {
+      intercept[InvalidParseException] {
+        Pattern.parse("()-[]->()")
+      }
+    }
+    withClue("Failed to catch parse error with completely anonymous negated edge !()-[]->()") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!()-[]->()")
+      }
+    }
   }
 
   test("empty pattern should be parsable") {
     Pattern.parse("")
   }
+
+  def testFindNamedVerticesOnlyInNegatedTerms(pattern: String, expected: Seq[String]): Unit = {
+    test(s"findNamedVerticesOnlyInNegatedTerms: $pattern") {
+      val patterns = Pattern.parse(pattern)
+      val result = Pattern.findNamedVerticesOnlyInNegatedTerms(patterns)
+      assert(result === expected)
+    }
+  }
+
+  testFindNamedVerticesOnlyInNegatedTerms(
+    "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)",
+    Seq.empty[String])
+
+  testFindNamedVerticesOnlyInNegatedTerms(
+    "(u)-[]->(v); (v)-[]->(w)",
+    Seq.empty[String])
+
+  testFindNamedVerticesOnlyInNegatedTerms(
+    "!(u)-[]->(v)",
+    Seq("u", "v"))
+
+  testFindNamedVerticesOnlyInNegatedTerms(
+    "(u)-[]->(v); (v)-[]->(w); !(a)-[]->(b); !(v)-[]->(c)",
+    Seq("a", "b", "c"))
+
+  def testFindNamedElementsInOrder(pattern: String, expected: Seq[String]): Unit = {
+    test(s"testFindNamedElementsInOrder: $pattern") {
+      val patterns = Pattern.parse(pattern)
+      val result = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
+      assert(result === expected)
+    }
+  }
+
+  testFindNamedElementsInOrder(
+    "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)",
+    Seq("u", "v", "w"))
+
+  testFindNamedElementsInOrder(
+    "(u)-[uv]->(v); (v)-[uv]->(w); !(u)-[]->(w); (x)",
+    Seq("u", "uv", "v", "w", "x"))
 }

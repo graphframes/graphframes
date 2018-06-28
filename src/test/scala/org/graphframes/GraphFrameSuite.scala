@@ -291,4 +291,14 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     GraphFrame.setBroadcastThreshold(defaultThreshold)
   }
+
+  test("enforceColumnOrder") {
+    import GraphFrame.enforceColumnOrder
+    assert(enforceColumnOrder(edges, Seq("src", "action", "dst")).columns ===
+      Array("src", "action", "dst"))
+    assert(enforceColumnOrder(edges, Seq("dst", "src", "action")).columns ===
+      Array("dst", "src", "action"))
+    assert(enforceColumnOrder(edges.where("src = 1234567890"), Seq.empty[String]).columns ===
+      Array.empty[String])
+  }
 }
