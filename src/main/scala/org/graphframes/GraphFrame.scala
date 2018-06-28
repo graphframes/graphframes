@@ -313,8 +313,28 @@ class GraphFrame private(
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val (df, names) = findSimple(Nil, None, Seq(), Pattern.parse(pattern))
-    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
+    val patterns = Pattern.parse(pattern)
+    val (positivePatterns, negatedPatterns) = Pattern.separateNegatedTerms(patterns)
+    val (positiveDf, positiveNames) = findSimple(Nil, None, Seq(), positivePatterns)
+    if (negatedPatterns.isEmpty) {
+      return positiveDf
+    }
+
+    val (negatedDf, negatedNames) =
+      findSimple(positivePatterns, Some(positiveDf), positiveNames, negatedPatterns)
+
+    // Augment positiveDf with named vertices which only appear in negated terms.
+    val namedVerticesFromNegatedTerms = negatedNames.filter(name => !positiveNames.contains(name))
+    val (augmentedPositiveDf, augmentedPositiveNames) = if (namedVerticesFromNegatedTerms.isEmpty) {
+      (positiveDf, positiveNames)
+    } else {
+      val extraPositivePattern =
+        namedVerticesFromNegatedTerms.map(name => s"($name)").mkString(";")
+      val extraPositivePatterns = Pattern.parse(extraPositivePattern)
+      findSimple(positivePatterns, Some(positiveDf), positiveNames, extraPositivePatterns)
+    }
+
+    augmentedPositiveDf.except(negatedDf)
   }
 
   // ======================== Other queries ===================================
@@ -414,7 +434,6 @@ class GraphFrame private(
 
   // ========= Motif finding (private) =========
 
-
   /**
    * Primary method implementing motif finding.
    * This recursive method handles one pattern (via [[findIncremental()]] on each iteration,
@@ -426,21 +445,29 @@ class GraphFrame private(
    *                  For instance, `"(a)-[e]->(b)"` is Seq("a", "e", "b")
    *                  `"(a)-[e]->(b); (b)-[]->(c)"` is Seq("a", "e", "b", "c")
    * @param remainingPatterns  Patterns not yet handled
-   * @return `DataFrame` augmented with the next pattern, or the previous DataFrame if done
+   * @return `DataFrame` augmented with the next pattern, or the previous DataFrame if done.
    *        Seq[String] sequence of column names for the `DataFrame` appended to in order
-   *        as specified by the next pattern
+   *        as specified by the next pattern. The columns of the DataFrame are guaranteed to match
+   *        this order.
    */
   private def findSimple(
       prevPatterns: Seq[Pattern],
       prevDF: Option[DataFrame],
       prevNames: Seq[String],
       remainingPatterns: Seq[Pattern]): (DataFrame, Seq[String]) = {
-    remainingPatterns match {
-      case Nil => (prevDF.getOrElse(sqlContext.emptyDataFrame), prevNames)
+    val (_, finalDFOpt, finalNames) =
+      remainingPatterns.foldLeft((prevPatterns, prevDF, prevNames)) {
+        case ((patterns, dfOpt, names), cur) =>
+          val (nextDF, nextNames) = findIncremental(this, patterns, dfOpt, names, cur)
+          (patterns :+ cur, nextDF, nextNames)
+      }
+    val finalDF = enforceColumnOrder(finalDFOpt.getOrElse(sqlContext.emptyDataFrame), finalNames)
+    (finalDF, finalNames)
+    /*
       case cur :: rest =>
         val (df, names) = findIncremental(this, prevPatterns, prevDF, prevNames, cur)
         findSimple(prevPatterns :+ cur, df, names, rest)
-    }
+    */
   }
 
   // ========= Other private methods ===========
@@ -911,5 +938,13 @@ object GraphFrame extends Serializable with Logging {
     require(value >= 0)
     _broadcastThreshold = value
     this
+  }
+
+  /**
+   * Return the given DataFrame with columns in a given order.
+   * @param names This method assumes that names is exactly the set of columns in the DataFrame.
+   */
+  private[graphframes] def enforceColumnOrder(df: DataFrame, names: Seq[String]): DataFrame = {
+    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
   }
 }
