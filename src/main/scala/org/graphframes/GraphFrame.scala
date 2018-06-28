@@ -914,7 +914,7 @@ object GraphFrame extends Serializable with Logging {
   }
 
   /**
-   * Return the given DataFrame with columns in a given order.
+   * Return the given DataFrame with columns in the order specified by `names`.
    * @param names This method assumes that names is exactly the set of columns in the DataFrame.
    */
   private[graphframes] def enforceColumnOrder(df: DataFrame, names: Seq[String]): DataFrame = {
