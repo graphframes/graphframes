@@ -305,6 +305,16 @@ class GraphFrame private(
    *    E.g., `"(a)-[]->(b); !(b)-[]->(a)"` finds edges from `a` to `b` for which there is *no*
    *    edge from `b` to `a`.
    *
+   * Notes and restrictions:
+   *  - Different names for vertices do NOT indicate that the vertices are distinct.
+   *    E.g., `"(a)-[]->(b)"` could match a self-loop with `a,b` being the same vertex.
+   *    Enforce distinction via post-hoc filters.
+   *  - Motifs are not allowed to contain edges without any named elements: `"()-[]->()"` and
+   *    `"!()-[]->()"` are prohibited terms.
+   *  - Motifs are not allowed to contain named edges within negated terms (since these named
+   *    edges would never appear within results).  E.g., `"!(a)-[ab]->(b)"` is invalid, but
+   *    `"!(a)-[]->(b)"` is valid.
+   *
    * More complex queries, such as queries which operate on vertex or edge attributes,
    * can be expressed by applying filters to the result `DataFrame`.
    *
@@ -317,7 +327,7 @@ class GraphFrame private(
     val namedVerticesOnlyInNegatedTerms = Pattern.findNamedVerticesOnlyInNegatedTerms(patterns)
     val extraPositivePatterns = namedVerticesOnlyInNegatedTerms.map(v => NamedVertex(v))
     val augmentedPatterns = extraPositivePatterns ++ patterns
-    val df = findSimple(Nil, None, Seq(), augmentedPatterns)
+    val df = findSimple(augmentedPatterns)
     enforceColumnOrder(df, Pattern.findNamedElementsInOrder(patterns, includeEdges = true))
   }
 
@@ -420,30 +430,17 @@ class GraphFrame private(
 
   /**
    * Primary method implementing motif finding.
-   * This recursive method handles one pattern (via [[findIncremental()]] on each iteration,
+   * This iterative method handles one pattern (via [[findIncremental()]] on each iteration,
    * augmenting the `DataFrame` in prevDF with each new pattern.
    *
-   * @param prevPatterns  Patterns already handled
-   * @param prevDF  Current DataFrame based on prevPatterns
-   * @param prevNames Current sequence of column names in the order as specified by prevPatterns
-   *                  For instance, `"(a)-[e]->(b)"` is Seq("a", "e", "b")
-   *                  `"(a)-[e]->(b); (b)-[]->(c)"` is Seq("a", "e", "b", "c")
-   * @param remainingPatterns  Patterns not yet handled
-   * @return `DataFrame` augmented with the next pattern, or the previous DataFrame if done.
-   *        Seq[String] sequence of column names for the `DataFrame` appended to in order
-   *        as specified by the next pattern. The columns of the DataFrame are guaranteed to match
-   *        this order.
+   * @return `DataFrame` containing all instances of the motif specified by the given patterns
    */
-  private def findSimple(
-      prevPatterns: Seq[Pattern],
-      prevDF: Option[DataFrame],
-      prevNames: Seq[String],
-      remainingPatterns: Seq[Pattern]): DataFrame = {
-    val (_, finalDFOpt, finalNames) =
-      remainingPatterns.foldLeft((prevPatterns, prevDF, prevNames)) {
-        case ((patterns, dfOpt, names), cur) =>
-          val (nextDF, nextNames) = findIncremental(this, patterns, dfOpt, names, cur)
-          (patterns :+ cur, nextDF, nextNames)
+  private def findSimple(patterns: Seq[Pattern]): DataFrame = {
+    val (_, finalDFOpt, _) =
+      patterns.foldLeft((Seq.empty[Pattern], Option.empty[DataFrame], Seq.empty[String])) {
+        case ((handledPatterns, dfOpt, names), cur) =>
+          val (nextDF, nextNames) = findIncremental(this, handledPatterns, dfOpt, names, cur)
+          (handledPatterns :+ cur, nextDF, nextNames)
       }
     finalDFOpt.getOrElse(sqlContext.emptyDataFrame)
   }

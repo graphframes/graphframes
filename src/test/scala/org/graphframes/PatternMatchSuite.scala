@@ -423,10 +423,8 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   /* ================================= Invalid queries =================================== */
 
-  // TODO: MORE SPECIFIC EXCEPTIONS?
-
   test("Disallow empty term ()-[]->()") {
-    intercept[Exception] {
+    intercept[InvalidParseException] {
       g.find("()-[]->()")
     }
   }
@@ -440,6 +438,15 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
     intercept[InvalidParseException] {
       g.find("(u)-[ab]->(v); !(a)-[ab]->(b)")
+    }
+  }
+
+  test("Disallow using the same name for both a vertex and an edge") {
+    intercept[InvalidParseException] {
+      g.find("(a)-[a]->(b)")
+    }
+    intercept[InvalidParseException] {
+      g.find("(a)-[]->(b); (c)-[a]->(d)")
     }
   }
 
