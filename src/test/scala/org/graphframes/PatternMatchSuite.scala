@@ -46,7 +46,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       (3L, "d", "f"))).toDF("id", "attr", "gender")
     e = sqlContext.createDataFrame(List(
       (0L, 1L, "friend"),
-      (1L, 0L, "friend"),
+      (1L, 0L, "follow"),
       (1L, 2L, "friend"),
       (2L, 3L, "follow"),
       (2L, 0L, "unknown"))).toDF("src", "dst", "relationship")
@@ -58,6 +58,22 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     e = null
     g = null
     super.afterAll()
+  }
+
+  private def compareResultToExpected[A](result: Set[A], expected: Set[A]): Unit = {
+    if (result !== expected) {
+      throw new AssertionError("result !== expected.\n" +
+        s"Result contained additional values: ${result.diff(expected)}\n" +
+        s"Expected contained additional values: ${expected.diff(result)}\n" +
+        s"Result: $result\n" +
+        s"Expected: $expected")
+    }
+  }
+
+  test("test compareResultToExpected") {
+    intercept[AssertionError] {
+      compareResultToExpected(Set(1, 2), Set(2, 3))
+    }
   }
 
   test("empty query should return nothing") {
@@ -77,8 +93,8 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val vertices = g.find("(a)")
 
     assert(vertices.columns === Array("a"))
-    assert(vertices.select("a.id", "a.attr").collect().toSet
-      === v.select("id", "attr").collect().toSet)
+    val res = vertices.select("a.id", "a.attr").collect().toSet
+    compareResultToExpected(res, v.select("id", "attr").collect().toSet)
   }
 
   /* =========================== Single-edge queries without negated terms ===================== */
@@ -87,7 +103,8 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val triplets = g.find("(u)-[]->(v)")
 
     assert(triplets.columns === Array("u", "v"))
-    assert(triplets.select("u.id", "u.attr", "v.id", "v.attr").collect().toSet === Set(
+    val res = triplets.select("u.id", "u.attr", "v.id", "v.attr").collect().toSet
+    compareResultToExpected(res, Set(
       Row(0L, "a", 1L, "b"),
       Row(1L, "b", 0L, "a"),
       Row(1L, "b", 2L, "c"),
@@ -100,11 +117,12 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val triplets = g.find("(u)-[uv]->(v)")
 
     assert(triplets.columns === Array("u", "uv", "v"))
-    assert(triplets.select("u.id", "u.attr", "uv.src", "uv.dst", "uv.relationship",
+    val res = triplets.select("u.id", "u.attr", "uv.src", "uv.dst", "uv.relationship",
       "v.id", "v.attr")
-      .collect().toSet === Set(
+      .collect().toSet
+    compareResultToExpected(res, Set(
       Row(0L, "a", 0L, 1L, "friend", 1L, "b"),
-      Row(1L, "b", 1L, 0L, "friend", 0L, "a"),
+      Row(1L, "b", 1L, 0L, "follow", 0L, "a"),
       Row(1L, "b", 1L, 2L, "friend", 2L, "c"),
       Row(2L, "c", 2L, 3L, "follow", 3L, "d"),
       Row(2L, "c", 2L, 0L, "unknown", 0L, "a")
@@ -130,7 +148,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(triplets.columns === Array("uv"))
     val res = triplets.select("uv.src", "uv.dst", "uv.relationship").collect().toSet
     val expected = e.select("src", "dst", "relationship").collect().toSet
-    assert(res === expected)
+    compareResultToExpected(res, expected)
   }
 
   /* ======================== Multiple-edge queries without negated terms ===================== */
@@ -141,7 +159,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(triangles.columns === Array("a", "b", "c"))
     val res = triangles.select("a.id", "b.id", "c.id")
       .collect().toSet
-    assert(res === Set(
+    compareResultToExpected(res, Set(
       Row(0L, 1L, 2L),
       Row(2L, 0L, 1L),
       Row(1L, 2L, 0L)
@@ -159,7 +177,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val cd = e.select(col("src").alias("c"), col("dst").alias("d"))
     val expected = ab.crossJoin(cd)
       .collect().toSet
-    assert(res === expected)
+    compareResultToExpected(res, expected)
     val numEdges = e.count()
     assert(expected.size === numEdges * numEdges)
   }
@@ -172,7 +190,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edges.columns === Array("a", "b"))
     val res = edges.select("a.id", "b.id")
       .collect().toSet
-    assert(res === Set(
+    compareResultToExpected(res, Set(
       Row(1L, 2L),
       Row(2L, 0L),
       Row(2L, 3L)
@@ -197,7 +215,11 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .select("u.id", "v.id", "w.id")
       .collect().toSet
 
-    assert(fof === Set(Row(1L, 2L, 3L)))
+    compareResultToExpected(fof, Set(
+      Row(1L, 0L, 1L),
+      Row(0L, 1L, 0L),
+      Row(1L, 2L, 3L)
+    ))
   }
 
   /* ========== 1 named vertex grounding a negated term to non-negated terms =============== */
@@ -208,14 +230,19 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edges.columns === Array("a", "b", "c"))
     val res = edges.select("a.id", "b.id", "c.id")
       .collect().toSet
-    assert(res === Set(
+    compareResultToExpected(res, Set(
+      Row(0L, 1L, 1L),
       Row(0L, 1L, 3L),
+      Row(1L, 0L, 0L),
       Row(1L, 0L, 2L),
       Row(1L, 0L, 3L),
       Row(1L, 2L, 1L),
+      Row(1L, 2L, 2L),
       Row(2L, 3L, 0L),
       Row(2L, 3L, 1L),
       Row(2L, 3L, 2L),
+      Row(2L, 3L, 3L),
+      Row(2L, 0L, 0L),
       Row(2L, 0L, 2L),
       Row(2L, 0L, 3L)
     ))
@@ -227,7 +254,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edges.columns === Array("a", "b"))
     val res = edges.select("a.id", "b.id")
       .collect().toSet
-    assert(res === Set(
+    compareResultToExpected(res, Set(
       Row(2L, 3L)
     ))
   }
@@ -241,6 +268,10 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val res = edgePairs.select("a.id", "b.id", "c.id", "d.id")
       .collect().toSet
     val noEdges = sqlContext.createDataFrame(List(
+      (0L, 0L),
+      (1L, 1L),
+      (2L, 2L),
+      (3L, 3L),
       (0L, 2L),
       (0L, 3L),
       (1L, 3L),
@@ -253,7 +284,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .crossJoin(noEdges)
       .select("a", "b", "c", "d")
       .collect().toSet
-    assert(res === expected)
+    compareResultToExpected(res, expected)
     assert(expected.size === noEdges.count() * e.count())  // make sure there are no duplicates
   }
 
@@ -270,7 +301,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       Row(2L, 3L, 3L),
       Row(2L, 0L, 3L)
     )
-    assert(res === expected)
+    compareResultToExpected(res, expected)
   }
 
   /* ======= Varying # of named vertices grounding a negated term to non-negated terms ========= */
@@ -287,12 +318,16 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       Row(0L, 1L, 3L),
       Row(1L, 0L, 2L),
       Row(1L, 0L, 3L),
-      Row(1L, 2L, 3L),
+      Row(1L, 2L, 1L),
+      Row(1L, 2L, 2L),
       Row(2L, 3L, 0L),
-      Row(2L, 3L, 1L),
+      Row(2L, 3L, 2L),
+      Row(2L, 3L, 3L),
+      Row(2L, 0L, 0L),
+      Row(2L, 0L, 2L),
       Row(2L, 0L, 3L)
     )
-    assert(res === expected)
+    compareResultToExpected(res, expected)
   }
 
   test("a->b, c, d with no edges a->c, c->d") {
@@ -300,19 +335,20 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     assert(edgePairs.columns === Array("a", "b", "c", "d"))
     val res = edgePairs.select("a.id", "b.id", "c.id", "d.id")
-      .where("a.id = 0 OR a.id = 1")  // just check a subset of the result for brevity
+      .where("a.id = 0 AND a.id != b.id")  // check subset for brevity
       .collect().toSet
     val expected = Set(
       Row(0L, 1L, 0L, 0L),
       Row(0L, 1L, 0L, 2L),
       Row(0L, 1L, 0L, 3L),
-      Row(1L, 0L, 1L, 1L),
-      Row(1L, 0L, 3L, 0L),
-      Row(1L, 0L, 3L, 1L),
-      Row(1L, 0L, 3L, 2L),
-      Row(1L, 0L, 3L, 3L)
+      Row(0L, 1L, 2L, 1L),
+      Row(0L, 1L, 2L, 2L),
+      Row(0L, 1L, 3L, 0L),
+      Row(0L, 1L, 3L, 1L),
+      Row(0L, 1L, 3L, 2L),
+      Row(0L, 1L, 3L, 3L)
     )
-    assert(res === expected)
+    compareResultToExpected(res, expected)
   }
 
   /* ============================== 0 non-negated terms ============================== */
@@ -321,22 +357,25 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val res = g.find("!(v)-[]->()")
       .select("v.id")
       .collect().toSet
-    assert(res === Set(Row(3L)))
+    compareResultToExpected(res, Set(Row(3L)))
   }
 
   test("query without non-negated terms, with two named vertices") {
     val res = g.find("!(u)-[]->(v)")
       .select("u.id", "v.id")
       .collect().toSet
-    assert(res === Set(
+    compareResultToExpected(res, Set(
+      Row(0L, 0L),
       Row(0L, 2L),
       Row(0L, 3L),
-      Row(1L, 0L),
+      Row(1L, 1L),
       Row(1L, 3L),
       Row(2L, 1L),
+      Row(2L, 2L),
       Row(3L, 0L),
       Row(3L, 1L),
-      Row(3L, 2L)
+      Row(3L, 2L),
+      Row(3L, 3L)
     ))
   }
 
@@ -346,7 +385,8 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     // edges whose destination leads nowhere
     val edges = g.find("()-[e]->(v); !(v)-[]->()")
       .select("e.src", "e.dst")
-    assert(edges.collect().toSet === Set(Row(2L, 3L)))
+    val res = edges.collect().toSet
+    compareResultToExpected(res, Set(Row(2L, 3L)))
   }
 
   test("a->b but not a->b") {
@@ -365,8 +405,11 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("find column order") {
     val fof = g.find("(u)-[e]->(v); (v)-[]->(w); !(u)-[]->(w); !(w)-[]->(u)")
+      .where("u.id != v.id AND v.id != w.id AND u.id != w.id")
     assert(fof.columns === Array("u", "e", "v", "w"))
-    assert(fof.select("u.id", "v.id", "w.id").collect().toSet === Set(Row(1L, 2L, 3L)))
+    compareResultToExpected(
+      fof.select("u.id", "v.id", "w.id").collect().toSet,
+      Set(Row(1L, 2L, 3L)))
 
     val fv = g.find("(u)")
     assert(fv.columns === Array("u"))
@@ -389,13 +432,13 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("Disallow named edges in negated terms") {
-    intercept[Exception] {
+    intercept[InvalidParseException] {
       g.find("!()-[ab]->()")
     }
-    intercept[Exception] {
+    intercept[InvalidParseException] {
       g.find("(u)-[]->(v); !(a)-[ab]->(b)")
     }
-    intercept[Exception] {
+    intercept[InvalidParseException] {
       g.find("(u)-[ab]->(v); !(a)-[ab]->(b)")
     }
   }
@@ -407,7 +450,8 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .where("c.id = d.id AND e.id = a.id")
       .select("a.id", "b.id", "c.id")
 
-    assert(triangles.collect().toSet === Set(
+    val res = triangles.collect().toSet
+    compareResultToExpected(res, Set(
       Row(0L, 1L, 2L),
       Row(2L, 0L, 1L),
       Row(1L, 2L, 0L)
@@ -416,6 +460,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("stateful predicates via UDFs") {
     val chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
+      .where("a.id != b.id AND b.id != c.id AND c.id != a.id")
 
     // Using DataFrame operations, but not really operating in a stateful manner
     val chainWith2Friends = chain4.where(
@@ -438,7 +483,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship")))
     val chainWith2Friends2 = chain4.where(condition >= 2)
 
-    assert(chainWith2Friends.collect().toSet === chainWith2Friends2.collect().toSet)
+    compareResultToExpected(chainWith2Friends.collect().toSet, chainWith2Friends2.collect().toSet)
   }
 
   /* ===================================== Join elimination =================================== */

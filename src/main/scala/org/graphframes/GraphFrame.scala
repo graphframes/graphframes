@@ -314,27 +314,11 @@ class GraphFrame private(
    */
   def find(pattern: String): DataFrame = {
     val patterns = Pattern.parse(pattern)
-    val (positivePatterns, negatedPatterns) = Pattern.separateNegatedTerms(patterns)
-    val (positiveDf, positiveNames) = findSimple(Nil, None, Seq(), positivePatterns)
-    if (negatedPatterns.isEmpty) {
-      return positiveDf
-    }
-
-    val (negatedDf, negatedNames) =
-      findSimple(positivePatterns, Some(positiveDf), positiveNames, negatedPatterns)
-
-    // Augment positiveDf with named vertices which only appear in negated terms.
-    val namedVerticesFromNegatedTerms = negatedNames.filter(name => !positiveNames.contains(name))
-    val (augmentedPositiveDf, augmentedPositiveNames) = if (namedVerticesFromNegatedTerms.isEmpty) {
-      (positiveDf, positiveNames)
-    } else {
-      val extraPositivePattern =
-        namedVerticesFromNegatedTerms.map(name => s"($name)").mkString(";")
-      val extraPositivePatterns = Pattern.parse(extraPositivePattern)
-      findSimple(positivePatterns, Some(positiveDf), positiveNames, extraPositivePatterns)
-    }
-
-    augmentedPositiveDf.except(negatedDf)
+    val namedVerticesOnlyInNegatedTerms = Pattern.findNamedVerticesOnlyInNegatedTerms(patterns)
+    val extraPositivePatterns = namedVerticesOnlyInNegatedTerms.map(v => NamedVertex(v))
+    val augmentedPatterns = extraPositivePatterns ++ patterns
+    val df = findSimple(Nil, None, Seq(), augmentedPatterns)
+    enforceColumnOrder(df, Pattern.findNamedElementsInOrder(patterns, includeEdges = true))
   }
 
   // ======================== Other queries ===================================
@@ -454,20 +438,14 @@ class GraphFrame private(
       prevPatterns: Seq[Pattern],
       prevDF: Option[DataFrame],
       prevNames: Seq[String],
-      remainingPatterns: Seq[Pattern]): (DataFrame, Seq[String]) = {
+      remainingPatterns: Seq[Pattern]): DataFrame = {
     val (_, finalDFOpt, finalNames) =
       remainingPatterns.foldLeft((prevPatterns, prevDF, prevNames)) {
         case ((patterns, dfOpt, names), cur) =>
           val (nextDF, nextNames) = findIncremental(this, patterns, dfOpt, names, cur)
           (patterns :+ cur, nextDF, nextNames)
       }
-    val finalDF = enforceColumnOrder(finalDFOpt.getOrElse(sqlContext.emptyDataFrame), finalNames)
-    (finalDF, finalNames)
-    /*
-      case cur :: rest =>
-        val (df, names) = findIncremental(this, prevPatterns, prevDF, prevNames, cur)
-        findSimple(prevPatterns :+ cur, df, names, rest)
-    */
+    finalDFOpt.getOrElse(sqlContext.emptyDataFrame)
   }
 
   // ========= Other private methods ===========
@@ -777,9 +755,9 @@ object GraphFrame extends Serializable with Logging {
   private def eDstId(name: String): String = prefixWithName(name, DST)
 
 
-  private def maybeJoin(aOpt: Option[DataFrame], b: DataFrame): DataFrame = {
+  private def maybeCrossJoin(aOpt: Option[DataFrame], b: DataFrame): DataFrame = {
     aOpt match {
-      case Some(a) => a.join(b)
+      case Some(a) => a.crossJoin(b)
       case None => b
     }
   }
@@ -840,12 +818,12 @@ object GraphFrame extends Serializable with Logging {
           for (prev <- prev) assert(prev.columns.toSet.contains(name))
           (prev, prevNames)
         } else {
-          (Some(maybeJoin(prev, nestV(name))), prevNames :+ name)
+          (Some(maybeCrossJoin(prev, nestV(name))), prevNames :+ name)
         }
 
       case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
         val eRen = nestE(name)
-        (Some(maybeJoin(prev, eRen)), prevNames :+ name)
+        (Some(maybeCrossJoin(prev, eRen)), prevNames :+ name)
 
       case NamedEdge(name, AnonymousVertex, dst @ NamedVertex(dstName)) =>
         if (seen(dst, prevPatterns)) {
@@ -855,7 +833,7 @@ object GraphFrame extends Serializable with Logging {
         } else {
           val eRen = nestE(name)
           val dstV = nestV(dstName)
-          (Some(maybeJoin(prev, eRen)
+          (Some(maybeCrossJoin(prev, eRen)
             .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)), "left_outer")),
             prevNames :+ name :+ dstName)
         }
@@ -868,7 +846,7 @@ object GraphFrame extends Serializable with Logging {
         } else {
           val eRen = nestE(name)
           val srcV = nestV(srcName)
-          (Some(maybeJoin(prev, eRen)
+          (Some(maybeCrossJoin(prev, eRen)
             .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
              prevNames :+ srcName :+ name)
         }
@@ -899,7 +877,7 @@ object GraphFrame extends Serializable with Logging {
             val eRen = nestE(name)
             val srcV = nestV(srcName)
             val dstV = nestV(dstName)
-            (Some(maybeJoin(prev, eRen)
+            (Some(maybeCrossJoin(prev, eRen)
               .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))
               .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
               prevNames :+ srcName :+ name :+ dstName)
