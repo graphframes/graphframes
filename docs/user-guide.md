@@ -255,6 +255,14 @@ DSL for expressing structural patterns:
   E.g., `"(a)-[]->(b); !(b)-[]->(a)"` finds edges from `a` to `b` for which there is *no*
   edge from `b` to `a`.
 
+Restrictions:
+
+* Motifs are not allowed to contain edges without any named elements: `"()-[]->()"` and
+    `"!()-[]->()"` are prohibited terms.
+* Motifs are not allowed to contain named edges within negated terms (since these named
+    edges would never appear within results).  E.g., `"!(a)-[ab]->(b)"` is invalid, but
+    `"!(a)-[]->(b)"` is valid.
+
 More complex queries, such as queries which operate on vertex or edge attributes,
 can be expressed by applying filters to the result `DataFrame`.
 
