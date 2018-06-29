@@ -19,11 +19,8 @@ package org.apache.spark.graphx.lib
 
 import scala.reflect.ClassTag
 
-import breeze.linalg.{Vector => BV}
-
 import org.apache.spark.graphx._
-import org.apache.spark.internal.Logging
-import org.apache.spark.ml.linalg.{Vector, Vectors}
+import org.apache.spark.ml.linalg.Vector
 
 object GraphXHelpers {
   def runParallelPersonalizedPageRank[VD: ClassTag, ED: ClassTag] (

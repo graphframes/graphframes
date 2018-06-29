@@ -30,7 +30,7 @@ import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC}
  * In a multigraph, duplicate edges will be counted only once.
  *
  * Note that this provides the same algorithm as GraphX, but GraphX assumes the user provides
- * a graph in the correct format.  In Spark 2.0, GraphX can automatically canonicalize
+ * a graph in the correct format.  In Spark 2.0+, GraphX can automatically canonicalize
  * the graph to put it in this format.
  *
  * The returned DataFrame contains all the original vertex information and one additional column:
