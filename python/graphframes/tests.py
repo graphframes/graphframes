@@ -258,8 +258,8 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self._df_hasCols(comps, vcols=['id', 'component', 'A', 'B'])
         self.assertEqual(comps.count(), 2)
 
-    def test_connected_components_friends(self):
-        g = self._graph("friends")
+    def test_connected_components_star(self):
+        g = self._graph("star", 5)
         comps_tests = []
         comps_tests += [g.connectedComponents()]
         comps_tests += [g.connectedComponents(broadcastThreshold=1)]
@@ -271,7 +271,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
             comps_tests += [g.connectedComponents(checkpointInterval=10)]
         comps_tests += [g.connectedComponents(algorithm="graphx")]
         for c in comps_tests:
-            self.assertEqual(c.groupBy("component").count().count(), 2)
+            self.assertEqual(c.groupBy("component").count().count(), 1)
 
     def test_label_progagation(self):
         n = 5

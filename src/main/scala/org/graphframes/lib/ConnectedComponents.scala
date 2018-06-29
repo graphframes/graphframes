@@ -574,10 +574,10 @@ object ConnectedComponents extends Logging {
           old_ee = ee
 
           // Pruning Leaf Nodes Optimization
-          val r = pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold)
+          //val r = pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold)
           
           // Keep Source Nodes, prune other nodes
-          //val r = keepSrcNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold, edgeCnt)
+          val r = keepSrcNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold, edgeCnt)
 
           // when r != null, the optimization is performed. Otherwise it is not performed, and
           // we will not try it anymore. 
