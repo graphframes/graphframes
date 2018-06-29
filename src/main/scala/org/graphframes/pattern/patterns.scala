@@ -123,8 +123,6 @@ private[graphframes] object Pattern {
   }
 
   /**
-   * Split patterns into positive (non-negated) and negated terms, and find all named vertices
-   * in each.
    * Return the set of named vertices which only appear in negated terms, in sorted order.
    */
   private[graphframes]
@@ -143,15 +141,13 @@ private[graphframes] object Pattern {
    */
   private[graphframes]
   def findNamedElementsInOrder(patterns: Seq[Pattern], includeEdges: Boolean): Seq[String] = {
-    val elementSet = mutable.HashSet.empty[String]
-    val elementSeq = mutable.ArrayBuilder.make[String]
+    val elementSet = mutable.LinkedHashSet.empty[String]
     def findNamedElementsHelper(pattern: Pattern): Unit = pattern match {
       case Negation(child) =>
         findNamedElementsHelper(child)
       case AnonymousVertex =>  // pass
       case NamedVertex(name) =>
         if (!elementSet.contains(name)) {
-          elementSeq += name
           elementSet += name
         }
       case AnonymousEdge(src, dst) =>
@@ -160,13 +156,12 @@ private[graphframes] object Pattern {
       case NamedEdge(name, src, dst) =>
         findNamedElementsHelper(src)
         if (includeEdges && !elementSet.contains(name)) {
-          elementSeq += name
           elementSet += name
         }
         findNamedElementsHelper(dst)
     }
     patterns.foreach(findNamedElementsHelper)
-    elementSeq.result().toSeq
+    elementSet.toSeq
   }
 }
 
