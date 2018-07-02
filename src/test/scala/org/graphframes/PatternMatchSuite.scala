@@ -162,6 +162,16 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(selfLoops.columns === Array("a"))
     val res = selfLoops.select("a.id").collect().toSet
     compareResultToExpected(res, Set(Row(1L), Row(3L)))
+
+    val selfLoops2 = myG.find("(a)-[]->(b); (a)-[]->(a)")
+    assert(selfLoops2.columns === Array("a", "b"))
+    val res2 = selfLoops2.select("a.id", "b.id")
+      .where("a.id != b.id")
+      .collect().toSet
+    compareResultToExpected(res2, Set(
+      Row(1L, 0L),
+      Row(1L, 2L)
+    ))
   }
 
   /* ======================== Multiple-edge queries without negated terms ===================== */

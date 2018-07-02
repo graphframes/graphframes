@@ -878,7 +878,7 @@ object GraphFrame extends Serializable with Logging {
               .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
               prevNames :+ srcName :+ name)
 
-          case (false, false) =>
+          case (false, false) if srcName != dstName =>
             val eRen = nestE(name)
             val srcV = nestV(srcName)
             val dstV = nestV(dstName)
@@ -887,6 +887,15 @@ object GraphFrame extends Serializable with Logging {
               .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
               prevNames :+ srcName :+ name :+ dstName)
           // TODO: expose the plans from joining these in the opposite order
+
+          case (false, false) if srcName == dstName =>
+            val eRen = nestE(name)
+            val srcV = nestV(srcName)
+            (Some(maybeCrossJoin(prev, eRen)
+              .join(srcV,
+                eRen(eSrcId(name)) === srcV(vId(srcName)) &&
+                  eRen(eDstId(name)) === srcV(vId(srcName)))),
+              prevNames :+ srcName :+ name)
         }
 
       case AnonymousEdge(src, dst) =>
