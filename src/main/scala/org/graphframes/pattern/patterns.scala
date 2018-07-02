@@ -142,7 +142,6 @@ private[graphframes] object Pattern {
   private[graphframes]
   def findNamedElementsInOrder(patterns: Seq[Pattern], includeEdges: Boolean): Seq[String] = {
     val elementSet = mutable.LinkedHashSet.empty[String]
-
     def findNamedElementsHelper(pattern: Pattern): Unit = pattern match {
       case Negation(child) =>
         findNamedElementsHelper(child)

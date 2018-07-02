@@ -330,7 +330,9 @@ class GraphFrame private(
     val extraPositivePatterns = namedVerticesOnlyInNegatedTerms.map(v => NamedVertex(v))
     val augmentedPatterns = extraPositivePatterns ++ patterns
     val df = findSimple(augmentedPatterns)
-    enforceColumnOrder(df, Pattern.findNamedElementsInOrder(patterns, includeEdges = true))
+
+    val names = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
+    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
   }
 
   // ======================== Other queries ===================================
@@ -915,13 +917,5 @@ object GraphFrame extends Serializable with Logging {
     require(value >= 0)
     _broadcastThreshold = value
     this
-  }
-
-  /**
-   * Return the given DataFrame with columns in a given order.
-   * @param names This method assumes that names is exactly the set of columns in the DataFrame.
-   */
-  private[graphframes] def enforceColumnOrder(df: DataFrame, names: Seq[String]): DataFrame = {
-    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
   }
 }
