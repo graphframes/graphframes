@@ -151,6 +151,19 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, expected)
   }
 
+  test("self-loop") {
+    val myE = sqlContext.createDataFrame(List(
+      (1L, 1L, "self"),
+      (3L, 3L, "self"))).toDF("src", "dst", "relationship")
+      .union(e)
+    val myG = GraphFrame(v, myE)
+
+    val selfLoops = myG.find("(a)-[]->(a)")
+    assert(selfLoops.columns === Array("a"))
+    val res = selfLoops.select("a.id").collect().toSet
+    compareResultToExpected(res, Set(Row(1L), Row(3L)))
+  }
+
   /* ======================== Multiple-edge queries without negated terms ===================== */
 
   test("triangle cycles") {

@@ -326,6 +326,10 @@ class GraphFrame private(
    */
   def find(pattern: String): DataFrame = {
     val patterns = Pattern.parse(pattern)
+
+    // For each named vertex appearing only in a negated term, we augment the positive terms
+    // with the vertex as a standalone term `(v)`.
+    // See https://github.com/graphframes/graphframes/issues/276
     val namedVerticesOnlyInNegatedTerms = Pattern.findNamedVerticesOnlyInNegatedTerms(patterns)
     val extraPositivePatterns = namedVerticesOnlyInNegatedTerms.map(v => NamedVertex(v))
     val augmentedPatterns = extraPositivePatterns ++ patterns
