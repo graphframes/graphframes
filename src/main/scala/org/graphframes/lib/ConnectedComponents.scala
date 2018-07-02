@@ -546,15 +546,15 @@ object ConnectedComponents extends Logging {
       // connected components of the original graph. 
 
       // If the graph becomes sparse and current iteration >= $optStartIter, we start to
-      // try such optmization. However, the optmization is only performed if the shrinked 
+      // try such optimization. However, the optimization is only performed if the shrinked 
       // graph is much smaller than the original graph, otherwise we do not perform it (
       // in this case, the only additional cost is to determine the size of shrinked graph). 
       // In current implementation, we only try such optimization one time and it is 
       // performed at most one time. So the additional cost is bounded. 
 
       // According to such heuristic rule, we can determine when and whether we should 
-      // perform the optmization. For the sparse graphs (defined by sparsityThreshold), 
-      // we will try such optmization at the $optStartIter iteration (default is 2). 
+      // perform the optimization. For the sparse graphs (defined by sparsityThreshold), 
+      // we will try such optimization at the $optStartIter iteration (default is 2). 
       // Typically we want to try it in the previous iterations (<= 3). This is because 
       // the algorithm converges quickly and we can have more performance gain if pruning 
       // nodes in the early step. For the dense graph, its edges will be pruned at each 
@@ -574,10 +574,10 @@ object ConnectedComponents extends Logging {
           old_ee = ee
 
           // Pruning Leaf Nodes Optimization
-          //val r = pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold)
+          val r = pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold)
           
           // Keep Source Nodes, prune other nodes
-          val r = keepSrcNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold, edgeCnt)
+          //val r = keepSrcNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold, edgeCnt)
 
           // when r != null, the optimization is performed. Otherwise it is not performed, and
           // we will not try it anymore. 
