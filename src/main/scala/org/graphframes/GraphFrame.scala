@@ -296,24 +296,49 @@ class GraphFrame private(
    *       [[GraphFrame.vertices]]. Similarly, an edge `e` in a motif will produce a column "e"
    *       in the result `DataFrame` with sub-fields equivalent to the schema (columns) of
    *       [[GraphFrame.edges]].
+   *     - Be aware that names do *not* identify *distinct* elements: two elements with different
+   *       names may refer to the same graph element.  For example, in the motif
+   *       `"(a)-[e]->(b); (b)-[e2]->(c)"`, the names `a` and `c` could refer to the same vertex.
+   *       To restrict named elements to be distinct vertices or edges, use post-hoc filters
+   *       such as `resultDataframe.filter("a.id != c.id")`.
    *  - It is acceptable to omit names for vertices or edges in motifs when not needed.
    *    E.g., `"(a)-[]->(b)"` expresses an edge between vertices `a,b` but does not assign a name
    *    to the edge.  There will be no column for the anonymous edge in the result `DataFrame`.
    *    Similarly, `"(a)-[e]->()"` indicates an out-edge of vertex `a` but does not name
-   *    the destination vertex.
+   *    the destination vertex.  These are called *anonymous* vertices and edges.
    *  - An edge can be negated to indicate that the edge should *not* be present in the graph.
    *    E.g., `"(a)-[]->(b); !(b)-[]->(a)"` finds edges from `a` to `b` for which there is *no*
    *    edge from `b` to `a`.
    *
+   * Restrictions:
+   *  - Motifs are not allowed to contain edges without any named elements: `"()-[]->()"` and
+   *    `"!()-[]->()"` are prohibited terms.
+   *  - Motifs are not allowed to contain named edges within negated terms (since these named
+   *    edges would never appear within results).  E.g., `"!(a)-[ab]->(b)"` is invalid, but
+   *    `"!(a)-[]->(b)"` is valid.
+   *
    * More complex queries, such as queries which operate on vertex or edge attributes,
    * can be expressed by applying filters to the result `DataFrame`.
+   *
+   * This can return duplicate rows.  E.g., a query `"(u)-[]->()"` will return a result for each
+   * matching edge, even if those edges share the same vertex `u`.
    *
    * @param pattern  Pattern specifying a motif to search for.
    * @return  `DataFrame` containing all instances of the motif.
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val (df, names) = findSimple(Nil, None, Seq(), Pattern.parse(pattern))
+    val patterns = Pattern.parse(pattern)
+
+    // For each named vertex appearing only in a negated term, we augment the positive terms
+    // with the vertex as a standalone term `(v)`.
+    // See https://github.com/graphframes/graphframes/issues/276
+    val namedVerticesOnlyInNegatedTerms = Pattern.findNamedVerticesOnlyInNegatedTerms(patterns)
+    val extraPositivePatterns = namedVerticesOnlyInNegatedTerms.map(v => NamedVertex(v))
+    val augmentedPatterns = extraPositivePatterns ++ patterns
+    val df = findSimple(augmentedPatterns)
+
+    val names = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
     if (names.isEmpty) df else df.select(names.head, names.tail : _*)
   }
 
@@ -414,33 +439,21 @@ class GraphFrame private(
 
   // ========= Motif finding (private) =========
 
-
   /**
    * Primary method implementing motif finding.
-   * This recursive method handles one pattern (via [[findIncremental()]] on each iteration,
+   * This iterative method handles one pattern (via [[findIncremental()]] on each iteration,
    * augmenting the `DataFrame` in prevDF with each new pattern.
    *
-   * @param prevPatterns  Patterns already handled
-   * @param prevDF  Current DataFrame based on prevPatterns
-   * @param prevNames Current sequence of column names in the order as specified by prevPatterns
-   *                  For instance, `"(a)-[e]->(b)"` is Seq("a", "e", "b")
-   *                  `"(a)-[e]->(b); (b)-[]->(c)"` is Seq("a", "e", "b", "c")
-   * @param remainingPatterns  Patterns not yet handled
-   * @return `DataFrame` augmented with the next pattern, or the previous DataFrame if done
-   *        Seq[String] sequence of column names for the `DataFrame` appended to in order
-   *        as specified by the next pattern
+   * @return `DataFrame` containing all instances of the motif specified by the given patterns
    */
-  private def findSimple(
-      prevPatterns: Seq[Pattern],
-      prevDF: Option[DataFrame],
-      prevNames: Seq[String],
-      remainingPatterns: Seq[Pattern]): (DataFrame, Seq[String]) = {
-    remainingPatterns match {
-      case Nil => (prevDF.getOrElse(sqlContext.emptyDataFrame), prevNames)
-      case cur :: rest =>
-        val (df, names) = findIncremental(this, prevPatterns, prevDF, prevNames, cur)
-        findSimple(prevPatterns :+ cur, df, names, rest)
-    }
+  private def findSimple(patterns: Seq[Pattern]): DataFrame = {
+    val (_, finalDFOpt, _) =
+      patterns.foldLeft((Seq.empty[Pattern], Option.empty[DataFrame], Seq.empty[String])) {
+        case ((handledPatterns, dfOpt, names), cur) =>
+          val (nextDF, nextNames) = findIncremental(this, handledPatterns, dfOpt, names, cur)
+          (handledPatterns :+ cur, nextDF, nextNames)
+      }
+    finalDFOpt.getOrElse(sqlContext.emptyDataFrame)
   }
 
   // ========= Other private methods ===========
@@ -750,9 +763,9 @@ object GraphFrame extends Serializable with Logging {
   private def eDstId(name: String): String = prefixWithName(name, DST)
 
 
-  private def maybeJoin(aOpt: Option[DataFrame], b: DataFrame): DataFrame = {
+  private def maybeCrossJoin(aOpt: Option[DataFrame], b: DataFrame): DataFrame = {
     aOpt match {
-      case Some(a) => a.join(b)
+      case Some(a) => a.crossJoin(b)
       case None => b
     }
   }
@@ -813,12 +826,12 @@ object GraphFrame extends Serializable with Logging {
           for (prev <- prev) assert(prev.columns.toSet.contains(name))
           (prev, prevNames)
         } else {
-          (Some(maybeJoin(prev, nestV(name))), prevNames :+ name)
+          (Some(maybeCrossJoin(prev, nestV(name))), prevNames :+ name)
         }
 
       case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
         val eRen = nestE(name)
-        (Some(maybeJoin(prev, eRen)), prevNames :+ name)
+        (Some(maybeCrossJoin(prev, eRen)), prevNames :+ name)
 
       case NamedEdge(name, AnonymousVertex, dst @ NamedVertex(dstName)) =>
         if (seen(dst, prevPatterns)) {
@@ -828,8 +841,8 @@ object GraphFrame extends Serializable with Logging {
         } else {
           val eRen = nestE(name)
           val dstV = nestV(dstName)
-          (Some(maybeJoin(prev, eRen)
-            .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)), "left_outer")),
+          (Some(maybeCrossJoin(prev, eRen)
+            .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
             prevNames :+ name :+ dstName)
         }
 
@@ -841,7 +854,7 @@ object GraphFrame extends Serializable with Logging {
         } else {
           val eRen = nestE(name)
           val srcV = nestV(srcName)
-          (Some(maybeJoin(prev, eRen)
+          (Some(maybeCrossJoin(prev, eRen)
             .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
              prevNames :+ srcName :+ name)
         }
@@ -868,15 +881,24 @@ object GraphFrame extends Serializable with Logging {
               .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
               prevNames :+ srcName :+ name)
 
-          case (false, false) =>
+          case (false, false) if srcName != dstName =>
             val eRen = nestE(name)
             val srcV = nestV(srcName)
             val dstV = nestV(dstName)
-            (Some(maybeJoin(prev, eRen)
+            (Some(maybeCrossJoin(prev, eRen)
               .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))
               .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
               prevNames :+ srcName :+ name :+ dstName)
           // TODO: expose the plans from joining these in the opposite order
+
+          case (false, false) if srcName == dstName =>
+            val eRen = nestE(name)
+            val srcV = nestV(srcName)
+            (Some(maybeCrossJoin(prev, eRen)
+              .join(srcV,
+                eRen(eSrcId(name)) === srcV(vId(srcName)) &&
+                  eRen(eDstId(name)) === srcV(vId(srcName)))),
+              prevNames :+ srcName :+ name)
         }
 
       case AnonymousEdge(src, dst) =>
