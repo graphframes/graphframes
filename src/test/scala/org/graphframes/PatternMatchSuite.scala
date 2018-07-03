@@ -34,6 +34,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   @transient var v: DataFrame = _
   @transient var e: DataFrame = _
+  @transient var noEdges: DataFrame = _
   @transient var g: GraphFrame = _
 
   override def beforeAll(): Unit = {
@@ -50,6 +51,9 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       (1L, 2L, "friend"),
       (2L, 3L, "follow"),
       (2L, 0L, "unknown"))).toDF("src", "dst", "relationship")
+    noEdges = v.select(col("id").alias("src"))
+      .crossJoin(v.select(col("id").alias("dst")))
+      .except(e.select("src", "dst"))
     g = GraphFrame(v, e)
   }
 
@@ -82,12 +86,6 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   /* ====================================== Vertex queries ===================================== */
-
-  test("single anonymous vertex") {
-    val empty = g.find("()")
-
-    assert(empty.count() === 0)
-  }
 
   test("single named vertex") {
     val vertices = g.find("(a)")
@@ -133,6 +131,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val triplets = g.find("(u)-[]->()")
 
     assert(triplets.columns === Array("u"))
+    // Do not use compareResultToExpected since it uses sets, and we expect a duplicate
     assert(triplets.select("u.id", "u.attr").collect().sortBy(_.getLong(0)) === Array(
       Row(0L, "a"),
       Row(1L, "b"),
@@ -290,21 +289,8 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edgePairs.columns === Array("a", "b", "c", "d"))
     val res = edgePairs.select("a.id", "b.id", "c.id", "d.id")
       .collect().toSet
-    val noEdges = sqlContext.createDataFrame(List(
-      (0L, 0L),
-      (1L, 1L),
-      (2L, 2L),
-      (3L, 3L),
-      (0L, 2L),
-      (0L, 3L),
-      (1L, 3L),
-      (2L, 1L),
-      (3L, 0L),
-      (3L, 1L),
-      (3L, 2L)
-    )).toDF("c", "d")
     val expected = e.select(col("src").alias("a"), col("dst").alias("b"))
-      .crossJoin(noEdges)
+      .crossJoin(noEdges.select(col("src").alias("c"), col("dst").alias("d")))
       .select("a", "b", "c", "d")
       .collect().toSet
     compareResultToExpected(res, expected)
@@ -387,19 +373,9 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val res = g.find("!(u)-[]->(v)")
       .select("u.id", "v.id")
       .collect().toSet
-    compareResultToExpected(res, Set(
-      Row(0L, 0L),
-      Row(0L, 2L),
-      Row(0L, 3L),
-      Row(1L, 1L),
-      Row(1L, 3L),
-      Row(2L, 1L),
-      Row(2L, 2L),
-      Row(3L, 0L),
-      Row(3L, 1L),
-      Row(3L, 2L),
-      Row(3L, 3L)
-    ))
+    val expected = noEdges.select(col("src").alias("u"), col("dst").alias("v"))
+      .collect().toSet
+    compareResultToExpected(res, expected)
   }
 
   /* ======================== Other corner cases and implementation checks ==================== */

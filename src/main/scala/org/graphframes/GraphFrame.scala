@@ -839,7 +839,7 @@ object GraphFrame extends Serializable with Logging {
           val eRen = nestE(name)
           val dstV = nestV(dstName)
           (Some(maybeCrossJoin(prev, eRen)
-            .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)), "left_outer")),
+            .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
             prevNames :+ name :+ dstName)
         }
 

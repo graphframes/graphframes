@@ -24,8 +24,6 @@ class PatternSuite extends SparkFunSuite {
   test("good parses") {
     assert(Pattern.parse("(abc)") === Seq(NamedVertex("abc")))
 
-    assert(Pattern.parse("()") === Seq(AnonymousVertex))
-
     assert(Pattern.parse("(u)-[e]->(v)") ===
       Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("v"))))
 
@@ -50,6 +48,16 @@ class PatternSuite extends SparkFunSuite {
   }
 
   test("bad parses") {
+    withClue("Failed to catch parse error with lone anonymous vertex") {
+      intercept[InvalidParseException] {
+        Pattern.parse("()")
+      }
+    }
+    withClue("Failed to catch parse error with lone anonymous vertex") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(a)-[]->(b); ()")
+      }
+    }
     withClue("Failed to catch parse error") {
       intercept[InvalidParseException] {
         Pattern.parse("(")
@@ -102,6 +110,11 @@ class PatternSuite extends SparkFunSuite {
         Pattern.parse("(a)-[a]->(b)")
       }
     }
+    withClue("Failed to catch parse error with reused edge name") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(a)-[e]->(b); ()-[e]->()")
+      }
+    }
   }
 
   test("empty pattern should be parsable") {
@@ -149,6 +162,6 @@ class PatternSuite extends SparkFunSuite {
     Seq("u", "v", "vw"))
 
   testFindNamedElementsInOrder(
-    "(u)-[uv]->(v); (v)-[uv]->(w); !(u)-[]->(w); (x)",
-    Seq("u", "uv", "v", "w", "x"))
+    "(u)-[uv]->(v); (v)-[vw]->(w); !(u)-[]->(w); (x)",
+    Seq("u", "uv", "v", "vw", "w", "x"))
 }

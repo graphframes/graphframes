@@ -87,6 +87,10 @@ private[graphframes] object Pattern {
           throw new InvalidParseException(s"Motif reused name '$name' for both a vertex and " +
             s"an edge, which is not allowed.")
         }
+        if (edgeNames.contains(name)) {
+          throw new InvalidParseException(s"Motif reused name '$name' for multiple edges, " +
+            s"which is not allowed.")
+        }
         edgeNames += name
         addVertex(src)
         addVertex(dst)
@@ -116,7 +120,10 @@ private[graphframes] object Pattern {
         addEdge(e)
       case e @ NamedEdge(_, _, _) =>
         addEdge(e)
-      case AnonymousVertex => // ok
+      case AnonymousVertex =>
+        throw new InvalidParseException("Motif finding does not allow a lone anonymous vertex " +
+          "\"()\" in a motif.  Users can check for the existence of vertices in the graph " +
+          "using the vertices DataFrame.")
       case v @ NamedVertex(_) =>
         addVertex(v)
     }
