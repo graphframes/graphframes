@@ -266,6 +266,9 @@ Restrictions:
 More complex queries, such as queries which operate on vertex or edge attributes,
 can be expressed by applying filters to the result `DataFrame`.
 
+This can return duplicate rows.  E.g., a query `"(u)-[]->()"` will return a result for each
+matching edge, even if those edges share the same vertex `u`.
+
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">

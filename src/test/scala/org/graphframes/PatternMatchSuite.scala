@@ -131,7 +131,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val triplets = g.find("(u)-[]->()")
 
     assert(triplets.columns === Array("u"))
-    // Do not use compareResultToExpected since it uses sets, and we expect a duplicate
+    // Do not use compareResultToExpected since it uses sets, and we expect duplicates.
     assert(triplets.select("u.id", "u.attr").collect().sortBy(_.getLong(0)) === Array(
       Row(0L, "a"),
       Row(1L, "b"),
@@ -171,6 +171,26 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       Row(1L, 0L),
       Row(1L, 2L)
     ))
+  }
+
+  test("duplicate edges") {
+    val myE = sqlContext.createDataFrame(List(
+      (1L, 0L, "dup"),
+      (1L, 2L, "dup"))).toDF("src", "dst", "relationship")
+      .union(e)
+    val myG = GraphFrame(v, myE)
+
+    val edges = myG.find("(a)-[]->(b)")
+      .where("a.id = 1")
+    val res = edges.select("a.id", "b.id")
+      .collect().sortBy(_.getLong(1))
+    val expected = Array(
+      Row(1L, 0L),
+      Row(1L, 0L),
+      Row(1L, 2L),
+      Row(1L, 2L)
+    )
+    assert(res === expected)
   }
 
   /* ======================== Multiple-edge queries without negated terms ===================== */

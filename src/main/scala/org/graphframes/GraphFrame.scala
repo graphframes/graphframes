@@ -320,6 +320,9 @@ class GraphFrame private(
    * More complex queries, such as queries which operate on vertex or edge attributes,
    * can be expressed by applying filters to the result `DataFrame`.
    *
+   * This can return duplicate rows.  E.g., a query `"(u)-[]->()"` will return a result for each
+   * matching edge, even if those edges share the same vertex `u`.
+   *
    * @param pattern  Pattern specifying a motif to search for.
    * @return  `DataFrame` containing all instances of the motif.
    * @group motif
