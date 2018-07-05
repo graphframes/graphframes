@@ -366,8 +366,8 @@ class GraphFrame private(
    * vertices.
    * @group subgraph
    */
-  def filterVertices(condExpr: Column): GraphFrame = {
-    val vv = vertices.filter(condExpr)
+  def filterVertices(condition: Column): GraphFrame = {
+    val vv = vertices.filter(condition)
     val ee = edges.join(vv, vv(ID) === edges(SRC), "left_semi")
                   .join(vv, vv(ID) === edges(DST), "left_semi")
     GraphFrame(vv, ee)
@@ -378,15 +378,15 @@ class GraphFrame private(
    * vertices.
    * @group subgraph
    */
-  def filterVertices(condExpr: String): GraphFrame = filterVertices(expr(condExpr))
+  def filterVertices(conditionExpr: String): GraphFrame = filterVertices(expr(conditionExpr))
 
   /** 
    * Filter the edges according to Column expression, keep all vertices.
    * @group subgraph
    */
-  def filterEdges(condExpr: Column): GraphFrame = {
+  def filterEdges(condition: Column): GraphFrame = {
     val vv = vertices
-    val ee = edges.filter(condExpr)
+    val ee = edges.filter(condition)
     GraphFrame(vv, ee)
   }
 
@@ -394,7 +394,7 @@ class GraphFrame private(
    * Filter the edges according to String expression.
    * @group subgraph
    */
-  def filterEdges(condExpr: String): GraphFrame = filterEdges(expr(condExpr))
+  def filterEdges(conditionExpr: String): GraphFrame = filterEdges(expr(conditionExpr))
 
   /**
    * Drop isolated vertices, vertices not contained in any edges.

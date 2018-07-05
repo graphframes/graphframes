@@ -196,33 +196,33 @@ class GraphFrame(object):
         jdf = self._jvm_graph.find(pattern)
         return DataFrame(jdf, self._sqlContext)
 
-    def filterVertices(self, condExpr):
+    def filterVertices(self, condition):
         """
         Filter the vertices based on expression, remove edges containing any dropped vertices.
         
-        :param condExpr: String or Column describing the condition expression for filtering.
+        :param condition: String or Column describing the condition expression for filtering.
         :return: GraphFrame with filtered vertices and edges. 
         """
 
-        if isinstance(condExpr, basestring):
-            jdf = self._jvm_graph.filterVertices(condExpr)
-        elif isinstance(condExpr, Column):
-            jdf = self._jvm_graph.filterVertices(condExpr._jc)
+        if isinstance(condition, basestring):
+            jdf = self._jvm_graph.filterVertices(condition)
+        elif isinstance(condition, Column):
+            jdf = self._jvm_graph.filterVertices(condition._jc)
         else:
             raise TypeError("condition should be string or Column")
         return _from_java_gf(jdf, self._sqlContext)
 
-    def filterEdges(self, condExpr):
+    def filterEdges(self, condition):
         """
         Filter the edges based on expression, keep all vertices.
         
         :param condExpr: String or Column describing the condition expression for filtering.
         :return: GraphFrame with filtered edges. 
         """
-        if isinstance(condExpr, basestring):
-            jdf = self._jvm_graph.filterEdges(condExpr)
-        elif isinstance(condExpr, Column):
-            jdf = self._jvm_graph.filterEdges(condExpr._jc)
+        if isinstance(condition, basestring):
+            jdf = self._jvm_graph.filterEdges(condition)
+        elif isinstance(condition, Column):
+            jdf = self._jvm_graph.filterEdges(condition._jc)
         else:
             raise TypeError("condition should be string or Column")
         return _from_java_gf(jdf, self._sqlContext)
