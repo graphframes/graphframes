@@ -85,6 +85,73 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(emptiness.count() === 0)
   }
 
+  test("filter edges and drop isolated vertices") {
+    // string expression
+    val s = "relationship = 'friend'"
+    // column expression
+    val c = col("relationship") === "friend"
+    // expected subgraph vertices 
+    val expected_v =  Set(
+      Row(0L, "a", "f"),
+      Row(1L, "b", "m"),
+      Row(2L, "c", "m")
+    )
+    // expected subgraph edges
+    val expected_e =  Set(
+      Row(0L, 1L, "friend"),
+      Row(1L, 2L, "friend")
+    )
+
+    val res_s = g.filterEdges(s)
+    assert(res_s.vertices.collect().toSet === v.collect().toSet)
+    assert(res_s.edges.collect().toSet === expected_e)
+
+    val res_c = g.filterEdges(c)
+    assert(res_c.vertices.collect().toSet === v.collect().toSet)
+    assert(res_c.edges.collect().toSet === expected_e)
+
+    val res = res_s.dropIsolatedVertices()
+    assert(res.vertices.collect().toSet === expected_v)
+    assert(res.edges.collect().toSet === expected_e)
+  }
+
+  test("filter vertices") {
+    // string expression
+    val s = "id > 0"
+    // column expression
+    val c = col("id") > 0
+    // expected subgraph vertices 
+    val expected_v =  Set(
+      Row(1L, "b", "m"),
+      Row(2L, "c", "m"),
+      Row(3L, "d", "f")
+    )
+    // expected subgraph edges
+    val expected_e =  Set(
+      Row(1L, 2L, "friend"),
+      Row(2L, 3L, "follow")
+    )
+
+    val res_s = g.filterVertices(s)
+    assert(res_s.vertices.collect().toSet === expected_v)
+    assert(res_s.edges.collect().toSet === expected_e)
+
+    val res_c = g.filterVertices(c)
+    assert(res_c.vertices.collect().toSet === expected_v)
+    assert(res_c.edges.collect().toSet === expected_e)
+  }
+
+  test("triangles") {
+    val triangles = g.find("(a)-[]->(b); (b)-[]->(c); (c)-[]->(a)")
+      .select("a.id", "b.id", "c.id")
+
+    assert(triangles.collect().toSet === Set(
+      Row(0L, 1L, 2L),
+      Row(2L, 0L, 1L),
+      Row(1L, 2L, 0L)
+    ))
+  }
+
   /* ====================================== Vertex queries ===================================== */
 
   test("single named vertex") {

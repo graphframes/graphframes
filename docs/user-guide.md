@@ -391,7 +391,8 @@ In GraphX, the `subgraph()` method takes an edge triplet (edge, src vertex, and 
 attributes) and allows the user to select a subgraph based on triplet and vertex filters.
 
 GraphFrames provide an even more powerful way to select subgraphs based on a combination of
-motif finding and DataFrame filters.
+motif finding and DataFrame filters. We provide three helper methods for subgraph selection.
+`filterVertices(condition)`, `filterEdges(condition)`, and `dropIsolatedVertices()`.
 
 **Simple subgraph: vertex and edge filters**:
 The following example shows how to select a subgraph based upon vertex and edge filters.
@@ -403,10 +404,10 @@ The following example shows how to select a subgraph based upon vertex and edge 
 import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends
 
-// Select subgraph of users older than 30, and edges of type "friend"
-val v2 = g.vertices.filter("age > 30")
-val e2 = g.edges.filter("relationship = 'friend'")
-val g2 = GraphFrame(v2, e2)
+// Select subgraph of users older than 30, and relationships of type "friend".
+// Drop isolated vertices (users) which are not contained in any edges (relationships).
+val g1 = g.filterVertices("age > 30").filterEdges("relationship = 'friend'").dropIsolatedVertices()
+
 {% endhighlight %}
 </div>
 
@@ -415,10 +416,10 @@ val g2 = GraphFrame(v2, e2)
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
-# Select subgraph of users older than 30, and edges of type "friend"
-v2 = g.vertices.filter("age > 30")
-e2 = g.edges.filter("relationship = 'friend'")
-g2 = GraphFrame(v2, e2)
+# Select subgraph of users older than 30, and relationships of type "friend".
+# Drop isolated vertices (users) which are not contained in any edges (relationships).
+g1 = g.filterVertices("age > 30").filterEdges("relationship = 'friend'").dropIsolatedVertices()
+
 {% endhighlight %}
 </div>
 

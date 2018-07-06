@@ -23,7 +23,7 @@ import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf, monotonically_increasing_id}
+import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf, monotonically_increasing_id, expr}
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 
@@ -36,6 +36,7 @@ import org.graphframes.pattern._
  * @groupname structure Structure information
  * @groupname conversions Conversions
  * @groupname stdlib Standard graph algorithms
+ * @groupname subgraph Subgraph selection
  * @groupname degree Graph topology
  * @groupname motif Motif finding
  */
@@ -360,6 +361,51 @@ class GraphFrame private(
    */
   def aggregateMessages: AggregateMessages = new AggregateMessages(this)
 
+  /**
+   * Filter the vertices according to Column expression, remove edges containing any dropped
+   * vertices.
+   * @group subgraph
+   */
+  def filterVertices(condition: Column): GraphFrame = {
+    val vv = vertices.filter(condition)
+    val ee = edges.join(vv, vv(ID) === edges(SRC), "left_semi")
+                  .join(vv, vv(ID) === edges(DST), "left_semi")
+    GraphFrame(vv, ee)
+  }
+
+  /**
+   * Filter the vertices according to String expression, remove edges containing any dropped
+   * vertices.
+   * @group subgraph
+   */
+  def filterVertices(conditionExpr: String): GraphFrame = filterVertices(expr(conditionExpr))
+
+  /** 
+   * Filter the edges according to Column expression, keep all vertices.
+   * @group subgraph
+   */
+  def filterEdges(condition: Column): GraphFrame = {
+    val vv = vertices
+    val ee = edges.filter(condition)
+    GraphFrame(vv, ee)
+  }
+
+  /** 
+   * Filter the edges according to String expression.
+   * @group subgraph
+   */
+  def filterEdges(conditionExpr: String): GraphFrame = filterEdges(expr(conditionExpr))
+
+  /**
+   * Drop isolated vertices, vertices not contained in any edges.
+   * @group subgraph
+   */
+  def dropIsolatedVertices(): GraphFrame = {
+    val ee = edges
+    val e1 = ee.withColumn(ID, explode(array(col(SRC), col(DST))))
+    val vv = vertices.join(e1, Seq(ID), "left_semi")
+    GraphFrame(vv, ee)
+  }
 
   // **** Standard library ****
 

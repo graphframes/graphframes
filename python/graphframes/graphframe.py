@@ -196,6 +196,46 @@ class GraphFrame(object):
         jdf = self._jvm_graph.find(pattern)
         return DataFrame(jdf, self._sqlContext)
 
+    def filterVertices(self, condition):
+        """
+        Filters the vertices based on expression, remove edges containing any dropped vertices.
+        
+        :param condition: String or Column describing the condition expression for filtering.
+        :return: GraphFrame with filtered vertices and edges. 
+        """
+
+        if isinstance(condition, basestring):
+            jdf = self._jvm_graph.filterVertices(condition)
+        elif isinstance(condition, Column):
+            jdf = self._jvm_graph.filterVertices(condition._jc)
+        else:
+            raise TypeError("condition should be string or Column")
+        return _from_java_gf(jdf, self._sqlContext)
+
+    def filterEdges(self, condition):
+        """
+        Filters the edges based on expression, keep all vertices.
+        
+        :param condition: String or Column describing the condition expression for filtering.
+        :return: GraphFrame with filtered edges. 
+        """
+        if isinstance(condition, basestring):
+            jdf = self._jvm_graph.filterEdges(condition)
+        elif isinstance(condition, Column):
+            jdf = self._jvm_graph.filterEdges(condition._jc)
+        else:
+            raise TypeError("condition should be string or Column")
+        return _from_java_gf(jdf, self._sqlContext)
+
+    def dropIsolatedVertices(self):
+        """
+        Drops isolated vertices, vertices are not contained in any edges.
+
+        :return: GraphFrame with filtered vertices. 
+        """
+        jdf = self._jvm_graph.dropIsolatedVertices()
+        return _from_java_gf(jdf, self._sqlContext)
+
     def bfs(self, fromExpr, toExpr, edgeFilter=None, maxPathLength=10):
         """
         Breadth-first search (BFS).
