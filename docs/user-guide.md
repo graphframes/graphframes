@@ -873,6 +873,9 @@ val agg = { g.aggregateMessages
 agg.show()
 {% endhighlight %}
 
+For a more complex example, look at the code used to implement the
+[Belief Propagation example](api/python/graphframes.examples.html#graphframes.examples.BeliefPropagation).
+
 </div>
 
 <div data-lang="python"  markdown="1">
