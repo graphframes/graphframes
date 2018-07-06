@@ -874,7 +874,7 @@ agg.show()
 {% endhighlight %}
 
 For a more complex example, look at the code used to implement the
-[Belief Propagation example](api/python/graphframes.examples.html#graphframes.examples.BeliefPropagation).
+[Belief Propagation example](api/scala/index.html#org.graphframes.examples.BeliefPropagation$).
 
 </div>
 
