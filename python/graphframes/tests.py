@@ -170,8 +170,10 @@ class GraphFrameTest(GraphFrameTestCase):
             g2 = g.filterVertices(cond)
             v2 = g2.vertices.select("id", "name").collect()
             e2 = g2.edges.select("src", "dst", "action").collect()
-            self.assertEqual(v2, expected_v)
-            self.assertEqual(e2, expected_e)
+            assert v2.count() == expected_v.count()
+            assert e2.count() == expected_e.count()
+            self.assertSetEqual(set(v2), set(expected_v))
+            self.assertSetEqual(set(e2), set(expected_e))
 
     def test_filterEdges(self):
         g = self.g
@@ -182,18 +184,22 @@ class GraphFrameTest(GraphFrameTestCase):
             g2 = g.filterEdges(cond)
             v2 = g2.vertices.select("id", "name").collect()
             e2 = g2.edges.select("src", "dst", "action").collect()
-            self.assertEqual(v2, expected_v)
-            self.assertEqual(e2, expected_e)
+            assert v2.count() == expected_v.count()
+            assert e2.count() == expected_e.count()
+            self.assertSetEqual(set(v2), set(expected_v))
+            self.assertSetEqual(set(e2), set(expected_e))
 
     def test_dropIsolatedVertices(self):
         g = self.g
         g2 = g.filterEdges("dst > 2").dropIsolatedVertices()
         v2 = g2.vertices.select("id", "name").collect()
         e2 = g2.edges.select("src", "dst", "action").collect()
-        expected_v = set([(2, "B"), (3, "C")])
+        expected_v = [(2, "B"), (3, "C")]
         expected_e = [(2, 3, "follow")]
-        self.assertEqual(set(v2), expected_v)
-        self.assertEqual(e2, expected_e)
+        assert v2.count() == expected_v.count()
+        assert e2.count() == expected_e.count()
+        self.assertSetEqual(set(v2), set(expected_v))
+        self.assertSetEqual(set(e2), set(expected_e))
 
     def test_bfs(self):
         g = self.g

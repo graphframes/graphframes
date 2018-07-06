@@ -198,7 +198,7 @@ class GraphFrame(object):
 
     def filterVertices(self, condition):
         """
-        Filter the vertices based on expression, remove edges containing any dropped vertices.
+        Filters the vertices based on expression, remove edges containing any dropped vertices.
         
         :param condition: String or Column describing the condition expression for filtering.
         :return: GraphFrame with filtered vertices and edges. 
@@ -214,9 +214,9 @@ class GraphFrame(object):
 
     def filterEdges(self, condition):
         """
-        Filter the edges based on expression, keep all vertices.
+        Filters the edges based on expression, keep all vertices.
         
-        :param condExpr: String or Column describing the condition expression for filtering.
+        :param condition: String or Column describing the condition expression for filtering.
         :return: GraphFrame with filtered edges. 
         """
         if isinstance(condition, basestring):
@@ -229,8 +229,7 @@ class GraphFrame(object):
 
     def dropIsolatedVertices(self):
         """
-        Drop isolated vertices, vertice
-        s are not contained in any edges.
+        Drops isolated vertices, vertices are not contained in any edges.
 
         :return: GraphFrame with filtered vertices. 
         """

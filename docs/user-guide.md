@@ -392,7 +392,7 @@ attributes) and allows the user to select a subgraph based on triplet and vertex
 
 GraphFrames provide an even more powerful way to select subgraphs based on a combination of
 motif finding and DataFrame filters. We provide three helper methods for subgraph selection.
-`filterVertices(expr)`, `filterEdges(expr)`, and `dropIsolatedVertices()`.
+`filterVertices(condition)`, `filterEdges(condition)`, and `dropIsolatedVertices()`.
 
 **Simple subgraph: vertex and edge filters**:
 The following example shows how to select a subgraph based upon vertex and edge filters.
