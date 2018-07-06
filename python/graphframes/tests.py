@@ -170,8 +170,8 @@ class GraphFrameTest(GraphFrameTestCase):
             g2 = g.filterVertices(cond)
             v2 = g2.vertices.select("id", "name").collect()
             e2 = g2.edges.select("src", "dst", "action").collect()
-            assert v2.count() == expected_v.count()
-            assert e2.count() == expected_e.count()
+            assert len(v2) == len(expected_v)
+            assert len(e2) == len(expected_e)
             self.assertSetEqual(set(v2), set(expected_v))
             self.assertSetEqual(set(e2), set(expected_e))
 
@@ -184,8 +184,8 @@ class GraphFrameTest(GraphFrameTestCase):
             g2 = g.filterEdges(cond)
             v2 = g2.vertices.select("id", "name").collect()
             e2 = g2.edges.select("src", "dst", "action").collect()
-            assert v2.count() == expected_v.count()
-            assert e2.count() == expected_e.count()
+            assert len(v2) == len(expected_v)
+            assert len(e2) == len(expected_e)
             self.assertSetEqual(set(v2), set(expected_v))
             self.assertSetEqual(set(e2), set(expected_e))
 
@@ -196,8 +196,8 @@ class GraphFrameTest(GraphFrameTestCase):
         e2 = g2.edges.select("src", "dst", "action").collect()
         expected_v = [(2, "B"), (3, "C")]
         expected_e = [(2, 3, "follow")]
-        assert v2.count() == expected_v.count()
-        assert e2.count() == expected_e.count()
+        assert len(v2) == len(expected_v)
+        assert len(e2) == len(expected_e)
         self.assertSetEqual(set(v2), set(expected_v))
         self.assertSetEqual(set(e2), set(expected_e))
 
