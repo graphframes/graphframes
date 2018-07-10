@@ -195,6 +195,15 @@ class ConnectedComponents private[graphframes] (
    */
   def getIntermediateStorageLevel: StorageLevel = intermediateStorageLevel
 
+  /*
+  * Gets the iteration of performing prune nodes optimization. remains 0 if the optimization is not performed.
+  * This variable is just for test use. 
+  */
+  def getOptIter(): Int = {
+    val ret = optIter 
+    optIter = 0
+    ret
+  }
   /**
    * Runs the algorithm.
    */
@@ -221,6 +230,10 @@ object ConnectedComponents extends Logging {
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
   private val ALGO_GRAPHX = "graphx"
   private val ALGO_GRAPHFRAMES = "graphframes"
+  
+  // The iteration of performing prune nodes optimization. remains 0 if the optimization is not performed.
+  // This variable is just for test use. 
+  private var optIter: Int = 0
 
   /**
    * Supported algorithms in [[org.graphframes.lib.ConnectedComponents.setAlgorithm]]: "graphframes"
@@ -613,7 +626,8 @@ object ConnectedComponents extends Logging {
                           ee.persist(intermediateStorageLevel)
                           isOptimized = true
                           shouldKeepCheckpoint = true
-                          logInfo(s"Pruning node optimization is performed.")
+                          optIter = iteration
+                          logInfo(s"Pruning node optimization is performed in iteration $iteration.")
           case None =>  logInfo(s"Pruning node optimization is not performed.")
         }
         triedToOptimize = true

@@ -21,6 +21,7 @@ import java.io.IOException
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions.{col, lit}
@@ -160,7 +161,44 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
-  test("prune nodes optimization") {
+  test("$optStartIter parameter for pruning node optimization") {
+    val vertices = sqlContext.range(7L).toDF(ID)
+    val edges = sqlContext.createDataFrame(Seq(
+      (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
+    )).toDF(SRC, DST)
+    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
+    val g = GraphFrame(vertices, edges)
+    val cc = g.connectedComponents
+    val expected = Set(Set(0L, 1L, 2L, 3L, 4L, 5L), Set(6L))
+
+    // the optimization is performed in the first iteration.
+    var components = cc.setOptStartIter(1).run()
+    var iter = cc.getOptIter()
+    assert(1 == iter)
+    assertComponents(components, expected)
+    
+    // the optimization is performed in the second iteration.
+    components = cc.setOptStartIter(2).run()
+    iter = cc.getOptIter()
+    assert(iter == 2)
+    assertComponents(components, expected)
+
+    // when $optStartIter <= 1 (includes 0 and negative values),
+    // the optimization is performed in the first iteration.
+    components = cc.setOptStartIter(0).run()
+    iter = cc.getOptIter()
+    assert(iter == 1)
+    assertComponents(components, expected)
+
+    // when set $optStartIter bigger than the total iteration number,
+    // the optimization is not performed.
+    components = cc.setOptStartIter(10).run()
+    iter = cc.getOptIter()
+    assert(iter == 0)
+    assertComponents(components, expected)
+  }
+
+  test("prune process for pruning nodes optimization") {
     val vertices = sqlContext.range(7L).toDF(ID)
     val edges = sqlContext.createDataFrame(Seq(
       (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
