@@ -273,6 +273,16 @@ class GraphFrameLibTest(GraphFrameTestCase):
         for c in comps_tests:
             self.assertEqual(c.groupBy("component").count().count(), 1)
 
+    def test_pruning_nodes_optimization(self):
+        g = self._graph("star", 5)
+        comps_tests = []
+        comps_tests += [g.connectedComponents()]
+        comps_tests += [g.connectedComponents(optStartIter=0)]
+        comps_tests += [g.connectedComponents(optStartIter=1)]
+        comps_tests += [g.connectedComponents(optStartIter=10)]
+        for c in comps_tests:
+            self.assertEqual(c.groupBy("component").count().count(), 1)
+
     def test_label_progagation(self):
         n = 5
         g = self._graph("twoBlobs", n)
