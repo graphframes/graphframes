@@ -319,7 +319,7 @@ object ConnectedComponents extends Logging {
   *  @return returns a tuple (vertices of the shrinked graph, edges of the shrinked graph, #vertices
   *          of the shrinked graph) if the optimization is performed. Otherwise returns None.
   */ 
-  private def pruneLeafNodes(
+  private[graphframes] def pruneLeafNodes(
     edges: DataFrame,
     intermediateStorageLevel: StorageLevel,
     numNodes: Long,
@@ -371,7 +371,7 @@ object ConnectedComponents extends Logging {
   *  @return returns a tuple (vertices of the shrinked graph, edges of the shrinked graph, #vertices 
   *          of the shrinked graph) if the optimization is performed. Otherwise returns None. 
   */
-  private def keepSrcNodes(
+  private[graphframes] def keepSrcNodes(
     edges: DataFrame,
     intermediateStorageLevel: StorageLevel,
     numNodes: Long,
@@ -407,6 +407,34 @@ object ConnectedComponents extends Logging {
     }
     else
       None
+  }
+
+  /**
+  *  Given vertices and converged edges of the shrinked graph, this method joins back to get 
+  *  converged edges of the original graph.
+  *  @param vertices the vertices of the shrinked graph.
+  *  @param edges the converged edges of the shrinked graph.
+  *  @param originalGraphEdges the edges of the original graph.
+  *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
+  *  @return connected component results (converged edges) of the original graph. 
+  */
+  private[graphframes] def joinBack(
+    vertices: DataFrame,
+    edges: DataFrame,
+    originalGraphEdges: DataFrame,
+    intermediateStorageLevel: StorageLevel): DataFrame = {
+
+    // connected components of the shrinked graph
+    val cc = vertices.join(edges, vertices(ID) === edges(DST), "left_outer")
+      .select(when(edges(SRC).isNull, vertices(ID)).otherwise(edges(SRC)).as(SRC), vertices(ID).as(DST))
+      .persist(intermediateStorageLevel)
+
+    // join back to get results (converged edges) of the original graph
+    val res: DataFrame = cc.join(originalGraphEdges, cc(DST) === originalGraphEdges(SRC))
+      .select(cc(SRC), originalGraphEdges(DST))
+      .union(cc)
+      .distinct() // src <= dst
+    res
   }
 
   /**
@@ -570,7 +598,7 @@ object ConnectedComponents extends Logging {
       if((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0) 
         && (iteration >= optStartIter) && (triedToOptimize == false))
       {
-        originalGraphEdges = ee
+        originalGraphEdges = ee // src < dst
 
         // Keep Source Nodes, prune other nodes
         //keepSrcNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold, edgeCnt) match {
@@ -585,6 +613,7 @@ object ConnectedComponents extends Logging {
                           ee.persist(intermediateStorageLevel)
                           isOptimized = true
                           shouldKeepCheckpoint = true
+                          logInfo(s"Pruning node optimization is performed.")
           case None =>  logInfo(s"Pruning node optimization is not performed.")
         }
         triedToOptimize = true
@@ -602,21 +631,11 @@ object ConnectedComponents extends Logging {
       iteration += 1
     }
     
-    // If we have performed pruning node optimization to shrink the graph, 
-    // we need to get the results of the original graph from the shrinked one.
+    // If we have performed pruning node optimization to shrink the graph, we need to 
+    // get the results (converged edges) of the original graph from the shrinked one.
     if(isOptimized == true)
     {
-      // connected components of the shrinked graph
-      val cc = shrinkedGraphNodes.join(ee, shrinkedGraphNodes(ID) === ee(DST), "left_outer")
-        .select(when(ee(SRC).isNull, shrinkedGraphNodes(ID)).otherwise(ee(SRC)).as(SRC), 
-         shrinkedGraphNodes(ID).as(DST))
-        .persist(intermediateStorageLevel)
-
-      // join back to get results of the original graph
-      ee = cc.join(originalGraphEdges, cc(DST) === originalGraphEdges(SRC))
-        .select(cc(SRC), originalGraphEdges(DST))
-        .union(cc)
-        .distinct() // src <= dst
+      ee = joinBack(shrinkedGraphNodes, ee, originalGraphEdges, intermediateStorageLevel)
     }
 
     logger.info(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
