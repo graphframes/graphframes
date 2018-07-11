@@ -34,6 +34,12 @@ import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
+  // vertices and edges for pruning node optimization tests. 
+  def verticesOpt: DataFrame = sqlContext.range(7L).toDF(ID)
+  def edgesOpt: DataFrame = sqlContext.createDataFrame(Seq(
+      (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
+  )).toDF(SRC, DST)
+
   test("default params") {
     val g = Graphs.empty[Int]
     val cc = g.connectedComponents
@@ -162,12 +168,12 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("$optStartIter parameter for pruning node optimization") {
-    val vertices = sqlContext.range(7L).toDF(ID)
-    val edges = sqlContext.createDataFrame(Seq(
-      (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-    )).toDF(SRC, DST)
+    //val vertices = sqlContext.range(7L).toDF(ID)
+    //val edges = sqlContext.createDataFrame(Seq(
+    //  (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
+    //)).toDF(SRC, DST)
     val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
-    val g = GraphFrame(vertices, edges)
+    val g = GraphFrame(verticesOpt, edgesOpt)
     val cc = g.connectedComponents
     val expected = Set(Set(0L, 1L, 2L, 3L, 4L, 5L), Set(6L))
 
@@ -203,15 +209,15 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("prune process for pruning nodes optimization") {
-    val vertices = sqlContext.range(7L).toDF(ID)
-    val edges = sqlContext.createDataFrame(Seq(
-      (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-    )).toDF(SRC, DST)
+    //val vertices = sqlContext.range(7L).toDF(ID)
+    //val edges = sqlContext.createDataFrame(Seq(
+    //  (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
+    //)).toDF(SRC, DST)
     val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
     val shrinkageThreshold = 2
     // prune leaf nodes
-    val Some(r1) = ConnectedComponents.pruneLeafNodes(edges, intermediateStorageLevel,
-                                              vertices.count(), shrinkageThreshold)
+    val Some(r1) = ConnectedComponents.pruneLeafNodes(edgesOpt, intermediateStorageLevel,
+                                              verticesOpt.count(), shrinkageThreshold)
     
     val expected_v1 = Set(Row(0L), Row(1L), Row(2L))
     val expected_e1 = Set(Row(0L, 1L), Row(1L, 2L), Row(0L, 2L))
@@ -221,8 +227,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert (r1._3 == expected_v1.size)
 
     // keep source nodes
-    val Some(r2) = ConnectedComponents.keepSrcNodes(edges, intermediateStorageLevel,
-                                vertices.count(), shrinkageThreshold, edges.count())
+    val Some(r2) = ConnectedComponents.keepSrcNodes(edgesOpt, intermediateStorageLevel,
+                              verticesOpt.count(), shrinkageThreshold, edgesOpt.count())
     
     val expected_v2 = Set(Row(0L), Row(1L))
     val expected_e2 = Set(Row(0L, 1L))
@@ -233,22 +239,22 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("shrinkage condition for pruning nodes optimization") {
-    val vertices = sqlContext.range(7L).toDF(ID)
-    val edges = sqlContext.createDataFrame(Seq(
-      (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-    )).toDF(SRC, DST)
+   // val vertices = sqlContext.range(7L).toDF(ID)
+    //val edges = sqlContext.createDataFrame(Seq(
+     // (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
+    //)).toDF(SRC, DST)
     val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
     val shrinkageThreshold = 4
     // prune leaf nodes
-    val r1 = ConnectedComponents.pruneLeafNodes(edges, intermediateStorageLevel,
-                                              vertices.count(), shrinkageThreshold)
+    val r1 = ConnectedComponents.pruneLeafNodes(edgesOpt, intermediateStorageLevel,
+                                            verticesOpt.count(), shrinkageThreshold)
     // new_vv_cnt = 3, nodeNum = 7, shrinkageThreshold = 4
     // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
     assert(r1 == None)
 
     // keep source nodes
-    val r2 = ConnectedComponents.keepSrcNodes(edges, intermediateStorageLevel,
-                                vertices.count(), shrinkageThreshold, edges.count())
+    val r2 = ConnectedComponents.keepSrcNodes(edgesOpt, intermediateStorageLevel,
+                        verticesOpt.count(), shrinkageThreshold, edgesOpt.count())
     // new_vv_cnt = 2, nodeNum = 7, shrinkageThreshold = 4
     // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
     assert(r2 == None)

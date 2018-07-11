@@ -197,18 +197,19 @@ class ConnectedComponents private[graphframes] (
 
   /*
   * Gets the iteration of performing prune nodes optimization. remains 0 if the optimization is not performed.
-  * This variable is just for test use. 
+  * This method is just for test use. 
   */
   private[graphframes] def getOptIter(): Int = {
     optIter
   }
 
   /*
-  * Sets $OptIter as initial value 0. This variable is just for test use. 
+  * Sets $OptIter as initial value 0. This method is just for test use. 
   */
   private[graphframes] def setOptIter() = {
     optIter = 0
   }
+
   /**
    * Runs the algorithm.
    */
@@ -330,7 +331,7 @@ object ConnectedComponents extends Logging {
   *  In our optimization, we prune leaf nodes and get a shrinked graph to reduce the shuffle 
   *  size in the following iterations. Currently, we only perform such optimization one time. 
   *  
-  *  @param edges the edges of the originial graph.
+  *  @param edges the edges before pruing node optimization.
   *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
   *  @param numNodes the number of nodes in the original graph.
   *  @param shrinkageThreshold the shrinkage threshold.
@@ -381,11 +382,11 @@ object ConnectedComponents extends Logging {
   *  edges. Thus we need to estimate the edge size and the cost of constructing edges for the 
   *  shrinked graph. If it is too high, we do not perform the optimization. 
   *
-  *  @param edges the edges of the originial graph.
+  *  @param edges the edges before pruing node optimization
   *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
   *  @param numNodes the number of nodes in the original graph.
   *  @param shrinkageThreshold the shrinkage threshold.
-  *  @param edgeCnt the number of edges in the original graph.
+  *  @param edgeCnt the number of edges before pruning node optimization.
   *  @return returns a tuple (vertices of the shrinked graph, edges of the shrinked graph, #vertices 
   *          of the shrinked graph) if the optimization is performed. Otherwise returns None. 
   */
@@ -511,7 +512,6 @@ object ConnectedComponents extends Logging {
     }
 
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
-
     val g = prepare(graph)
     val vv = g.vertices.persist(intermediateStorageLevel)
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
@@ -559,10 +559,10 @@ object ConnectedComponents extends Logging {
         ee.write.parquet(out)
         // may hit S3 eventually consistent issue
         ee = sqlContext.read.parquet(out)
+
         // remove previous checkpoint
         if (iteration > checkpointInterval) {
           val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
-          
           // keep the checkpoint file for edgesBeforePruning
           if(shouldKeepCheckpoint == false) {
             path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
@@ -595,7 +595,6 @@ object ConnectedComponents extends Logging {
              |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
             """.stripMargin)
       }
-      
 
       // Pruning Node Optimization: construct a new small graph with fewer nodes, 
       // and find connected components of the shrinked graph, then join back to get the 
@@ -640,13 +639,13 @@ object ConnectedComponents extends Logging {
 
       logInfo(s"In iteration $iteration: edge cnt: $edgeCnt , node cnt: $numNodes")
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
-
       if (currSum == prevSum) {
         // This also covers the case when cnt = 0 and currSum is null, which means no edges.
         converged = true
       } else {
         prevSum = currSum
       }
+
       iteration += 1
     }
     
