@@ -217,17 +217,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert (r1._1.collect().toSet == expected_v1)
     assert (r1._2.select(SRC, DST).collect().toSet == expected_e1)
     assert (r1._3 == expected_v1.size)
-
-    // keep source nodes
-    val Some(r2) = ConnectedComponents.keepSrcNodes(edgesOpt, intermediateStorageLevel,
-                              verticesOpt.count(), shrinkageThreshold, edgesOpt.count())
-    
-    val expected_v2 = Set(Row(0L), Row(1L))
-    val expected_e2 = Set(Row(0L, 1L))
-
-    assert (r2._1.collect().toSet == expected_v2)
-    assert (r2._2.select(SRC, DST).collect().toSet == expected_e2)
-    assert (r2._3 == expected_v2.size)
   }
 
   test("shrinkage condition for pruning nodes optimization") {
@@ -239,28 +228,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // new_vv_cnt = 3, nodeNum = 7, shrinkageThreshold = 4
     // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
     assert(r1 == None)
-
-    // keep source nodes
-    val r2 = ConnectedComponents.keepSrcNodes(edgesOpt, intermediateStorageLevel,
-                        verticesOpt.count(), shrinkageThreshold, edgesOpt.count())
-    // new_vv_cnt = 2, nodeNum = 7, shrinkageThreshold = 4
-    // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
-    assert(r2 == None)
-  }
-
-  test("large join cost for keeping sources optimization") {
-    val vertices = sqlContext.range(6L).toDF(ID)
-    val edges = sqlContext.createDataFrame(Seq(
-      (0L, 5L), (1L, 5L), (2L, 5L), (3L, 5L), (4L, 5L)
-    )).toDF(SRC, DST)
-    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
-    val shrinkageThreshold = 2
-
-    // keep source nodes
-    val r = ConnectedComponents.keepSrcNodes(edges, intermediateStorageLevel,
-                                vertices.count(), shrinkageThreshold, edges.count())
-    // large join cost. Do not perform the optimization.
-    assert(r == None)
   }
 
   test("join back for pruning node optimization") {
@@ -275,12 +242,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val r = ConnectedComponents.joinBack(v1, e1, edges, intermediateStorageLevel)
     val expected_r = Set(Row(0L, 0L), Row(0L, 1L), Row(0L, 2L), Row(0L, 3L), Row(0L, 4L), Row(0L, 5L))
     assert (r.collect().toSet == expected_r)
-
-    // keep source nodes
-    val v2 = sqlContext.range(2L).toDF(ID)
-    val e2 = sqlContext.createDataFrame(Seq((0L, 1L))).toDF(SRC, DST)
-    val r2 = ConnectedComponents.joinBack(v2, e2, edges, intermediateStorageLevel)
-    assert (r2.collect().toSet == expected_r)
   }
 
   test("really large long IDs") {

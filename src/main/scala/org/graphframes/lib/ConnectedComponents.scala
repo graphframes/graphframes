@@ -370,69 +370,6 @@ object ConnectedComponents extends Logging {
   }
 
   /**
-  *  Source nodes: edges.select(SRC).distinct()
-  *  After each big/small star join iteration, the number of source nodes decreases a lot.
-  *  In our optimization, we keep source nodes and prune other nodes, and get a shrinked 
-  *  graph to reduce the shuffle size in the following iterations.
-  *
-  *  Compared to pruneLeafNodes() optimization, this method can prune more nodes. But the 
-  *  edges of the shrinked graph is not bounded by the original graph (i.e. the shrinked
-  *  graph may have more edges than the original graph). Although in most cases, it does not
-  *  happen, we can always generate a special original graph to make shrinked graph has more 
-  *  edges. Thus we need to estimate the edge size and the cost of constructing edges for the 
-  *  shrinked graph. If it is too high, we do not perform the optimization. 
-  *
-  *  @param edges the edges before pruing node optimization
-  *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
-  *  @param numNodes the number of nodes in the original graph.
-  *  @param shrinkageThreshold the shrinkage threshold.
-  *  @param edgeCnt the number of edges before pruning node optimization.
-  *  @return returns a tuple (vertices of the shrinked graph, edges of the shrinked graph, #vertices 
-  *          of the shrinked graph) if the optimization is performed. Otherwise returns None. 
-  */
-  private[graphframes] def keepSrcNodes(
-    edges: DataFrame,
-    intermediateStorageLevel: StorageLevel,
-    numNodes: Long,
-    shrinkageThreshold: Double,
-    edgeCnt: Long): Option[(DataFrame, DataFrame, Long)] = {
-
-    var new_vv = edges.select(col(SRC)).distinct()
-        .persist(intermediateStorageLevel)
-    val new_vv_cnt = new_vv.count()
-
-    if(new_vv_cnt * shrinkageThreshold < numNodes)
-    {
-      val joinCost = edges.groupBy(DST).count().groupBy("count").agg(count("*").as(CNT))
-        .select(sum(col("count") * col("count") * col(CNT))).first().getLong(0)
-
-      // joinCost / 2 is the estimate of edge size. We only prune vertices if we know we will not generate 
-      // too many new edges as a result of pruning.
-      if(joinCost < edgeCnt * shrinkageThreshold * 2)
-      {
-        val je = edges.union(new_vv.withColumn(DST, col(SRC))) 
-        
-        // edges set of the small graph
-        val new_ee = je.as("l").join(je.as("r"), col(s"l.$DST") === col(s"r.$DST"))
-              .select(col(s"l.$SRC").as(SRC), col(s"r.$SRC").as(DST))
-              .filter(col(SRC) < col(DST))
-              .distinct() // src < dst
-        
-        new_vv = new_vv.withColumnRenamed(SRC, ID)
-        Some(new_vv, new_ee, new_vv_cnt)
-      }
-      else {
-        new_vv.unpersist(false)
-        None
-      }
-    }
-    else {
-      new_vv.unpersist(false)
-      None
-    }
-  }
-
-  /**
   *  Given vertices and converged edges of the shrinked graph, this method joins back to get 
   *  converged edges of the original graph.
   *  @param vertices the vertices of the shrinked graph.
@@ -616,9 +553,6 @@ object ConnectedComponents extends Logging {
         && (iteration >= optStartIter) && (triedToOptimize == false))
       {
         edgesBeforePruning = ee // src < dst
-
-        // Keep Source Nodes, prune other nodes
-        //keepSrcNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold, edgeCnt) match {
 
         // Pruning Leaf Nodes Optimization
         pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold) match {
