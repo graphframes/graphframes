@@ -248,18 +248,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(r2 == None)
   }
 
-  test("sparse threshold condition for pruning node optimization")
-  {
-    val n = 20L
-    val g = Graphs.twoBlobs(n.toInt)
-    val cc = g.connectedComponents 
-    val components = cc.setOptStartIter(1).run()
-    val iter = cc.getOptIter()
-    cc.setOptIter()
-    print("sparse !  ")
-    print(iter)
-  }
-
   test("large join cost for keeping sources optimization") {
     val vertices = sqlContext.range(6L).toDF(ID)
     val edges = sqlContext.createDataFrame(Seq(
