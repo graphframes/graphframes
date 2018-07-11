@@ -168,10 +168,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("$optStartIter parameter for pruning node optimization") {
-    //val vertices = sqlContext.range(7L).toDF(ID)
-    //val edges = sqlContext.createDataFrame(Seq(
-    //  (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-    //)).toDF(SRC, DST)
     val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
     val g = GraphFrame(verticesOpt, edgesOpt)
     val cc = g.connectedComponents
@@ -209,10 +205,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("prune process for pruning nodes optimization") {
-    //val vertices = sqlContext.range(7L).toDF(ID)
-    //val edges = sqlContext.createDataFrame(Seq(
-    //  (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-    //)).toDF(SRC, DST)
     val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
     val shrinkageThreshold = 2
     // prune leaf nodes
@@ -239,10 +231,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("shrinkage condition for pruning nodes optimization") {
-   // val vertices = sqlContext.range(7L).toDF(ID)
-    //val edges = sqlContext.createDataFrame(Seq(
-     // (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-    //)).toDF(SRC, DST)
     val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
     val shrinkageThreshold = 4
     // prune leaf nodes
@@ -258,6 +246,18 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // new_vv_cnt = 2, nodeNum = 7, shrinkageThreshold = 4
     // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
     assert(r2 == None)
+  }
+
+  test("sparse threshold condition for pruning node optimization")
+  {
+    val n = 20L
+    val g = Graphs.twoBlobs(n.toInt)
+    val cc = g.connectedComponents 
+    val components = cc.setOptStartIter(1).run()
+    val iter = cc.getOptIter()
+    cc.setOptIter()
+    print("sparse !  ")
+    print(iter)
   }
 
   test("large join cost for keeping sources optimization") {
@@ -305,7 +305,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(components.count() === 10L)
     assert(components.groupBy("component").count().count() === 1L)
   }
-
 
   test("checkpoint interval") {    
     val n = 5L
