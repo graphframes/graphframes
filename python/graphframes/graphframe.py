@@ -258,7 +258,7 @@ class GraphFrame(object):
     # Standard algorithms
 
     def connectedComponents(self, algorithm = "graphframes", checkpointInterval = 2,
-                            optStartIter = 2, broadcastThreshold = 1000000):
+                            broadcastThreshold = 1000000, optStartIter = 2):
         """
         Computes the connected components of the graph.
 
@@ -275,8 +275,8 @@ class GraphFrame(object):
         jdf = self._jvm_graph.connectedComponents() \
             .setAlgorithm(algorithm) \
             .setCheckpointInterval(checkpointInterval) \
-            .setOptStartIter(optStartIter) \
             .setBroadcastThreshold(broadcastThreshold) \
+            .setOptStartIter(optStartIter) \
             .run()
         return DataFrame(jdf, self._sqlContext)
 

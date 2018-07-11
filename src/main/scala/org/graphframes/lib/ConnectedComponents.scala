@@ -199,10 +199,15 @@ class ConnectedComponents private[graphframes] (
   * Gets the iteration of performing prune nodes optimization. remains 0 if the optimization is not performed.
   * This variable is just for test use. 
   */
-  def getOptIter(): Int = {
-    val ret = optIter 
+  private[graphframes] def getOptIter(): Int = {
+    optIter
+  }
+
+  /*
+  * Sets $OptIter as initial value 0. This variable is just for test use. 
+  */
+  private[graphframes] def setOptIter() = {
     optIter = 0
-    ret
   }
   /**
    * Runs the algorithm.
@@ -397,12 +402,12 @@ object ConnectedComponents extends Logging {
 
     if(new_vv_cnt * shrinkageThreshold < numNodes)
     {
-      val s = edges.groupBy(DST).count().groupBy("count").agg(count("*").as(CNT))
+      val joinCost = edges.groupBy(DST).count().groupBy("count").agg(count("*").as(CNT))
         .select(sum(col("count") * col("count") * col(CNT))).first().getLong(0)
 
-      // s / 2 is the estimate of edge size, it should be no more than $shrinkageThreshold times
-      // of the original edges 
-      if(s < edgeCnt * shrinkageThreshold * 2)
+      // joinCost / 2 is the estimate of edge size. We only prune vertices if we know we will not generate 
+      // too many new edges as a result of pruning.
+      if(joinCost < edgeCnt * shrinkageThreshold * 2)
       {
         val je = edges.union(new_vv.withColumn(DST, col(SRC))) 
         
@@ -415,11 +420,15 @@ object ConnectedComponents extends Logging {
         new_vv = new_vv.withColumnRenamed(SRC, ID)
         Some(new_vv, new_ee, new_vv_cnt)
       }
-      else
+      else {
+        new_vv.unpersist(false)
         None
+      }
     }
-    else
+    else {
+      new_vv.unpersist(false)
       None
+    }
   }
 
   /**
@@ -427,14 +436,14 @@ object ConnectedComponents extends Logging {
   *  converged edges of the original graph.
   *  @param vertices the vertices of the shrinked graph.
   *  @param edges the converged edges of the shrinked graph.
-  *  @param originalGraphEdges the edges of the original graph.
+  *  @param edgesBeforePruning the edges before pruning node optimization.
   *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
   *  @return connected component results (converged edges) of the original graph. 
   */
   private[graphframes] def joinBack(
     vertices: DataFrame,
     edges: DataFrame,
-    originalGraphEdges: DataFrame,
+    edgesBeforePruning: DataFrame,
     intermediateStorageLevel: StorageLevel): DataFrame = {
 
     // connected components of the shrinked graph
@@ -443,8 +452,8 @@ object ConnectedComponents extends Logging {
       .persist(intermediateStorageLevel)
 
     // join back to get results (converged edges) of the original graph
-    val res: DataFrame = cc.join(originalGraphEdges, cc(DST) === originalGraphEdges(SRC))
-      .select(cc(SRC), originalGraphEdges(DST))
+    val res: DataFrame = cc.join(edgesBeforePruning, cc(DST) === edgesBeforePruning(SRC))
+      .select(cc(SRC), edgesBeforePruning(DST))
       .union(cc)
       .distinct() // src <= dst
     res
@@ -504,12 +513,12 @@ object ConnectedComponents extends Logging {
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
 
     val g = prepare(graph)
-    var vv = g.vertices.persist(intermediateStorageLevel)
+    val vv = g.vertices.persist(intermediateStorageLevel)
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
     var isOptimized = false
     var triedToOptimize = false
     var shouldKeepCheckpoint = false
-    var numEdges = ee.count()
+    val numEdges = ee.count()
     var numNodes = vv.count()
     logger.info(s"$logPrefix Found $numNodes nodes after preparation.")
     logger.info(s"$logPrefix Found $numEdges edges after preparation.")
@@ -517,7 +526,7 @@ object ConnectedComponents extends Logging {
     var converged = false
     var iteration = 1
     var prevSum: BigDecimal = null
-    var originalGraphEdges: DataFrame = null
+    var edgesBeforePruning: DataFrame = null
     var shrinkedGraphNodes: DataFrame = null
 
     while (!converged) {
@@ -526,17 +535,17 @@ object ConnectedComponents extends Logging {
       val minNbrs1 = minNbrs(ee) // src >= min_nbr
         .persist(intermediateStorageLevel)
       // connect all strictly larger neighbors to the min neighbor (including self)
-      val ee1 = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
+      ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
         .distinct()
         .persist(intermediateStorageLevel)
 
       // small-star step
       // compute min neighbors (excluding self-min)
-      val minNbrs2 = ee1.groupBy(col(SRC)).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT)) // src > min_nbr
+      val minNbrs2 = ee.groupBy(col(SRC)).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT)) // src > min_nbr
         .persist(intermediateStorageLevel)
       // connect all smaller neighbors to the min neighbor
-      ee = skewedJoin(ee1, minNbrs2, broadcastThreshold, logPrefix)
+      ee = skewedJoin(ee, minNbrs2, broadcastThreshold, logPrefix)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
         .filter(col(SRC) =!= col(DST)) // src < dst
       // connect self to the min neighbor
@@ -550,16 +559,11 @@ object ConnectedComponents extends Logging {
         ee.write.parquet(out)
         // may hit S3 eventually consistent issue
         ee = sqlContext.read.parquet(out)
-
-        minNbrs1.unpersist(false)
-        minNbrs2.unpersist(false)
-        ee1.unpersist(false)
-
         // remove previous checkpoint
         if (iteration > checkpointInterval) {
           val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
           
-          // keep the checkpoint file for originalGraphEdges
+          // keep the checkpoint file for edgesBeforePruning
           if(shouldKeepCheckpoint == false) {
             path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
           }
@@ -569,6 +573,8 @@ object ConnectedComponents extends Logging {
 
         System.gc() // hint Spark to clean shuffle directories
       }
+
+      ee.persist(intermediateStorageLevel)
 
       // test convergence
 
@@ -590,7 +596,6 @@ object ConnectedComponents extends Logging {
             """.stripMargin)
       }
       
-      ee.persist(intermediateStorageLevel)
 
       // Pruning Node Optimization: construct a new small graph with fewer nodes, 
       // and find connected components of the shrinked graph, then join back to get the 
@@ -611,7 +616,7 @@ object ConnectedComponents extends Logging {
       if((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0) 
         && (iteration >= optStartIter) && (triedToOptimize == false))
       {
-        originalGraphEdges = ee // src < dst
+        edgesBeforePruning = ee // src < dst
 
         // Keep Source Nodes, prune other nodes
         //keepSrcNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold, edgeCnt) match {
@@ -649,7 +654,7 @@ object ConnectedComponents extends Logging {
     // get the results (converged edges) of the original graph from the shrinked one.
     if(isOptimized == true)
     {
-      ee = joinBack(shrinkedGraphNodes, ee, originalGraphEdges, intermediateStorageLevel)
+      ee = joinBack(shrinkedGraphNodes, ee, edgesBeforePruning, intermediateStorageLevel)
     }
 
     logger.info(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
@@ -657,6 +662,5 @@ object ConnectedComponents extends Logging {
     vv.join(ee, vv(ID) === ee(DST), "left_outer")
       .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
       .select(col(s"$ATTR.*"), col(COMPONENT))
-      .persist(intermediateStorageLevel)
   }
 }

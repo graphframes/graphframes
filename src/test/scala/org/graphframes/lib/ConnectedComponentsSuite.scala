@@ -174,12 +174,14 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // the optimization is performed in the first iteration.
     var components = cc.setOptStartIter(1).run()
     var iter = cc.getOptIter()
+    cc.setOptIter()
     assert(1 == iter)
     assertComponents(components, expected)
     
     // the optimization is performed in the second iteration.
     components = cc.setOptStartIter(2).run()
     iter = cc.getOptIter()
+    cc.setOptIter()
     assert(iter == 2)
     assertComponents(components, expected)
 
@@ -187,6 +189,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // the optimization is performed in the first iteration.
     components = cc.setOptStartIter(0).run()
     iter = cc.getOptIter()
+    cc.setOptIter()
     assert(iter == 1)
     assertComponents(components, expected)
 
@@ -194,6 +197,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // the optimization is not performed.
     components = cc.setOptStartIter(10).run()
     iter = cc.getOptIter()
+    cc.setOptIter()
     assert(iter == 0)
     assertComponents(components, expected)
   }
