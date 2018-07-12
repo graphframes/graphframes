@@ -101,7 +101,7 @@ class ConnectedComponents private[graphframes] (
   private val sparsityThreshold: Double = 2
 
   /**
-   * Determines whether we should perform pruning node optimization. If #nodes of the shrinked
+   * Determines whether we should perform pruning node optimization. If #nodes of the shrunken
    * graph * $shrinkageThreshold < #nodes of the original graph, we will perform such optimization.
    */
   private val shrinkageThreshold: Double = 2
@@ -320,15 +320,15 @@ object ConnectedComponents extends Logging {
   /**
    *  Leaf nodes are vertices with 0 out-degree and 1 in-degree. 
    *  After each big/small star join iteration, the number of leaf nodes increases a lot.
-   *  In our optimization, we prune leaf nodes and get a shrinked graph to reduce the shuffle 
+   *  In our optimization, we prune leaf nodes and get a shrunken graph to reduce the shuffle 
    *  size in the following iterations. Currently, we only perform such optimization one time. 
    *  
    *  @param edges the edges before pruing node optimization.
    *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
    *  @param numNodes the number of nodes in the original graph.
    *  @param shrinkageThreshold the shrinkage threshold.
-   *  @return returns a tuple (vertices of the shrinked graph, edges of the shrinked graph, #vertices
-   *          of the shrinked graph) if the optimization is performed. Otherwise returns None.
+   *  @return returns a tuple (vertices of the shrunken graph, edges of the shrunken graph, #vertices
+   *          of the shrunken graph) if the optimization is performed. Otherwise returns None.
    */ 
   private[graphframes] def pruneLeafNodes(
       edges: DataFrame,
@@ -345,12 +345,10 @@ object ConnectedComponents extends Logging {
       .persist(intermediateStorageLevel)
     val new_vv_cnt = new_vv.count()
 
-    // We perform such optimization only if the number of shrinked graph's vertices is much
-    // smaller than the orignial one. If the condition is not satisfied, this graph converges
-    // very slowly and cannot benefit from such optimization like grid graphs). We do not 
-    // try it anymore. 
+    // We perform such optimization only if the number of shrunken graph's vertices is much
+    // smaller than the orignial one.
     if (new_vv_cnt * shrinkageThreshold < numNodes) {
-      // Edges of the shrinked graph are no more than the orignial ones.
+      // Edges of the shrunken graph are no more than the orignial ones.
       val new_ee = edges.join(new_vv.withColumnRenamed(ID, DST), DST)
         .persist(intermediateStorageLevel)
       Some((new_vv, new_ee, new_vv_cnt))
@@ -361,10 +359,10 @@ object ConnectedComponents extends Logging {
   }
 
   /**
-   *  Given vertices and converged edges of the shrinked graph, this method joins back to get 
+   *  Given vertices and converged edges of the shrunken graph, this method joins back to get 
    *  converged edges of the original graph.
-   *  @param vertices the vertices of the shrinked graph.
-   *  @param edges the converged edges of the shrinked graph.
+   *  @param vertices the vertices of the shrunken graph.
+   *  @param edges the converged edges of the shrunken graph.
    *  @param edgesBeforePruning the edges before pruning node optimization.
    *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
    *  @return connected component results (converged edges) of the original graph. 
@@ -375,7 +373,7 @@ object ConnectedComponents extends Logging {
       edgesBeforePruning: DataFrame,
       intermediateStorageLevel: StorageLevel): DataFrame = {
 
-    // connected components of the shrinked graph
+    // connected components of the shrunken graph
     // this augments edges with self-loops for vertices with in-degree 0
     val cc = vertices.join(edges, vertices(ID) === edges(DST), "left_outer")
       .select(when(edges(SRC).isNull, vertices(ID)).otherwise(edges(SRC)).as(SRC), vertices(ID).as(DST))
@@ -456,7 +454,7 @@ object ConnectedComponents extends Logging {
     var iteration = 1
     var prevSum: BigDecimal = null
     var edgesBeforePruning: DataFrame = null
-    var shrinkedGraphNodes: DataFrame = null
+    var shrunkenGraphNodes: DataFrame = null
 
     while (!converged) {
       // large-star step
@@ -526,13 +524,13 @@ object ConnectedComponents extends Logging {
       }
 
       // Pruning Node Optimization: construct a new small graph with fewer nodes, 
-      // and find connected components of the shrinked graph, then join back to get the 
+      // and find connected components of the shrunken graph, then join back to get the 
       // connected components of the original graph. 
 
       // If the graph becomes sparse and current iteration >= $optStartIter, we start to
-      // try such optimization. However, the optimization is only performed if the shrinked 
+      // try such optimization. However, the optimization is only performed if the shrunken 
       // graph is much smaller than the original graph, otherwise we do not perform it (
-      // in this case, the only additional cost is to determine the size of shrinked graph). 
+      // in this case, the only additional cost is to determine the size of shrunken graph). 
       // In current implementation, we only try such optimization one time and it is 
       // performed at most one time. So the additional cost is bounded. 
 
@@ -550,9 +548,9 @@ object ConnectedComponents extends Logging {
 
           // When returns None, the optimization is not performed, and we will not try it anymore. 
           case Some(r) => 
-            shrinkedGraphNodes = r._1
+            shrunkenGraphNodes = r._1
             ee = r._2
-            numNodes = r._3  // number of nodes in the shrinked graph.
+            numNodes = r._3  // number of nodes in the shrunken graph.
             isOptimized = true
             shouldKeepCheckpoint = true
             optIter = iteration
@@ -576,9 +574,9 @@ object ConnectedComponents extends Logging {
     }
     
     // If we have performed pruning node optimization to shrink the graph, we need to 
-    // get the results (converged edges) of the original graph from the shrinked one.
+    // get the results (converged edges) of the original graph from the shrunken one.
     if (isOptimized == true) {
-      ee = joinBack(shrinkedGraphNodes, ee, edgesBeforePruning, intermediateStorageLevel)
+      ee = joinBack(shrunkenGraphNodes, ee, edgesBeforePruning, intermediateStorageLevel)
     }
 
     logger.info(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
