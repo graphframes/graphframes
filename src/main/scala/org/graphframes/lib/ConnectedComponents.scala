@@ -202,13 +202,6 @@ class ConnectedComponents private[graphframes] (
     optIter
   }
 
-  /*
-   * Sets $OptIter as initial value 0. This method is just for test use. 
-   */
-  private[graphframes] def setOptIter() = {
-    optIter = 0
-  }
-
   /**
    * Runs the algorithm.
    */
@@ -389,11 +382,10 @@ object ConnectedComponents extends Logging {
       .persist(intermediateStorageLevel)
 
     // join back to get results (converged edges) of the original graph
-    val res: DataFrame = cc.join(edgesBeforePruning, cc(DST) === edgesBeforePruning(SRC))
+    cc.join(edgesBeforePruning, cc(DST) === edgesBeforePruning(SRC))
       .select(cc(SRC), edgesBeforePruning(DST))
       .union(cc)
       .distinct() // src <= dst
-    res
   }
 
   /**

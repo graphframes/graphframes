@@ -34,11 +34,17 @@ import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  // vertices and edges for pruning node optimization tests. 
-  def verticesOpt: DataFrame = sqlContext.range(7L).toDF(ID)
-  def edgesOpt: DataFrame = sqlContext.createDataFrame(Seq(
+  // vertices and edges for pruning node optimization tests.
+  var verticesOpt: DataFrame = _
+  var edgesOpt: DataFrame = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    verticesOpt = sqlContext.range(7L).toDF(ID)
+    edgesOpt = sqlContext.createDataFrame(Seq(
       (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-  )).toDF(SRC, DST)
+    )).toDF(SRC, DST)
+  }
 
   test("default params") {
     val g = Graphs.empty[Int]
@@ -175,31 +181,27 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
 
     // the optimization is performed in the first iteration.
     var components = cc.setOptStartIter(1).run()
-    var iter = cc.getOptIter()
-    cc.setOptIter()
+    var iter = cc.getOptIter
     assert(1 == iter)
     assertComponents(components, expected)
     
     // the optimization is performed in the second iteration.
     components = cc.setOptStartIter(2).run()
-    iter = cc.getOptIter()
-    cc.setOptIter()
+    iter = cc.getOptIter
     assert(iter == 2)
     assertComponents(components, expected)
 
     // when $optStartIter <= 1 (includes 0 and negative values),
     // the optimization is performed in the first iteration.
     components = cc.setOptStartIter(0).run()
-    iter = cc.getOptIter()
-    cc.setOptIter()
+    iter = cc.getOptIter
     assert(iter == 1)
     assertComponents(components, expected)
 
     // when set $optStartIter bigger than the total iteration number,
     // the optimization is not performed.
     components = cc.setOptStartIter(10).run()
-    iter = cc.getOptIter()
-    cc.setOptIter()
+    iter = cc.getOptIter
     assert(iter == 0)
     assertComponents(components, expected)
   }
@@ -209,7 +211,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val shrinkageThreshold = 2
     // prune leaf nodes
     val Some(r1) = ConnectedComponents.pruneLeafNodes(edgesOpt, intermediateStorageLevel,
-                                              verticesOpt.count(), shrinkageThreshold)
+      verticesOpt.count(), shrinkageThreshold)
     
     val expected_v1 = Set(Row(0L), Row(1L), Row(2L))
     val expected_e1 = Set(Row(0L, 1L), Row(1L, 2L), Row(0L, 2L))
@@ -224,22 +226,17 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val shrinkageThreshold = 4
     // prune leaf nodes
     val r1 = ConnectedComponents.pruneLeafNodes(edgesOpt, intermediateStorageLevel,
-                                            verticesOpt.count(), shrinkageThreshold)
+      verticesOpt.count(), shrinkageThreshold)
     // new_vv_cnt = 3, nodeNum = 7, shrinkageThreshold = 4
     // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
     assert(r1 == None)
   }
 
   test("join back for pruning node optimization") {
-    val edges = sqlContext.createDataFrame(Seq(
-      (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
-    )).toDF(SRC, DST)
     val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
-
-    // prune leaf nodes
     val v1 = sqlContext.range(3L).toDF(ID)
     val e1 = sqlContext.createDataFrame(Seq((0L, 1L), (0L, 2L))).toDF(SRC, DST)
-    val r = ConnectedComponents.joinBack(v1, e1, edges, intermediateStorageLevel)
+    val r = ConnectedComponents.joinBack(v1, e1, edgesOpt, intermediateStorageLevel)
     val expected_r = Set(Row(0L, 0L), Row(0L, 1L), Row(0L, 2L), Row(0L, 3L), Row(0L, 4L), Row(0L, 5L))
     assert (r.collect().toSet == expected_r)
   }
