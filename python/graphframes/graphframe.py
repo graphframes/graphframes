@@ -298,7 +298,7 @@ class GraphFrame(object):
     # Standard algorithms
 
     def connectedComponents(self, algorithm = "graphframes", checkpointInterval = 2,
-                            broadcastThreshold = 1000000):
+                            broadcastThreshold = 1000000, optStartIter = 2):
         """
         Computes the connected components of the graph.
 
@@ -309,6 +309,8 @@ class GraphFrame(object):
         :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
         :param broadcastThreshold: broadcast threshold in propagating component assignments
           (default: 1000000)
+        :param optStartIter: the iteration of trying pruning nodes optimization for the sparse graph 
+          (default: 2)
 
         :return: DataFrame with new vertices column "component"
         """
@@ -316,6 +318,7 @@ class GraphFrame(object):
             .setAlgorithm(algorithm) \
             .setCheckpointInterval(checkpointInterval) \
             .setBroadcastThreshold(broadcastThreshold) \
+            .setOptStartIter(optStartIter) \
             .run()
         return DataFrame(jdf, self._sqlContext)
 

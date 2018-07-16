@@ -21,6 +21,7 @@ import java.io.IOException
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions.{col, lit}
@@ -32,6 +33,18 @@ import org.graphframes.GraphFrame._
 import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
+
+  // vertices and edges for pruning node optimization tests.
+  var verticesOpt: DataFrame = _
+  var edgesOpt: DataFrame = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    verticesOpt = sqlContext.range(7L).toDF(ID)
+    edgesOpt = sqlContext.createDataFrame(Seq(
+      (0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)
+    )).toDF(SRC, DST)
+  }
 
   test("default params") {
     val g = Graphs.empty[Int]
@@ -160,6 +173,74 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  test("$optStartIter parameter for pruning node optimization") {
+    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
+    val g = GraphFrame(verticesOpt, edgesOpt)
+    val cc = g.connectedComponents
+    val expected = Set(Set(0L, 1L, 2L, 3L, 4L, 5L), Set(6L))
+
+    // the optimization is performed in the first iteration.
+    var components = cc.setOptStartIter(1).run()
+    var iter = cc.getOptIter
+    assert(1 == iter)
+    assertComponents(components, expected)
+    
+    // the optimization is performed in the second iteration.
+    components = cc.setOptStartIter(2).run()
+    iter = cc.getOptIter
+    assert(iter == 2)
+    assertComponents(components, expected)
+
+    // when $optStartIter <= 1 (includes 0 and negative values),
+    // the optimization is performed in the first iteration.
+    components = cc.setOptStartIter(0).run()
+    iter = cc.getOptIter
+    assert(iter == 1)
+    assertComponents(components, expected)
+
+    // when set $optStartIter bigger than the total iteration number,
+    // the optimization is not performed.
+    components = cc.setOptStartIter(10).run()
+    iter = cc.getOptIter
+    assert(iter == 0)
+    assertComponents(components, expected)
+  }
+
+  test("prune process for pruning nodes optimization") {
+    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
+    val shrinkageThreshold = 2
+    // prune leaf nodes
+    val Some(r1) = ConnectedComponents.pruneLeafNodes(edgesOpt, intermediateStorageLevel,
+      verticesOpt.count(), shrinkageThreshold)
+    
+    val expected_v1 = Set(Row(0L), Row(1L), Row(2L))
+    val expected_e1 = Set(Row(0L, 1L), Row(1L, 2L), Row(0L, 2L))
+
+    assert (r1._1.collect().toSet == expected_v1)
+    assert (r1._2.select(SRC, DST).collect().toSet == expected_e1)
+    assert (r1._3 == expected_v1.size)
+  }
+
+  test("shrinkage condition for pruning nodes optimization") {
+    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
+    val shrinkageThreshold = 4
+    // prune leaf nodes
+    val r1 = ConnectedComponents.pruneLeafNodes(edgesOpt, intermediateStorageLevel,
+      verticesOpt.count(), shrinkageThreshold)
+    // new_vv_cnt = 3, nodeNum = 7, shrinkageThreshold = 4
+    // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
+    assert(r1 == None)
+  }
+
+  test("join back for pruning node optimization") {
+    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
+    val v1 = sqlContext.range(3L).toDF(ID)
+    val e1 = sqlContext.createDataFrame(Seq((0L, 1L), (0L, 2L))).toDF(SRC, DST)
+    val r = ConnectedComponents.joinBack(v1, e1, edgesOpt, intermediateStorageLevel)
+    val expected_r = Set(Row(0L, 0L), Row(0L, 1L), Row(0L, 2L), Row(0L, 3L), Row(0L, 4L), Row(0L, 5L))
+    assert (r.collect().toSet == expected_r)
+  }
+
   test("really large long IDs") {
     val max = Long.MaxValue
     val chain = examples.Graphs.chain(10L)
@@ -171,11 +252,13 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(components.groupBy("component").count().count() === 1L)
   }
 
-  test("checkpoint interval") {
-    val friends = Graphs.friends
-    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+  test("checkpoint interval") {    
+    val n = 5L
+    val g = Graphs.star(5L)
+    val components = g.connectedComponents.run()
+    val expected = Set((0L to n).toSet)
 
-    val cc = new ConnectedComponents(friends)
+    val cc = new ConnectedComponents(g)
     assert(cc.getCheckpointInterval === 2,
       s"Default checkpoint interval should be 2, but got ${cc.getCheckpointInterval}.")
 

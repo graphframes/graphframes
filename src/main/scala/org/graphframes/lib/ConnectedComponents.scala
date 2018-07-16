@@ -94,6 +94,53 @@ class ConnectedComponents private[graphframes] (
    */
   def getAlgorithm: String = algorithm
 
+  /**
+   * Defines the sparsity of a graph. If #Edges < $sparsityThreshold * #Nodes, we say this
+   * graph is sparse. Pruning node optimization is only performed when the graph is sparse.
+   */
+  private val sparsityThreshold: Double = 2
+
+  /**
+   * Determines whether we should perform pruning node optimization. If #nodes of the shrunken
+   * graph * $shrinkageThreshold < #nodes of the original graph, we will perform such optimization.
+   */
+  private val shrinkageThreshold: Double = 2
+
+  private var optStartIter: Int = 2
+
+  /**
+   * Sets the iteration of trying pruning nodes optimization for the sparse graph (default: 2).
+   * When the graph is sparse, we will try the pruning nodes optimization at $optStartIter iteration.
+   * Typically it's better to try the optimization in the previous iterations (<= 3). 
+   * This is because the algorithm converges quickly and we can have more performance gain if pruning 
+   * nodes in the early step. If you set $optStartIter <= 1, we will try pruning node optimization 
+   * at the end of first iteration if the graph is sparse. But less nodes will be pruned
+   * if we perform such optimization too early ($optStartIter <= 1). If $optStartIter is 0 or
+   * negative values, we still try the optimization at the end of first iteration. 
+   *
+   * Default value 2 is good enough in most cases, and we do not recommend to change it. If you
+   * do not want such optimization, set it to a large value (like 1000)
+   */ 
+  def setOptStartIter(value: Int): this.type = {
+    if (value > 3) {
+      logger.warn(
+        s"Set optStartIter to $value. This would delay the pruning nodes optimization and may " +
+         "damage the overall performance. The default value 2 is good enough in most cases")
+    } else if (value <= 1) {
+      logger.warn(
+        s"Set optStartIter to $value. The algorithm will try pruning node optimization at the " + 
+         "end of first iteration if the graph is sparse. This may not prune many nodes.")
+    }
+    optStartIter = value
+    this
+  }
+
+  /**
+   * Gets starting iteration of the pruning nodes optimization.
+   * @see [[org.graphframes.lib.ConnectedComponents.setOptStartIter]]
+   */
+  def getOptStartIter: Int = optStartIter
+
   private var checkpointInterval: Int = 2
 
   /**
@@ -147,6 +194,14 @@ class ConnectedComponents private[graphframes] (
    */
   def getIntermediateStorageLevel: StorageLevel = intermediateStorageLevel
 
+  /*
+   * Gets the iteration of performing prune nodes optimization. remains 0 if the optimization is not performed.
+   * This method is just for test use. 
+   */
+  private[graphframes] def getOptIter: Int = {
+    optIter
+  }
+
   /**
    * Runs the algorithm.
    */
@@ -155,7 +210,10 @@ class ConnectedComponents private[graphframes] (
       algorithm = algorithm,
       broadcastThreshold = broadcastThreshold,
       checkpointInterval = checkpointInterval,
-      intermediateStorageLevel = intermediateStorageLevel)
+      intermediateStorageLevel = intermediateStorageLevel,
+      optStartIter = optStartIter,
+      sparsityThreshold = sparsityThreshold,
+      shrinkageThreshold = shrinkageThreshold)
   }
 }
 
@@ -168,9 +226,12 @@ object ConnectedComponents extends Logging {
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
-
   private val ALGO_GRAPHX = "graphx"
   private val ALGO_GRAPHFRAMES = "graphframes"
+  
+  // The iteration of performing prune nodes optimization. remains 0 if the optimization is not performed.
+  // This variable is just for test use. 
+  private var optIter: Int = 0
 
   /**
    * Supported algorithms in [[org.graphframes.lib.ConnectedComponents.setAlgorithm]]: "graphframes"
@@ -257,6 +318,75 @@ object ConnectedComponents extends Logging {
   }
 
   /**
+   *  Leaf nodes are vertices with 0 out-degree and 1 in-degree. 
+   *  After each big/small star join iteration, the number of leaf nodes increases a lot.
+   *  In our optimization, we prune leaf nodes and get a shrunken graph to reduce the shuffle 
+   *  size in the following iterations. Currently, we only perform such optimization one time. 
+   *  
+   *  @param edges the edges before pruing node optimization.
+   *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
+   *  @param numNodes the number of nodes in the original graph.
+   *  @param shrinkageThreshold the shrinkage threshold.
+   *  @return returns a tuple (vertices of the shrunken graph, edges of the shrunken graph, #vertices
+   *          of the shrunken graph) if the optimization is performed. Otherwise returns None.
+   */ 
+  private[graphframes] def pruneLeafNodes(
+      edges: DataFrame,
+      intermediateStorageLevel: StorageLevel,
+      numNodes: Long,
+      shrinkageThreshold: Double): Option[(DataFrame, DataFrame, Long)] = {
+
+    // vertices whose indegree > 1.
+    val v1 = edges.groupBy(DST).agg(count("*").as(CNT))
+      .filter(col(CNT) > 1).select(col(DST).as(ID))
+       
+    // vertices whose outdegree > 0 or indegree > 1.
+    val new_vv = edges.select(col(SRC).as(ID)).union(v1).distinct()
+      .persist(intermediateStorageLevel)
+    val new_vv_cnt = new_vv.count()
+
+    // We perform such optimization only if the number of shrunken graph's vertices is much
+    // smaller than the orignial one.
+    if (new_vv_cnt * shrinkageThreshold < numNodes) {
+      // Edges of the shrunken graph are no more than the orignial ones.
+      val new_ee = edges.join(new_vv.withColumnRenamed(ID, DST), DST)
+        .persist(intermediateStorageLevel)
+      Some((new_vv, new_ee, new_vv_cnt))
+    } else {
+      new_vv.unpersist(false)
+      None
+    }
+  }
+
+  /**
+   *  Given vertices and converged edges of the shrunken graph, this method joins back to get 
+   *  converged edges of the original graph.
+   *  @param vertices the vertices of the shrunken graph.
+   *  @param edges the converged edges of the shrunken graph.
+   *  @param edgesBeforePruning the edges before pruning node optimization.
+   *  @param intermediateStorageLevel the storage level used in persist(intermediateStorageLevel).
+   *  @return connected component results (converged edges) of the original graph. 
+   */
+  private[graphframes] def joinBack(
+      vertices: DataFrame,
+      edges: DataFrame,
+      edgesBeforePruning: DataFrame,
+      intermediateStorageLevel: StorageLevel): DataFrame = {
+
+    // connected components of the shrunken graph
+    // this augments edges with self-loops for vertices with in-degree 0
+    val cc = vertices.join(edges, vertices(ID) === edges(DST), "left_outer")
+      .select(when(edges(SRC).isNull, vertices(ID)).otherwise(edges(SRC)).as(SRC), vertices(ID).as(DST))
+      .persist(intermediateStorageLevel)
+
+    // join back to get results (converged edges) of the original graph
+    cc.join(edgesBeforePruning, cc(DST) === edgesBeforePruning(SRC))
+      .select(cc(SRC), edgesBeforePruning(DST))
+      .union(cc)
+      .distinct() // src <= dst
+  }
+
+  /**
    * Runs connected components with default parameters.
    */
   def run(graph: GraphFrame): DataFrame = {
@@ -273,7 +403,10 @@ object ConnectedComponents extends Logging {
       algorithm: String,
       broadcastThreshold: Int,
       checkpointInterval: Int,
-      intermediateStorageLevel: StorageLevel): DataFrame = {
+      intermediateStorageLevel: StorageLevel,
+      optStartIter: Int,
+      sparsityThreshold: Double,
+      shrinkageThreshold: Double): DataFrame = {
     require(supportedAlgorithms.contains(algorithm),
       s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
 
@@ -281,6 +414,7 @@ object ConnectedComponents extends Logging {
       return runGraphX(graph)
     }
 
+    optIter = 0
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
     logger.info(s"$logPrefix Start connected components with run ID $runId.")
@@ -306,14 +440,22 @@ object ConnectedComponents extends Logging {
 
     logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
-    val vv = g.vertices
+    val vv = g.vertices.persist(intermediateStorageLevel)
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
+    var isOptimized = false
+    var triedToOptimize = false
+    var shouldKeepCheckpoint = false
     val numEdges = ee.count()
+    var numNodes = vv.count()
+    logger.info(s"$logPrefix Found $numNodes nodes after preparation.")
     logger.info(s"$logPrefix Found $numEdges edges after preparation.")
 
     var converged = false
     var iteration = 1
     var prevSum: BigDecimal = null
+    var edgesBeforePruning: DataFrame = null
+    var shrunkenGraphNodes: DataFrame = null
+
     while (!converged) {
       // large-star step
       // compute min neighbors (including self-min)
@@ -348,7 +490,12 @@ object ConnectedComponents extends Logging {
         // remove previous checkpoint
         if (iteration > checkpointInterval) {
           val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
-          path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
+          // keep the checkpoint file for edgesBeforePruning
+          if (!shouldKeepCheckpoint) {
+            path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
+          } else {
+            shouldKeepCheckpoint = false
+          }
         }
 
         System.gc() // hint Spark to clean shuffle directories
@@ -361,11 +508,12 @@ object ConnectedComponents extends Logging {
       // Taking the sum in DecimalType to preserve precision.
       // We use 20 digits for long values and Spark SQL will add 10 digits for the sum.
       // It should be able to handle 200 billion edges without overflow.
-      val (currSum, cnt) = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
+      val (currSum, edgeCnt) = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
         .map { r =>
           (r.getAs[BigDecimal](0), r.getLong(1))
         }.first()
-      if (cnt != 0L && currSum == null) {
+
+      if (edgeCnt != 0L && currSum == null) {
         throw new ArithmeticException(
           s"""
              |The total sum of edge src IDs is used to determine convergence during iterations.
@@ -374,6 +522,47 @@ object ConnectedComponents extends Logging {
              |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
             """.stripMargin)
       }
+
+      // Pruning Node Optimization: construct a new small graph with fewer nodes, 
+      // and find connected components of the shrunken graph, then join back to get the 
+      // connected components of the original graph. 
+
+      // If the graph becomes sparse and current iteration >= $optStartIter, we start to
+      // try such optimization. However, the optimization is only performed if the shrunken 
+      // graph is much smaller than the original graph, otherwise we do not perform it (
+      // in this case, the only additional cost is to determine the size of shrunken graph). 
+      // In current implementation, we only try such optimization one time and it is 
+      // performed at most one time. So the additional cost is bounded. 
+
+      // According to such heuristic rule, we can determine when and whether we should 
+      // perform the optimization. For the sparse graphs (defined by sparsityThreshold), 
+      // we will try such optimization at the end of $optStartIter iteration (default is 2). 
+      // For the dense graph, its edges will be pruned at each large/small star join iteration, 
+      // and we will try the optimization once the graph becomes sparse.
+      if ((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0) 
+         && (iteration >= optStartIter) && (!triedToOptimize)) {
+        edgesBeforePruning = ee // src < dst
+
+        // Pruning Leaf Nodes Optimization
+        pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold) match {
+
+          // When returns None, the optimization is not performed, and we will not try it anymore. 
+          case Some(r) => 
+            shrunkenGraphNodes = r._1
+            ee = r._2
+            numNodes = r._3  // number of nodes in the shrunken graph.
+            isOptimized = true
+            shouldKeepCheckpoint = true
+            optIter = iteration
+            logInfo(s"Pruning node optimization is performed in iteration $iteration.")
+            logInfo(s"In the shrunken graph, node count: $numNodes.")
+          case None =>
+            logInfo(s"Pruning node optimization is not performed.")
+        }
+        triedToOptimize = true
+      }
+
+      logInfo(s"In iteration $iteration, edge count: $edgeCnt.")
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
         // This also covers the case when cnt = 0 and currSum is null, which means no edges.
@@ -384,9 +573,14 @@ object ConnectedComponents extends Logging {
 
       iteration += 1
     }
+    
+    // If we have performed pruning node optimization to shrink the graph, we need to 
+    // get the results (converged edges) of the original graph from the shrunken one.
+    if (isOptimized) {
+      ee = joinBack(shrunkenGraphNodes, ee, edgesBeforePruning, intermediateStorageLevel)
+    }
 
     logger.info(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
-
     logger.info(s"$logPrefix Join and return component assignments with original vertex IDs.")
     vv.join(ee, vv(ID) === ee(DST), "left_outer")
       .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
