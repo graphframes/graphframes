@@ -124,7 +124,7 @@ class ConnectedComponents private[graphframes] (
   def setOptStartIter(value: Int): this.type = {
     if (value > 3) {
       logger.warn(
-        s"Set optStartIter to $value. This would delay the pruning nodes optimization and may" +
+        s"Set optStartIter to $value. This would delay the pruning nodes optimization and may " +
          "damage the overall performance. The default value 2 is good enough in most cases")
     } else if (value <= 1) {
       logger.warn(
@@ -540,7 +540,7 @@ object ConnectedComponents extends Logging {
       // For the dense graph, its edges will be pruned at each large/small star join iteration, 
       // and we will try the optimization once the graph becomes sparse.
       if ((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0) 
-         && (iteration >= optStartIter) && (triedToOptimize == false)) {
+         && (iteration >= optStartIter) && (!triedToOptimize)) {
         edgesBeforePruning = ee // src < dst
 
         // Pruning Leaf Nodes Optimization
@@ -555,13 +555,14 @@ object ConnectedComponents extends Logging {
             shouldKeepCheckpoint = true
             optIter = iteration
             logInfo(s"Pruning node optimization is performed in iteration $iteration.")
+            logInfo(s"In the shrunken graph, node count: $numNodes.")
           case None =>
             logInfo(s"Pruning node optimization is not performed.")
         }
         triedToOptimize = true
       }
 
-      logInfo(s"In iteration $iteration: edge cnt: $edgeCnt , node cnt: $numNodes")
+      logInfo(s"In iteration $iteration, edge count: $edgeCnt.")
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
         // This also covers the case when cnt = 0 and currSum is null, which means no edges.
@@ -575,7 +576,7 @@ object ConnectedComponents extends Logging {
     
     // If we have performed pruning node optimization to shrink the graph, we need to 
     // get the results (converged edges) of the original graph from the shrunken one.
-    if (isOptimized == true) {
+    if (isOptimized) {
       ee = joinBack(shrunkenGraphNodes, ee, edgesBeforePruning, intermediateStorageLevel)
     }
 
