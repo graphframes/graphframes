@@ -357,7 +357,7 @@ chainWith2Friends2.show()
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
-from pyspark.sql.functions import col, lit, udf, when
+from pyspark.sql.functions import col, lit, when
 from pyspark.sql.types import IntegerType
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
@@ -478,7 +478,7 @@ g2 = GraphFrame(g.vertices, e2)
 
 GraphFrames provides the same suite of standard graph algorithms as GraphX, plus some new ones.
 We provide brief descriptions and code snippets below.
-See the [API docs](api/scala/index.html#org.graphframes.lib) for more details.
+See the [API docs](api/scala/index.html#org.graphframes.lib.package) for more details.
 
 Some of the algorithms are currently wrappers around GraphX implementations, so they may not be
 more scalable than GraphX.  More algorithms will be migrated to native GraphFrames implementations
@@ -494,7 +494,8 @@ See [Wikipedia on BFS](https://en.wikipedia.org/wiki/Breadth-first_search) for m
 
 <div class="codetabs">
 
-The following code snippets search for people connected to the user "Bob."
+The following code snippets uses BFS to find path between
+vertex with name "Esther" to a vertex with age < 32.
 
 <div data-lang="scala"  markdown="1">
 
@@ -504,7 +505,7 @@ For API details, refer to the [API docs](api/scala/index.html#org.graphframes.li
 import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
-// Search from "Esther" for users of age <= 32.
+// Search from "Esther" for users of age < 32.
 val paths = g.bfs.fromExpr("name = 'Esther'").toExpr("age < 32").run()
 paths.show()
 
