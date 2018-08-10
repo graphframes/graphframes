@@ -55,6 +55,12 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     val (verMajor, verMinor) = TestUtils.majorMinorVersion(sc.version)
     sparkMajorVersion = verMajor
     sparkMinorVersion = verMinor
+
+    // CBO is introduced in Spark 2.2
+    if (isLaterVersion("2.2")) {
+      sqlContext.setConf("spark.sql.cbo.enabled", "true")
+      sqlContext.setConf("spark.sql.cbo.joinReorder.enabled", "true")
+    }
   }
 
   override def afterAll() {

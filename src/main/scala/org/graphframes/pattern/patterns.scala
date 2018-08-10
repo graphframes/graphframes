@@ -170,6 +170,26 @@ private[graphframes] object Pattern {
     patterns.foreach(findNamedElementsHelper)
     elementSet.toSeq
   }
+
+  /**
+   * Return the number of valid anonymous edges.
+   */
+  private [graphframes]
+  def anonymousEdgeNum(patterns: Seq[Pattern]): Int = {
+    var count = 0
+    patterns.foreach {
+      case Negation(edge) =>
+        edge match {
+          case AnonymousEdge(_, _) =>
+            count = count + 1
+          case _ => // pass
+        }
+      case AnonymousEdge(_, _) =>
+        count = count + 1
+      case _ => // pass
+    }
+    count
+  }
 }
 
 private[graphframes] sealed trait Pattern

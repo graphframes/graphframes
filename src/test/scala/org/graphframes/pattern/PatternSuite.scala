@@ -164,4 +164,24 @@ class PatternSuite extends SparkFunSuite {
   testFindNamedElementsInOrder(
     "(u)-[uv]->(v); (v)-[vw]->(w); !(u)-[]->(w); (x)",
     Seq("u", "uv", "v", "vw", "w", "x"))
+
+  def testAnonymousEdgeNum(pattern: String, expected: Int): Unit = {
+    test(s"anonymous edges number: $pattern") {
+      val patterns = Pattern.parse(pattern)
+      val result = Pattern.anonymousEdgeNum(patterns)
+      assert(result === expected)
+    }
+  }
+
+  testAnonymousEdgeNum(
+    "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)",
+    3)
+
+  testAnonymousEdgeNum(
+    "(u)-[uv]->(v); (v)-[]->(w); (w)-[]->()",
+    2)
+
+  testAnonymousEdgeNum(
+    "(u)-[uv]->(v); (v)-[vw]->(w)",
+    0)
 }

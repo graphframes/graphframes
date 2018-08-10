@@ -338,9 +338,35 @@ class GraphFrame private(
     val extraPositivePatterns = namedVerticesOnlyInNegatedTerms.map(v => NamedVertex(v))
     val augmentedPatterns = extraPositivePatterns ++ patterns
     val df = findSimple(augmentedPatterns)
-
     val names = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
-    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
+    val verticesNames = Pattern.findNamedElementsInOrder(patterns, includeEdges = false)
+    val sparkVersion = sqlContext.sparkSession.version
+    val sparkVersionDouble = (sparkVersion.split('.')(0) + '.' + sparkVersion.split('.')(1)).toDouble
+
+    // CBO is introduced in Spark 2.2
+    if (sparkVersionDouble >= 2.2) {
+      val joinReorderThreshold = sqlContext.getConf("spark.sql.cbo.joinReorder.dp.threshold").toInt
+      checkReorderThreshold(augmentedPatterns, joinReorderThreshold)
+      if (sqlContext.getConf("spark.sql.cbo.enabled") == "false")
+        logger.warn(s"spark CBO is not enabled. Without CBO, motif finding may have a bad join order " + 
+          s"and get bad performance. Please set spark.sql.cbo.enabled as true if you want to use CBO.")
+      if (sqlContext.getConf("spark.sql.cbo.joinReorder.enabled") == "false")
+        logger.warn(s"spark CBO join reorder is not enabled. Without CBO, motif finding may have a bad " +
+          s"join order and get bad performance. Please set spark.sql.cbo.joinReorder.enabled as true " + 
+          s"if you want to use CBO.")
+    } else {
+      logger.warn(s"Current Spark version does not support the cost-based optimizer. Without CBO, motif " +
+        s"finding may have a bad join order and get bad performance. CBO is introduced in Spark 2.2")
+    }
+
+    val result = df.select(names.map(c => 
+      if (verticesNames.contains(c)) {
+        nestAsColWithOldNames(newColNames(this.vertices, c), c)
+      } else {
+        nestAsColWithOldNames(newColNames(this.edges, c), c)
+      }) :_*)
+
+    if (names.isEmpty) result else result.select(names.head, names.tail :_*)
   }
 
   // ======================== Other queries ===================================
@@ -589,6 +615,24 @@ class GraphFrame private(
    */
   @transient private lazy val cachedGraphX: Graph[Row, Row] = { toGraphX }
 
+  /**
+   * Return true if Cost-based Optimizer can help reorder joins. Otherwise it's recommended to increase threshold.
+   * @param patterns Pattern to search for
+   * @param joinReorderThreshold join reorder threshold in the cost-based optimizer
+   * @return return true if the estimated number of joins does not exceed the join reorder threshold.
+   */
+  private[graphframes] def checkReorderThreshold(patterns: Seq[Pattern], joinReorderThreshold: Int): Boolean = {
+    val joinNum = Pattern.findNamedElementsInOrder(patterns, includeEdges = true).size + 
+                  Pattern.anonymousEdgeNum(patterns)
+    if (joinReorderThreshold >= joinNum) {
+      true
+    } else { 
+      logger.warn(s"The estimated number of joins $joinNum exceeds the join reorder threshold " + 
+        s"$joinReorderThreshold. The cost-based optimizer may not help reorder joins. Please " +
+        s"increase the join reorder threshold spark.sql.cbo.joinReorder.dp.threshold")
+      false
+    }
+  }  
 }
 
 
@@ -765,22 +809,22 @@ object GraphFrame extends Serializable with Logging {
       edgeNames: Seq[String] = Nil): GraphFrame = {
     GraphXConversions.fromGraphX[V, E](originalGraph, graph, vertexNames, edgeNames)
   }
-
-
+ 
   // ============== Private constants ==============
 
   /** Default name for attribute columns when converting from GraphX [[Graph]] format */
   private[graphframes] val ATTR: String = "attr"
 
+  /** Delimiter that seperates column and field names in motif finding (MF) */
+  private[graphframes] val DELIMITER: String = "_MF_DELIMITER_"
+
   /**
    * The integral id that is used as a surrogate id when using graphX implementation
    */
   private[graphframes] val LONG_ID: String = "new_id"
-
   private[graphframes] val LONG_SRC: String = "new_src"
   private[graphframes] val LONG_DST: String = "new_dst"
   private[graphframes] val GX_ATTR: String = "graphx_attr"
-
 
 
   /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
@@ -794,16 +838,35 @@ object GraphFrame extends Serializable with Logging {
     }
   }
 
+  /** New column names. e.g. given name "a" and df with column "id", the new column name is "a_MF_DELIMITER_id" */
+  private[graphframes] def newColNames(df: DataFrame, name: String): Seq[String] = {
+    df.columns.map(c => name + DELIMITER + c)
+  }
+
+  /** Dataframe with new column names */
+  private[graphframes] def renamedDF(df: DataFrame, name: String): DataFrame = {
+    val newNames = newColNames(df, name)
+    df.toDF(newNames :_*)
+  }
+
   /** Nest all columns within a single StructType column with the given name */
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
     struct(df.columns.map(c => df(c)) :_*).as(name)
+  }
+
+  /**
+   * Nest all columns with the old names within a single StructType column 
+   * e.g. columns "e_MF_DELIMITER_src" and "e_MF_DELIMITER_dst" are nested as {"src", "dst"}
+   */
+  private[graphframes] def nestAsColWithOldNames(colNames: Seq[String], name: String): Column = {
+    struct(colNames.map(c => col(c).as(c.substring(name.size + DELIMITER.size))) :_*).as(name)
   }
 
   // ========== Motif finding ==========
 
   private val random: Random = new Random(classOf[GraphFrame].getName.##)
 
-  private def prefixWithName(name: String, col: String): String = name + "." + col
+  private def prefixWithName(name: String, col: String): String = name + DELIMITER + col
   private def vId(name: String): String = prefixWithName(name, ID)
   private def eSrcId(name: String): String = prefixWithName(name, SRC)
   private def eDstId(name: String): String = prefixWithName(name, DST)
@@ -847,6 +910,9 @@ object GraphFrame extends Serializable with Logging {
 
   /**
    * Augment the given DataFrame based on a pattern.
+   * We use flattened DataFrame instead of nested struct to join. This is because
+   * it can make use of the Cost-based Optimizer to help reorder joins to reduce
+   * intermediate results.
    *
    * @param prevPatterns  Patterns which have contributed to the given DataFrame
    * @param prev  Given DataFrame
@@ -859,8 +925,10 @@ object GraphFrame extends Serializable with Logging {
       prev: Option[DataFrame],
       prevNames: Seq[String],
       pattern: Pattern): (Option[DataFrame], Seq[String]) = {
-    def nestE(name: String): DataFrame = gf.edges.select(nestAsCol(gf.edges, name))
-    def nestV(name: String): DataFrame = gf.vertices.select(nestAsCol(gf.vertices, name))
+    def renamedE(name: String): DataFrame = renamedDF(gf.edges, name)
+    def renamedV(name: String): DataFrame = renamedDF(gf.vertices, name)
+    def vNewNames(name: String): Seq[String] = newColNames(gf.vertices, name)
+    def eNewNames(name: String): Seq[String] = newColNames(gf.edges, name)
 
     pattern match {
 
@@ -872,85 +940,85 @@ object GraphFrame extends Serializable with Logging {
           for (prev <- prev) assert(prev.columns.toSet.contains(name))
           (prev, prevNames)
         } else {
-          (Some(maybeCrossJoin(prev, nestV(name))), prevNames :+ name)
+          (Some(maybeCrossJoin(prev, renamedV(name))), prevNames ++ vNewNames(name))
         }
 
       case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
-        val eRen = nestE(name)
-        (Some(maybeCrossJoin(prev, eRen)), prevNames :+ name)
+        val eRen = renamedE(name)
+        (Some(maybeCrossJoin(prev, eRen)), prevNames ++ eNewNames(name))
 
       case NamedEdge(name, AnonymousVertex, dst @ NamedVertex(dstName)) =>
         if (seen(dst, prevPatterns)) {
-          val eRen = nestE(name)
+          val eRen = renamedE(name)
           (Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName)))),
-            prevNames :+ name)
+            prevNames ++ eNewNames(name))
         } else {
-          val eRen = nestE(name)
-          val dstV = nestV(dstName)
+          val eRen = renamedE(name)
+          val dstV = renamedV(dstName)
           (Some(maybeCrossJoin(prev, eRen)
             .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
-            prevNames :+ name :+ dstName)
+            prevNames ++ eNewNames(name) ++ vNewNames(dstName))
         }
 
       case NamedEdge(name, src @ NamedVertex(srcName), AnonymousVertex) =>
         if (seen(src, prevPatterns)) {
-          val eRen = nestE(name)
+          val eRen = renamedE(name)
           (Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName)))),
-            prevNames :+ name)
+            prevNames ++ eNewNames(name))
         } else {
-          val eRen = nestE(name)
-          val srcV = nestV(srcName)
+          val eRen = renamedE(name)
+          val srcV = renamedV(srcName)
           (Some(maybeCrossJoin(prev, eRen)
             .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
-             prevNames :+ srcName :+ name)
+             prevNames ++ vNewNames(srcName) ++ eNewNames(name))
         }
 
       case NamedEdge(name, src @ NamedVertex(srcName), dst @ NamedVertex(dstName)) =>
         (seen(src, prevPatterns), seen(dst, prevPatterns)) match {
           case (true, true) =>
-            val eRen = nestE(name)
+            val eRen = renamedE(name)
             (Some(maybeJoin(prev, eRen, prev =>
               eRen(eSrcId(name)) === prev(vId(srcName)) && eRen(eDstId(name)) === prev(vId(dstName)))),
-              prevNames :+ name)
+              prevNames ++ eNewNames(name))
 
           case (true, false) =>
-            val eRen = nestE(name)
-            val dstV = nestV(dstName)
+            val eRen = renamedE(name)
+            val dstV = renamedV(dstName)
             (Some(maybeJoin(prev, eRen, prev => eRen(eSrcId(name)) === prev(vId(srcName)))
               .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
-              prevNames :+ name :+ dstName)
+              prevNames ++ eNewNames(name) ++ vNewNames(dstName))
 
           case (false, true) =>
-            val eRen = nestE(name)
-            val srcV = nestV(srcName)
+            val eRen = renamedE(name)
+            val srcV = renamedV(srcName)
             (Some(maybeJoin(prev, eRen, prev => eRen(eDstId(name)) === prev(vId(dstName)))
               .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))),
-              prevNames :+ srcName :+ name)
+              prevNames ++ vNewNames(srcName) ++ eNewNames(name))
 
           case (false, false) if srcName != dstName =>
-            val eRen = nestE(name)
-            val srcV = nestV(srcName)
-            val dstV = nestV(dstName)
+            val eRen = renamedE(name)
+            val srcV = renamedV(srcName)
+            val dstV = renamedV(dstName)
             (Some(maybeCrossJoin(prev, eRen)
               .join(srcV, eRen(eSrcId(name)) === srcV(vId(srcName)))
               .join(dstV, eRen(eDstId(name)) === dstV(vId(dstName)))),
-              prevNames :+ srcName :+ name :+ dstName)
+              prevNames ++ vNewNames(srcName) ++ eNewNames(name) ++ vNewNames(dstName))
           // TODO: expose the plans from joining these in the opposite order
 
           case (false, false) if srcName == dstName =>
-            val eRen = nestE(name)
-            val srcV = nestV(srcName)
+            val eRen = renamedE(name)
+            val srcV = renamedV(srcName)
             (Some(maybeCrossJoin(prev, eRen)
               .join(srcV,
                 eRen(eSrcId(name)) === srcV(vId(srcName)) &&
                   eRen(eDstId(name)) === srcV(vId(srcName)))),
-              prevNames :+ srcName :+ name)
+              prevNames ++ vNewNames(srcName) ++ eNewNames(name))
         }
 
       case AnonymousEdge(src, dst) =>
         val tmpName = "__tmp" + random.nextLong.toString
         val (df, names) = findIncremental(gf, prevPatterns, prev, prevNames, NamedEdge(tmpName, src, dst))
-        (df.map(_.drop(tmpName)), names.filter(_ != tmpName))
+        (df.map(_.drop(names.filter(_.startsWith(tmpName)) :_*)), names.filter(!_.startsWith(tmpName)))
 
       case Negation(edge) => prev match {
         case Some(p) =>

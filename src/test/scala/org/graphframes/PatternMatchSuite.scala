@@ -17,9 +17,11 @@
 
 package org.graphframes
 
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{col, lit, when}
+import org.graphframes.pattern._
 
 /**
  * Cases to go through:
@@ -36,6 +38,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   @transient var e: DataFrame = _
   @transient var noEdges: DataFrame = _
   @transient var g: GraphFrame = _
+  @transient var sparkVersionDouble: Double = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -149,6 +152,24 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       Row(0L, 1L, 2L),
       Row(2L, 0L, 1L),
       Row(1L, 2L, 0L)
+    ))
+  }
+
+  test("query names and column names contain underscore _ ") {
+    val tmp_v = g.vertices.toDF("id", "_tmp_attr", "_tmp_gender")
+    val tmp_e = g.edges.toDF("src", "dst", "_tmp_relationship")
+    val tmp_g = GraphFrame(tmp_v, tmp_e)
+
+    val triplets = tmp_g.find("(_tmp_u)-[]->(_tmp_v)")
+
+    assert(triplets.columns === Array("_tmp_u", "_tmp_v"))
+    val res = triplets.select("_tmp_u.id", "_tmp_u._tmp_attr", "_tmp_v.id", "_tmp_v._tmp_attr").collect().toSet
+    compareResultToExpected(res, Set(
+      Row(0L, "a", 1L, "b"),
+      Row(1L, "b", 0L, "a"),
+      Row(1L, "b", 2L, "c"),
+      Row(2L, "c", 3L, "d"),
+      Row(2L, "c", 0L, "a")
     ))
   }
 
@@ -577,6 +598,47 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val chainWith2Friends2 = chain4.where(condition >= 2)
 
     compareResultToExpected(chainWith2Friends.collect().toSet, chainWith2Friends2.collect().toSet)
+  }
+
+  /* ===================================== CBO Test ======================================== */
+
+  // CBO is introduced in Spark 2.2
+  if (isLaterVersion("2.2")) {
+    test("CBO reorder") {
+      val checkpointDir = sc.getCheckpointDir
+      val pathV = new Path(checkpointDir.get, "MF_test_vertices")
+      val pathE = new Path(checkpointDir.get, "MF_test_edges")
+
+      g.vertices.write.option("path", pathV.toString()).saveAsTable("MF_testV")
+      g.edges.write.option("path", pathE.toString()).saveAsTable("MF_testE")
+
+      // analyze tables
+      sqlContext.sql("ANALYZE TABLE MF_testV COMPUTE STATISTICS FOR COLUMNS id")
+      sqlContext.sql("ANALYZE TABLE MF_testE COMPUTE STATISTICS FOR COLUMNS src, dst")
+      val vv = sqlContext.read.table("MF_testV")
+      val ee = sqlContext.read.table("MF_testE")
+      val gg = GraphFrame(vv, ee)
+      val plan = gg.find("(a)-[ab]->(b)").filter(col("b.id") === 1).queryExecution.optimizedPlan.toString()
+      val aIndex = plan.indexOf("= a_")
+      val bIndex = plan.indexOf("= b_")
+      pathV.getFileSystem(sc.hadoopConfiguration).delete(pathV, true)
+      pathE.getFileSystem(sc.hadoopConfiguration).delete(pathE, true)
+
+      // join vertex b before joining vertex a
+      assert(aIndex < bIndex)
+    }
+
+    test("CBO threshold") {     
+      sqlContext.setConf("spark.sql.cbo.joinReorder.dp.threshold", "7")
+      val joinReorderThreshold = sqlContext.getConf("spark.sql.cbo.joinReorder.dp.threshold").toInt
+      val chain2 = Pattern.parse("(a)-[ab]->(b); (b)-[bc]->(c)")
+      val ret2 = g.checkReorderThreshold(chain2, joinReorderThreshold)
+      assert(ret2)
+
+      val chain4 = Pattern.parse("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d); (d)-[]->(e)")
+      val ret4 = g.checkReorderThreshold(chain4, joinReorderThreshold)
+      assert(ret4 === false)   
+    }
   }
 
   /* ===================================== Join elimination =================================== */
