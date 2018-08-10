@@ -25,7 +25,7 @@ import org.graphframes.{GraphFrame, Logging}
 /**
  * Implement SVD++ based on "Factorization Meets the Neighborhood:
  * a Multifaceted Collaborative Filtering Model",
- * available at [[https://movie-datamining.googlecode.com/svn/trunk/kdd08koren.pdf]].
+ * available at [[https://dl.acm.org/citation.cfm?id=1401944]].
  *
  * Note: The status of this algorithm is EXPERIMENTAL. Its API and implementation may be changed
  * in the future.
