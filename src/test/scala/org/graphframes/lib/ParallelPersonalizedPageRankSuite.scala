@@ -17,10 +17,8 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.ml.linalg.{SparseVector, SQLDataTypes}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.ml.linalg.SQLDataTypes
 import org.apache.spark.sql.types.DataTypes
-import org.apache.spark.sql.Row
 
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
@@ -60,14 +58,10 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
       .sourceIds(vertexIds)
       .resetProbability(resetProb)
 
-    if (isLaterVersion("2.1")) {
-      val pr = prc.run()
-      TestUtils.testSchemaInvariants(g, pr)
-      TestUtils.checkColumnType(pr.vertices.schema, "pageranks", SQLDataTypes.VectorType)
-      TestUtils.checkColumnType(pr.edges.schema, "weight", DataTypes.DoubleType)
-    } else {
-      intercept[NotImplementedError] { prc.run() }
-    }
+    val pr = prc.run()
+    TestUtils.testSchemaInvariants(g, pr)
+    TestUtils.checkColumnType(pr.vertices.schema, "pageranks", SQLDataTypes.VectorType)
+    TestUtils.checkColumnType(pr.edges.schema, "weight", DataTypes.DoubleType)
   }
 
   test("friends graph with parallel personalized PageRank") {
@@ -80,11 +74,12 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
       .sourceIds(vertexIds)
       .resetProbability(resetProb)
 
-    if (isLaterVersion("2.2")) {
-      // in Spark 2.2, sourceIds must be smaller than Int.MaxValue
-      // which might not be the case for LONG_ID in graph.indexedVertices
-      intercept[java.lang.IllegalArgumentException] { prc.run() }
-    } else if (isLaterVersion("2.1")) {
+    // in Spark 2.2+, sourceIds must be smaller than Int.MaxValue
+    // which might not be the case for LONG_ID in graph.indexedVertices
+    intercept[java.lang.IllegalArgumentException] { prc.run() }
+    /*
+    // This code is the original test, which works for Spark 2.1.  Once we fix vertex indexing,
+    // then we can revive this code.  See https://github.com/graphframes/graphframes/issues/235
       val pr = prc.run()
       val prInvalid = pr.vertices
         .select("pageranks")
@@ -101,9 +96,7 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
         .first().getAs[SparseVector](0)
       assert(gRank.numNonzeros === 0,
         s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got ${gRank.numNonzeros}.")
-    } else {
-      intercept[NotImplementedError] { prc.run() }
-    }
+    */
   }
 
 }

@@ -697,7 +697,6 @@ val results2 = g.pageRank.resetProbability(0.15).maxIter(10).run()
 val results3 = g.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
 
 // Run PageRank personalized for vertex ["a", "b", "c", "d"] in parallel
-// Works only in Spark 2.1+
 val results3 = g.parallelPersonalizedPageRank.resetProbability(0.15).maxIter(10).sourceIds(Array("a", "b", "c", "d")).run()
 {% endhighlight %}
 </div>
