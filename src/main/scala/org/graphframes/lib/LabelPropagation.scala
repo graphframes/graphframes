@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
-
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 
 /**
@@ -40,6 +40,36 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
 
   private var maxIter: Option[Int] = None
 
+  private var intermediateVertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+
+  private var intermediateEdgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+
+  /**
+    * Sets storage level for intermediate `Graph` vertices that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateVertexStorageLevel(value: StorageLevel): this.type = {
+    intermediateVertexStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` vertices that require multiple passes.
+    */
+  def getIntermediateVertexStorageLevel: StorageLevel = intermediateVertexStorageLevel
+
+  /**
+    * Sets storage level for intermediate `Graph` edges that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateEdgeStorageLevel(value: StorageLevel): this.type = {
+    intermediateEdgeStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` edges that require multiple passes.
+    */
+  def getIntermediateEdgeStorageLevel: StorageLevel = intermediateEdgeStorageLevel
+
   /**
    * The max number of iterations of LPA to be performed. Because this is a static
    * implementation, the algorithm will run for exactly this many iterations.
@@ -52,14 +82,21 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
   def run(): DataFrame = {
     LabelPropagation.run(
       graph,
-      check(maxIter, "maxIter"))
+      check(maxIter, "maxIter"),
+      intermediateVertexStorageLevel,
+      intermediateEdgeStorageLevel)
   }
 }
 
 
 private object LabelPropagation {
-  private def run(graph: GraphFrame, maxIter: Int): DataFrame = {
-    val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxIter)
+  private def run(
+      graph: GraphFrame,
+      maxIter: Int,
+      intermediateVertexStorageLevel: StorageLevel,
+      intermediateEdgeStorageLevel: StorageLevel): DataFrame = {
+    val gx = graphxlib.LabelPropagation.run(
+      graph.cachedTopologyGraphXWithStorageLevel(intermediateVertexStorageLevel, intermediateEdgeStorageLevel), maxIter)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
   }
 

@@ -18,6 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.{GraphFrame, Logging}
 
 /**
@@ -59,6 +60,34 @@ class ParallelPersonalizedPageRank private[graphframes] (
   private var resetProb: Option[Double] = Some(0.15)
   private var maxIter: Option[Int] = None
   private var srcIds: Array[Any] = Array()
+  private var intermediateVertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+  private var intermediateEdgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+
+  /**
+    * Sets storage level for intermediate `Graph` vertices that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateVertexStorageLevel(value: StorageLevel): this.type = {
+    intermediateVertexStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` vertices that require multiple passes.
+    */
+  def getIntermediateVertexStorageLevel: StorageLevel = intermediateVertexStorageLevel
+
+  /**
+    * Sets storage level for intermediate `Graph` edges that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateEdgeStorageLevel(value: StorageLevel): this.type = {
+    intermediateEdgeStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` edges that require multiple passes.
+    */
+  def getIntermediateEdgeStorageLevel: StorageLevel = intermediateEdgeStorageLevel
 
   /** Source vertices for a Personalized Page Rank */
   def sourceIds(values: Array[Any]): this.type = {
@@ -81,7 +110,7 @@ class ParallelPersonalizedPageRank private[graphframes] (
   def run(): GraphFrame = {
     require(maxIter != None, s"Max number of iterations maxIter() must be provided")
     require(srcIds.nonEmpty, s"Source vertices Ids sourceIds() must be provided")
-    ParallelPersonalizedPageRank.run(graph, maxIter.get, resetProb.get, srcIds)
+    ParallelPersonalizedPageRank.run(graph, maxIter.get, resetProb.get, srcIds, intermediateVertexStorageLevel, intermediateEdgeStorageLevel)
   }
 }
 
@@ -110,10 +139,15 @@ private object ParallelPersonalizedPageRank {
       graph: GraphFrame,
       maxIter: Int,
       resetProb: Double,
-      sourceIds: Array[Any]): GraphFrame = {
+      sourceIds: Array[Any],
+      intermediateVertexStorageLevel: StorageLevel,
+      intermediateEdgeStorageLevel: StorageLevel): GraphFrame = {
     val longSrcIds = sourceIds.map(GraphXConversions.integralId(graph, _))
     val gx = graphxlib.GraphXHelpers.runParallelPersonalizedPageRank(
-      graph.cachedTopologyGraphX, maxIter, resetProb, longSrcIds)
+      graph.cachedTopologyGraphXWithStorageLevel(intermediateVertexStorageLevel, intermediateEdgeStorageLevel),
+      maxIter,
+      resetProb,
+      longSrcIds)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANKS), edgeNames = Seq(WEIGHT))
   }
 }

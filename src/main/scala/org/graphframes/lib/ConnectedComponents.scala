@@ -147,6 +147,37 @@ class ConnectedComponents private[graphframes] (
    */
   def getIntermediateStorageLevel: StorageLevel = intermediateStorageLevel
 
+  private var graphxVertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+  private var graphxEdgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+
+  /**
+    * Sets storage level for intermediate `Graph` vertices that require multiple passes (default: ``MEMORY_ONLY``).
+    * This parameter is only used when the algorithm is set to "graphx".
+    */
+  def setIntermediateGraphxVertexStorageLevel(value: StorageLevel): this.type = {
+    graphxVertexStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` vertices that require multiple passes.
+    */
+  def getIntermediateGraphxVertexStorageLevel: StorageLevel = graphxVertexStorageLevel
+
+  /**
+    * Sets storage level for intermediate `Graph` edges that require multiple passes (default: ``MEMORY_ONLY``).
+    * This parameter is only used when the algorithm is set to "graphx".
+    */
+  def setIntermediateGraphxEdgeStorageLevel(value: StorageLevel): this.type = {
+    graphxEdgeStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` edges that require multiple passes.
+    */
+  def getIntermediateGraphxEdgeStorageLevel: StorageLevel = graphxEdgeStorageLevel
+
   /**
    * Runs the algorithm.
    */
@@ -155,7 +186,9 @@ class ConnectedComponents private[graphframes] (
       algorithm = algorithm,
       broadcastThreshold = broadcastThreshold,
       checkpointInterval = checkpointInterval,
-      intermediateStorageLevel = intermediateStorageLevel)
+      intermediateStorageLevel = intermediateStorageLevel,
+      graphxVertexStorageLevel = graphxVertexStorageLevel,
+      graphxEdgeStorageLevel = graphxEdgeStorageLevel)
   }
 }
 
@@ -263,8 +296,12 @@ object ConnectedComponents extends Logging {
     new ConnectedComponents(graph).run()
   }
 
-  private def runGraphX(graph: GraphFrame): DataFrame = {
-    val components = org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX)
+  private def runGraphX(
+      graph: GraphFrame,
+      intermediateVertexStorageLevel: StorageLevel,
+      intermediateEdgeStorageLevel: StorageLevel): DataFrame = {
+    val components = org.apache.spark.graphx.lib.ConnectedComponents.run(
+      graph.cachedTopologyGraphXWithStorageLevel(intermediateVertexStorageLevel, intermediateEdgeStorageLevel))
     GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
   }
 
@@ -273,12 +310,14 @@ object ConnectedComponents extends Logging {
       algorithm: String,
       broadcastThreshold: Int,
       checkpointInterval: Int,
-      intermediateStorageLevel: StorageLevel): DataFrame = {
+      intermediateStorageLevel: StorageLevel,
+      graphxVertexStorageLevel: StorageLevel,
+      graphxEdgeStorageLevel: StorageLevel): DataFrame = {
     require(supportedAlgorithms.contains(algorithm),
       s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
 
     if (algorithm == ALGO_GRAPHX) {
-      return runGraphX(graph)
+      return runGraphX(graph, graphxVertexStorageLevel, graphxEdgeStorageLevel)
     }
 
     val runId = UUID.randomUUID().toString.takeRight(8)

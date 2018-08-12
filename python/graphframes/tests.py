@@ -35,6 +35,7 @@ from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 from .graphframe import GraphFrame, _java_api, _from_java_gf
 from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
+from pyspark.storagelevel import StorageLevel
 
 class GraphFrameTestUtils(object):
 
@@ -313,6 +314,23 @@ class GraphFrameLibTest(GraphFrameTestCase):
         for c in comps_tests:
             self.assertEqual(c.groupBy("component").count().count(), 2)
 
+    def test_connected_components_intermediate_storage_level(self):
+        #graphx implementation
+        g = self._graph("friends")
+        expected = g.connectedComponents(algorithm="graphx").collect()
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for vLabel in levels:
+            for eLabel in levels:
+                out = g.connectedComponents(algorithm="graphx", intermediateGraphxVertexStorageLevel=vLabel, intermediateGraphxEdgeStorageLevel=eLabel).collect()
+                self.assertEqual(out, expected)
+
+        #graphframe implementation
+        expected = g.connectedComponents().collect()
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for label in levels:
+            out = g.connectedComponents(intermediateStorageLevel=label).collect()
+            self.assertEqual(out, expected)
+
     def test_label_progagation(self):
         n = 5
         g = self._graph("twoBlobs", n)
@@ -324,6 +342,16 @@ class GraphFrameLibTest(GraphFrameTestCase):
         all2 = set([x.label for x in labels2])
         self.assertEqual(all2, set([n]))
 
+    def test_label_progagation_intermediate_storage_level(self):
+        g = self._graph("friends")
+        expected = g.labelPropagation(maxIter=1).collect()
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for vLabel in levels:
+            for eLabel in levels:
+                out = g.labelPropagation(maxIter=1, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel).collect()
+                self.assertEqual(out, expected)
+
+
     def test_page_rank(self):
         n = 100
         g = self._graph("star", n)
@@ -331,6 +359,18 @@ class GraphFrameLibTest(GraphFrameTestCase):
         errorTol = 1.0e-5
         pr = g.pageRank(resetProb, tol=errorTol)
         self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
+
+    def test_page_rank_intermediate_storage_level(self):
+        g = self._graph("friends")
+        pr = g.pageRank(maxIter=1)
+        expected_vertex = pr.vertices.collect()
+        expected_edge = pr.edges.collect()
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for vLabel in levels:
+            for eLabel in levels:
+                pr_out = g.pageRank(maxIter=1, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel)
+                self.assertEqual(pr_out.vertices.collect(), expected_vertex)
+                self.assertEqual(pr_out.edges.collect(), expected_edge)
 
     def test_parallel_personalized_page_rank(self):
         if not GraphFrameTestUtils.spark_at_least_of_version("2.1"):
@@ -343,6 +383,24 @@ class GraphFrameLibTest(GraphFrameTestCase):
         pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
         self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
 
+    def test_parallel_personalized_page_rank_intermediate_storage_level(self):
+        if GraphFrameTestUtils.spark_at_least_of_version("2.2"):
+            self.skipTest("in Spark 2.2, sourceIds must be smaller than Int.MaxValue \
+                which might not be the case for LONG_ID in graph.indexedVertices")
+        if not GraphFrameTestUtils.spark_at_least_of_version("2.1"):
+            self.skipTest("Parallel Personalized PageRank is only available in Apache Spark 2.1+")
+        g = self._graph("friends")
+        sourceIds = ["a", "b"]
+        ppr = g.parallelPersonalizedPageRank(maxIter=1, sourceIds=sourceIds)
+        expected_vertex = ppr.vertices.collect()
+        expected_edge = ppr.edges.collect()
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for vLabel in levels:
+            for eLabel in levels:
+                ppr_out = g.parallelPersonalizedPageRank(maxIter=1, sourceIds=sourceIds, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel)
+                self.assertEqual(ppr_out.vertices.collect(), expected_vertex)
+                self.assertEqual(ppr_out.edges.collect(), expected_edge)
+
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
         all_edges = [z for (a, b) in edges for z in [(a, b), (b, a)]]
@@ -352,6 +410,16 @@ class GraphFrameLibTest(GraphFrameTestCase):
         landmarks = [1, 4]
         v2 = g.shortestPaths(landmarks)
         self._df_hasCols(v2, vcols=["id", "distances"])
+
+    def test_shortest_paths_intermediate_storage_level(self):
+        g = self._graph("friends")
+        landmarks = ["a", "d"]
+        expected = g.shortestPaths(landmarks=landmarks).collect()
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for vLabel in levels:
+            for eLabel in levels:
+                out = g.shortestPaths(landmarks=landmarks, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel).collect()
+                self.assertEqual(out, expected)
 
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
@@ -366,6 +434,15 @@ class GraphFrameLibTest(GraphFrameTestCase):
         c = g.stronglyConnectedComponents(5)
         for row in c.collect():
             self.assertEqual(row.id, row.component)
+
+    def test_strongly_connected_components_intermediate_storage_level(self):
+        g = self._graph("friends")
+        expected = g.stronglyConnectedComponents(maxIter=1).collect()
+        levels = [StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK]
+        for vLabel in levels:
+            for eLabel in levels:
+                out = g.stronglyConnectedComponents(maxIter=1, intermediateVertexStorageLevel=vLabel, intermediateEdgeStorageLevel=eLabel).collect()
+                self.assertEqual(out, expected)
 
     def test_triangle_counts(self):
         edges = self.sqlContext.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])

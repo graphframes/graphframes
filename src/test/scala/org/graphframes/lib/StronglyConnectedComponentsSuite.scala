@@ -19,8 +19,9 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
-
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, TestUtils}
+import org.apache.spark.storage.StorageLevel
+import org.graphframes.examples.Graphs
+import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
 class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Island Strongly Connected Components") {
@@ -38,6 +39,26 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
     for (Row(id: Long, component: Long, _)
          <- c.select("id", "component", "value").collect()) {
       assert(id === component)
+    }
+  }
+
+  test("intermediate storage levels") {
+    val scc = Graphs.friends.stronglyConnectedComponents.maxIter(1)
+    assert(scc.getIntermediateVertexStorageLevel === StorageLevel.MEMORY_ONLY)
+    assert(scc.getIntermediateEdgeStorageLevel === StorageLevel.MEMORY_ONLY)
+
+    val expected = scc.run().collect()
+
+    val levels = Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_AND_DISK)
+    for (vLevel <- levels; eLevel <- levels) {
+      val output = scc
+        .setIntermediateVertexStorageLevel(vLevel)
+        .setIntermediateEdgeStorageLevel(eLevel)
+        .run()
+
+      assert(output.collect() === expected)
+      assert(scc.getIntermediateVertexStorageLevel === vLevel)
+      assert(scc.getIntermediateEdgeStorageLevel === eLevel)
     }
   }
 }

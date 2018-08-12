@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
-
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 
 /**
@@ -33,6 +33,34 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
   extends Arguments {
 
   private var maxIter: Option[Int] = None
+  private var intermediateVertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+  private var intermediateEdgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+
+  /**
+    * Sets storage level for intermediate `Graph` vertices that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateVertexStorageLevel(value: StorageLevel): this.type = {
+    intermediateVertexStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` vertices that require multiple passes.
+    */
+  def getIntermediateVertexStorageLevel: StorageLevel = intermediateVertexStorageLevel
+
+  /**
+    * Sets storage level for intermediate `Graph` edges that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateEdgeStorageLevel(value: StorageLevel): this.type = {
+    intermediateEdgeStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` edges that require multiple passes.
+    */
+  def getIntermediateEdgeStorageLevel: StorageLevel = intermediateEdgeStorageLevel
 
   def maxIter(value: Int): this.type = {
     maxIter = Some(value)
@@ -40,15 +68,21 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
   }
 
   def run(): DataFrame = {
-    StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
+    StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"), intermediateVertexStorageLevel, intermediateEdgeStorageLevel)
   }
 }
 
 
 /** Strongly connected components algorithm implementation. */
 private object StronglyConnectedComponents {
-  private def run(graph: GraphFrame, numIter: Int): DataFrame = {
-    val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIter)
+  private def run(
+      graph: GraphFrame,
+      numIter: Int,
+      intermediateVertexStorageLevel: StorageLevel,
+      intermediateEdgeStorageLevel: StorageLevel): DataFrame = {
+    val gx = graphxlib.StronglyConnectedComponents.run(
+      graph.cachedTopologyGraphXWithStorageLevel(intermediateVertexStorageLevel, intermediateEdgeStorageLevel),
+      numIter)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID)).vertices
   }
 

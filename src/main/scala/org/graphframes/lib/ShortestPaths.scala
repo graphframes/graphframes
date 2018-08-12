@@ -20,13 +20,12 @@ package org.graphframes.lib
 import java.util
 
 import scala.collection.JavaConverters._
-
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql.types.{IntegerType, MapType}
-
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 
 /**
@@ -40,6 +39,34 @@ import org.graphframes.GraphFrame
  */
 class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var lmarks: Option[Seq[Any]] = None
+  private var intermediateVertexStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+  private var intermediateEdgeStorageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+
+  /**
+    * Sets storage level for intermediate `Graph` vertices that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateVertexStorageLevel(value: StorageLevel): this.type = {
+    intermediateVertexStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` vertices that require multiple passes.
+    */
+  def getIntermediateVertexStorageLevel: StorageLevel = intermediateVertexStorageLevel
+
+  /**
+    * Sets storage level for intermediate `Graph` edges that require multiple passes (default: ``MEMORY_ONLY``).
+    */
+  def setIntermediateEdgeStorageLevel(value: StorageLevel): this.type = {
+    intermediateEdgeStorageLevel = value
+    this
+  }
+
+  /**
+    * Gets storage level for intermediate `Graph` edges that require multiple passes.
+    */
+  def getIntermediateEdgeStorageLevel: StorageLevel = intermediateEdgeStorageLevel
 
   /**
    * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
@@ -58,17 +85,21 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
   }
 
   def run(): DataFrame = {
-    ShortestPaths.run(graph, check(lmarks, "landmarks"))
+    ShortestPaths.run(graph, check(lmarks, "landmarks"), intermediateVertexStorageLevel, intermediateEdgeStorageLevel)
   }
 }
 
 private object ShortestPaths {
 
-  private def run(graph: GraphFrame, landmarks: Seq[Any]): DataFrame = {
+  private def run(
+      graph: GraphFrame,
+      landmarks: Seq[Any],
+      intermediateVertexStorageLevel: StorageLevel,
+      intermediateEdgeStorageLevel: StorageLevel): DataFrame = {
     val idType = graph.vertices.schema(GraphFrame.ID).dataType
     val longIdToLandmark = landmarks.map(l => GraphXConversions.integralId(graph, l) -> l).toMap
     val gx = graphxlib.ShortestPaths.run(
-      graph.cachedTopologyGraphX,
+      graph.cachedTopologyGraphXWithStorageLevel(intermediateVertexStorageLevel, intermediateEdgeStorageLevel),
       longIdToLandmark.keys.toSeq.sorted).mapVertices { case (_, m) => m.toSeq }
     val g = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
     val distanceCol: Column = if (graph.hasIntegralIdType) {
