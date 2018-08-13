@@ -303,12 +303,8 @@ class GraphFrameLibTest(GraphFrameTestCase):
         comps_tests = []
         comps_tests += [g.connectedComponents()]
         comps_tests += [g.connectedComponents(broadcastThreshold=1)]
-
-        # [#194] Prior to Apache Spark version 2.0, no checkpoint or large checkpoint interval
-        #        causes the test to run for too long, resulting in Travis CI to abort the build
-        if GraphFrameTestUtils.spark_at_least_of_version("2.0"):
-            comps_tests += [g.connectedComponents(checkpointInterval=0)]
-            comps_tests += [g.connectedComponents(checkpointInterval=10)]
+        comps_tests += [g.connectedComponents(checkpointInterval=0)]
+        comps_tests += [g.connectedComponents(checkpointInterval=10)]
         comps_tests += [g.connectedComponents(algorithm="graphx")]
         for c in comps_tests:
             self.assertEqual(c.groupBy("component").count().count(), 2)
@@ -333,8 +329,6 @@ class GraphFrameLibTest(GraphFrameTestCase):
         self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
 
     def test_parallel_personalized_page_rank(self):
-        if not GraphFrameTestUtils.spark_at_least_of_version("2.1"):
-            self.skipTest("Parallel Personalized PageRank is only available in Apache Spark 2.1+")
         n = 100
         g = self._graph("star", n)
         resetProb = 0.15

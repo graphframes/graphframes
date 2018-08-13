@@ -58,7 +58,7 @@ Refer to the [Apache Spark documentation](http://spark.apache.org/docs/latest) f
 GraphFrames is compatible with Spark 1.6+.  However, later versions of Spark include major improvements
 to DataFrames, so GraphFrames may be more efficient when running on more recent Spark versions.
 
-GraphFrames is tested with Java 8, Python 2 and 3, and running against Spark 2.1+ (Scala 2.11).
+GraphFrames is tested with Java 8, Python 2 and 3, and running against Spark 2.2+ (Scala 2.11).
 
 # Applications, the Apache Spark shell, and clusters
 
