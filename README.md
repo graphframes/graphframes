@@ -45,3 +45,7 @@ We welcome open source contributions as well!
   - Major bug fix: Indexing non-Integer vertex IDs, which is used by algorithms which call GraphX
     under the hood, including PageRank, ConnectedComponents, and others.
   - aggregateMessages for Python API
+- 0.6.0 release
+  - Spark 2.3 support
+  - New filter APIs for selecting subgraphs.
+  - Bug fixes in connected components & motif finding.
