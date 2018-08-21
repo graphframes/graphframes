@@ -11,16 +11,20 @@ language: scala
 scala:
    - 2.11.8
 
+env:
+  global:
+    - SCALA_VERSION=2.11.8
+
 matrix:
   include:
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.2.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+      env: SCALA_VERSION=2.11.8 PYSPARK_PYTHON=python2 SPARK_VERSION=2.2.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.3.1 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+      env: SCALA_VERSION=2.11.8 PYSPARK_PYTHON=python2 SPARK_VERSION=2.3.1 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.2.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+      env: SCALA_VERSION=2.11.8 PYSPARK_PYTHON=python3 SPARK_VERSION=2.2.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
     - jdk: oraclejdk8
-      env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.3.1 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+      env: SCALA_VERSION=2.11.8 PYSPARK_PYTHON=python3 SPARK_VERSION=2.3.1 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
 
 before_install:
  - ./bin/download_travis_dependencies.sh
