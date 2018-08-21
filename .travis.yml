@@ -11,6 +11,10 @@ language: scala
 scala:
    - 2.11.8
 
+env:
+  global:
+    - SCALA_VERSION=$TRAVIS_SCALA_VERSION
+
 matrix:
   include:
     - jdk: oraclejdk8
