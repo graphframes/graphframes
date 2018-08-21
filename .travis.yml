@@ -35,8 +35,8 @@ install:
     fi
 
 script:
-  - ./build/sbt ++$TRAVIS_SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
-  - ./build/sbt ++$TRAVIS_SCALA_VERSION -Dspark.version=$SPARK_VERSION coverage test coverageReport
+  - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$TRAVIS_SCALA_VERSION "set test in assembly := {}" assembly
+  - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$TRAVIS_SCALA_VERSION coverage test coverageReport
   - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD ./python/run-tests.sh
 
 after_success:
