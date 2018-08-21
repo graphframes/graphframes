@@ -22,8 +22,10 @@ name := "graphframes"
 
 spName := "graphframes/graphframes"
 
+isSnapshot := true
+
 // Don't forget to set the version
-version := s"0.6.0-SNAPSHOT-spark$sparkBranch"
+version := s"0.6.0-spark$sparkBranch${if (isSnapshot.value) "-SNAPSHOT" else ""}"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
@@ -69,3 +71,26 @@ concurrentRestrictions in Global := Seq(
 autoAPIMappings := true
 
 coverageHighlighting := false
+
+/**
+DB changes for private publishing below, see graphframes sop on wiki for more info.
+*/
+
+organization := "org.graphframes"
+
+// Skip tests during assembly
+test in assembly := {}
+
+// disable using the Scala version in output paths and artifacts
+crossPaths := true
+
+publishMavenStyle := true
+
+resolvers += Resolver.mavenLocal
+
+publishTo := {
+  if (isSnapshot.value)
+    Some("Databricks Snapshot Repository on S3" at "s3://s3.amazonaws.com/databricks-mvn/snapshot")
+  else
+    Some("Databricks Repository on S3" at "s3://s3.amazonaws.com/databricks-mvn/release")
+}
