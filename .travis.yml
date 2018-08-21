@@ -11,10 +11,6 @@ language: scala
 scala:
    - 2.11.8
 
-env:
-  global:
-    - SCALA_VERSION=$TRAVIS_SCALA_VERSION
-
 matrix:
   include:
     - jdk: oraclejdk8
@@ -28,7 +24,6 @@ matrix:
 
 before_install:
  - ./bin/download_travis_dependencies.sh
- - unset SBT_OPTS
 
 install:
   - if [[ "${PYSPARK_PYTHON}" == "python2" ]]; then
@@ -40,8 +35,8 @@ install:
     fi
 
 script:
-  - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$TRAVIS_SCALA_VERSION "set test in assembly := {}" assembly
-  - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$TRAVIS_SCALA_VERSION coverage test coverageReport
+  - sbt -Dspark.version=$SPARK_VERSION ++$TRAVIS_SCALA_VERSION "set test in assembly := {}" assembly
+  - sbt -Dspark.version=$SPARK_VERSION ++$TRAVIS_SCALA_VERSION coverage test coverageReport
   - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD ./python/run-tests.sh
 
 after_success:
