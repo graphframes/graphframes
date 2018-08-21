@@ -22,8 +22,11 @@ name := "graphframes"
 
 spName := "graphframes/graphframes"
 
+// This is set to false so we can release, it should be updated to true after the 0.6.0 release
+isSnapshot := false
+
 // Don't forget to set the version
-version := s"0.6.0-spark$sparkBranch"
+version := s"0.6.0-spark$sparkBranch${if (isSnapshot.value) "-SNAPSHOT" else ""}"
 
 // All Spark Packages need a license
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
