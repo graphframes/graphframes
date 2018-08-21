@@ -6,6 +6,11 @@ cache:
     - $HOME/.sbt/launchers/
     - $HOME/.cache/spark-versions
 
+language: scala
+
+scala:
+   - 2.11.8
+
 env:
   global:
     - SCALA_VERSION=2.11.8
@@ -34,8 +39,8 @@ install:
     fi
 
 script:
-  - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$SCALA_VERSION "set test in assembly := {}" assembly
-  - ./build/sbt -Dspark.version=$SPARK_VERSION -Dscala.version=$SCALA_VERSION coverage test coverageReport
+  - sbt ++$TRAVIS_SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
+  - sbt ++$TRAVIS_SCALA_VERSION -Dspark.version=$SPARK_VERSION coverage test coverageReport
   - SPARK_HOME=$HOME/.cache/spark-versions/$SPARK_BUILD ./python/run-tests.sh
 
 after_success:
