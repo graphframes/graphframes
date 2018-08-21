@@ -24,6 +24,7 @@ matrix:
 
 before_install:
  - ./bin/download_travis_dependencies.sh
+ - unset SBT_OPTS
 
 install:
   - if [[ "${PYSPARK_PYTHON}" == "python2" ]]; then
