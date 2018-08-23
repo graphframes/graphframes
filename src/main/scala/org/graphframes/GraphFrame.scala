@@ -616,7 +616,7 @@ object GraphFrame extends Serializable with Logging {
       // No skew.  Do regular join.
       a.join(b, joinCol)
     } else {
-      logger.debug(s"$logPrefix Skewed join with ${hubs.size} high-degree keys.")
+      logDebug(s"$logPrefix Skewed join with ${hubs.size} high-degree keys.")
       val isHub = udf { id: T =>
         hubs.contains(id)
       }

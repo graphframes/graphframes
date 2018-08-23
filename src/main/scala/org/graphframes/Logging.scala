@@ -17,11 +17,26 @@
 
 package org.graphframes
 
-import com.typesafe.scalalogging.slf4j.LazyLogging
+import org.slf4j.{Logger, LoggerFactory}
 
 // This needs to be accessible to org.apache.spark.graphx.lib.backport
-private[org] trait Logging extends LazyLogging {
-  protected def logDebug(s: String) = logger.debug(s)
-  protected def logInfo(s: String) = logger.info(s)
-  protected def logTrace(s: String) = logger.trace(s)
+private[org] trait Logging {
+
+  @transient private lazy val logger: Logger = LoggerFactory.getLogger(getClass.getName)
+
+  protected def logDebug(s: => String): Unit = {
+    if (logger.isDebugEnabled) logger.debug(s)
+  }
+
+  protected def logWarn(s: => String): Unit = {
+    if (logger.isWarnEnabled) logger.warn(s)
+  }
+
+  protected def logInfo(s: => String): Unit = {
+    if (logger.isInfoEnabled) logger.info(s)
+  }
+
+  protected def logTrace(s: => String): Unit = {
+    if (logger.isTraceEnabled) logger.trace(s)
+  }
 }
