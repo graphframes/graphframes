@@ -43,7 +43,7 @@ sparkComponents ++= Seq("graphx", "sql", "mllib")
 // add any Spark Package dependencies using spDependencies.
 // e.g. spDependencies += "databricks/spark-avro:0.1"
 
-libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.21"
+libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.16"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % defaultScalaTestVer % "test"
 
