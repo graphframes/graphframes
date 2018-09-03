@@ -113,7 +113,7 @@ class ConnectedComponents private[graphframes] (
    */
   def setCheckpointInterval(value: Int): this.type = {
     if (value <= 0 || value > 2) {
-      logger.warn(
+      logWarn(
         s"Set checkpointInterval to $value. This would blow up the query plan and hang the " +
           "driver for large graphs.")
     }
@@ -283,7 +283,7 @@ object ConnectedComponents extends Logging {
 
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
-    logger.info(s"$logPrefix Start connected components with run ID $runId.")
+    logInfo(s"$logPrefix Start connected components with run ID $runId.")
 
     val sqlContext = graph.sqlContext
     val sc = sqlContext.sparkContext
@@ -296,20 +296,20 @@ object ConnectedComponents extends Logging {
         throw new IOException(
           "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir().")
       }
-      logger.info(s"$logPrefix Using $dir for checkpointing with interval $checkpointInterval.")
+      logInfo(s"$logPrefix Using $dir for checkpointing with interval $checkpointInterval.")
       Some(dir)
     } else {
-      logger.info(
+      logInfo(
         s"$logPrefix Checkpointing is disabled because checkpointInterval=$checkpointInterval.")
       None
     }
 
-    logger.info(s"$logPrefix Preparing the graph for connected component computation ...")
+    logInfo(s"$logPrefix Preparing the graph for connected component computation ...")
     val g = prepare(graph)
     val vv = g.vertices
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
     val numEdges = ee.count()
-    logger.info(s"$logPrefix Found $numEdges edges after preparation.")
+    logInfo(s"$logPrefix Found $numEdges edges after preparation.")
 
     var converged = false
     var iteration = 1
@@ -385,9 +385,9 @@ object ConnectedComponents extends Logging {
       iteration += 1
     }
 
-    logger.info(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
+    logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
 
-    logger.info(s"$logPrefix Join and return component assignments with original vertex IDs.")
+    logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
     vv.join(ee, vv(ID) === ee(DST), "left_outer")
       .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
       .select(col(s"$ATTR.*"), col(COMPONENT))
