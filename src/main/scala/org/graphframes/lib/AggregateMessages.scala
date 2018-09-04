@@ -18,9 +18,8 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.SQLHelpers.expr
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame}
-
 import org.graphframes.{GraphFrame, Logging}
 
 /**
@@ -33,14 +32,15 @@ import org.graphframes.{GraphFrame, Logging}
  *    triplet
  *  - `AggregateMessages.sendToDst()` sends a message to the destination vertex of each
  *    triplet
- *  - `AggregateMessages.agg` specifies an aggregation function for aggregating the
- *    messages sent to each vertex.  It also runs the aggregation, computing a DataFrame
- *    with one row for each vertex which receives > 0 messages.  The DataFrame has 2 columns:
+ *  - `AggregateMessages.agg` specifies a series of aggregation functions for aggregating the
+ *    messages sent to each vertex.  It also runs the aggregations, computing a DataFrame
+ *    with one row for each vertex which receives > 0 messages.  The DataFrame has the following
+ *    columns:
  *     - vertex column ID (named [[GraphFrame.ID]])
- *     - aggregate from messages sent to vertex (with the name given to the `Column` specified
+ *     - each aggregate from messages sent to vertex (with the names given to the `Column` specified
  *       in `AggregateMessages.agg()`)
  *
- * When specifying the messages and aggregation function, the user may reference columns using:
+ * When specifying the messages and aggregation functions, the user may reference columns using:
  *  - [[AggregateMessages.src]]: column for source vertex of edge
  *  - [[AggregateMessages.edge]]: column for edge
  *  - [[AggregateMessages.dst]]: column for destination vertex of edge
@@ -62,27 +62,27 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
 
   import org.graphframes.GraphFrame.{DST, ID, SRC}
 
-  private var msgToSrc: Option[Column] = None
+  private var msgToSrc: Seq[Column] = Vector()
 
   /** Send message to source vertex */
-  def sendToSrc(value: Column): this.type = {
-    msgToSrc = Some(value)
+  def sendToSrc(value: Column, values: Column*): this.type = {
+    msgToSrc = value +: values
     this
   }
 
   /** Send message to source vertex, specifying SQL expression as a String */
-  def sendToSrc(value: String): this.type = sendToSrc(expr(value))
+  def sendToSrc(value: String, values: String*): this.type = sendToSrc(expr(value), values.map(expr) : _*)
 
-  private var msgToDst: Option[Column] = None
+  private var msgToDst: Seq[Column] = Vector()
 
   /** Send message to destination vertex */
-  def sendToDst(value: Column): this.type = {
-    msgToDst = Some(value)
+  def sendToDst(value: Column, values: Column*): this.type = {
+    msgToDst = value +: values
     this
   }
 
   /** Send message to destination vertex, specifying SQL expression as a String */
-  def sendToDst(value: String): this.type = sendToDst(expr(value))
+  def sendToDst(value: String, values: String*): this.type = sendToDst(expr(value), values.map(expr) : _*)
 
   /**
    * Run the aggregation, returning the resulting DataFrame of aggregated messages.
@@ -92,6 +92,7 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
    * This returns a DataFrame with schema:
    *  - column "id": vertex ID
    *  - aggCol: aggregate result
+   *  - aggCols: one column with the result of each additional defined aggregation
    * If you need to join this with the original [[GraphFrame.vertices]], you can run an inner
    * join of the form:
    * {{{
@@ -100,22 +101,25 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
    *   aggResult.join(g.vertices, ID)
    * }}}
    */
-  def agg(aggCol: Column): DataFrame = {
+  def agg(aggCol: Column, aggCols: Column*): DataFrame = {
     require(msgToSrc.nonEmpty || msgToDst.nonEmpty, s"To run GraphFrame.aggregateMessages," +
       s" messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")
     val triplets = g.triplets
-    val sentMsgsToSrc = msgToSrc.map { msg =>
-      val msgsToSrc = triplets.select(
-        msg.as(AggregateMessages.MSG_COL_NAME),
-        triplets(SRC)(ID).as(ID))
+    def msgColumn(columns: Seq[Column], idColumn: Column) = columns match {
+      case Seq(c) => triplets.select(idColumn.as(ID), c.as(AggregateMessages.MSG_COL_NAME))
+      case columns => triplets.select(
+        idColumn.as(ID),
+        struct(columns : _*).as(AggregateMessages.MSG_COL_NAME))
+    }
+    val sentMsgsToSrc = msgToSrc.headOption.map { _ =>
+      val msgsToSrc = msgColumn(msgToSrc, triplets(SRC)(ID))
       // Inner join: only send messages to vertices with edges
       msgsToSrc.join(g.vertices, ID)
         .select(msgsToSrc(AggregateMessages.MSG_COL_NAME), col(ID))
     }
-    val sentMsgsToDst = msgToDst.map { msg =>
-      val msgsToDst = triplets.select(
-        msg.as(AggregateMessages.MSG_COL_NAME),
-        triplets(DST)(ID).as(ID))
+    val sentMsgsToDst = msgToDst.headOption.map { _ =>
+      val msgsToDst = msgColumn(msgToDst, triplets(DST)(ID))
+
       msgsToDst.join(g.vertices, ID)
         .select(msgsToDst(AggregateMessages.MSG_COL_NAME), col(ID))
     }
@@ -128,7 +132,7 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
         // Should never happen. Specify this case to avoid compilation warnings.
         throw new RuntimeException("AggregateMessages: No messages were specified to be sent.")
     }
-    unionedMsgs.groupBy(ID).agg(aggCol)
+    unionedMsgs.groupBy(ID).agg(aggCol, aggCols : _*)
   }
 
   /**
@@ -136,7 +140,7 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
    *
    * See the overloaded method documentation for more details.
    */
-  def agg(aggCol: String): DataFrame = agg(expr(aggCol))
+  def agg(aggCol: String, aggCols: String*): DataFrame = agg(expr(aggCol), aggCols.map(expr(_)) : _*)
 }
 
 object AggregateMessages extends Logging with Serializable {

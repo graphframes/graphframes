@@ -22,6 +22,7 @@ if sys.version > '3':
 from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, SQLContext
 from pyspark.storagelevel import StorageLevel
+from pyspark.sql.column import _to_seq
 
 def _from_java_gf(jgf, sqlContext):
     """
@@ -257,17 +258,20 @@ class GraphFrame(object):
         """
         Aggregates messages from the neighbours.
 
-        When specifying the messages and aggregation function, the user may reference columns using
+        When specifying the messages and aggregation functions, the user may reference columns using
         the static methods in :class:`graphframes.lib.AggregateMessages`.
 
         See Scala documentation for more details.
 
         :param aggCol: the requested aggregation output either as
-            :class:`pyspark.sql.Column` or SQL expression string
+            :class:`pyspark.sql.Column`, :class:`list` of :class:`pyspark.sql.Column`, SQL expression string
+            or :class:`list` of SQL expression string
         :param sendToSrc: message sent to the source vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column`, :class:`list` of :class:`pyspark.sql.Column`, SQL expression string
+            or :class:`list` of SQL expression string (default: None)
         :param sendToDst: message sent to the destination vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            :class:`pyspark.sql.Column`, :class:`list` of :class:`pyspark.sql.Column`, SQL expression string
+            or :class:`list` of SQL expression string (default: None)
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
@@ -277,22 +281,45 @@ class GraphFrame(object):
         builder = self._jvm_graph.aggregateMessages()
         if sendToSrc is not None:
             if isinstance(sendToSrc, Column):
-                builder.sendToSrc(sendToSrc._jc)
+                builder.sendToSrc(sendToSrc._jc, _to_seq(self._sc, []))
+            elif isinstance(sendToSrc, list):
+                if all(isinstance(c, Column) for c in sendToSrc):
+                    builder.sendToSrc(sendToSrc[0]._jc, _to_seq(self._sc, [c._jc for c in sendToSrc[1:]]))
+                elif all(isinstance(c, basestring) for c in sendToSrc):
+                    builder.sendToSrc(sendToSrc[0],  _to_seq(self._sc, sendToSrc[1:]))
+                else:
+                    raise TypeError("`sendToSrc` must be a list of `Column` or `str`")
             elif isinstance(sendToSrc, basestring):
-                builder.sendToSrc(sendToSrc)
+                builder.sendToSrc(sendToSrc, _to_seq(self._sc, []))
             else:
-                raise TypeError("Provide message either as `Column` or `str`")
+                raise TypeError("Provide message either as `Column`, list of `Column`, `str` or list of `str`")
         if sendToDst is not None:
             if isinstance(sendToDst, Column):
-                builder.sendToDst(sendToDst._jc)
+                builder.sendToDst(sendToDst._jc, _to_seq(self._sc, []))
+            elif isinstance(sendToDst, list):
+                if all(isinstance(c, Column) for c in sendToDst):
+                    builder.sendToDst(sendToDst[0]._jc, _to_seq(self._sc, [c._jc for c in sendToDst[1:]]))
+                elif all(isinstance(c, basestring) for c in sendToDst):
+                    builder.sendToDst(sendToDst[0], _to_seq(self._sc, sendToDst[1:]))
+                else:
+                    raise TypeError("`sendToDst` must be a list of `Column` or `str`")
             elif isinstance(sendToDst, basestring):
-                builder.sendToDst(sendToDst)
+                builder.sendToDst(sendToDst, _to_seq(self._sc, []))
             else:
-                raise TypeError("Provide message either as `Column` or `str`")
+                raise TypeError("Provide message either as `Column`, list of `Column`, `str` or list of `str`")
         if isinstance(aggCol, Column):
-            jdf = builder.agg(aggCol._jc)
+            jdf = builder.agg(aggCol._jc, _to_seq(self._sc, []))
+        elif isinstance(aggCol, list):
+            if all(isinstance(c, Column) for c in aggCol):
+                jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [c._jc for c in aggCol[1:]]))
+            elif all(isinstance(c, basestring) for c in aggCol):
+                jdf = builder.agg(aggCol[0], _to_seq(self._sc, aggCol[1:]))
+            else:
+                raise TypeError("`aggCol` must be a list of `Column` or `str`")
+        elif isinstance(aggCol, basestring):
+            jdf = builder.agg(aggCol, _to_seq(self._sc, []))
         else:
-            jdf = builder.agg(aggCol)
+            raise TypeError("Provide aggregation either as `Column`, list of `Column`, `str` or list of `str`")
         return DataFrame(jdf, self._sqlContext)
 
     # Standard algorithms
