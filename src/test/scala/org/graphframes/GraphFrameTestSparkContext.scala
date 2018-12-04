@@ -22,15 +22,25 @@ import java.nio.file.Files
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.{BeforeAndAfterAll, Suite}
-
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.{SQLContext, SQLImplicits}
 
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
   @transient var sparkMajorVersion: Int = _
   @transient var sparkMinorVersion: Int = _
+
+  /**
+   * A helper object for importing SQL implicits.
+   *
+   * Note that the alternative of importing `spark.implicits._` is not possible here.
+   * This is because we create the `SQLContext` immediately before the first test is run,
+   * but the implicits import is needed in the constructor.
+   */
+  protected object testImplicits extends SQLImplicits {
+    protected override def _sqlContext: SQLContext = self.sqlContext
+  }
 
   /** Check if current spark version is at least of the provided minimum version */
   def isLaterVersion(minVersion: String): Boolean = {
