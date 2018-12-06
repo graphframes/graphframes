@@ -58,7 +58,7 @@ class GraphFrame private(
   }
 
   /** Get the `Pregel` object for running pregel.*/
-  val pregel = new Pregel(this)
+  def pregel = new Pregel(this)
 
   /**
    * Persist the dataframe representation of vertices and edges of the graph with the default

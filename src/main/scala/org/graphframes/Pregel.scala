@@ -28,7 +28,7 @@ import org.apache.spark.sql.functions.{array, col, explode, struct, when}
  * It will return a DataFrame which is the vertices dataframe generated in the last round.
  *
  * When pregel `run` start, first, it will initialize some columns in vertices dataframe,
- * which defined by `initVertexColumn` (user can call it multiple times),
+ * which defined by `withVertexColumn` (user can call it multiple times),
  * and then start iteration.
  *
  * Once the iteration start, in each supersteps of pregel, include 3 phases:
@@ -62,7 +62,11 @@ class Pregel(val graph: GraphFrame) {
     this
   }
 
-  /** Set the period to do the checkpoint when running pregel. Default value is 2 */
+  /**
+   * Set the period to do the checkpoint when running pregel.
+   * If set to zero or negative value, then do not checkpoint.
+   * Default value is 2
+   */
   def setCheckpointInterval(value: Int): this.type = {
     checkpointInterval = value
     this
@@ -155,14 +159,12 @@ class Pregel(val graph: GraphFrame) {
 
     val shouldCheckpoint = checkpointInterval > 0
 
-    while (iteration <= maxIter) {
-      val beginTime = System.currentTimeMillis()
+    require(sendMsgs.length > 0, "We need to set at least one message expression for pregel running.")
 
+    while (iteration <= maxIter) {
       val tripletsDF = vertices.select(struct(col("*")).as("src"))
         .join(edges.select(struct(col("*")).as("edge")), Pregel.src("id") === Pregel.edge("src"))
         .join(vertices.select(struct(col("*")).as("dst")), Pregel.edge("dst") === Pregel.dst("id"))
-
-      assert(sendMsgs.length > 0)
 
       var msgDF: DataFrame = tripletsDF
         .select(explode(array(sendMsgsColList: _*)).as("msg"))
@@ -200,7 +202,7 @@ class Pregel(val graph: GraphFrame) {
 
 object Pregel extends Serializable {
 
-  val MSG_COL_NAME = "_msg"
+  val MSG_COL_NAME = "_pregel_msg_"
 
   /**
    * The message column. `Pregel.aggMsgs` method argument and `Pregel.updateVertexColumn`
@@ -214,7 +216,7 @@ object Pregel extends Serializable {
    *
    * @param colName the column name in the vertex columns.
    */
-  def src(colName: String): Column = col("src." + colName)
+  def src(colName: String): Column = col(GraphFrame.SRC + "." + colName)
 
   /**
    * construct the column from dst vertex columns.
@@ -222,7 +224,7 @@ object Pregel extends Serializable {
    *
    * @param colName the column name in the vertex columns.
    */
-  def dst(colName: String): Column = col("dst." + colName)
+  def dst(colName: String): Column = col(GraphFrame.DST + "." + colName)
 
   /**
    * construct the column from edge columns.
@@ -230,5 +232,5 @@ object Pregel extends Serializable {
    *
    * @param colName the column name in the edge columns.
    */
-  def edge(colName: String): Column = col("edge." + colName)
+  def edge(colName: String): Column = col(GraphFrame.EDGE + "." + colName)
 }
