@@ -17,6 +17,7 @@
 
 package org.graphframes
 
+import org.graphframes.GraphFrame._
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions.{array, col, explode, struct, when}
 
@@ -48,7 +49,7 @@ class Pregel(val graph: GraphFrame) {
 
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
-  private var maxIter: Int = 100
+  private var maxIter: Int = 10
   private var checkpointInterval = 2
 
   private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
@@ -56,7 +57,7 @@ class Pregel(val graph: GraphFrame) {
 
   private val CHECKPOINT_NAME_PREFIX = "pregel"
 
-  /** Set max iteration number for the pregel running. Default value is 100 */
+  /** Set max iteration number for the pregel running. Default value is 10 */
   def setMaxIter(value: Int): this.type = {
     maxIter = value
     this
@@ -82,10 +83,18 @@ class Pregel(val graph: GraphFrame) {
    * @param updateAfterAggMsgsExpr The column expression used to update the column.
    *                               Note that this sql expression can reference all
    *                               vertex columns and an extra message column
-   *                               `Pregel.msgCol`.
+   *                               `Pregel.msg`. If the vertex receive no messages,
+   *                               The msg column will be null, otherwise will be
+   *                               the aggregated result of all received messages.
    */
   def withVertexColumn(colName: String, initialExpr: Column,
                        updateAfterAggMsgsExpr: Column): this.type = {
+    require(colName != null && colName != ID && colName != Pregel.MSG_COL_NAME,
+      "additional column name cannot be null and cannot be the same name with ID column or " +
+      "msg column.")
+    require(initialExpr != null, "additional column should provide a nonnull initial expression.")
+    require(updateAfterAggMsgsExpr != null, "additional column should provide a nonnull " +
+      "updateAfterAggMsgs expression.")
     withVertexColumnList += Tuple3(colName, initialExpr, updateAfterAggMsgsExpr)
     this
   }
@@ -101,7 +110,7 @@ class Pregel(val graph: GraphFrame) {
    *                `Pregel.dst("dst_col_name)`
    */
   def sendMsgToSrc(msgExpr: Column): this.type = {
-    sendMsgs += Tuple2(Pregel.src("id"), msgExpr)
+    sendMsgs += Tuple2(Pregel.src(ID), msgExpr)
     this
   }
 
@@ -117,7 +126,7 @@ class Pregel(val graph: GraphFrame) {
    *                `Pregel.dst("dst_col_name)`
    */
   def sendMsgToDst(msgExpr: Column): this.type = {
-    sendMsgs += Tuple2(Pregel.dst("id"), msgExpr)
+    sendMsgs += Tuple2(Pregel.dst(ID), msgExpr)
     this
   }
 
@@ -140,44 +149,49 @@ class Pregel(val graph: GraphFrame) {
    * @return the result vertex dataframe
    */
   def run(): DataFrame = {
+    require(sendMsgs.length > 0, "We need to set at least one message expression for pregel running.")
+    require(aggMsgsCol != null, "We need to set aggMsgs for pregel running.")
+    require(maxIter >= 1, "The max iteration number should be >= 1.")
+    require(checkpointInterval >= 0, "The checkpoint interval should be >= 0, 0 indicates no checkpoint.")
+    require(withVertexColumnList.size > 0, "There should be at least one additional vertex columns for updating.")
+
     val sendMsgsColList = sendMsgs.toList.map { case (id, msg) =>
-      struct(id.as("id"), msg.as("msg"))
+      struct(id.as(ID), msg.as("msg"))
     }
 
     val initVertexCols = withVertexColumnList.toList.map { case (colName, initExpr, _) =>
       initExpr.as(colName)
     }
     val updateVertexCols = withVertexColumnList.toList.map { case (colName, _, updateExpr) =>
-      when(Pregel.msg.isNotNull, updateExpr).otherwise(col(colName)).as(colName)
+      updateExpr.as(colName)
     }
 
-    var vertexUpdateColDF = graph.vertices.select((col("id") :: initVertexCols): _*)
-    var vertices = graph.vertices.join(vertexUpdateColDF, "id")
+    var currentVertices = graph.vertices.select((col("*") :: initVertexCols): _*)
+    var vertexUpdateColDF: DataFrame = null
+
     val edges = graph.edges
 
     var iteration = 1
 
     val shouldCheckpoint = checkpointInterval > 0
 
-    require(sendMsgs.length > 0, "We need to set at least one message expression for pregel running.")
-
     while (iteration <= maxIter) {
-      val tripletsDF = vertices.select(struct(col("*")).as("src"))
-        .join(edges.select(struct(col("*")).as("edge")), Pregel.src("id") === Pregel.edge("src"))
-        .join(vertices.select(struct(col("*")).as("dst")), Pregel.edge("dst") === Pregel.dst("id"))
+      val tripletsDF = currentVertices.select(struct(col("*")).as(SRC))
+        .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
+        .join(currentVertices.select(struct(col("*")).as(DST)), Pregel.edge(DST) === Pregel.dst(ID))
 
       var msgDF: DataFrame = tripletsDF
         .select(explode(array(sendMsgsColList: _*)).as("msg"))
         .select(col("msg.id"), col("msg.msg").as(Pregel.MSG_COL_NAME))
 
-      val newValueDF = msgDF
+      val newAggMsgDF = msgDF
         .filter(Pregel.msg.isNotNull)
-        .groupBy("id")
+        .groupBy(ID)
         .agg(aggMsgsCol.as(Pregel.MSG_COL_NAME))
 
-      val verticesWithMsg = vertices.join(newValueDF, Seq("id"), "left_outer")
+      val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
 
-      var newVertexUpdateColDF = verticesWithMsg.select((col("id") :: updateVertexCols): _*)
+      var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
 
       if (shouldCheckpoint && iteration % checkpointInterval == 0) {
         // do checkpoint
@@ -186,15 +200,17 @@ class Pregel(val graph: GraphFrame) {
       }
       newVertexUpdateColDF.cache()
 
-      vertexUpdateColDF.unpersist()
+      if (vertexUpdateColDF != null) {
+        vertexUpdateColDF.unpersist()
+      }
       vertexUpdateColDF = newVertexUpdateColDF
 
-      vertices = graph.vertices.join(vertexUpdateColDF, "id")
+      currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
 
       iteration += 1
     }
 
-    vertices
+    currentVertices
   }
 
 }

@@ -57,7 +57,8 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     val pageRankResultDF = new Pregel(graph1)
       .setMaxIter(15)
-      .withVertexColumn("rank", lit(1.0 / N), col(Pregel.MSG_COL_NAME))
+      .withVertexColumn("rank", lit(1.0 / N),
+        when(Pregel.msg.isNotNull, Pregel.msg).otherwise(col("rank")))
       .sendMsgToDst(col("src.rank") / col("src.outDegree"))
       .aggMsgs(sum(col(Pregel.MSG_COL_NAME)) * lit(pr_alpha) + lit(1.0 - pr_alpha) / N)
       .run()
