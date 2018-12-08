@@ -57,7 +57,11 @@ class GraphFrame private(
     "GraphFrame(v:" + v + ", e:" + e + ")"
   }
 
-  /** Get the `Pregel` object for running pregel.*/
+  /**
+   *  Get the `Pregel` object for running pregel.
+   *
+   *  See [[org.graphframes.Pregel]] for more details.
+   */
   def pregel = new Pregel(this)
 
   /**

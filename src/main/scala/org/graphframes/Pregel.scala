@@ -107,7 +107,8 @@ class Pregel(val graph: GraphFrame) {
    * @param msgExpr The message expression. It is a sql expression and it
    *                can reference all propertis in the triplet, in the way
    *                `Pregel.src("src_col_name)`, `Pregel.edge("edge_col_name)`,
-   *                `Pregel.dst("dst_col_name)`
+   *                `Pregel.dst("dst_col_name)`. If `msgExpr` is null, pregel
+   *                will not send message.
    */
   def sendMsgToSrc(msgExpr: Column): this.type = {
     sendMsgs += Tuple2(Pregel.src(ID), msgExpr)
@@ -123,7 +124,8 @@ class Pregel(val graph: GraphFrame) {
    * @param msgExpr The message expression. It is a sql expression and it
    *                can reference all propertis in the triplet, in the way
    *                `Pregel.src("src_col_name)`, `Pregel.edge("edge_col_name)`,
-   *                `Pregel.dst("dst_col_name)`
+   *                `Pregel.dst("dst_col_name)`. If `msgExpr` is null, pregel
+   *                will not send message.
    */
   def sendMsgToDst(msgExpr: Column): this.type = {
     sendMsgs += Tuple2(Pregel.dst(ID), msgExpr)
