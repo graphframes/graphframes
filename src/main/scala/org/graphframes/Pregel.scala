@@ -196,11 +196,12 @@ class Pregel(val graph: GraphFrame) {
       var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
 
       if (shouldCheckpoint && iteration % checkpointInterval == 0) {
-        // do checkpoint
-        newVertexUpdateColDF = newVertexUpdateColDF.checkpoint()
+        // do checkpoint, use lazy checkpoint because later we will materialize this DF.
+        newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
         // TODO: remove last checkpoint file.
       }
       newVertexUpdateColDF.cache()
+      newVertexUpdateColDF.foreachPartition(_ => {}) // materialize it
 
       if (vertexUpdateColDF != null) {
         vertexUpdateColDF.unpersist()
