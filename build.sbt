@@ -48,6 +48,8 @@ libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.16"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % defaultScalaTestVer % "test"
 
+libraryDependencies += "com.github.zafarkhaja" % "java-semver" % "0.9.0" % "test"
+
 parallelExecution := false
 
 scalacOptions in (Compile, doc) ++= Seq(

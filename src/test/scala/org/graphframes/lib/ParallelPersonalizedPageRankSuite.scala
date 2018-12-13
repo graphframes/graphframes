@@ -17,7 +17,11 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.ml.linalg.SQLDataTypes
+import com.github.zafarkhaja.semver.Version
+
+import org.apache.spark.ml.linalg.{SQLDataTypes, SparseVector}
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
 
 import org.graphframes.examples.Graphs
@@ -64,22 +68,20 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     TestUtils.checkColumnType(pr.edges.schema, "weight", DataTypes.DoubleType)
   }
 
-  test("friends graph with parallel personalized PageRank") {
-    val g = Graphs.friends
-    val resetProb = 0.15
-    val maxIter = 10
-    val vertexIds: Array[Any] = Array("a")
-    lazy val prc = g.parallelPersonalizedPageRank
-      .maxIter(maxIter)
-      .sourceIds(vertexIds)
-      .resetProbability(resetProb)
+  // In Spark <2.4, sourceIds must be smaller than Int.MaxValue,
+  // which might not be the case for LONG_ID in graph.indexedVertices.
+  if (Version.valueOf(org.apache.spark.SPARK_VERSION)
+    .greaterThanOrEqualTo(Version.valueOf("2.4.0"))) {
+    test("friends graph with parallel personalized PageRank") {
+      val g = Graphs.friends
+      val resetProb = 0.15
+      val maxIter = 10
+      val vertexIds: Array[Any] = Array("a")
+      lazy val prc = g.parallelPersonalizedPageRank
+        .maxIter(maxIter)
+        .sourceIds(vertexIds)
+        .resetProbability(resetProb)
 
-    // in Spark 2.2+, sourceIds must be smaller than Int.MaxValue
-    // which might not be the case for LONG_ID in graph.indexedVertices
-    intercept[java.lang.IllegalArgumentException] { prc.run() }
-    /*
-    // This code is the original test, which works for Spark 2.1.  Once we fix vertex indexing,
-    // then we can revive this code.  See https://github.com/graphframes/graphframes/issues/235
       val pr = prc.run()
       val prInvalid = pr.vertices
         .select("pageranks")
@@ -96,7 +98,6 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
         .first().getAs[SparseVector](0)
       assert(gRank.numNonzeros === 0,
         s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got ${gRank.numNonzeros}.")
-    */
+    }
   }
-
 }
