@@ -17,9 +17,8 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.SQLHelpers._
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{col, expr}
 import org.apache.spark.sql.{Column, DataFrame, Row}
 
 import org.graphframes.{GraphFrame, Logging}
@@ -239,7 +238,7 @@ private object BFS extends Logging with Serializable {
    * @return  SQL expression applied to the column fields, such as `myVertex.id = 3`
    */
   private def applyExprToCol(expr: Column, colName: String) = {
-    new Column(getExpr(expr).transform {
+    new Column(expr.expr.transform {
       case UnresolvedAttribute(nameParts) => UnresolvedAttribute(colName +: nameParts)
     })
   }

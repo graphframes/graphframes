@@ -112,7 +112,7 @@ private object ParallelPersonalizedPageRank {
       resetProb: Double,
       sourceIds: Array[Any]): GraphFrame = {
     val longSrcIds = sourceIds.map(GraphXConversions.integralId(graph, _))
-    val gx = graphxlib.GraphXHelpers.runParallelPersonalizedPageRank(
+    val gx = graphxlib.PageRank.runParallelPersonalizedPageRank(
       graph.cachedTopologyGraphX, maxIter, resetProb, longSrcIds)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANKS), edgeNames = Seq(WEIGHT))
   }
