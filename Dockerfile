@@ -6,10 +6,6 @@ RUN apt-get update && \
     apt-get install -y wget bzip2 build-essential openjdk-8-jdk ssh sudo && \
     apt-get clean
 
-# Add ubuntu user and enable password-less sudo
-RUN useradd -mU -s /bin/bash -G sudo ubuntu && \
-    echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
 # Install Spark and update env variables.
 ENV SCALA_VERSION 2.11.8
 ENV SPARK_VERSION 2.4.0
