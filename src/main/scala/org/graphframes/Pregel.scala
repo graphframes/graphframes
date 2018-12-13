@@ -65,7 +65,8 @@ class Pregel(val graph: GraphFrame) {
 
   /**
    * Set the period to do the checkpoint when running pregel.
-   * If set to zero or negative value, then do not checkpoint.
+   * If set to zero, then do not checkpoint.
+   * Negative value is not allowed.
    * Default value is 2
    */
   def setCheckpointInterval(value: Int): this.type = {
@@ -148,7 +149,7 @@ class Pregel(val graph: GraphFrame) {
    * pregel, and it will return the result vertex dataframe, which will include all
    * updated columns in the final rounds of pregel.
    *
-   * @return the result vertex dataframe
+   * @return The result vertex dataframe including original and additional columns.
    */
   def run(): DataFrame = {
     require(sendMsgs.length > 0, "We need to set at least one message expression for pregel running.")

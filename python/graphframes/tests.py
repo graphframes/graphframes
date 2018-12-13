@@ -32,7 +32,7 @@ else:
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 
-from .graphframe import GraphFrame, _java_api, _from_java_gf
+from .graphframe import GraphFrame, Pregel _java_api, _from_java_gf
 from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
 
@@ -210,6 +210,36 @@ class GraphFrameTest(GraphFrameTestCase):
         self.assertEqual(paths2.count(), 0)
         paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
         self.assertEqual(paths3.count(), 0)
+
+
+class PregelTest(GraphFrameTestCase):
+
+    def testPageRank(self):
+        from pyspark.sql.functions import coalesce, col, lit, sum, when
+        edges = spark.createDataFrame([[0L, 1L],
+                                       [1L, 2L],
+                                       [2L, 4L],
+                                       [2L, 0L],
+                                       [3L, 4L], # 3 has no in-links
+                                       [4L, 0L],
+                                       [4L, 2L]], ["src", "dst"])
+        edges.cache()
+        vertices = spark.createDataFrame([[0L], [1L], [2L], [3L], [4L]], ["id"])
+        numVertices = vertices.count()
+        vertices = GraphFrame(vertices, edges).outDegrees
+        graph = GraphFrame(vertices, edges)
+        pr_alpha = 0.85
+        pageRankResultDF = graph.pregel \
+            .setMaxIter(15) \
+            .withVertexColumn("rank", lit(1.0 / numVertices), \
+                              coalesce(Pregel.msg(), lit((1.0 - pr_alpha) / numVertices))) \
+            .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
+            .aggMsgs(sum(Pregel.msg()) * lit(pr_alpha) + lit((1.0 - pr_alpha) / numVertices)) \
+            .run()
+        result = map(lambda x: x.rank, pageRankResultDF.sort("id").select("rank").collect())
+        expectedResult = [0.240, 0.234, 0.309, 0.030, 0.187]
+        for a, b in zip(result, expectedResult):
+            self.assertAlmostEqual(a, b, delta = 1e-3)
 
 
 class GraphFrameLibTest(GraphFrameTestCase):

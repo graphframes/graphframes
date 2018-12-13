@@ -23,6 +23,8 @@ from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, SQLContext
 from pyspark.storagelevel import StorageLevel
 
+from .pregel import Pregel
+
 def _from_java_gf(jgf, sqlContext):
     """
     (internal) creates a python GraphFrame wrapper from a java GraphFrame.
@@ -183,6 +185,15 @@ class GraphFrame(object):
         """
         jdf = self._jvm_graph.triplets()
         return DataFrame(jdf, self._sqlContext)
+
+    @property
+    def pregel(self):
+        """
+        Get the `Pregel` object for running pregel.
+
+        See :class:`graphframes.Pregel` for more details.
+        """
+        return Pregel(self)
 
     def find(self, pattern):
         """

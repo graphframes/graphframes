@@ -1,4 +1,4 @@
 
-from .graphframe import GraphFrame
+from .graphframe import GraphFrame, Pregel
 
-__all__ = ['GraphFrame']
+__all__ = ['GraphFrame', 'Pregel']
