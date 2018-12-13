@@ -20,7 +20,7 @@ You will need to set `SPARK_HOME` to your local Spark installation directory.
 
 ## Spark version compatibility
 
-This project is compatible with Spark 2.2+.  However, significant speed improvements have been
+This project is compatible with Spark 2.3+.  However, significant speed improvements have been
 made to DataFrames in more recent versions of Spark, so you may see speedups from using the latest
 Spark version.
 
