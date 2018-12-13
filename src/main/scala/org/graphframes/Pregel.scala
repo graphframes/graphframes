@@ -19,7 +19,7 @@ package org.graphframes
 
 import org.graphframes.GraphFrame._
 import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{array, col, explode, struct, when}
+import org.apache.spark.sql.functions.{array, col, explode, struct}
 
 /**
  * This class implement pregel on GraphFrame.

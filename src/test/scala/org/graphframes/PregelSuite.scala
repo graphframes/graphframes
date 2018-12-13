@@ -17,56 +17,44 @@
 
 package org.graphframes
 
+import org.scalactic.Tolerance._
+
 import org.apache.spark.sql.functions._
 
 class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   import testImplicits._
 
-  def almostEqual(a: Double, b: Double, relTol: Double): Boolean = {
-    return math.abs(a - b) <= math.abs(a) * relTol
-  }
-
   test("page rank") {
+    val edges = Seq(
+      (0L, 1L),
+      (1L, 2L),
+      (2L, 4L),
+      (2L, 0L),
+      (3L, 4L), // 3 has no in-links
+      (4L, 0L),
+      (4L, 2L)
+    ).toDF("src", "dst").cache()
+    val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
+    val numVertices = vertices.count()
+    val graph = GraphFrame(vertices, edges)
 
-    val vecDF1 = Seq(
-      (0L, 1),
-      (1L, 1),
-      (2L, 2),
-      (3L, 0),
-      (4L, 3)
-    ).toDF("id", "outDegree")
-
-    val edgeDF1 = Seq(
-      (0L, 1L, 2.0),
-      (1L, 2L, 3.0),
-      (2L, 3L, 1.0),
-      (2L, 0L, 2.0),
-      (4L, 0L, 3.0),
-      (4L, 2L, 1.0),
-      (4L, 3L, 2.0)
-    ).toDF("src", "dst", "length")
-
-    vecDF1.cache()
-    edgeDF1.cache()
-
-    val N = vecDF1.count()
-    val graph1 = GraphFrame(vecDF1, edgeDF1)
-
-    val pr_alpha = 0.85
-
-    val pageRankResultDF = new Pregel(graph1)
-      .setMaxIter(15)
-      .withVertexColumn("rank", lit(1.0 / N),
-        coalesce(Pregel.msg, lit(1.0 - pr_alpha) / N))
-      .sendMsgToDst(col("src.rank") / col("src.outDegree"))
-      .aggMsgs(sum(col(Pregel.MSG_COL_NAME)) * lit(pr_alpha) + lit(1.0 - pr_alpha) / N)
+    val alpha = 0.15
+    // NOTE: This version doesn't handle nodes with no out-links.
+    val ranks = graph.pregel
+      .setMaxIter(5)
+      .withVertexColumn("rank", lit(1.0 / numVertices),
+        coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
+      .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
+      .aggMsgs(sum(Pregel.MSG_COL_NAME))
       .run()
 
-    val res = pageRankResultDF.sort(col("id"))
+    val result = ranks.sort(col("id"))
       .select("rank").as[Double].collect()
-    res.zip(Array(0.095, 0.111, 0.133, 0.095, 0.030)).foreach { case (a, b) =>
-      assert(almostEqual(a, b, relTol = 1e-2))
+    assert(result.sum === 1.0 +- 1e-6)
+    val expected = Seq(0.245, 0.224, 0.303, 0.03, 0.197)
+    result.zip(expected).foreach { case (r, e) =>
+      assert(r === e +- 1e-3)
     }
   }
 
