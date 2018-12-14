@@ -32,7 +32,7 @@ else:
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 
-from .graphframe import GraphFrame, _java_api, _from_java_gf
+from .graphframe import GraphFrame, Pregel, _java_api, _from_java_gf
 from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
 
@@ -210,6 +210,41 @@ class GraphFrameTest(GraphFrameTestCase):
         self.assertEqual(paths2.count(), 0)
         paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
         self.assertEqual(paths3.count(), 0)
+
+
+class PregelTest(GraphFrameTestCase):
+    def setUp(self):
+        super(PregelTest, self).setUp()
+
+    def test_page_rank(self):
+        from pyspark.sql.functions import coalesce, col, lit, sum, when
+        edges = self.sql.createDataFrame([[0, 1],
+                                          [1, 2],
+                                          [2, 4],
+                                          [2, 0],
+                                          [3, 4], # 3 has no in-links
+                                          [4, 0],
+                                          [4, 2]], ["src", "dst"])
+        edges.cache()
+        vertices = self.sql.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
+        numVertices = vertices.count()
+        vertices = GraphFrame(vertices, edges).outDegrees
+        vertices.cache()
+        graph = GraphFrame(vertices, edges)
+        alpha = 0.15
+        ranks = graph.pregel \
+            .setMaxIter(5) \
+            .withVertexColumn("rank", lit(1.0 / numVertices),
+                              coalesce(Pregel.msg(),
+                                       lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
+            .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
+            .aggMsgs(sum(Pregel.msg())) \
+            .run()
+        resultRows = ranks.sort(ranks.id).collect()
+        result = map(lambda x: x.rank, resultRows)
+        expected = [0.245, 0.224, 0.303, 0.03, 0.197]
+        for a, b in zip(result, expected):
+            self.assertAlmostEqual(a, b, delta = 1e-3)
 
 
 class GraphFrameLibTest(GraphFrameTestCase):
