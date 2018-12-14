@@ -1,4 +1,4 @@
 
-from .graphframe import GraphFrame, Pregel
+from .graphframe import GraphFrame
 
 __all__ = ['GraphFrame']
