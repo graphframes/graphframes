@@ -213,23 +213,23 @@ class GraphFrameTest(GraphFrameTestCase):
 
 
 class PregelTest(GraphFrameTestCase):
-
     def setUp(self):
         super(PregelTest, self).setUp()
 
-    def testPageRank(self):
+    def test_page_rank(self):
         from pyspark.sql.functions import coalesce, col, lit, sum, when
-        edges = self.sql.createDataFrame([[0L, 1L],
-                                          [1L, 2L],
-                                          [2L, 4L],
-                                          [2L, 0L],
-                                          [3L, 4L], # 3 has no in-links
-                                          [4L, 0L],
-                                          [4L, 2L]], ["src", "dst"])
+        edges = self.sql.createDataFrame([[0, 1],
+                                          [1, 2],
+                                          [2, 4],
+                                          [2, 0],
+                                          [3, 4], # 3 has no in-links
+                                          [4, 0],
+                                          [4, 2]], ["src", "dst"])
         edges.cache()
-        vertices = self.sql.createDataFrame([[0L], [1L], [2L], [3L], [4L]], ["id"])
+        vertices = self.sql.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
         numVertices = vertices.count()
         vertices = GraphFrame(vertices, edges).outDegrees
+        vertices.cache()
         graph = GraphFrame(vertices, edges)
         alpha = 0.15
         ranks = graph.pregel \
@@ -240,7 +240,8 @@ class PregelTest(GraphFrameTestCase):
             .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
             .aggMsgs(sum(Pregel.msg())) \
             .run()
-        result = map(lambda x: x.rank, ranks.sort("id").select("rank").collect())
+        resultRows = ranks.sort(ranks.id).collect()
+        result = map(lambda x: x.rank, resultRows)
         expected = [0.245, 0.224, 0.303, 0.03, 0.197]
         for a, b in zip(result, expected):
             self.assertAlmostEqual(a, b, delta = 1e-3)

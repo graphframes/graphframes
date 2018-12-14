@@ -19,9 +19,8 @@ import sys
 if sys.version > '3':
     basestring = str
 
-from pyspark import since, SparkContext
+from pyspark.sql import DataFrame
 from pyspark.sql.functions import col
-from pyspark.ml.common import _java2py, _py2java
 from pyspark.ml.wrapper import JavaWrapper, _jvm
 
 
@@ -48,17 +47,18 @@ class Pregel(JavaWrapper):
 
     >>> from .graphframe import GraphFrame, Pregel
     >>> from pyspark.sql.functions import coalesce, col, lit, sum, when
-    >>> edges = spark.createDataFrame([[0L, 1L],
-    ...                                [1L, 2L],
-    ...                                [2L, 4L],
-    ...                                [2L, 0L],
-    ...                                [3L, 4L], # 3 has no in-links
-    ...                                [4L, 0L],
-    ...                                [4L, 2L]], ["src", "dst"])
+    >>> edges = spark.createDataFrame([[0, 1],
+    ...                                [1, 2],
+    ...                                [2, 4],
+    ...                                [2, 0],
+    ...                                [3, 4], # 3 has no in-links
+    ...                                [4, 0],
+    ...                                [4, 2]], ["src", "dst"])
     >>> edges.cache()
-    >>> vertices = spark.createDataFrame([[0L], [1L], [2L], [3L], [4L]], ["id"])
+    >>> vertices = spark.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
     >>> numVertices = vertices.count()
     >>> vertices = GraphFrame(vertices, edges).outDegrees
+    >>> vertices.cache()
     >>> graph = GraphFrame(vertices, edges)
     >>> alpha = 0.15
     >>> pageRankResultDF = graph.pregel \
@@ -73,6 +73,7 @@ class Pregel(JavaWrapper):
 
     def __init__(self, gf):
         super(Pregel, self).__init__()
+        self.graph = gf
         self._java_obj = self._new_java_obj("org.graphframes.Pregel", gf._jvm_graph)
 
     def setMaxIter(self, value):
@@ -158,8 +159,7 @@ class Pregel(JavaWrapper):
 
         :return: The result vertex dataframe including original and additional columns.
         """
-        sc = SparkContext._active_spark_context
-        return _java2py(sc, self._java_obj.run())
+        return DataFrame(self._java_obj.run(), self.graph.vertices.sql_ctx)
 
     @staticmethod
     def msg():
