@@ -60,13 +60,14 @@ class Pregel(JavaWrapper):
     >>> numVertices = vertices.count()
     >>> vertices = GraphFrame(vertices, edges).outDegrees
     >>> graph = GraphFrame(vertices, edges)
-    >>> pr_alpha = 0.85
-    >>> pageRankResultDF = graph.pregel\
-    ...   .setMaxIter(15)\
-    ...   .withVertexColumn("rank", lit(1.0 / numVertices),\
-    ...                     coalesce(Pregel.msg(), lit((1.0 - pr_alpha) / numVertices)))\
-    ...   .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))\
-    ...   .aggMsgs(sum(Pregel.msg()) * lit(pr_alpha) + lit((1.0 - pr_alpha) / numVertices))\
+    >>> alpha = 0.15
+    >>> pageRankResultDF = graph.pregel \
+    ...   .setMaxIter(5) \
+    ...   .withVertexColumn("rank", lit(1.0 / numVertices),
+    ...                     coalesce(Pregel.msg(),
+    ...                              lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
+    ...   .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
+    ...   .aggMsgs(sum(Pregel.msg())) \
     ...   .run()
     """
 
@@ -78,7 +79,7 @@ class Pregel(JavaWrapper):
         """
         Set max iteration number for the pregel running. Default value is 10.
         """
-        self._java_obj.setMaxIter(value)
+        self._java_obj.setMaxIter(int(value))
         return self
 
     def setCheckpointInterval(self, value):
@@ -88,7 +89,7 @@ class Pregel(JavaWrapper):
         Negative value is not allowed.
         Default value is 2.
         """
-        self._java_obj.setCheckpointInterval(value)
+        self._java_obj.setCheckpointInterval(int(value))
         return self
 
     def withVertexColumn(self, colName, initialExpr, updateAfterAggMsgsExpr):
@@ -197,10 +198,3 @@ class Pregel(JavaWrapper):
         :param colName: the column name in the edge columns.
         """
         return col("edge." + colName)
-
-
-
-
-
-
-

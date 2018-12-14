@@ -216,29 +216,30 @@ class PregelTest(GraphFrameTestCase):
 
     def testPageRank(self):
         from pyspark.sql.functions import coalesce, col, lit, sum, when
-        edges = spark.createDataFrame([[0L, 1L],
-                                       [1L, 2L],
-                                       [2L, 4L],
-                                       [2L, 0L],
-                                       [3L, 4L], # 3 has no in-links
-                                       [4L, 0L],
-                                       [4L, 2L]], ["src", "dst"])
+        edges = self.sql.createDataFrame([[0L, 1L],
+                                          [1L, 2L],
+                                          [2L, 4L],
+                                          [2L, 0L],
+                                          [3L, 4L], # 3 has no in-links
+                                          [4L, 0L],
+                                          [4L, 2L]], ["src", "dst"])
         edges.cache()
-        vertices = spark.createDataFrame([[0L], [1L], [2L], [3L], [4L]], ["id"])
+        vertices = self.sql.createDataFrame([[0L], [1L], [2L], [3L], [4L]], ["id"])
         numVertices = vertices.count()
         vertices = GraphFrame(vertices, edges).outDegrees
         graph = GraphFrame(vertices, edges)
-        pr_alpha = 0.85
-        pageRankResultDF = graph.pregel \
-            .setMaxIter(15) \
-            .withVertexColumn("rank", lit(1.0 / numVertices), \
-                              coalesce(Pregel.msg(), lit((1.0 - pr_alpha) / numVertices))) \
+        alpha = 0.15
+        ranks = graph.pregel \
+            .setMaxIter(5) \
+            .withVertexColumn("rank", lit(1.0 / numVertices),
+                              coalesce(Pregel.msg(),
+                                       lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
             .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
-            .aggMsgs(sum(Pregel.msg()) * lit(pr_alpha) + lit((1.0 - pr_alpha) / numVertices)) \
+            .aggMsgs(sum(Pregel.msg())) \
             .run()
-        result = map(lambda x: x.rank, pageRankResultDF.sort("id").select("rank").collect())
-        expectedResult = [0.240, 0.234, 0.309, 0.030, 0.187]
-        for a, b in zip(result, expectedResult):
+        result = map(lambda x: x.rank, ranks.sort("id").select("rank").collect())
+        expected = [0.245, 0.224, 0.303, 0.03, 0.197]
+        for a, b in zip(result, expected):
             self.assertAlmostEqual(a, b, delta = 1e-3)
 
 
