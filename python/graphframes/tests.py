@@ -214,6 +214,9 @@ class GraphFrameTest(GraphFrameTestCase):
 
 class PregelTest(GraphFrameTestCase):
 
+    def setUp(self):
+        super(PregelTest, self).setUp()
+
     def testPageRank(self):
         from pyspark.sql.functions import coalesce, col, lit, sum, when
         edges = self.sql.createDataFrame([[0L, 1L],
