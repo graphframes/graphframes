@@ -32,7 +32,7 @@ else:
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
 
-from .graphframe import GraphFrame, Pregel _java_api, _from_java_gf
+from .graphframe import GraphFrame, Pregel, _java_api, _from_java_gf
 from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
 
