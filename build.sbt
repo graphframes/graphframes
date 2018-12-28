@@ -81,3 +81,5 @@ releaseProcess := Seq[ReleaseStep](
   setNextVersion,
   commitNextVersion
 )
+
+credentials += Credentials(Path.userHome / ".spark-packages-credential")
