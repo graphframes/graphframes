@@ -23,7 +23,7 @@ from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, SQLContext
 from pyspark.storagelevel import StorageLevel
 
-from graphframes.pregel import Pregel
+from graphframes.lib import Pregel
 
 
 def _from_java_gf(jgf, sqlContext):
