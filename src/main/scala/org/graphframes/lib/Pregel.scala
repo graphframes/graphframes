@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.graphframes
+package org.graphframes.lib
 
+import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions.{array, col, explode, struct}

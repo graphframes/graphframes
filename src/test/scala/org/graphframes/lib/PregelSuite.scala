@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package org.graphframes
+package org.graphframes.lib
 
 import org.scalactic.Tolerance._
 
 import org.apache.spark.sql.functions._
+
+import org.graphframes._
 
 class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
