@@ -35,10 +35,9 @@ import org.apache.spark.sql.functions.{array, col, explode, struct}
  * When a run starts, it expands the vertices DataFrame using column expressions defined by [[withVertexColumn]].
  * Those additional vertex properties can be changed during Pregel iterations.
  * In each Pregel iteration, there are three phases:
- *   - Given each triplet, generate messages and targets to send,
+ *   - Given each edge triplet, generate messages and specify target vertices to send,
  *     described by [[sendMsgToDst]] and [[sendMsgToSrc]].
- *   - Aggregate messages by destination vertex IDs, described by [[aggMsgs]].
- *
+ *   - Aggregate messages by target vertex IDs, described by [[aggMsgs]].
  *   - Update additional vertex properties based on aggregated messages and states from previous iteration,
  *     described by [[withVertexColumn]].
  *
@@ -250,7 +249,7 @@ class Pregel(val graph: GraphFrame) {
 object Pregel extends Serializable {
 
   /**
-   * A constant column name for generated and messaged messages.
+   * A constant column name for generated and aggregated messages.
    *
    * The vertices DataFrame must not contain this column.
    */
