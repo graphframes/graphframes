@@ -45,7 +45,7 @@ class Pregel(JavaWrapper):
 
     :param gf :class:`GraphFrame` holding a graph with vertices and edges stored as DataFrames.
 
-    >>> from .graphframe import GraphFrame, Pregel
+    >>> from graphframe import GraphFrame
     >>> from pyspark.sql.functions import coalesce, col, lit, sum, when
     >>> edges = spark.createDataFrame([[0, 1],
     ...                                [1, 2],
@@ -74,7 +74,7 @@ class Pregel(JavaWrapper):
     def __init__(self, gf):
         super(Pregel, self).__init__()
         self.graph = gf
-        self._java_obj = self._new_java_obj("org.graphframes.Pregel", gf._jvm_graph)
+        self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", gf._jvm_graph)
 
     def setMaxIter(self, value):
         """

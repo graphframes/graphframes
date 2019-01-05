@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package org.graphframes
+package org.graphframes.lib
 
 import org.scalactic.Tolerance._
 
 import org.apache.spark.sql.functions._
+
+import org.graphframes._
 
 class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -46,7 +48,7 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .withVertexColumn("rank", lit(1.0 / numVertices),
         coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
       .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-      .aggMsgs(sum(Pregel.MSG_COL_NAME))
+      .aggMsgs(sum(Pregel.msg))
       .run()
 
     val result = ranks.sort(col("id"))

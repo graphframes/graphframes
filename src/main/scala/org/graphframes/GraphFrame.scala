@@ -58,13 +58,6 @@ class GraphFrame private(
   }
 
   /**
-   *  Get the `Pregel` object for running pregel.
-   *
-   *  See [[org.graphframes.Pregel]] for more details.
-   */
-  def pregel = new Pregel(this)
-
-  /**
    * Persist the dataframe representation of vertices and edges of the graph with the default
    * storage level.
    */
@@ -452,6 +445,14 @@ class GraphFrame private(
     */
   def parallelPersonalizedPageRank: ParallelPersonalizedPageRank =
     new ParallelPersonalizedPageRank(this)
+
+  /**
+   * Pregel algorithm.
+   *
+   * @see [[org.graphframes.lib.Pregel]]
+   * @group stdlib
+   */
+  def pregel = new Pregel(this)
 
   /**
    * Shortest paths algorithm.
