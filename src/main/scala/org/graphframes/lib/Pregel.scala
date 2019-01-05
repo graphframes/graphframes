@@ -72,7 +72,7 @@ class Pregel(val graph: GraphFrame) {
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
   private var maxIter: Int = 10
-  private var checkpointInterval = 2
+  private var checkpointInterval = 1
 
   private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
@@ -86,7 +86,7 @@ class Pregel(val graph: GraphFrame) {
   }
 
   /**
-   * Sets the number of iterations between two checkpoints (default: 2).
+   * Sets the number of iterations between two checkpoints (default: 1).
    *
    * This is an advanced control to balance query plan optimization and checkpoint data I/O cost.
    * In most cases, you should keep the default value.
