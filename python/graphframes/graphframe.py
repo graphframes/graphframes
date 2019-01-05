@@ -192,7 +192,7 @@ class GraphFrame(object):
         """
         Get the `Pregel` object for running pregel.
 
-        See :class:`graphframes.Pregel` for more details.
+        See :class:`graphframes.lib.Pregel` for more details.
         """
         return Pregel(self)
 

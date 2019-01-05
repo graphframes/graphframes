@@ -26,24 +26,34 @@ from pyspark.ml.wrapper import JavaWrapper, _jvm
 
 class Pregel(JavaWrapper):
     """
-    This class implement pregel on GraphFrame.
-    We can get the Pregel instance by `graphFrame.pregel`, or construct it via a `graph`
-    argument. and call a series of methods, then call method `run` to start pregel.
-    It will return a DataFrame which is the vertices dataframe generated in the last round.
-    When pregel `run` start, first, it will initialize some columns in vertices dataframe,
-    which defined by `withVertexColumn` (user can call it multiple times),
-    and then start iteration.
-    Once the iteration start, in each supersteps of pregel, include 3 phases:
-    phase-1) generate the `triplets` dataframe, and generate the “msg” to send.
-    The target vertex to send and the msg is set via `sendMsg` method.
-    phase-2) Do msg aggregation. It will use the aggregation column which is set via
-    `aggMsgs` method. Each vertex aggregates those messages which it receives.
-    Now vertices dataframe owns a new column which value is the aggregated msgs
-    (received by each vertex). Now update vertex property columns, the update expressions
-    is set by `updateVertexColumn` method and return the new vertices dataframe.
-    The pregel iteration will run `maxIter` time, which can be set via `setMaxIter` method.
+    Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
 
-    :param gf :class:`GraphFrame` holding a graph with vertices and edges stored as DataFrames.
+    See <a href="https://doi.org/10.1145/1807167.1807184">Malewicz et al., Pregel: a system for large-scale graph
+    processing</a> for a detailed description of the Pregel algorithm.
+
+    You can construct a Pregel instance using either this constructor or `graphframes.GraphFrame.pregel`,
+    then use builder pattern to describe the operations, and then call `run` to start a run.
+    It returns a DataFrame of vertices from the last iteration.
+
+    When a run starts, it expands the vertices DataFrame using column expressions defined by `withVertexColumn`.
+    Those additional vertex properties can be changed during Pregel iterations.
+    In each Pregel iteration, there are three phases:
+      - Given each edge triplet, generate messages and specify target vertices to send,
+        described by `sendMsgToDst` and `sendMsgToSrc`.
+      - Aggregate messages by target vertex IDs, described by `aggMsgs`.
+      - Update additional vertex properties based on aggregated messages and states from previous iteration,
+        described by `withVertexColumn`.
+
+    Please find what columns you can reference at each phase in the method API docs.
+
+    You can control the number of iterations by `setMaxIter` and check API docs for advanced controls.
+
+    See `graphframes.GraphFrame.pregel`.
+    See <a href="https://doi.org/10.1145/1807167.1807184">
+          Malewicz et al., Pregel: a system for large-scale graph processing.
+        </a>
+
+    :param gf :class:`graphframes.GraphFrame` holding a graph with vertices and edges stored as DataFrames.
 
     >>> from graphframe import GraphFrame
     >>> from pyspark.sql.functions import coalesce, col, lit, sum, when
@@ -78,123 +88,132 @@ class Pregel(JavaWrapper):
 
     def setMaxIter(self, value):
         """
-        Set max iteration number for the pregel running. Default value is 10.
+        Sets the max number of iterations (default: 10).
         """
         self._java_obj.setMaxIter(int(value))
         return self
 
     def setCheckpointInterval(self, value):
         """
-        Set the period to do the checkpoint when running pregel.
-        If set to zero, then do not checkpoint.
-        Negative value is not allowed.
-        Default value is 2.
+        Sets the number of iterations between two checkpoints (default: 2).
+
+        This is an advanced control to balance query plan optimization and checkpoint data I/O cost.
+        In most cases, you should keep the default value.
+
+        Checkpoint is disabled if this is set to 0.
         """
         self._java_obj.setCheckpointInterval(int(value))
         return self
 
     def withVertexColumn(self, colName, initialExpr, updateAfterAggMsgsExpr):
         """
-        Use this method to set those vertex columns which will be initialized before
-        pregel rounds start, and these columns will be updated after vertex receive
-        aggregated messages in each round.
+        Defines an additional vertex column at the start of run and how to update it in each iteration.
 
-        :param colName: The column name of initialized column in vertex Dataframe.
-        :param initialExpr: The column expression used to initialize the column.
-        :param updateAfterAggMsgsExpr: The column expression used to update the column.
-                                       Note that this sql expression can reference all
-                                       vertex columns and an extra message column
-                                       `Pregel.msg`. If the vertex receive no messages,
-                                       The msg column will be null, otherwise will be
-                                       the aggregated result of all received messages.
+        You can call it multiple times to add more than one additional vertex columns.
+
+        :param colName: the name of the additional vertex column.
+                        It cannot be an existing vertex column in the graph.
+        :param initialExpr: the expression to initialize the additional vertex column.
+                            You can reference all original vertex columns in this expression.
+        :param updateAfterAggMsgsExpr: the expression to update the additional vertex column after messages aggregation.
+                                       You can reference all original vertex columns, additional vertex columns, and the
+                                       aggregated message column using `Pregel.msg()`.
+                                       If the vertex received no messages, the message column would be null.
         """
         self._java_obj.withVertexColumn(colName, initialExpr._jc, updateAfterAggMsgsExpr._jc)
         return self
 
     def sendMsgToSrc(self, msgExpr):
         """
-        Set the message column. In each round of pregel, each triplet
-        (src-edge-dst) will generate zero or one message and the message will
-        be sent to the src vertex of this triplet.
+        Defines a message to send to the source vertex of each edge triplet.
 
-        :param msgExpr: The message expression. It is a sql expression and it
-                        can reference all propertis in the triplet, in the way
-                        `Pregel.src("src_col_name)`, `Pregel.edge("edge_col_name)`,
-                        `Pregel.dst("dst_col_name)`. If `msgExpr` is null, pregel
-                        will not send message.
+        You can call it multiple times to send more than one messages.
+
+        See method `sendMsgToDst`.
+
+        :param msgExpr: the expression of the message to send to the source vertex given a (src, edge, dst) triplet.
+                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
+                        and `edge`, respectively.
+                        You can reference them using `Pregel.src`, `Pregel.dst`, and `Pregel.edge`.
+                        Null messages are not included in message aggregation.
         """
         self._java_obj.sendMsgToSrc(msgExpr._jc)
         return self
 
     def sendMsgToDst(self, msgExpr):
         """
-        Set the message column. In each round of pregel, each triplet
-        (src-edge-dst) will generate zero or one message and the message will
-        be sent to the dst vertex of this triplet.
+        Defines a message to send to the destination vertex of each edge triplet.
 
-        :param msgExpr: The message expression. It is a sql expression and it
-                        can reference all propertis in the triplet, in the way
-                        `Pregel.src("src_col_name)`, `Pregel.edge("edge_col_name)`,
-                        `Pregel.dst("dst_col_name)`. If `msgExpr` is null, pregel
-                        will not send message.
+        You can call it multiple times to send more than one messages.
+
+        See method `sendMsgToSrc`.
+
+        :param msgExpr: the message expression to send to the destination vertex given a (`src`, `edge`, `dst`) triplet.
+                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
+                        and `edge`, respectively.
+                        You can reference them using `Pregel.src`, `Pregel.dst`, and `Pregel.edge`.
+                        Null messages are not included in message aggregation.
         """
         self._java_obj.sendMsgToDst(msgExpr._jc)
         return self
 
     def aggMsgs(self, aggExpr):
         """
-        Set the aggregation expression which used to aggregate messages which received
-        by each vertex.
+        Defines how messages are aggregated after grouped by target vertex IDs.
 
-        :param aggExpr: The aggregation expression, such as `sum(Pregel.msgCol)`
+        :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg)`.
+                        You can reference the message column by `Pregel.msg()` and the vertex ID by `col("id")`,
+                        while the latter is usually not used.
         """
         self._java_obj.aggMsgs(aggExpr._jc)
         return self
 
     def run(self):
         """
-        After set a series of things via above methods, then call this method to run
-        pregel, and it will return the result vertex dataframe, which will include all
-        updated columns in the final rounds of pregel.
+        Runs the defined Pregel algorithm.
 
-        :return: The result vertex dataframe including original and additional columns.
+        :return: the result vertex DataFrame from the final iteration including both original and additional columns.
         """
         return DataFrame(self._java_obj.run(), self.graph.vertices.sql_ctx)
 
     @staticmethod
     def msg():
         """
-        The message column. `Pregel.aggMsgs` method argument and `Pregel.updateVertexColumn`
-        argument `col` can reference this message column.
+        References the message column in aggregating messages and updating additional vertex columns.
+
+        See `Pregel.aggMsgs` and `Pregel.withVertexColumn`
         """
         return col("_pregel_msg_")
 
     @staticmethod
     def src(colName):
         """
-        construct the column from src vertex columns.
-        This column can only be used in the message sql expression.
+        References a source vertex column in generating messages to send.
 
-        :param colName: the column name in the vertex columns.
+        See `Pregel.sendMsgToSrc` and `Pregel.sendMsgToDst`
+
+        :param colName: the vertex column name.
         """
         return col("src." + colName)
 
     @staticmethod
     def dst(colName):
         """
-        construct the column from dst vertex columns.
-        This column can only be used in the message sql expression.
+        References a destination vertex column in generating messages to send.
 
-        :param colName: the column name in the edge columns.
+        See `Pregel.sendMsgToSrc` and `Pregel.sendMsgToDst`
+
+        :param colName: the vertex column name.
         """
         return col("dst." + colName)
 
     @staticmethod
     def edge(colName):
         """
-        construct the column from edge columns.
-        This column can only be used in the message sql expression.
+        References an edge column in generating messages to send.
 
-        :param colName: the column name in the edge columns.
+        See `Pregel.sendMsgToSrc` and `Pregel.sendMsgToDst`
+
+        :param colName: the edge column name.
         """
         return col("edge." + colName)
