@@ -25,7 +25,7 @@ from pyspark.ml.wrapper import JavaWrapper, _jvm
 
 
 class Pregel(JavaWrapper):
-    """
+    r"""
     Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
 
     See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
@@ -71,7 +71,7 @@ class Pregel(JavaWrapper):
     >>> alpha = 0.15
     >>> ranks = graph.pregel \
     ...     .setMaxIter(5) \
-    ...     .withVertexColumn("rank", lit(1.0 / numVertices),
+    ...     .withVertexColumn("rank", lit(1.0 / numVertices), \
     ...         coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
     ...     .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
     ...     .aggMsgs(sum(Pregel.msg())) \
