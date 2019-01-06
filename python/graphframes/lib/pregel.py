@@ -28,12 +28,12 @@ class Pregel(JavaWrapper):
     """
     Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
 
-    See <a href="https://doi.org/10.1145/1807167.1807184">Malewicz et al., Pregel: a system for large-scale graph
-    processing</a> for a detailed description of the Pregel algorithm.
+    See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
+    for a detailed description of the Pregel algorithm.
 
-    You can construct a Pregel instance using either this constructor or `graphframes.GraphFrame.pregel`,
+    You can construct a Pregel instance using either this constructor or `graphframes.lib.pregel`,
     then use builder pattern to describe the operations, and then call `run` to start a run.
-    It returns a DataFrame of vertices from the last iteration.
+    It returns a `DataFrame` of vertices from the last iteration.
 
     When a run starts, it expands the vertices DataFrame using column expressions defined by `withVertexColumn`.
     Those additional vertex properties can be changed during Pregel iterations.
@@ -49,11 +49,9 @@ class Pregel(JavaWrapper):
     You can control the number of iterations by `setMaxIter` and check API docs for advanced controls.
 
     See `graphframes.GraphFrame.pregel`.
-    See <a href="https://doi.org/10.1145/1807167.1807184">
-          Malewicz et al., Pregel: a system for large-scale graph processing.
-        </a>
+    See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_.
 
-    :param gf :class:`graphframes.GraphFrame` holding a graph with vertices and edges stored as DataFrames.
+    :param graph: a `graphframes.GraphFrame` holding a graph with vertices and edges stored as DataFrames.
 
     >>> from graphframe import GraphFrame
     >>> from pyspark.sql.functions import coalesce, col, lit, sum, when
@@ -71,20 +69,19 @@ class Pregel(JavaWrapper):
     >>> vertices.cache()
     >>> graph = GraphFrame(vertices, edges)
     >>> alpha = 0.15
-    >>> pageRankResultDF = graph.pregel \
-    ...   .setMaxIter(5) \
-    ...   .withVertexColumn("rank", lit(1.0 / numVertices),
-    ...                     coalesce(Pregel.msg(),
-    ...                              lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
-    ...   .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
-    ...   .aggMsgs(sum(Pregel.msg())) \
-    ...   .run()
+    >>> ranks = graph.pregel \
+    ...     .setMaxIter(5) \
+    ...     .withVertexColumn("rank", lit(1.0 / numVertices),
+    ...         coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
+    ...     .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
+    ...     .aggMsgs(sum(Pregel.msg())) \
+    ...     .run()
     """
 
-    def __init__(self, gf):
+    def __init__(self, graph):
         super(Pregel, self).__init__()
-        self.graph = gf
-        self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", gf._jvm_graph)
+        self.graph = graph
+        self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", graph._jvm_graph)
 
     def setMaxIter(self, value):
         """
