@@ -49,14 +49,14 @@ import org.apache.spark.sql.functions.{array, col, explode, struct}
  *
  * {{{
  *   val edges = ...
- *   val vertices = GraphFrames.fromEdges(edges).outDegrees.cache()
+ *   val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
  *   val numVertices = vertices.count()
- *   val graph = GraphFrames(vertices, edges)
+ *   val graph = GraphFrame(vertices, edges)
  *   val alpha = 0.15
  *   val ranks = graph.pregel
  *     .withVertexColumn("rank", lit(1.0 / numVertices),
  *       coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
- *     .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegrees"))
+ *     .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
  *     .aggMsgs(sum(Pregel.msg))
  *     .run()
  * }}}
