@@ -31,27 +31,28 @@ class Pregel(JavaWrapper):
     See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
     for a detailed description of the Pregel algorithm.
 
-    You can construct a Pregel instance using either this constructor or `graphframes.lib.pregel`,
-    then use builder pattern to describe the operations, and then call `run` to start a run.
-    It returns a `DataFrame` of vertices from the last iteration.
+    You can construct a Pregel instance using either this constructor or :attr:`graphframes.GraphFrame.pregel`,
+    then use builder pattern to describe the operations, and then call :func:`run` to start a run.
+    It returns a DataFrame of vertices from the last iteration.
 
-    When a run starts, it expands the vertices DataFrame using column expressions defined by `withVertexColumn`.
+    When a run starts, it expands the vertices DataFrame using column expressions defined by :func:`withVertexColumn`.
     Those additional vertex properties can be changed during Pregel iterations.
     In each Pregel iteration, there are three phases:
       - Given each edge triplet, generate messages and specify target vertices to send,
-        described by `sendMsgToDst` and `sendMsgToSrc`.
-      - Aggregate messages by target vertex IDs, described by `aggMsgs`.
+        described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
+      - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
       - Update additional vertex properties based on aggregated messages and states from previous iteration,
-        described by `withVertexColumn`.
+        described by :func:`withVertexColumn`.
 
     Please find what columns you can reference at each phase in the method API docs.
 
-    You can control the number of iterations by `setMaxIter` and check API docs for advanced controls.
+    You can control the number of iterations by :func:`setMaxIter` and check API docs for advanced controls.
 
-    See `graphframes.GraphFrame.pregel`.
+    See :attr:`graphframes.GraphFrame.pregel`.
+
     See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_.
 
-    :param graph: a `graphframes.GraphFrame` holding a graph with vertices and edges stored as DataFrames.
+    :param graph: a :class:`graphframes.GraphFrame` object holding a graph with vertices and edges stored as DataFrames.
 
     >>> from graphframe import GraphFrame
     >>> from pyspark.sql.functions import coalesce, col, lit, sum, when
@@ -114,7 +115,7 @@ class Pregel(JavaWrapper):
                             You can reference all original vertex columns in this expression.
         :param updateAfterAggMsgsExpr: the expression to update the additional vertex column after messages aggregation.
                                        You can reference all original vertex columns, additional vertex columns, and the
-                                       aggregated message column using `Pregel.msg()`.
+                                       aggregated message column using :func:`msg`.
                                        If the vertex received no messages, the message column would be null.
         """
         self._java_obj.withVertexColumn(colName, initialExpr._jc, updateAfterAggMsgsExpr._jc)
@@ -126,12 +127,12 @@ class Pregel(JavaWrapper):
 
         You can call it multiple times to send more than one messages.
 
-        See method `sendMsgToDst`.
+        See method :func:`sendMsgToDst`.
 
         :param msgExpr: the expression of the message to send to the source vertex given a (src, edge, dst) triplet.
                         Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
                         and `edge`, respectively.
-                        You can reference them using `Pregel.src`, `Pregel.dst`, and `Pregel.edge`.
+                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
                         Null messages are not included in message aggregation.
         """
         self._java_obj.sendMsgToSrc(msgExpr._jc)
@@ -143,12 +144,12 @@ class Pregel(JavaWrapper):
 
         You can call it multiple times to send more than one messages.
 
-        See method `sendMsgToSrc`.
+        See method :func:`sendMsgToSrc`.
 
         :param msgExpr: the message expression to send to the destination vertex given a (`src`, `edge`, `dst`) triplet.
                         Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
                         and `edge`, respectively.
-                        You can reference them using `Pregel.src`, `Pregel.dst`, and `Pregel.edge`.
+                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
                         Null messages are not included in message aggregation.
         """
         self._java_obj.sendMsgToDst(msgExpr._jc)
@@ -158,8 +159,8 @@ class Pregel(JavaWrapper):
         """
         Defines how messages are aggregated after grouped by target vertex IDs.
 
-        :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg)`.
-                        You can reference the message column by `Pregel.msg()` and the vertex ID by `col("id")`,
+        :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg())`.
+                        You can reference the message column by :func:`msg` and the vertex ID by `col("id")`,
                         while the latter is usually not used.
         """
         self._java_obj.aggMsgs(aggExpr._jc)
@@ -178,7 +179,7 @@ class Pregel(JavaWrapper):
         """
         References the message column in aggregating messages and updating additional vertex columns.
 
-        See `Pregel.aggMsgs` and `Pregel.withVertexColumn`
+        See :func:`aggMsgs` and :func:`withVertexColumn`
         """
         return col("_pregel_msg_")
 
@@ -187,7 +188,7 @@ class Pregel(JavaWrapper):
         """
         References a source vertex column in generating messages to send.
 
-        See `Pregel.sendMsgToSrc` and `Pregel.sendMsgToDst`
+        See :func:`sendMsgToSrc` and :func:`sendMsgToDst`
 
         :param colName: the vertex column name.
         """
@@ -198,7 +199,7 @@ class Pregel(JavaWrapper):
         """
         References a destination vertex column in generating messages to send.
 
-        See `Pregel.sendMsgToSrc` and `Pregel.sendMsgToDst`
+        See :func:`sendMsgToSrc` and :func:`sendMsgToDst`
 
         :param colName: the vertex column name.
         """
@@ -209,7 +210,7 @@ class Pregel(JavaWrapper):
         """
         References an edge column in generating messages to send.
 
-        See `Pregel.sendMsgToSrc` and `Pregel.sendMsgToDst`
+        See :func:`sendMsgToSrc` and :func:`sendMsgToDst`
 
         :param colName: the edge column name.
         """
