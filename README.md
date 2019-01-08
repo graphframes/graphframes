@@ -10,6 +10,8 @@ Users can write highly expressive queries by leveraging the DataFrame API, combi
 API for motif finding.  The user also benefits from DataFrame performance optimizations
 within the Spark SQL engine.
 
+You can find user guide and API docs at https://graphframes.github.io/graphframes.
+
 ## Building and running unit tests
 
 To compile this project, run `build/sbt assembly` from the project home directory.
@@ -31,21 +33,4 @@ We welcome open source contributions as well!
 
 ## Releases:
 
-- 0.1.0 initial release
-- 0.2.0 release
-  - Spark 2.0 support (work of @felixcheung)
-- 0.3.0 release
-  - DataFrame-based connected components implementation
-  - added support for Python 3
-  - removed support for Spark 1.4 and 1.5
-- 0.4.0 release
-  - Spark 2.1 support
-  - Fix for checkpointing issue in DataFrame-based connected components implementation (issue 160)
-- 0.5.0 release
-  - Major bug fix: Indexing non-Integer vertex IDs, which is used by algorithms which call GraphX
-    under the hood, including PageRank, ConnectedComponents, and others.
-  - aggregateMessages for Python API
-- 0.6.0 release
-  - Spark 2.3 support
-  - New filter APIs for selecting subgraphs.
-  - Bug fixes in connected components & motif finding.
+See [release notes](https://github.com/graphframes/graphframes/releases).
