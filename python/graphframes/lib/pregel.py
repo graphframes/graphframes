@@ -48,14 +48,11 @@ class Pregel(JavaWrapper):
 
     You can control the number of iterations by :func:`setMaxIter` and check API docs for advanced controls.
 
-    See :attr:`graphframes.GraphFrame.pregel`.
-
-    See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_.
-
     :param graph: a :class:`graphframes.GraphFrame` object holding a graph with vertices and edges stored as DataFrames.
 
-    >>> from graphframe import GraphFrame
+    >>> from graphframes import GraphFrame
     >>> from pyspark.sql.functions import coalesce, col, lit, sum, when
+    >>> from graphframes.lib import Pregel
     >>> edges = spark.createDataFrame([[0, 1],
     ...                                [1, 2],
     ...                                [2, 4],
