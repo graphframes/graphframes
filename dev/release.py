@@ -38,7 +38,10 @@ def verify(prompt, interactive):
               help="Push current branch and docs to this git remote.")
 @click.option("--publish-docs", type=bool, default=PUBLISH_DOCS_DEFAULT, show_default=True,
               help="Publish docs to github-pages.")
-def main(release_version, next_version, publish_to, no_prompt, git_remote, publish_docs):
+@click.option("--spark-version", multiple=True, show_default=True,
+              default=["2.3.0", "2.4.0"])
+def main(release_version, next_version, publish_to, no_prompt, git_remote, publish_docs,
+         spark_version):
     interactive = not no_prompt
 
     time = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
@@ -98,7 +101,8 @@ def main(release_version, next_version, publish_to, no_prompt, git_remote, publi
     check_call(["git", "checkout", release_tag])
 
     publish_target = PUBLISH_MODES[publish_to]
-    check_call(["./build/sbt", "clean", publish_target])
+    for version in spark_version:
+        check_call(["./build/sbt", "-Dspark.version=%s" % version, "clean", publish_target])
 
     prominentPrint("Updating local branch: %s" % current_branch)
     check_call(["git", "checkout", current_branch])
