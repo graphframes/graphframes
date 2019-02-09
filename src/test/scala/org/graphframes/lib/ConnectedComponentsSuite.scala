@@ -235,7 +235,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       expected: Set[Set[T]]): Unit = {
     import actual.sqlContext.implicits._
     // note: not using agg + collect_list because collect_list is not available in 1.6.2 w/o hive
-    val actualComponents = actual.select("component", "id").as[(Long, T)].rdd
+    val actualComponents = actual.select("component", "id").as[(T, T)].rdd
       .groupByKey()
       .values
       .map(_.toSeq)
