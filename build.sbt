@@ -63,7 +63,7 @@ scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 fork in Test := true
 
 // This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
-javaOptions in Test ++= Seq("-Xmx2048m", "-XX:ReservedCodeCacheSize=384m", "-XX:MaxPermSize=384m")
+javaOptions in Test ++= Seq("-Xmx2048m", "-XX:ReservedCodeCacheSize=384m", "-XX:MaxMetaspaceSize=384m")
 
 concurrentRestrictions in Global := Seq(
   Tags.limitAll(1))
