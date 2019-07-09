@@ -20,10 +20,10 @@ env:
 
 matrix:
   include:
-    - env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.3.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
-    - env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.4.0 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
-    - env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.3.2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
-    - env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.4.0 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+    - env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.3.3 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+    - env: PYSPARK_PYTHON=python2 SPARK_VERSION=2.4.3 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+    - env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.3.3 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+    - env: PYSPARK_PYTHON=python3 SPARK_VERSION=2.4.3 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
 
 before_install:
  - ./bin/download_travis_dependencies.sh
