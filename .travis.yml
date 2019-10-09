@@ -10,16 +10,8 @@ cache:
 
 language: scala
 
-scala:
-   - 2.11.8
-   - 2.12.10
-
 jdk:
    - oraclejdk8
-
-env:
-  global:
-    - SCALA_VERSION=2.11.8
 
 matrix:
   include:
@@ -38,8 +30,8 @@ install:
     fi
 
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
-  - sbt ++$TRAVIS_SCALA_VERSION -Dspark.version=$SPARK_VERSION coverage test coverageReport
+  - sbt ++$SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
+  - sbt ++$SCALA_VERSION -Dspark.version=$SPARK_VERSION coverage test coverageReport
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
