@@ -719,7 +719,7 @@ object GraphFrame extends Serializable with Logging {
    */
   // TODO: Add version which takes explicit schemas.
   def fromGraphX[VD : TypeTag, ED : TypeTag](graph: Graph[VD, ED]): GraphFrame = {
-    val sqlContext = SQLContext.getOrCreate(graph.vertices.context)
+    val sqlContext = SparkSession.builder().getOrCreate().sqlContext
     val vv = sqlContext.createDataFrame(graph.vertices).toDF(ID, ATTR)
     val ee = sqlContext.createDataFrame(graph.edges).toDF(SRC, DST, ATTR)
     GraphFrame(vv, ee)

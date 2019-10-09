@@ -18,13 +18,13 @@
 package org.graphframes.examples
 
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.graphx.{Edge => GXEdge,VertexRDD, Graph}
-import org.apache.spark.sql.{Column, Row, SQLContext}
+import org.apache.spark.graphx.{Graph, VertexRDD, Edge => GXEdge}
+import org.apache.spark.sql.{Column, Row, SparkSession, SQLContext}
 import org.apache.spark.sql.functions.{col, lit, sum, udf, when}
 
 import org.graphframes.GraphFrame
 import org.graphframes.examples.Graphs.gridIsingModel
-import org.graphframes.lib.{AggregateMessages}
+import org.graphframes.lib.AggregateMessages
 
 
 /**
@@ -69,9 +69,12 @@ import org.graphframes.lib.{AggregateMessages}
 object BeliefPropagation {
 
   def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("BeliefPropagation example")
-    val sc = SparkContext.getOrCreate(conf)
-    val sql = SQLContext.getOrCreate(sc)
+    val spark = SparkSession
+      .builder()
+      .appName("BeliefPropagation example")
+      .getOrCreate()
+
+    val sql = spark.sqlContext
 
     // Create graphical model g of size 3 x 3.
     val g = gridIsingModel(sql, 3)
@@ -89,7 +92,7 @@ object BeliefPropagation {
     println(s"Done with BP. Final beliefs after $numIter iterations:")
     beliefs.show()
 
-    sc.stop()
+    spark.stop()
   }
 
   /**
