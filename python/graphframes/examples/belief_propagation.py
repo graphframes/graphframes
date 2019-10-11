@@ -19,7 +19,7 @@ import math
 
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext, functions as sqlfunctions, types
-from pyspark.tests import QuietTest as SuppressSparkLogs
+from pyspark.testing.utils import QuietTest as SuppressSparkLogs
 
 from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
