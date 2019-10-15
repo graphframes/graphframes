@@ -19,7 +19,13 @@ import math
 
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext, functions as sqlfunctions, types
-from pyspark.testing.utils import QuietTest as SuppressSparkLogs
+from pyspark.util import VersionUtils
+sparkVersions = VersionUtils.majorMinorVersion(metadata['sparkVersion'])
+sparkMajorVersion = sparkVersions[0]
+if sparkMajorVersion >= 3:
+    from pyspark.testing.utils import QuietTest as SuppressSparkLogs
+else:
+    from pyspark.tests import QuietTest as SuppressSparkLogs
 
 from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
