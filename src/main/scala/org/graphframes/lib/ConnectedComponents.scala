@@ -212,7 +212,7 @@ object ConnectedComponents extends Logging {
       // .distinct()
     val edges = graph.indexedEdges
       .select(col(LONG_SRC).as(SRC), col(LONG_DST).as(DST))
-    val orderedEdges = edges.filter(col(SRC) !== col(DST))
+    val orderedEdges = edges.filter(col(SRC) =!= col(DST))
       .select(minValue(col(SRC), col(DST)).as(SRC), maxValue(col(SRC), col(DST)).as(DST))
       .distinct()
     GraphFrame(vertices, orderedEdges)

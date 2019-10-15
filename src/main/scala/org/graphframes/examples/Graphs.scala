@@ -20,17 +20,16 @@ package org.graphframes.examples
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.{SparkSession, SQLContext}
 import org.apache.spark.sql.functions.{col, lit, randn, udf}
 
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 
 class Graphs private[graphframes] () {
-  // Note: these cannot be values: we are creating and destroying spark contexts during the tests,
+  // Note: this cannot be values: we are creating and destroying spark contexts during the tests,
   // and turning these into vals means we would hold onto a potentially destroyed spark context.
-  private def sc: SparkContext = SparkContext.getOrCreate()
-  private def sqlContext: SQLContext = SQLContext.getOrCreate(sc)
+  private def sqlContext: SQLContext = SparkSession.builder().getOrCreate().sqlContext
 
   /**
    * Returns an empty GraphFrame of the given ID type.
@@ -203,11 +202,11 @@ class Graphs private[graphframes] () {
     //  Create SQL expression for converting coordinates (i,j+1) and (i+1,j) to string IDs
     val rightIDcol = toIDudf(col("i"), col("j") + 1)
     val downIDcol = toIDudf(col("i") + 1, col("j"))
-    val horizontalEdges = coordinates.filter(col("j") !== n - 1)
+    val horizontalEdges = coordinates.filter(col("j") =!= n - 1)
       .select(vIDcol.as("src"), rightIDcol.as("dst"))
-    val verticalEdges = coordinates.filter(col("i") !== n - 1)
+    val verticalEdges = coordinates.filter(col("i") =!= n - 1)
       .select(vIDcol.as("src"), downIDcol.as("dst"))
-    val allEdges = horizontalEdges.unionAll(verticalEdges)
+    val allEdges = horizontalEdges.union(verticalEdges)
     //  Add random parameters from a normal distribution
     val edges = allEdges.withColumn("b", randn(seed + 1) * eStd)  // Ising parameter for edge
 
