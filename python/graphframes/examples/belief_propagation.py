@@ -19,13 +19,6 @@ import math
 
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext, functions as sqlfunctions, types
-from pyspark.util import VersionUtils
-sparkVersions = VersionUtils.majorMinorVersion(metadata['sparkVersion'])
-sparkMajorVersion = sparkVersions[0]
-if sparkMajorVersion >= 3:
-    from pyspark.testing.utils import QuietTest as SuppressSparkLogs
-else:
-    from pyspark.tests import QuietTest as SuppressSparkLogs
 
 from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
@@ -163,22 +156,20 @@ def main():
     sc = SparkContext.getOrCreate(conf)
     sql = SQLContext.getOrCreate(sc)
 
-    with SuppressSparkLogs(sc):
+    # create graphical model g of size 3 x 3
+    g = graphframes.examples.Graphs(sql).gridIsingModel(3)
+    print("Original Ising model:")
+    g.vertices.show()
+    g.edges.show()
 
-        # create graphical model g of size 3 x 3
-        g = graphframes.examples.Graphs(sql).gridIsingModel(3)
-        print("Original Ising model:")
-        g.vertices.show()
-        g.edges.show()
+    # run BP for 5 iterations
+    numIter = 5
+    results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
 
-        # run BP for 5 iterations
-        numIter = 5
-        results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
-
-        # display beliefs
-        beliefs = results.vertices.select('id', 'belief')
-        print("Done with BP. Final beliefs after {} iterations:".format(numIter))
-        beliefs.show()
+    # display beliefs
+    beliefs = results.vertices.select('id', 'belief')
+    print("Done with BP. Final beliefs after {} iterations:".format(numIter))
+    beliefs.show()
 
     sc.stop()
 
