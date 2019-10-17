@@ -134,7 +134,7 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("edge filter") {
     val paths1 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b")
-      .edgeFilter(col("src") !== "d")
+      .edgeFilter(col("src") =!= "d")
       .run()
     assert(paths1.count() === 1)
     paths1.select("e0.dst").collect().foreach { case Row(id: String) =>

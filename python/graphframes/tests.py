@@ -350,10 +350,11 @@ class GraphFrameLibTest(GraphFrameTestCase):
         labels = g.labelPropagation(maxIter=4 * n)
         labels1 = labels.filter("id < 5").select("label").collect()
         all1 = set([x.label for x in labels1])
-        self.assertEqual(all1, set([0]))
+        assert len(all1) == 1
         labels2 = labels.filter("id >= 5").select("label").collect()
         all2 = set([x.label for x in labels2])
-        self.assertEqual(all2, set([n]))
+        assert len(all2) == 1
+        assert all1 != all2
 
     def test_page_rank(self):
         n = 100

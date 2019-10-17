@@ -180,7 +180,7 @@ private object BFS extends Logging with Serializable {
         // Note: We could avoid this special case by initializing paths with just 1 "from" column,
         // but that would create a longer lineage for the result DataFrame.
         paths = a2b.filter(fromAExpr)
-          .filter(col("a.id") !== col("b.id"))  // remove self-loops
+          .filter(col("a.id") =!= col("b.id"))  // remove self-loops
           .withColumnRenamed("a", "from").withColumnRenamed("e", nextEdge)
           .withColumnRenamed("b", nextVertex)
       } else {
@@ -192,8 +192,8 @@ private object BFS extends Logging with Serializable {
         // Make sure we are not backtracking within each path.
         // TODO: Avoid crossing paths; i.e., touch each vertex at most once.
         val previousVertexChecks = Range(1, iter + 1)
-          .map(i => paths(s"v$i.id") !== paths(nextVertex + ".id"))
-          .foldLeft(paths(s"from.id") !== paths(nextVertex + ".id"))((c1, c2) => c1 && c2)
+          .map(i => paths(s"v$i.id") =!= paths(nextVertex + ".id"))
+          .foldLeft(paths(s"from.id") =!= paths(nextVertex + ".id"))((c1, c2) => c1 && c2)
         paths = paths.filter(previousVertexChecks)
       }
       // Check if done by applying toExpr to column nextVertex
