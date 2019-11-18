@@ -36,12 +36,12 @@ echo "Downloading Spark if necessary"
 echo "Spark version = $SPARK_VERSION"
 echo "Spark build = $SPARK_BUILD"
 
+mkdir -p "${HOME}/.cache/spark-versions" && pushd $_
+
 # Remove existing Spark tarball in case it is corrupted.
 rm -f "${spark_tarball}"
 # Remove existing Spark extracted directory
 rm -rf "${SPARK_BUILD}"
-
-mkdir -p "${HOME}/.cache/spark-versions" && pushd $_
 
 if [ ${SPARK_VERSION} = '3.0.0-SNAPSHOT' ]; then
     try_download_latest_snapshot
