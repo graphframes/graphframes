@@ -5,7 +5,7 @@ RUN apt-get update && \
     apt-get clean
 
 RUN pip install sphinx==1.8 numpy
-RUN gem install jekyll bundler jekyll-redirect-from pygments.rb
+RUN gem install jekyll bundler jekyll-redirect-from
 
 WORKDIR /mnt/graphframes
 

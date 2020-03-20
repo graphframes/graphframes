@@ -5,11 +5,11 @@ import ReleaseTransformations._
 
 resolvers += "Spark snapshot repository" at "https://repository.apache.org/snapshots/"
 
-val sparkVer = sys.props.getOrElse("spark.version", "3.0.0-SNAPSHOT")
+val sparkVer = sys.props.getOrElse("spark.version", "3.0.0-preview2")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
-  case "3.0" => "2.12.10"
-  case "2.4" => "2.11.8"
+  case "3.0" => "2.12.11"
+  case "2.4" => "2.11.12"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)

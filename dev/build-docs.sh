@@ -2,9 +2,7 @@
 
 set -euxo pipefail
 
-# We use python2.7 for building the docs because Pygments.rb/Pygments is incompatible with
-# python 3, more info: https://github.com/jekyll/jekyll/issues/2604
-docker build -t databricks/graphframes --build-arg PYTHON_VERSION=2.7 .
+docker build -t databricks/graphframes .
 
 # build the docs image
 docker build -t databricks/graphframes-docs docs/
