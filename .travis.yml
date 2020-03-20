@@ -22,7 +22,9 @@ before_install:
   - ./bin/download_travis_dependencies.sh
 
 install:
-    pip install -r ./python/requirements.txt
+  - python -V
+  - python3 -V
+  - pip3 install -r ./python/requirements.txt
 
 script:
   - sbt ++$SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
