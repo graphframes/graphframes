@@ -1,7 +1,15 @@
 dist: bionic
 
+language: scala
+
+jdk:
+  - openjdk8
+
+python: "3.7"
+
 addons:
   apt:
+    update: true
     packages:
       - python3-pip
 
@@ -10,11 +18,6 @@ cache:
     - $HOME/.ivy2
     - $HOME/.sbt/launchers/
     - $HOME/.cache/spark-versions
-
-language: scala
-
-jdk:
-   - openjdk8
 
 matrix:
   include:
@@ -25,7 +28,7 @@ before_install:
   - ./bin/download_travis_dependencies.sh
 
 install:
-    pip3 install --user -r ./python/requirements.txt;
+    pip install -r ./python/requirements.txt
 
 script:
   - sbt ++$SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
