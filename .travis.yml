@@ -1,6 +1,4 @@
-dist: trusty
-
-group: travis_lts
+dist: bionic
 
 cache:
   directories:
@@ -11,25 +9,19 @@ cache:
 language: scala
 
 jdk:
-   - oraclejdk8
+   - openjdk8
 
 matrix:
   include:
-    - env: PYSPARK_PYTHON=python2 SCALA_VERSION=2.11.8 SPARK_VERSION=2.4.4 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
-    - env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.4.4 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
-    - env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.12.10 SPARK_VERSION=3.0.0-SNAPSHOT SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+    - env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.11.8 SPARK_VERSION=2.4.5 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
+    - env: PYSPARK_PYTHON=python3 SCALA_VERSION=2.12.10 SPARK_VERSION=3.0.0-preview2 SPARK_BUILD="spark-${SPARK_VERSION}-bin-hadoop2.7"
 
 before_install:
   - ./bin/download_travis_dependencies.sh
 
 install:
-  - if [[ "${PYSPARK_PYTHON}" == "python2" ]]; then
-      pyenv install -f 2.7.15 && pyenv global 2.7.15;
-      python2 -m pip install --user -r ./python/requirements.txt;
-    else
-      pyenv install -f 3.6.3 && pyenv global 3.6.3;
-      python3 -m pip install --user -r ./python/requirements.txt;
-    fi
+    pyenv install -f 3.7.4 && pyenv global 3.7.4;
+    python3 -m pip install --user -r ./python/requirements.txt;
 
 script:
   - sbt ++$SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
