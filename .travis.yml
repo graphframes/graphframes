@@ -20,7 +20,6 @@ before_install:
   - ./bin/download_travis_dependencies.sh
 
 install:
-    pyenv install -f 3.7.4 && pyenv global 3.7.4;
     python3 -m pip install --user -r ./python/requirements.txt;
 
 script:
