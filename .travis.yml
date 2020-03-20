@@ -1,5 +1,10 @@
 dist: bionic
 
+addons:
+  apt:
+    packages:
+      - python3-pip
+
 cache:
   directories:
     - $HOME/.ivy2
@@ -20,7 +25,7 @@ before_install:
   - ./bin/download_travis_dependencies.sh
 
 install:
-    python3 -m pip install --user -r ./python/requirements.txt;
+    pip3 install --user -r ./python/requirements.txt;
 
 script:
   - sbt ++$SCALA_VERSION -Dspark.version=$SPARK_VERSION "set test in assembly := {}" assembly
