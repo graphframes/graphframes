@@ -72,18 +72,18 @@ private object ShortestPaths {
     val g = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
     val distanceCol: Column = if (graph.hasIntegralIdType) {
       // It seems there are no easy way to convert a sequence of pairs into a map
-      val mapToLandmark = udf({ distances: Seq[Row] =>
+      val mapToLandmark = udf { distances: Seq[Row] =>
         distances.map { case Row(k: Long, v: Int) =>
           k -> v
         }.toMap
-      }, MapType(idType, IntegerType, false))
+      }
       mapToLandmark(g.vertices(DISTANCE_ID))
     } else {
-      val mapToLandmark = udf({ distances: Seq[Row] =>
+      val mapToLandmark = udf { distances: Seq[Row] =>
         distances.map { case Row(k: Long, v: Int) =>
           longIdToLandmark(k) -> v
         }.toMap
-      }, MapType(idType, IntegerType, false))
+      }
       mapToLandmark(col(DISTANCE_ID))
     }
     val cols = graph.vertices.columns.map(col) :+ distanceCol.as(DISTANCE_ID)
