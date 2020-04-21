@@ -54,6 +54,8 @@ libraryDependencies += "com.github.zafarkhaja" % "java-semver" % "0.9.0" % "test
 
 parallelExecution := false
 
+scalacOptions ++= Seq("-deprecation", "-feature")
+
 scalacOptions in (Compile, doc) ++= Seq(
   "-groups",
   "-implicits",

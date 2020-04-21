@@ -40,7 +40,7 @@ private[graphframes] object PatternParser extends RegexParsers {
   private val edge: Parser[Edge] = namedEdge | anonymousEdge
   private val negatedEdge: Parser[Pattern] =
     "!" ~ edge ^^ {
-      case "!" ~ e => Negation(e)
+      case _ ~ e => Negation(e)
     }
   private val pattern: Parser[Pattern] = edge | vertex | negatedEdge
   val patterns: Parser[List[Pattern]] = repsep(pattern, ";")
