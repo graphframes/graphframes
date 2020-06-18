@@ -26,12 +26,6 @@ __PY_SCRIPT_EOF__
 ) | xargs curl --retry 3 --retry-delay 7 -O
 }
 
-function try_download_latest_snapshot {
-    local spark_url="https://ml-team-public-read.s3-us-west-2.amazonaws.com/spark-3.0.0-SNAPSHOT-bin-hadoop2.7.tgz"
-    echo "Spark build URL = $spark_url"
-    wget --tries=3 ${spark_url}
-}
-
 echo "Downloading Spark if necessary"
 echo "Spark version = $SPARK_VERSION"
 echo "Spark build = $SPARK_BUILD"
@@ -43,11 +37,7 @@ rm -f "${spark_tarball}"
 # Remove existing Spark extracted directory
 rm -rf "${SPARK_BUILD}"
 
-if [ ${SPARK_VERSION} = '3.0.0-SNAPSHOT' ]; then
-    try_download_latest_snapshot
-else
-    try_download_from_apache || try_download_from_apache || try_download_from_apache
-fi;
+try_download_from_apache || try_download_from_apache || try_download_from_apache
 
 echo "Content of directory:"
 ls -la
