@@ -27,7 +27,7 @@ import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{IntegerType, StringType}
+import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType}
 import org.apache.spark.storage.StorageLevel
 
 import com.google.common.io.Files
@@ -80,6 +80,19 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
+  test("construction from DataFrames with dots in column names") {
+    val g = GraphFrame(
+      vertices.withColumnRenamed("name", "a.name"),
+      edges.withColumnRenamed("action", "the.action"))
+    g.vertices.collect().foreach { case Row(id: Long, name: String) =>
+      assert(localVertices(id) === name)
+    }
+    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
+      assert(localEdges((src, dst)) === action)
+    }
+    g.pageRank.maxIter(10).run()
+  }
+
   test("construction from edge DataFrame") {
     val g = GraphFrame.fromEdges(edges)
     assert(g.vertices.columns === Array("id"))
@@ -98,6 +111,24 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("construction from GraphX") {
+    val vv: RDD[(Long, String)] = vertices.rdd.map { case Row(id: Long, name: String) =>
+      (id, name)
+    }
+    val ee: RDD[Edge[String]] = edges.rdd.map { case Row(src: Long, dst: Long, action: String) =>
+      Edge(src, dst, action)
+    }
+    val g = Graph(vv, ee)
+    val gf = GraphFrame.fromGraphX(g)
+    gf.vertices.select("id", "attr").collect().foreach { case Row(id: Long, name: String) =>
+      assert(localVertices(id) === name)
+    }
+    gf.edges.select("src", "dst", "attr").collect().foreach {
+      case Row(src: Long, dst: Long, action: String) =>
+        assert(localEdges((src, dst)) === action)
+    }
+  }
+
+  test("construction from GraphX with dots in column names") {
     val vv: RDD[(Long, String)] = vertices.rdd.map { case Row(id: Long, name: String) =>
       (id, name)
     }
@@ -265,6 +296,20 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       assert(empty.degrees.count() === 0L)
       assert(empty.triplets.count() === 0L)
     }
+  }
+
+  test("nestAsCol with dots in column names") {
+    val df = vertices.withColumnRenamed("name", "a.name")
+    val col = nestAsCol(df, "attr")
+    assert(
+      df.select(col).schema === StructType(
+        Seq(
+          StructField(
+            "attr",
+            StructType(Seq(
+              StructField("id", LongType, nullable = false),
+              StructField("a.name", StringType, nullable = true))),
+            nullable = false))))
   }
 
   test("skewed long ID assignments") {
