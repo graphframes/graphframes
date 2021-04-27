@@ -13,7 +13,7 @@ serialization, and highly expressive graph queries.
 
 # What are GraphFrames?
 
-*GraphX is to RDDs as GraphFrames are to DataFrames.*
+*GraphFrames are to DataFrames as GraphX is to RDDs.*
 
 GraphFrames represent graphs: vertices (e.g., users) and edges (e.g., relationships between users).
 If you are familiar with [GraphX](http://spark.apache.org/docs/latest/graphx-programming-guide.html),
