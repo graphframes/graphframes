@@ -19,8 +19,8 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
-
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, TestUtils}
+import org.graphframes.GraphFrame.quote
+import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
 class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -74,6 +74,18 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
       assert(count === 1)
     }
+  }
+
+  test("Count with dot column name") {
+    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+    val vertices = sqlContext.createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
+      .toDF("id", "a.column")
+    val g = GraphFrame(vertices, edges)
+    val v2 = g.triangleCount.run()
+    TestUtils.testSchemaInvariants(g, v2)
+    TestUtils.checkColumnType(v2.schema, "count", DataTypes.LongType)
+    v2.select("id", "count", quote("a.column"))
+      .collect().foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
   }
 
   test("no triangle") {

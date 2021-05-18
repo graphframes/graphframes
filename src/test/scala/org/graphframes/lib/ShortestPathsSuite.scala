@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
-
+import org.graphframes.GraphFrame.quote
 import org.graphframes._
 
 class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
@@ -60,6 +60,35 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         (id, spMap)
     }.toSet
     assert(results === expected)
+  }
+
+  test("Test vertices with dot column name") {
+    val verticeSeq = Seq((1L, "one"), (2L, "two"), (3L, "three"), (4L, "four"), (5L, "five"), (6L, "six"))
+    val vertices = sqlContext.createDataFrame(verticeSeq).toDF("id", "a.name")
+
+    // from here the mainly the same as "Simple test"
+    val edgeSeq = Seq((1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)).flatMap {
+      case e => Seq(e, e.swap)
+    } .map { case (src, dst) => (src.toLong, dst.toLong) }
+    val edges = sqlContext.createDataFrame(edgeSeq).toDF("src", "dst")
+    val graph = GraphFrame(vertices, edges)
+
+    // Ground truth
+    val shortestPaths = Set(
+      (1, "one", Map(1 -> 0, 4 -> 2)), (2, "two", Map(1 -> 1, 4 -> 2)), (3, "three", Map(1 -> 2, 4 -> 1)),
+      (4, "four", Map(1 -> 2, 4 -> 0)), (5, "five", Map(1 -> 1, 4 -> 1)), (6, "six", Map(1 -> 3, 4 -> 1)))
+
+    val landmarks = Seq(1, 4).map(_.toLong)
+    val v2 = graph.shortestPaths.landmarks(landmarks).run()
+
+    TestUtils.testSchemaInvariants(graph, v2)
+    TestUtils.checkColumnType(v2.schema, "distances",
+      DataTypes.createMapType(v2.schema("id").dataType, DataTypes.IntegerType, false))
+    val newVs = v2.select("id", quote("a.name"), "distances").collect().toSeq
+    val results = newVs.map {
+      case Row(id: Long, name: String, spMap: Map[Long, Int] @unchecked) => (id, name, spMap)
+    }
+    assert(results.toSet === shortestPaths)
   }
 
 }

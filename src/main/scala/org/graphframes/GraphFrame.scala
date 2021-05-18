@@ -52,8 +52,8 @@ class GraphFrame private(
   override def toString: String = {
     // We call select on the vertices and edges to ensure that ID, SRC, DST always come first
     // in the printed schema.
-    val v = vertices.select(ID, vertices.columns.filter(_ != ID) :_ *).toString
-    val e = edges.select(SRC, DST +: edges.columns.filter(c => c != SRC && c != DST) :_ *).toString
+    val v = vertices.select(ID, vertices.columns.filter(_ != ID).map(quote(_)) :_ *).toString
+    val e = edges.select(SRC, DST +: edges.columns.filter(c => c != SRC && c != DST).map(quote) :_ *).toString
     "GraphFrame(v:" + v + ", e:" + e + ")"
   }
 
@@ -340,7 +340,7 @@ class GraphFrame private(
     val df = findSimple(augmentedPatterns)
 
     val names = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
-    if (names.isEmpty) df else df.select(names.head, names.tail : _*)
+    if (names.isEmpty) df else df.select(quote(names.head), names.tail.map(quote) : _*)
   }
 
   // ======================== Other queries ===================================
@@ -791,11 +791,28 @@ object GraphFrame extends Serializable with Logging {
 
 
 
-  /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
+  /**
+   * Helper for column names containing a dot.  Quotes the given column name with backticks
+   * to avoid further parsing.
+   */
+  private[graphframes] def quote(column: String): String = s"`$column`"
+
+  /**
+   * Helper for column names containing a dot.  Quotes the given column name with backticks
+   * to avoid further parsing.  The column name can be given in segments,
+   * e.g. quote("col", "field") representing column "col.field", which returns "`col`.`field`".
+   */
+  private[graphframes] def quote(columnSegments: String*): String =
+    columnSegments.map(quote).mkString(".")
+
+  /**
+   * Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields.
+   * Both [col] and [field] are quoted with backticks to work with columns and fields containing dots.
+   **/
   private[graphframes] def colStar(df: DataFrame, col: String): Seq[String] = {
     df.schema(col).dataType match {
       case s: StructType =>
-        s.fieldNames.map(f => col + "." + f)
+        s.fieldNames.map(f => quote(col, f))
       case other =>
         throw new RuntimeException(s"Unknown error in GraphFrame. Expected column $col to be" +
           s" StructType, but found type: $other")
@@ -804,7 +821,7 @@ object GraphFrame extends Serializable with Logging {
 
   /** Nest all columns within a single StructType column with the given name */
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
-    struct(df.columns.map(c => df(c)) :_*).as(name)
+    struct(df.columns.map(c => df(quote(c))) :_*).as(name)
   }
 
   // ========== Motif finding ==========
