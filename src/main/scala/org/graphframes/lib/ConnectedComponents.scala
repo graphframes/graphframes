@@ -388,8 +388,15 @@ object ConnectedComponents extends Logging {
     logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
 
     logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
-    vv.join(ee, vv(ID) === ee(DST), "left_outer")
-      .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
-      .select(col(s"$ATTR.*"), col(COMPONENT))
+    val indexedLabel=vv.join(ee, vv(ID) === ee(DST), "left_outer")
+      .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT)
+        ,col(ATTR+"."+ID).as(ID))
+    if(graph.hasIntegralIdType)
+      indexedLabel.select(col(s"$ATTR.*"), col(COMPONENT))
+    else
+      indexedLabel.join(indexedLabel.groupBy(col(COMPONENT)).agg(min(col(ID)).as(ORIG_ID))
+        .select(col(COMPONENT),col(ORIG_ID))
+        ,COMPONENT)
+        .select(col(s"$ATTR.*"),col(ORIG_ID).as(COMPONENT))
   }
 }
