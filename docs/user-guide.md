@@ -70,6 +70,7 @@ val g: GraphFrame = examples.Graphs.friends
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
+from graphframes import GraphFrame
 # Vertex DataFrame
 v = sqlContext.createDataFrame([
   ("a", "Alice", 34),
@@ -280,7 +281,7 @@ import org.graphframes.{examples,GraphFrame}
 val g: GraphFrame = examples.Graphs.friends  // get example graph
 
 // Search for pairs of vertices with edges in both directions between them.
-val motifs: GraphFrame = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
+val motifs: DataFrame = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
 motifs.show()
 
 // More complex queries can be expressed by applying filters.
@@ -357,6 +358,7 @@ chainWith2Friends2.show()
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
+from functools import reduce
 from pyspark.sql.functions import col, lit, when
 from pyspark.sql.types import IntegerType
 from graphframes.examples import Graphs
@@ -454,6 +456,7 @@ val g2 = GraphFrame(g.vertices, e2)
 
 <div data-lang="python"  markdown="1">
 {% highlight python %}
+from graphframes import GraphFrame
 from graphframes.examples import Graphs
 g = Graphs(sqlContext).friends()  # Get example graph
 
