@@ -1,0 +1,34 @@
+name: Python CI
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spark-version: 3.1.2
+          - spark-version: 3.0.3
+          - spark-version: 2.4.8
+    runs-on: ubuntu-20.04
+    env:
+      # define Java options for both official sbt and sbt-extras
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    steps:
+    - uses: actions/checkout@v2
+    - uses: olafurpg/setup-scala@v11
+      with:
+        java-version: "zulu@1.8"
+    - name: Assembly
+      run: sbt -v -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install Python depencencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r ./python/requirements.txt
+        pip install pyspark==${{ matrix.spark-version }}
+    - name: Test
+      run: |
+        ./python/run-tests.sh
