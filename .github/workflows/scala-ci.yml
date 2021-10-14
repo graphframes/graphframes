@@ -7,9 +7,9 @@ jobs:
       matrix:
         include:
           - spark-version: 3.1.2
-            scala-version: 2.12.15
+            scala-version: 2.12.12
           - spark-version: 3.0.3
-            scala-version: 2.12.15
+            scala-version: 2.12.12
           - spark-version: 2.4.8
             scala-version: 2.11.12
     runs-on: ubuntu-20.04
