@@ -19,6 +19,11 @@ jobs:
     - uses: olafurpg/setup-scala@v11
       with:
         java-version: "zulu@1.8"
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.ivy2/cache
+        key: sbt-ivy-cache-spark-${{ matrix-version}}-scala-${{ matrix.scala-version }}
     - name: Assembly
       run: sbt -v -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
     - uses: actions/setup-python@v2
