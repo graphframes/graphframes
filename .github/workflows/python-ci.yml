@@ -41,5 +41,5 @@ jobs:
         pip install pyspark==${{ matrix.spark-version }}
     - name: Test
       run: |
-        export SPARK_HOME=$(python -c "import os, pyspark; print(os.path.dirname(pyspark.__file__))")
+        export SPARK_HOME=$(python -c "import os; print(os.path.join(os.path.dirname(os.__file__), 'site-packages', 'pyspark'))")
         ./python/run-tests.sh
