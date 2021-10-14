@@ -1,9 +1,17 @@
 name: Scala CI
-on:
-  pull_request:
-  push:
+on: [push, pull_request]
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spark-version: 3.1.2
+            scala-version: 2.12.15
+          - spark-version: 3.0.3
+            scala-version: 2.12.15
+          - spark-version: 2.4.8
+            scala-version: 2.11.12
     runs-on: ubuntu-20.04
     env:
       # define Java options for both official sbt and sbt-extras
@@ -15,4 +23,4 @@ jobs:
       with:
         java-version: "zulu@1.8"
     - name: Build and Test
-      run: sbt -v test
+      run: sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} test
