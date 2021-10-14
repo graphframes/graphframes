@@ -26,6 +26,6 @@ jobs:
       with:
         path: |
           ~/.ivy2/cache
-        key: sbt-ivy-cache-spark-${{ matrix-version}}-scala-${{ matrix.scala-version }}
+        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
     - name: Build and Test
       run: sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} test

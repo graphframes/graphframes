@@ -23,7 +23,7 @@ jobs:
       with:
         path: |
           ~/.ivy2/cache
-        key: sbt-ivy-cache-spark-${{ matrix-version}}-scala-${{ matrix.scala-version }}
+        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
     - name: Assembly
       run: sbt -v -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
     - uses: actions/setup-python@v2
@@ -36,4 +36,5 @@ jobs:
         pip install pyspark==${{ matrix.spark-version }}
     - name: Test
       run: |
+        export SPARK_HOME=$(python -c "import os, pyspark; print(os.path.dirname(pyspark.__file__))")
         ./python/run-tests.sh
