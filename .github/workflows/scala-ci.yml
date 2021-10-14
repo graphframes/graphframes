@@ -1,0 +1,19 @@
+name: Scala CI
+on:
+  pull_request:
+  push:
+jobs:
+  test:
+    strategy:
+      matrix:
+        include:
+          - SCALA_VERSION: 2.12.15
+            SPARK_VERSION: 3.2.0
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - uses: olafurpg/setup-scala@v11
+      with:
+        java-version: "adopt@1.8"
+    - name: Build and Test
+      run: sbt -v ++$SCALA_VERSION -Dspark.version=$SPARK_VERSION +test
