@@ -6,6 +6,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - spark-version: 3.2.0
+            scala-version: 2.12.12
           - spark-version: 3.1.2
             scala-version: 2.12.12
             python-version: 3.8
@@ -41,7 +43,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip wheel
         pip install -r ./python/requirements.txt
-        pip install pyspark==${{ matrix.spark-version }}
+        # https://github.com/pypa/pypi-support/issues/1374
+        if [ "${{ matrix.spark-version }}" == "3.2.0" ]; then
+          pip install https://downloads.apache.org/spark/spark-3.2.0/pyspark-3.2.0.tar.gz
+        else
+          pip install pyspark==${{ matrix.spark-version }}
+        fi
     - name: Test
       run: |
         export SPARK_HOME=$(python -c "import os; print(os.path.join(os.path.dirname(os.__file__), 'site-packages', 'pyspark'))")
