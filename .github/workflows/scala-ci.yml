@@ -1,0 +1,32 @@
+name: Scala CI
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spark-version: 3.1.2
+            scala-version: 2.12.12
+          - spark-version: 3.0.3
+            scala-version: 2.12.12
+          - spark-version: 2.4.8
+            scala-version: 2.11.12
+    runs-on: ubuntu-20.04
+    env:
+      # define Java options for both official sbt and sbt-extras
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+    steps:
+    - uses: actions/checkout@v2
+    - uses: olafurpg/setup-scala@v11
+      with:
+        java-version: "zulu@1.8"
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.ivy2/cache
+        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
+    - name: Build and Test
+      run: sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} coverage test coverageReport
+    - uses: codecov/codecov-action@v2

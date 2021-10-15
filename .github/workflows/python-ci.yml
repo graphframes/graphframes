@@ -1,0 +1,48 @@
+name: Python CI
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spark-version: 3.1.2
+            scala-version: 2.12.12
+            python-version: 3.8
+          - spark-version: 3.0.3
+            scala-version: 2.12.12
+            python-version: 3.8
+          - spark-version: 2.4.8
+            scala-version: 2.11.12
+            python-version: 3.7
+    runs-on: ubuntu-20.04
+    env:
+      # define Java options for both official sbt and sbt-extras
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      SPARK_VERSION: ${{ matrix.spark-version }}
+      SCALA_VERSION: ${{ matrix.scala-version }}
+    steps:
+    - uses: actions/checkout@v2
+    - uses: olafurpg/setup-scala@v11
+      with:
+        java-version: "zulu@1.8"
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.ivy2/cache
+        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
+    - name: Assembly
+      run: sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
+    - uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install Python depencencies
+      run: |
+        python -m pip install --upgrade pip wheel
+        pip install -r ./python/requirements.txt
+        pip install pyspark==${{ matrix.spark-version }}
+    - name: Test
+      run: |
+        export SPARK_HOME=$(python -c "import os; print(os.path.join(os.path.dirname(os.__file__), 'site-packages', 'pyspark'))")
+        ./python/run-tests.sh
