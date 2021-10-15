@@ -51,5 +51,5 @@ jobs:
         fi
     - name: Test
       run: |
-        export SPARK_HOME=$(python -c "import os; print(os.path.join(os.path.dirname(os.__file__), 'site-packages', 'pyspark'))")
+        export SPARK_HOME=$(python -c "import os; from importlib.util import find_spec; print(os.path.join(os.path.dirname(find_spec('pyspark').origin)))")
         ./python/run-tests.sh
