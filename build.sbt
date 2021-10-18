@@ -87,3 +87,5 @@ releaseProcess := Seq[ReleaseStep](
   setNextVersion,
   commitNextVersion
 )
+
+credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
