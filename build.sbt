@@ -5,9 +5,10 @@ import ReleaseTransformations._
 
 resolvers += "Spark snapshot repository" at "https://repository.apache.org/snapshots/"
 
-val sparkVer = sys.props.getOrElse("spark.version", "3.2.0")
+val sparkVer = sys.props.getOrElse("spark.version", "3.3.0")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
+  case "3.3" => "2.12.15"
   case "3.2" => "2.12.15"
   case "3.1" => "2.12.15"
   case "3.0" => "2.12.15"

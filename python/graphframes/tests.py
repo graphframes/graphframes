@@ -67,9 +67,17 @@ class GraphFrameTestUtils(object):
         return version_info
 
     @classmethod
-    def register(cls, sc):
-        cls.sc = sc
+    def createSparkContext(cls):
+        cls.sc = sc = SparkContext('local[4]', "GraphFramesTests")
+        cls.checkpointDir = tempfile.mkdtemp()
+        cls.sc.setCheckpointDir(cls.checkpointDir)
         cls.spark_version = cls.parse_spark_version(sc.version)
+
+    @classmethod
+    def stopSparkContext(cls):
+        cls.sc.stop()
+        cls.sc = None
+        shutil.rmtree(cls.checkpointDir)
 
     @classmethod
     def spark_at_least_of_version(cls, version_str):
@@ -84,25 +92,24 @@ class GraphFrameTestUtils(object):
         # All major.minor.maintenance equal
         return True
 
+def setUpModule():
+    GraphFrameTestUtils.createSparkContext()
+
+def tearDownModule():
+    GraphFrameTestUtils.stopSparkContext()
+
 
 class GraphFrameTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.sc = SparkContext('local[4]', cls.__name__)
-        cls.checkpointDir = tempfile.mkdtemp()
-        cls.sc.setCheckpointDir(cls.checkpointDir)
-        cls.sql = SQLContext(cls.sc)
+        cls.sql = SQLContext(GraphFrameTestUtils.sc)
         # Small tests run much faster with spark.sql.shuffle.partitions=4
         cls.sql.setConf("spark.sql.shuffle.partitions", "4")
-        GraphFrameTestUtils.register(cls.sc)
 
     @classmethod
     def tearDownClass(cls):
-        cls.sc.stop()
-        cls.sc = None
         cls.sql = None
-        shutil.rmtree(cls.checkpointDir)
 
 
 class GraphFrameTest(GraphFrameTestCase):
