@@ -27,18 +27,17 @@ __all__ = ['Graphs']
 class Graphs(object):
     """Example GraphFrames for testing the API
 
-    :param sqlContext: SQLContext
+    :param spark: SparkSession
     """
 
-    def __init__(self, sqlContext):
-        self._sql = sqlContext
-        self._sc = sqlContext._sc
+    def __init__(self, spark):
+        self._spark = spark
+        self._sc = spark._sc
 
     def friends(self):
         """A GraphFrame of friends in a (fake) social network."""
-        sqlContext = self._sql
         # Vertex DataFrame
-        v = sqlContext.createDataFrame([
+        v = self._spark.createDataFrame([
             ("a", "Alice", 34),
             ("b", "Bob", 36),
             ("c", "Charlie", 30),
@@ -47,7 +46,7 @@ class Graphs(object):
             ("f", "Fanny", 36)
         ], ["id", "name", "age"])
         # Edge DataFrame
-        e = sqlContext.createDataFrame([
+        e = self._spark.createDataFrame([
             ("a", "b", "friend"),
             ("b", "c", "follow"),
             ("c", "b", "follow"),
@@ -92,7 +91,7 @@ class Graphs(object):
                 .format(n))
 
         # create coodinates grid
-        coordinates = self._sql.createDataFrame(
+        coordinates = self._spark.createDataFrame(
             itertools.product(range(n), range(n)),
             schema=('i', 'j'))
 

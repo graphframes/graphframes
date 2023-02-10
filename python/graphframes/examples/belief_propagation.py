@@ -17,14 +17,12 @@
 
 import math
 
-from pyspark import SparkConf, SparkContext
-from pyspark.sql import SQLContext, functions as sqlfunctions, types
-
+# Import subpackage examples here explicitly so that
+# this module can be run directly with spark-submit.
+import graphframes.examples
 from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
-# Import subpackage examples here explicitly so that this module can be
-# run directly with spark-submit.
-import graphframes.examples
+from pyspark.sql import SparkSession, functions as sqlfunctions, types
 
 __all__ = ['BeliefPropagation']
 
@@ -151,13 +149,11 @@ class BeliefPropagation(object):
 
 def main():
     """Run the belief propagation algorithm for an example problem."""
-    # setup context
-    conf = SparkConf().setAppName("BeliefPropagation example")
-    sc = SparkContext.getOrCreate(conf)
-    sql = SQLContext.getOrCreate(sc)
+    # setup spark session
+    spark = SparkSession.builder.appName("BeliefPropagation example").getOrCreate()
 
     # create graphical model g of size 3 x 3
-    g = graphframes.examples.Graphs(sql).gridIsingModel(3)
+    g = graphframes.examples.Graphs(spark).gridIsingModel(3)
     print("Original Ising model:")
     g.vertices.show()
     g.edges.show()
@@ -171,7 +167,8 @@ def main():
     print("Done with BP. Final beliefs after {} iterations:".format(numIter))
     beliefs.show()
 
-    sc.stop()
+    spark.stop()
+
 
 if __name__ == '__main__':
     main()

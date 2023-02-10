@@ -16,7 +16,7 @@
 #
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, functions as sqlfunctions
+from pyspark.sql import DataFrame, functions as sqlfunctions, SparkSession
 
 
 def _java_api(jsc):
@@ -77,7 +77,7 @@ class AggregateMessages(object):
         WARNING: This is NOT the same as `DataFrame.cache()`.
                  The original DataFrame will NOT be cached.
         """
-        sqlContext = df.sql_ctx
-        jvm_gf_api = _java_api(sqlContext._sc)
+        spark = SparkSession.getActiveSession()
+        jvm_gf_api = _java_api(spark._sc)
         jdf = jvm_gf_api.aggregateMessages().getCachedDataFrame(df._jdf)
-        return DataFrame(jdf, sqlContext)
+        return DataFrame(jdf, spark)
