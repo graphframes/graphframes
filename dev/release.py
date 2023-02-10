@@ -39,7 +39,7 @@ def verify(prompt, interactive):
 @click.option("--publish-docs", type=bool, default=PUBLISH_DOCS_DEFAULT, show_default=True,
               help="Publish docs to github-pages.")
 @click.option("--spark-version", multiple=True, show_default=True,
-              default=["2.4.8", "3.0.3", "3.1.3", "3.2.2", "3.3.0"])
+              default=["3.0.3", "3.1.3", "3.2.2", "3.3.0"])
 def main(release_version, next_version, publish_to, no_prompt, git_remote, publish_docs,
          spark_version):
     interactive = not no_prompt
