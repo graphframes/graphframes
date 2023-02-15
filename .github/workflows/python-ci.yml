@@ -16,7 +16,7 @@ jobs:
           - spark-version: 3.0.3
             scala-version: 2.12.12
             python-version: 3.8
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       # define Java options for both official sbt and sbt-extras
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8

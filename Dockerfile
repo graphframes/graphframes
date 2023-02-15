@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ARG PYTHON_VERSION=3.8
 ARG DEBIAN_FRONTEND=noninteractive
