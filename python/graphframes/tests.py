@@ -30,7 +30,7 @@ else:
     import unittest
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, functions as sqlfunctions, SQLContext
+from pyspark.sql import functions as sqlfunctions, SparkSession
 
 from .graphframe import GraphFrame, Pregel, _java_api, _from_java_gf
 from .lib import AggregateMessages as AM
@@ -103,13 +103,12 @@ class GraphFrameTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.sql = SQLContext(GraphFrameTestUtils.sc)
-        # Small tests run much faster with spark.sql.shuffle.partitions=4
-        cls.sql.setConf("spark.sql.shuffle.partitions", "4")
+        # Small tests run much faster with spark.sql.shuffle.partitions = 4
+        cls.spark = SparkSession(GraphFrameTestUtils.sc).builder.config('spark.sql.shuffle.partitions', 4).getOrCreate()
 
     @classmethod
     def tearDownClass(cls):
-        cls.sql = None
+        cls.spark = None
 
 
 class GraphFrameTest(GraphFrameTestCase):
@@ -117,8 +116,8 @@ class GraphFrameTest(GraphFrameTestCase):
         super(GraphFrameTest, self).setUp()
         localVertices = [(1, "A"), (2, "B"), (3, "C")]
         localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
-        v = self.sql.createDataFrame(localVertices, ["id", "name"])
-        e = self.sql.createDataFrame(localEdges, ["src", "dst", "action"])
+        v = self.spark.createDataFrame(localVertices, ["id", "name"])
+        e = self.spark.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
 
     def test_spark_version_check(self):
@@ -141,9 +140,9 @@ class GraphFrameTest(GraphFrameTestCase):
                             g.triplets.sort("src.id").select("src", "dst", "edge").take(1)))
         assert tripletsFirst == [("A", "B", "love")], tripletsFirst
         # Try with invalid vertices and edges DataFrames
-        v_invalid = self.sql.createDataFrame(
+        v_invalid = self.spark.createDataFrame(
             [(1, "A"), (2, "B"), (3, "C")], ["invalid_colname_1", "invalid_colname_2"])
-        e_invalid = self.sql.createDataFrame(
+        e_invalid = self.spark.createDataFrame(
             [(1, 2), (2, 3), (3, 1)], ["invalid_colname_3", "invalid_colname_4"])
         with self.assertRaises(ValueError):
             GraphFrame(v_invalid, e_invalid)
@@ -225,7 +224,7 @@ class PregelTest(GraphFrameTestCase):
 
     def test_page_rank(self):
         from pyspark.sql.functions import coalesce, col, lit, sum, when
-        edges = self.sql.createDataFrame([[0, 1],
+        edges = self.spark.createDataFrame([[0, 1],
                                           [1, 2],
                                           [2, 4],
                                           [2, 0],
@@ -233,7 +232,7 @@ class PregelTest(GraphFrameTestCase):
                                           [4, 0],
                                           [4, 2]], ["src", "dst"])
         edges.cache()
-        vertices = self.sql.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
+        vertices = self.spark.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
         numVertices = vertices.count()
         vertices = GraphFrame(vertices, edges).outDegrees
         vertices.cache()
@@ -257,8 +256,7 @@ class PregelTest(GraphFrameTestCase):
 class GraphFrameLibTest(GraphFrameTestCase):
     def setUp(self):
         super(GraphFrameLibTest, self).setUp()
-        self.sqlContext = self.sql
-        self.japi = _java_api(self.sqlContext._sc)
+        self.japi = _java_api(self.spark._sc)
 
     def _hasCols(self, graph, vcols = [], ecols = []):
         map(lambda c: self.assertIn(c, graph.vertices.columns), vcols)
@@ -272,12 +270,12 @@ class GraphFrameLibTest(GraphFrameTestCase):
         Convenience to call one of the example graphs, passing the arguments and wrapping the result back
         as a python object.
         :param name: the name of the example graph
-        :param args: all the required arguments, without the initial sql context
+        :param args: all the required arguments, without the initial spark session
         :return:
         """
         examples = self.japi.examples()
         jgraph = getattr(examples, name)(*args)
-        return _from_java_gf(jgraph, self.sqlContext)
+        return _from_java_gf(jgraph, self.spark)
 
     def test_aggregate_messages(self):
         g = self._graph("friends")
@@ -324,17 +322,17 @@ class GraphFrameLibTest(GraphFrameTestCase):
                 sendToDst=object())
 
     def test_connected_components(self):
-        v = self.sqlContext.createDataFrame([
+        v = self.spark.createDataFrame([
         (0, "a", "b")], ["id", "vattr", "gender"])
-        e = self.sqlContext.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
+        e = self.spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
         self._df_hasCols(comps, vcols=['id', 'component', 'vattr', 'gender'])
         self.assertEqual(comps.count(), 1)
 
     def test_connected_components2(self):
-        v = self.sqlContext.createDataFrame([(0, "a0", "b0"), (1, "a1", "b1")], ["id", "A", "B"])
-        e = self.sqlContext.createDataFrame([(0, 1, "a01", "b01")], ["src", "dst", "A", "B"])
+        v = self.spark.createDataFrame([(0, "a0", "b0"), (1, "a1", "b1")], ["id", "A", "B"])
+        e = self.spark.createDataFrame([(0, 1, "a01", "b01")], ["src", "dst", "A", "B"])
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
         self._df_hasCols(comps, vcols=['id', 'component', 'A', 'B'])
@@ -383,8 +381,8 @@ class GraphFrameLibTest(GraphFrameTestCase):
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
         all_edges = [z for (a, b) in edges for z in [(a, b), (b, a)]]
-        edges = self.sqlContext.createDataFrame(all_edges, ["src", "dst"])
-        vertices = self.sqlContext.createDataFrame([(i,) for i in range(1, 7)], ["id"])
+        edges = self.spark.createDataFrame(all_edges, ["src", "dst"])
+        vertices = self.spark.createDataFrame([(i,) for i in range(1, 7)], ["id"])
         g = GraphFrame(vertices, edges)
         landmarks = [1, 4]
         v2 = g.shortestPaths(landmarks)
@@ -397,16 +395,16 @@ class GraphFrameLibTest(GraphFrameTestCase):
 
     def test_strongly_connected_components(self):
         # Simple island test
-        vertices = self.sqlContext.createDataFrame([(i,) for i in range(1, 6)], ["id"])
-        edges = self.sqlContext.createDataFrame([(7, 8)], ["src", "dst"])
+        vertices = self.spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
+        edges = self.spark.createDataFrame([(7, 8)], ["src", "dst"])
         g = GraphFrame(vertices, edges)
         c = g.stronglyConnectedComponents(5)
         for row in c.collect():
             self.assertEqual(row.id, row.component)
 
     def test_triangle_counts(self):
-        edges = self.sqlContext.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
-        vertices = self.sqlContext.createDataFrame([(0,), (1,), (2,)], ["id"])
+        edges = self.spark.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
+        vertices = self.spark.createDataFrame([(0,), (1,), (2,)], ["id"])
         g = GraphFrame(vertices, edges)
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
@@ -416,12 +414,11 @@ class GraphFrameLibTest(GraphFrameTestCase):
 class GraphFrameExamplesTest(GraphFrameTestCase):
     def setUp(self):
         super(GraphFrameExamplesTest, self).setUp()
-        self.sqlContext = self.sql
-        self.japi = _java_api(self.sqlContext._sc)
+        self.japi = _java_api(self.spark._sc)
 
     def test_belief_propagation(self):
         # create graphical model g of size 3 x 3
-        g = Graphs(self.sqlContext).gridIsingModel(3)
+        g = Graphs(self.spark).gridIsingModel(3)
         # run BP for 5 iterations
         numIter = 5
         results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
@@ -434,14 +431,14 @@ class GraphFrameExamplesTest(GraphFrameTestCase):
 
     def test_graph_friends(self):
         # construct graph
-        g = Graphs(self.sqlContext).friends()
+        g = Graphs(self.spark).friends()
         # check that a GraphFrame instance was returned
         self.assertIsInstance(g, GraphFrame)
 
     def test_graph_grid_ising_model(self):
         # construct graph
         n = 3
-        g = Graphs(self.sqlContext).gridIsingModel(n)
+        g = Graphs(self.spark).gridIsingModel(n)
         # check that all the vertices exist
         ids = [v['id'] for v in g.vertices.collect()]
         for i in range(n):

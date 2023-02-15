@@ -19,9 +19,9 @@ import sys
 if sys.version > '3':
     basestring = str
 
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col
-from pyspark.ml.wrapper import JavaWrapper, _jvm
+from pyspark.ml.wrapper import JavaWrapper
 
 
 class Pregel(JavaWrapper):
@@ -169,7 +169,7 @@ class Pregel(JavaWrapper):
 
         :return: the result vertex DataFrame from the final iteration including both original and additional columns.
         """
-        return DataFrame(self._java_obj.run(), self.graph.vertices.sql_ctx)
+        return DataFrame(self._java_obj.run(), SparkSession.getActiveSession())
 
     @staticmethod
     def msg():

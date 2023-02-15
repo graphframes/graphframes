@@ -20,20 +20,20 @@ if sys.version > '3':
     basestring = str
 
 from pyspark import SparkContext
-from pyspark.sql import Column, DataFrame, SQLContext
+from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.storagelevel import StorageLevel
 
 from graphframes.lib import Pregel
 
 
-def _from_java_gf(jgf, sqlContext):
+def _from_java_gf(jgf, spark):
     """
     (internal) creates a python GraphFrame wrapper from a java GraphFrame.
 
     :param jgf:
     """
-    pv = DataFrame(jgf.vertices(), sqlContext)
-    pe = DataFrame(jgf.edges(), sqlContext)
+    pv = DataFrame(jgf.vertices(), spark)
+    pe = DataFrame(jgf.edges(), spark)
     return GraphFrame(pv, pe)
 
 def _java_api(jsc):
@@ -55,16 +55,16 @@ class GraphFrame(object):
 
     >>> localVertices = [(1,"A"), (2,"B"), (3, "C")]
     >>> localEdges = [(1,2,"love"), (2,1,"hate"), (2,3,"follow")]
-    >>> v = sqlContext.createDataFrame(localVertices, ["id", "name"])
-    >>> e = sqlContext.createDataFrame(localEdges, ["src", "dst", "action"])
+    >>> v = spark.createDataFrame(localVertices, ["id", "name"])
+    >>> e = spark.createDataFrame(localEdges, ["src", "dst", "action"])
     >>> g = GraphFrame(v, e)
     """
 
     def __init__(self, v, e):
         self._vertices = v
         self._edges = e
-        self._sqlContext = v.sql_ctx
-        self._sc = self._sqlContext._sc
+        self._spark = SparkSession.getActiveSession()
+        self._sc = self._spark._sc
         self._jvm_gf_api = _java_api(self._sc)
 
         self.ID = self._jvm_gf_api.ID()
@@ -142,7 +142,7 @@ class GraphFrame(object):
         :return:  DataFrame with new vertices column "outDegree"
         """
         jdf = self._jvm_graph.outDegrees()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     @property
     def inDegrees(self):
@@ -156,7 +156,7 @@ class GraphFrame(object):
         :return:  DataFrame with new vertices column "inDegree"
         """
         jdf = self._jvm_graph.inDegrees()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     @property
     def degrees(self):
@@ -170,7 +170,7 @@ class GraphFrame(object):
         :return:  DataFrame with new vertices column "degree"
         """
         jdf = self._jvm_graph.degrees()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     @property
     def triplets(self):
@@ -185,7 +185,7 @@ class GraphFrame(object):
         :return:  DataFrame with columns 'src', 'edge', and 'dst'
         """
         jdf = self._jvm_graph.triplets()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     @property
     def pregel(self):
@@ -206,7 +206,7 @@ class GraphFrame(object):
         :return:  DataFrame with one Row for each instance of the motif found
         """
         jdf = self._jvm_graph.find(pattern)
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     def filterVertices(self, condition):
         """
@@ -222,7 +222,7 @@ class GraphFrame(object):
             jdf = self._jvm_graph.filterVertices(condition._jc)
         else:
             raise TypeError("condition should be string or Column")
-        return _from_java_gf(jdf, self._sqlContext)
+        return _from_java_gf(jdf, self._spark)
 
     def filterEdges(self, condition):
         """
@@ -237,7 +237,7 @@ class GraphFrame(object):
             jdf = self._jvm_graph.filterEdges(condition._jc)
         else:
             raise TypeError("condition should be string or Column")
-        return _from_java_gf(jdf, self._sqlContext)
+        return _from_java_gf(jdf, self._spark)
 
     def dropIsolatedVertices(self):
         """
@@ -246,7 +246,7 @@ class GraphFrame(object):
         :return: GraphFrame with filtered vertices. 
         """
         jdf = self._jvm_graph.dropIsolatedVertices()
-        return _from_java_gf(jdf, self._sqlContext)
+        return _from_java_gf(jdf, self._spark)
 
     def bfs(self, fromExpr, toExpr, edgeFilter=None, maxPathLength=10):
         """
@@ -263,7 +263,7 @@ class GraphFrame(object):
         if edgeFilter is not None:
             builder.edgeFilter(edgeFilter)
         jdf = builder.run()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     def aggregateMessages(self, aggCol, sendToSrc=None, sendToDst=None):
         """
@@ -305,7 +305,7 @@ class GraphFrame(object):
             jdf = builder.agg(aggCol._jc)
         else:
             jdf = builder.agg(aggCol)
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     # Standard algorithms
 
@@ -329,7 +329,7 @@ class GraphFrame(object):
             .setCheckpointInterval(checkpointInterval) \
             .setBroadcastThreshold(broadcastThreshold) \
             .run()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     def labelPropagation(self, maxIter):
         """
@@ -341,7 +341,7 @@ class GraphFrame(object):
         :return: DataFrame with new vertices column "label"
         """
         jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     def pageRank(self, resetProbability = 0.15, sourceId = None, maxIter = None,
                  tol = None):
@@ -369,7 +369,7 @@ class GraphFrame(object):
             assert tol is not None, "Exactly one of maxIter or tol should be set."
             builder = builder.tol(tol)
         jgf = builder.run()
-        return _from_java_gf(jgf, self._sqlContext)
+        return _from_java_gf(jgf, self._spark)
 
     def parallelPersonalizedPageRank(self, resetProbability = 0.15, sourceIds = None,
                                      maxIter = None):
@@ -392,7 +392,7 @@ class GraphFrame(object):
         builder = builder.sourceIds(sourceIds)
         builder = builder.maxIter(maxIter)
         jgf = builder.run()
-        return _from_java_gf(jgf, self._sqlContext)
+        return _from_java_gf(jgf, self._spark)
 
     def shortestPaths(self, landmarks):
         """
@@ -404,7 +404,7 @@ class GraphFrame(object):
         :return: DataFrame with new vertices column "distances"
         """
         jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     def stronglyConnectedComponents(self, maxIter):
         """
@@ -416,7 +416,7 @@ class GraphFrame(object):
         :return: DataFrame with new vertex column "component"
         """
         jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
     def svdPlusPlus(self, rank = 10, maxIter = 2, minValue = 0.0, maxValue = 5.0,
                     gamma1 = 0.007, gamma2 = 0.007, gamma6 = 0.005, gamma7 = 0.015):
@@ -433,7 +433,7 @@ class GraphFrame(object):
         builder.gamma1(gamma1).gamma2(gamma2).gamma6(gamma6).gamma7(gamma7)
         jdf = builder.run()
         loss = builder.loss()
-        v = DataFrame(jdf, self._sqlContext)
+        v = DataFrame(jdf, self._spark)
         return (v, loss)
 
     def triangleCount(self):
@@ -445,7 +445,7 @@ class GraphFrame(object):
         :return:  DataFrame with new vertex column "count"
         """
         jdf = self._jvm_graph.triangleCount().run()
-        return DataFrame(jdf, self._sqlContext)
+        return DataFrame(jdf, self._spark)
 
 
 def _test():
@@ -453,7 +453,7 @@ def _test():
     import graphframe
     globs = graphframe.__dict__.copy()
     globs['sc'] = SparkContext('local[4]', 'PythonTest', batchSize=2)
-    globs['sqlContext'] = SQLContext(globs['sc'])
+    globs['spark'] = SparkSession(globs['sc']).builder.getOrCreate()
     (failure_count, test_count) = doctest.testmod(
         globs=globs, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE)
     globs['sc'].stop()

@@ -16,9 +16,6 @@ jobs:
           - spark-version: 3.0.3
             scala-version: 2.12.12
             python-version: 3.8
-          - spark-version: 2.4.8
-            scala-version: 2.11.12
-            python-version: 3.7
     runs-on: ubuntu-20.04
     env:
       # define Java options for both official sbt and sbt-extras
