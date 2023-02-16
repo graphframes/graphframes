@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ARG PYTHON_VERSION=3.8
 ARG DEBIAN_FRONTEND=noninteractive
@@ -9,7 +9,7 @@ RUN apt-get update && \
 
 # Install Spark and update env variables.
 ENV SCALA_VERSION 2.12.15
-ENV SPARK_VERSION "3.3.0"
+ENV SPARK_VERSION "3.3.2"
 ENV SPARK_BUILD "spark-${SPARK_VERSION}-bin-hadoop3.2"
 ENV SPARK_BUILD_URL "https://dist.apache.org/repos/dist/release/spark/spark-${SPARK_VERSION}/${SPARK_BUILD}.tgz"
 RUN wget --quiet "$SPARK_BUILD_URL" -O /tmp/spark.tgz && \
