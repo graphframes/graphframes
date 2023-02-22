@@ -54,7 +54,7 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
    * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
    */
   def landmarks(value: util.ArrayList[Any]): this.type = {
-    landmarks(value.asScala)
+    landmarks(value.asScala.toSeq)
   }
 
   def run(): DataFrame = {
