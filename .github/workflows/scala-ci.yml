@@ -6,6 +6,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - spark-version: 3.4.0
+            scala-version: 2.13.10
+          - spark-version: 3.4.0
+            scala-version: 2.12.12
           - spark-version: 3.3.2
             scala-version: 2.13.10
           - spark-version: 3.3.2
