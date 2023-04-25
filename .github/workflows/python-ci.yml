@@ -7,13 +7,13 @@ jobs:
       matrix:
         include:
           - spark-version: 3.4.0
-            scala-version: 2.12.12
+            scala-version: 2.12.17
             python-version: 3.9
           - spark-version: 3.3.2
-            scala-version: 2.12.12
+            scala-version: 2.12.15
             python-version: 3.9
           - spark-version: 3.2.4
-            scala-version: 2.12.12
+            scala-version: 2.12.15
             python-version: 3.9
     runs-on: ubuntu-22.04
     env:
