@@ -19,7 +19,7 @@ package org.graphframes.examples
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.graphx.{Graph, VertexRDD, Edge => GXEdge}
-import org.apache.spark.sql.{Column, Row, SparkSession, SQLContext}
+import org.apache.spark.sql.{Column, Row, SparkSession}
 import org.apache.spark.sql.functions.{col, lit, sum, udf, when}
 
 import org.graphframes.GraphFrame
@@ -74,10 +74,8 @@ object BeliefPropagation {
       .appName("BeliefPropagation example")
       .getOrCreate()
 
-    val sql = spark.sqlContext
-
     // Create graphical model g of size 3 x 3.
-    val g = gridIsingModel(sql, 3)
+    val g = gridIsingModel(spark, 3)
 
     println("Original Ising model:")
     g.vertices.show()

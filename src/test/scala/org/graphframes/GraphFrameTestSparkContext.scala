@@ -23,12 +23,11 @@ import java.nio.file.Files
 import org.apache.commons.io.FileUtils
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.{SparkSession, SQLContext, SQLImplicits}
+import org.apache.spark.sql.{SparkSession, SQLImplicits}
 
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var spark: SparkSession = _
   @transient var sc: SparkContext = _
-  @transient var sqlContext: SQLContext = _
   @transient var sparkMajorVersion: Int = _
   @transient var sparkMinorVersion: Int = _
 
@@ -65,7 +64,6 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
     spark.sparkContext.setCheckpointDir(checkpointDir)
     sc = spark.sparkContext
-    sqlContext = spark.sqlContext
 
     val (verMajor, verMinor) = TestUtils.majorMinorVersion(sc.version)
     sparkMajorVersion = verMajor
@@ -78,7 +76,6 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
       spark.stop()
     }
     spark = null
-    sqlContext = null
     sc = null
 
     checkpointDir.foreach { dir =>

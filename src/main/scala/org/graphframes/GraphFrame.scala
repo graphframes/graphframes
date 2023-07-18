@@ -507,12 +507,12 @@ class GraphFrame private(
           val (nextDF, nextNames) = findIncremental(this, handledPatterns, dfOpt, names, cur)
           (handledPatterns :+ cur, nextDF, nextNames)
       }
-    finalDFOpt.getOrElse(sqlContext.emptyDataFrame)
+    finalDFOpt.getOrElse(spark.emptyDataFrame)
   }
 
   // ========= Other private methods ===========
 
-  private[graphframes] def sqlContext: SQLContext = vertices.sqlContext
+  private[graphframes] def spark: SparkSession = vertices.sparkSession
 
   /**
    * True if the id type can be cast to Long.
@@ -618,8 +618,8 @@ object GraphFrame extends Serializable with Logging {
       joinCol: String,
       hubs: Set[T],
       logPrefix: String): DataFrame = {
-    val sqlContext = a.sqlContext
-    import sqlContext.implicits._
+    val spark = a.sparkSession
+    import spark.implicits._
     if (hubs.isEmpty) {
       // No skew.  Do regular join.
       a.join(b, joinCol)
@@ -719,9 +719,9 @@ object GraphFrame extends Serializable with Logging {
    */
   // TODO: Add version which takes explicit schemas.
   def fromGraphX[VD : TypeTag, ED : TypeTag](graph: Graph[VD, ED]): GraphFrame = {
-    val sqlContext = SparkSession.builder().getOrCreate().sqlContext
-    val vv = sqlContext.createDataFrame(graph.vertices).toDF(ID, ATTR)
-    val ee = sqlContext.createDataFrame(graph.edges).toDF(SRC, DST, ATTR)
+    val spark = SparkSession.builder().getOrCreate()
+    val vv = spark.createDataFrame(graph.vertices).toDF(ID, ATTR)
+    val ee = spark.createDataFrame(graph.edges).toDF(SRC, DST, ATTR)
     GraphFrame(vv, ee)
   }
 

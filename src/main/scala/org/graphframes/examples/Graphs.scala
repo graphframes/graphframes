@@ -20,7 +20,7 @@ package org.graphframes.examples
 import scala.reflect.runtime.universe.TypeTag
 
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{SparkSession, SQLContext}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, lit, randn, udf}
 
 import org.graphframes.GraphFrame
@@ -29,14 +29,14 @@ import org.graphframes.GraphFrame._
 class Graphs private[graphframes] () {
   // Note: this cannot be values: we are creating and destroying spark contexts during the tests,
   // and turning these into vals means we would hold onto a potentially destroyed spark context.
-  private def sqlContext: SQLContext = SparkSession.builder().getOrCreate().sqlContext
+  private def spark: SparkSession = SparkSession.builder().getOrCreate()
 
   /**
    * Returns an empty GraphFrame of the given ID type.
    */
   def empty[T: TypeTag]: GraphFrame = {
-    val sqlContext = this.sqlContext
-    import sqlContext.implicits._
+    val _spark = spark
+    import _spark.implicits._
     val vertices = Seq.empty[Tuple1[T]].toDF(ID)
     val edges = Seq.empty[(T, T)].toDF(SRC, DST)
     GraphFrame(vertices, edges)
@@ -48,8 +48,8 @@ class Graphs private[graphframes] () {
    */
   def chain(n: Long): GraphFrame = {
     require(n >= 0, s"Chain graph size must be nonnegative but got $n.")
-    val vertices = sqlContext.range(n).toDF(ID)
-    val edges = sqlContext.range(n - 1L).toDF(ID)
+    val vertices = spark.range(n).toDF(ID)
+    val edges = spark.range(n - 1L).toDF(ID)
       .select(col(ID).as(SRC), (col(ID) + 1L).as(DST))
     GraphFrame(vertices, edges)
   }
@@ -60,7 +60,7 @@ class Graphs private[graphframes] () {
   def friends: GraphFrame = {
     // For the same reason as above, this cannot be a value.
     // Vertex DataFrame
-    val v = sqlContext.createDataFrame(List(
+    val v = spark.createDataFrame(List(
       ("a", "Alice", 34),
       ("b", "Bob", 36),
       ("c", "Charlie", 30),
@@ -70,7 +70,7 @@ class Graphs private[graphframes] () {
       ("g", "Gabby", 60)
     )).toDF("id", "name", "age")
     // Edge DataFrame
-    val e = sqlContext.createDataFrame(List(
+    val e = spark.createDataFrame(List(
       ("a", "b", "friend"),
       ("b", "c", "follow"),
       ("c", "b", "follow"),
@@ -97,8 +97,8 @@ class Graphs private[graphframes] () {
       v2 <- n until (2 * n) } yield (v1.toLong, v2.toLong, s"$v1-$v2")
     val edges = edges1 ++ edges2 :+ (0L, n.toLong, s"0-$n")
     val vertices = (0 until (2 * n)).map { v => (v.toLong, s"$v", v) }
-    val e = sqlContext.createDataFrame(edges).toDF("src", "dst", "e_attr1")
-    val v = sqlContext.createDataFrame(vertices).toDF("id", "v_attr1", "v_attr2")
+    val e = spark.createDataFrame(edges).toDF("src", "dst", "e_attr1")
+    val v = spark.createDataFrame(vertices).toDF("id", "v_attr1", "v_attr2")
     GraphFrame(v, e)
   }
 
@@ -109,8 +109,8 @@ class Graphs private[graphframes] () {
    */
   def star(n: Long): GraphFrame = {
     require(n >= 0L)
-    val vertices = sqlContext.range(n + 1L).toDF(ID)
-    val edges = sqlContext.range(1L, n + 1L).toDF(DST).withColumn(SRC, lit(0L))
+    val vertices = spark.range(n + 1L).toDF(ID)
+    val edges = spark.range(1L, n + 1L).toDF(DST).withColumn(SRC, lit(0L))
     GraphFrame(vertices, edges)
   }
 
@@ -121,14 +121,14 @@ class Graphs private[graphframes] () {
    * @return
    */
   def ALSSyntheticData(): GraphFrame = {
-    val sc = sqlContext.sparkContext
+    val sc = spark.sparkContext
     val data = sc.parallelize(als_data).map { line =>
       val fields = line.split(",")
       (fields(0).toLong * 2, fields(1).toLong * 2 + 1, fields(2).toDouble)
     }
-    val edges = sqlContext.createDataFrame(data).toDF("src", "dst", "weight")
+    val edges = spark.createDataFrame(data).toDF("src", "dst", "weight")
     val vs = data.flatMap(r => r._1 :: r._2 :: Nil).collect().distinct.map(x => Tuple1(x))
-    val vertices = sqlContext.createDataFrame(vs).toDF("id")
+    val vertices = spark.createDataFrame(vs).toDF("id")
     GraphFrame(vertices, edges)
   }
 
@@ -179,13 +179,13 @@ class Graphs private[graphframes] () {
    *          Vertex IDs are of the form "i,j".  E.g., vertex "1,3" is in the second row and fourth
    *          column of the grid.
    */
-  def gridIsingModel(sqlContext: SQLContext, n: Int, vStd: Double, eStd: Double): GraphFrame = {
+  def gridIsingModel(spark: SparkSession, n: Int, vStd: Double, eStd: Double): GraphFrame = {
     require(n >= 1, s"Grid graph must have size >= 1, but was given invalid value n = $n")
 
     // To create grid
     // Avoid Cartesian join due to SPARK-15425: use generator since n should be small
     val res = for { x <- Range(0, n); y <- Range(0, n) } yield (x, y)
-    val coordinates = sqlContext.createDataFrame(res).toDF("i", "j")
+    val coordinates = spark.createDataFrame(res).toDF("i", "j")
 
     // Create SQL expression for converting coordinates (i,j) to a string ID "i,j"
     val toIDudf = udf { (i: Int, j: Int) => i.toString + "," + j.toString }
@@ -221,8 +221,8 @@ class Graphs private[graphframes] () {
   }
 
   /** Version of `gridIsingModel` with vStd, eStd set to 1.0. */
-  def gridIsingModel(sqlContext: SQLContext, n: Int): GraphFrame =
-    gridIsingModel(sqlContext, n, 1.0, 1.0)
+  def gridIsingModel(spark: SparkSession, n: Int): GraphFrame =
+    gridIsingModel(spark, n, 1.0, 1.0)
 
 }
 
