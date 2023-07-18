@@ -30,8 +30,8 @@ class GraphsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("chain graph") {
-    val sqlContext = this.sqlContext
-    import sqlContext.implicits._
+    val spark = this.spark
+    import spark.implicits._
 
     val chain0 = Graphs.chain(0L)
     assert(chain0.vertices.count() === 0L)

@@ -169,6 +169,6 @@ object AggregateMessages extends Logging with Serializable {
   def getCachedDataFrame(df: DataFrame): DataFrame = {
     val rdd = df.rdd.cache()
     // rdd.count()
-    df.sqlContext.createDataFrame(rdd, df.schema)
+    df.sparkSession.createDataFrame(rdd, df.schema)
   }
 }

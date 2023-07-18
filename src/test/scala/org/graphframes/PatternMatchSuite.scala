@@ -40,12 +40,12 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    v = sqlContext.createDataFrame(List(
+    v = spark.createDataFrame(List(
       (0L, "a", "f"),
       (1L, "b", "m"),
       (2L, "c", "m"),
       (3L, "d", "f"))).toDF("id", "attr", "gender")
-    e = sqlContext.createDataFrame(List(
+    e = spark.createDataFrame(List(
       (0L, 1L, "friend"),
       (1L, 0L, "follow"),
       (1L, 2L, "friend"),
@@ -218,7 +218,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("self-loop") {
-    val myE = sqlContext.createDataFrame(List(
+    val myE = spark.createDataFrame(List(
       (1L, 1L, "self"),
       (3L, 3L, "self"))).toDF("src", "dst", "relationship")
       .union(e)
@@ -241,7 +241,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("duplicate edges") {
-    val myE = sqlContext.createDataFrame(List(
+    val myE = spark.createDataFrame(List(
       (1L, 0L, "dup"),
       (1L, 2L, "dup"))).toDF("src", "dst", "relationship")
       .union(e)

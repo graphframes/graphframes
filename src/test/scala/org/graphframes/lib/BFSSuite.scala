@@ -44,7 +44,7 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       |          |
       d <- e --> f  Also, self-edge for f
      */
-    v = sqlContext.createDataFrame(List(
+    v = spark.createDataFrame(List(
       ("a", "f"),
       ("b", "f"),
       ("c", "m"),
@@ -52,7 +52,7 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       ("e", "m"),
       ("f", "m")
     )).toDF("id", "gender")
-    e = sqlContext.createDataFrame(List(
+    e = spark.createDataFrame(List(
       ("a", "b", "friend"),
       ("b", "c", "follow"),
       ("c", "b", "follow"),
@@ -64,12 +64,12 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     )).toDF("src", "dst", "relationship")
     g = GraphFrame(v, e)
 
-    v2 = sqlContext.createDataFrame(List(
+    v2 = spark.createDataFrame(List(
       (0L, "f"),
       (1L, "m"),
       (2L, "m"),
       (3L, "f"))).toDF("id", "gender")
-    e2 = sqlContext.createDataFrame(List(
+    e2 = spark.createDataFrame(List(
       (0L, 1L),
       (1L, 2L),
       (2L, 3L),
