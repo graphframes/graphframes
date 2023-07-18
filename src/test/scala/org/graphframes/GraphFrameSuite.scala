@@ -46,8 +46,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   override def beforeAll(): Unit = {
     super.beforeAll()
     tempDir = Files.createTempDir()
-    vertices = sqlContext.createDataFrame(localVertices.toSeq).toDF("id", "name")
-    edges = sqlContext.createDataFrame(localEdges.toSeq.map {
+    vertices = spark.createDataFrame(localVertices.toSeq).toDF("id", "name")
+    edges = spark.createDataFrame(localEdges.toSeq.map {
       case ((src, dst), action) =>
         (src, dst, action)
     }).toDF("src", "dst", "action")
@@ -195,8 +195,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     g0.vertices.write.parquet(vPath)
     g0.edges.write.parquet(ePath)
 
-    val v1 = sqlContext.read.parquet(vPath)
-    val e1 = sqlContext.read.parquet(ePath)
+    val v1 = spark.read.parquet(vPath)
+    val e1 = spark.read.parquet(ePath)
     val g1 = GraphFrame(v1, e1)
 
     g1.vertices.collect().foreach { case Row(id: Long, name: String) =>
@@ -249,8 +249,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("skewed long ID assignments") {
-    val sqlContext = this.sqlContext
-    import sqlContext.implicits._
+    val spark = this.spark
+    import spark.implicits._
     val n = 5
     // union a star graph and a chain graph and cast integral IDs to strings
     val star = Graphs.star(n)

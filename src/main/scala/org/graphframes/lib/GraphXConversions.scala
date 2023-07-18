@@ -53,32 +53,32 @@ private[graphframes] object GraphXConversions {
       graph: Graph[V, E],
       vertexNames: Seq[String] = Nil,
       edgeNames: Seq[String] = Nil): GraphFrame = {
-    val sqlContext = originalGraph.sqlContext
+    val spark = originalGraph.spark
     // catalyst does not like the unit type, make sure to filter it first.
     val vertexDF: DataFrame = if (isUnitType[V]) {
       val vertexData = graph.vertices.map { case (vid, data) => Tuple1(vid) }
-      sqlContext.createDataFrame(vertexData).toDF(LONG_ID)
+      spark.createDataFrame(vertexData).toDF(LONG_ID)
     } else if (isProductType[V]) {
       val vertexData = graph.vertices.map { case (vid, data) => (vid, data) }
-      val vertexDF0 = sqlContext.createDataFrame(vertexData).toDF(LONG_ID, GX_ATTR)
+      val vertexDF0 = spark.createDataFrame(vertexData).toDF(LONG_ID, GX_ATTR)
       renameStructFields(vertexDF0, GX_ATTR, vertexNames)
     } else {
       // Assume it is just one field, and pack it in a tuple to have a structure.
       val vertexData = graph.vertices.map { case (vid, data) =>  (vid, Tuple1(data)) }
-      val vertexDF0 = sqlContext.createDataFrame(vertexData).toDF(LONG_ID, GX_ATTR)
+      val vertexDF0 = spark.createDataFrame(vertexData).toDF(LONG_ID, GX_ATTR)
       renameStructFields(vertexDF0, GX_ATTR, vertexNames)
     }
 
     val edgeDF: DataFrame = if (isUnitType[E]) {
       val edgeData = graph.edges.map { e => (e.srcId, e.dstId) }
-      sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST)
+      spark.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST)
     } else if (isProductType[E]) {
       val edgeData = graph.edges.map { e => (e.srcId, e.dstId, e.attr) }
-      val edgeDF0 = sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST, GX_ATTR)
+      val edgeDF0 = spark.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST, GX_ATTR)
       renameStructFields(edgeDF0, GX_ATTR, edgeNames)
     } else {
       val edgeData = graph.edges.map { e => (e.srcId, e.dstId, Tuple1(e.attr)) }
-      val edgeDF0 = sqlContext.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST, GX_ATTR)
+      val edgeDF0 = spark.createDataFrame(edgeData).toDF(LONG_SRC, LONG_DST, GX_ATTR)
       renameStructFields(edgeDF0, GX_ATTR, edgeNames)
     }
     fromGraphX(originalGraph, vertexDF, edgeDF)

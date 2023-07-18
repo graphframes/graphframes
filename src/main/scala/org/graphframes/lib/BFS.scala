@@ -138,8 +138,8 @@ private object BFS extends Logging with Serializable {
     val toDF = g.vertices.filter(to)
     if (fromDF.take(1).isEmpty || toDF.take(1).isEmpty) {
       // Return empty DataFrame
-      return g.sqlContext.createDataFrame(
-        g.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
+      return g.spark.createDataFrame(
+        g.spark.sparkContext.parallelize(Seq.empty[Row]),
         g.vertices.schema)
     }
 
@@ -222,8 +222,8 @@ private object BFS extends Logging with Serializable {
     } else {
       logInfo(s"GraphFrame.bfs failed to find a path of length <= $maxPathLength.")
       // Return empty DataFrame
-      g.sqlContext.createDataFrame(
-        g.sqlContext.sparkContext.parallelize(Seq.empty[Row]),
+      g.spark.createDataFrame(
+        g.spark.sparkContext.parallelize(Seq.empty[Row]),
         g.vertices.schema)
     }
   }

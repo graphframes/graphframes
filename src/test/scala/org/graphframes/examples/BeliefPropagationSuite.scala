@@ -31,7 +31,7 @@ class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkConte
     val numIter = 5 // iterations of BP
 
     // Create graphical model g.
-    val g = gridIsingModel(sqlContext, n)
+    val g = gridIsingModel(spark, n)
 
     // Run BP using GraphX
     val gxResults = runBPwithGraphX(g, numIter)

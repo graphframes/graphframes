@@ -78,7 +78,6 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
       spark.stop()
     }
     spark = null
-    sqlContext = null
     sc = null
 
     checkpointDir.foreach { dir =>

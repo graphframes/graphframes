@@ -247,7 +247,7 @@ object ConnectedComponents extends Logging {
       minNbrs: DataFrame,
       broadcastThreshold: Int,
       logPrefix: String): DataFrame = {
-    import edges.sqlContext.implicits._
+    import edges.sparkSession.implicits._
     val hubs = minNbrs.filter(col(CNT) > broadcastThreshold)
       .select(SRC)
       .as[Long]
@@ -285,8 +285,8 @@ object ConnectedComponents extends Logging {
     val logPrefix = s"[CC $runId]"
     logInfo(s"$logPrefix Start connected components with run ID $runId.")
 
-    val sqlContext = graph.sqlContext
-    val sc = sqlContext.sparkContext
+    val spark = graph.spark
+    val sc = spark.sparkContext
 
     val shouldCheckpoint = checkpointInterval > 0
     val checkpointDir: Option[String] = if (shouldCheckpoint) {
@@ -343,7 +343,7 @@ object ConnectedComponents extends Logging {
         val out = s"${checkpointDir.get}/$iteration"
         ee.write.parquet(out)
         // may hit S3 eventually consistent issue
-        ee = sqlContext.read.parquet(out)
+        ee = spark.read.parquet(out)
 
         // remove previous checkpoint
         if (iteration > checkpointInterval) {

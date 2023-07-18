@@ -28,7 +28,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val edgeSeq = Seq((1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)).flatMap {
       case e => Seq(e, e.swap)
     } .map { case (src, dst) => (src.toLong, dst.toLong) }
-    val edges = sqlContext.createDataFrame(edgeSeq).toDF("src", "dst")
+    val edges = spark.createDataFrame(edgeSeq).toDF("src", "dst")
     val graph = GraphFrame.fromEdges(edges)
 
     // Ground truth

@@ -61,13 +61,13 @@ The following example shows how to create a GraphFrame, query it, and run the Pa
 // import graphframes package
 import org.graphframes._
 // Create a Vertex DataFrame with unique ID column "id"
-val v = sqlContext.createDataFrame(List(
+val v = spark.createDataFrame(List(
   ("a", "Alice", 34),
   ("b", "Bob", 36),
   ("c", "Charlie", 30)
 )).toDF("id", "name", "age")
 // Create an Edge DataFrame with "src" and "dst" columns
-val e = sqlContext.createDataFrame(List(
+val e = spark.createDataFrame(List(
   ("a", "b", "friend"),
   ("b", "c", "follow"),
   ("c", "b", "follow")
@@ -91,13 +91,13 @@ results.vertices.select("id", "pagerank").show()
 <div data-lang="python"  markdown="1">
 {% highlight python %}
 # Create a Vertex DataFrame with unique ID column "id"
-v = sqlContext.createDataFrame([
+v = spark.createDataFrame([
   ("a", "Alice", 34),
   ("b", "Bob", 36),
   ("c", "Charlie", 30),
 ], ["id", "name", "age"])
 # Create an Edge DataFrame with "src" and "dst" columns
-e = sqlContext.createDataFrame([
+e = spark.createDataFrame([
   ("a", "b", "friend"),
   ("b", "c", "follow"),
   ("c", "b", "follow"),
