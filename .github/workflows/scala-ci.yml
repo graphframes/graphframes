@@ -10,9 +10,9 @@ jobs:
             scala-version: 2.13.8
           - spark-version: 3.4.1
             scala-version: 2.12.12
-          - spark-version: 3.3.2
+          - spark-version: 3.3.3
             scala-version: 2.13.8
-          - spark-version: 3.3.2
+          - spark-version: 3.3.3
             scala-version: 2.12.12
           - spark-version: 3.2.4
             scala-version: 2.12.12
