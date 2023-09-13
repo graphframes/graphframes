@@ -6,6 +6,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - spark-version: 3.5.0
+            scala-version: 2.12.18
+            python-version: 3.9
           - spark-version: 3.4.1
             scala-version: 2.12.17
             python-version: 3.9

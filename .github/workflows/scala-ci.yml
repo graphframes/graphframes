@@ -6,6 +6,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - spark-version: 3.5.0
+            scala-version: 2.13.8
+          - spark-version: 3.5.0
+            scala-version: 2.12.18
           - spark-version: 3.4.1
             scala-version: 2.13.8
           - spark-version: 3.4.1
@@ -13,11 +17,11 @@ jobs:
           - spark-version: 3.3.3
             scala-version: 2.13.8
           - spark-version: 3.3.3
-            scala-version: 2.12.12
-          - spark-version: 3.2.4
             scala-version: 2.12.12
           - spark-version: 3.2.4
             scala-version: 2.13.5
+          - spark-version: 3.2.4
+            scala-version: 2.12.12
     runs-on: ubuntu-22.04
     env:
       # define Java options for both official sbt and sbt-extras
