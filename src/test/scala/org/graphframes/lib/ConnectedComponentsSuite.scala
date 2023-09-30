@@ -215,18 +215,31 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("intermediate storage level") {
-    val friends = Graphs.friends
-    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+    // disabling adaptive query execution helps assertComponents
+    val enabled = spark.conf.getOption("spark.sql.adaptive.enabled")
+    try {
+      spark.conf.set("spark.sql.adaptive.enabled", value = false)
 
-    val cc = friends.connectedComponents
-    assert(cc.getIntermediateStorageLevel === StorageLevel.MEMORY_AND_DISK)
+      val friends = Graphs.friends
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
 
-    for (storageLevel <- Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY, StorageLevel.NONE)) {
-      // TODO: it is not trivial to confirm the actual storage level used
-      val components = cc
-        .setIntermediateStorageLevel(storageLevel)
-        .run()
-      assertComponents(components, expected)
+      val cc = friends.connectedComponents
+      assert(cc.getIntermediateStorageLevel === StorageLevel.MEMORY_AND_DISK)
+
+      for (storageLevel <- Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY, StorageLevel.NONE)) {
+        // TODO: it is not trivial to confirm the actual storage level used
+        val components = cc
+          .setIntermediateStorageLevel(storageLevel)
+          .run()
+        assertComponents(components, expected)
+      }
+    } finally {
+      // restoring earlier conf
+      if (enabled.isDefined) {
+        spark.conf.set("spark.sql.adaptive.enabled", value = enabled.get)
+      } else {
+        spark.conf.unset("spark.sql.adaptive.enabled")
+      }
     }
   }
 
