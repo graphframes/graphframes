@@ -163,11 +163,11 @@ object ConnectedComponents extends Logging {
 
   import org.graphframes.GraphFrame._
 
-  private val COMPONENT = "component"
   private val ORIG_ID = "orig_id"
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
+  val COMPONENT = "component"
 
   private val ALGO_GRAPHX = "graphx"
   private val ALGO_GRAPHFRAMES = "graphframes"
