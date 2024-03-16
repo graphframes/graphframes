@@ -339,7 +339,7 @@ class GraphFrame(object):
         :return: DataFrame with new vertices column "community"
         """
         graph = _from_java_gf(self._jvm_graph, self._spark)
-        communities = louvain(graph).run()
+        communities = Louvain(graph).run()
         return communities
         
     def labelPropagation(self, maxIter):
