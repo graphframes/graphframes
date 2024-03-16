@@ -24,6 +24,7 @@ from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.storagelevel import StorageLevel
 
 from graphframes.lib import Pregel
+from graphframes.lib import Louvain
 
 
 def _from_java_gf(jgf, spark):
@@ -331,6 +332,16 @@ class GraphFrame(object):
             .run()
         return DataFrame(jdf, self._spark)
 
+    def louvain(self):
+        """
+        Runs the Louvain algorithm for detecting communities in networks.
+
+        :return: DataFrame with new vertices column "community"
+        """
+        graph = _from_java_gf(self._jvm_graph, self._spark)
+        communities = louvain(graph).run()
+        return communities
+        
     def labelPropagation(self, maxIter):
         """
         Runs static label propagation for detecting communities in networks.
