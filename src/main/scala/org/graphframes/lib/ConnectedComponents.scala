@@ -317,8 +317,8 @@ object ConnectedComponents extends Logging {
     // compute min neighbors (including self-min)
     var minNbrs1: DataFrame = minNbrs(ee) // src >= min_nbr
       .persist(intermediateStorageLevel)
-    var prevMinNbrs1: DataFrame = null
-    var prevSum: BigDecimal = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
+
+    var prevSum: BigDecimal = minNbrs1.select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*")).rdd
       .map { r =>
         (r.getAs[BigDecimal](0), r.getLong(1))
       }.first()._1
@@ -362,12 +362,14 @@ object ConnectedComponents extends Logging {
 
       ee.persist(intermediateStorageLevel)
 
-      // test convergence
+      minNbrs1 = minNbrs(ee) // src >= min_nbr
+        .persist(intermediateStorageLevel)
 
+      // test convergence
       // Taking the sum in DecimalType to preserve precision.
       // We use 20 digits for long values and Spark SQL will add 10 digits for the sum.
       // It should be able to handle 200 billion edges without overflow.
-      val (currSum, cnt) = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
+      val (currSum, cnt) = minNbrs1.select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*")).rdd
         .map { r =>
           (r.getAs[BigDecimal](0), r.getLong(1))
         }.first()
@@ -386,10 +388,6 @@ object ConnectedComponents extends Logging {
         converged = true
       } else {
         prevSum = currSum
-        prevMinNbrs1 = minNbrs1
-
-        minNbrs1 = minNbrs(ee) // src >= min_nbr
-          .persist(intermediateStorageLevel)
       }
 
       iteration += 1
