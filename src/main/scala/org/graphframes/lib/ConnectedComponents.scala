@@ -313,12 +313,18 @@ object ConnectedComponents extends Logging {
 
     var converged = false
     var iteration = 1
-    var prevSum: BigDecimal = null
+
+    // compute min neighbors (including self-min)
+    var minNbrs1: DataFrame = minNbrs(ee) // src >= min_nbr
+      .persist(intermediateStorageLevel)
+    var prevMinNbrs1: DataFrame = null
+    var prevSum: BigDecimal = ee.select(sum(col(SRC).cast(DecimalType(20, 0))), count("*")).rdd
+      .map { r =>
+        (r.getAs[BigDecimal](0), r.getLong(1))
+      }.first()._1
+
     while (!converged) {
       // large-star step
-      // compute min neighbors (including self-min)
-      val minNbrs1 = minNbrs(ee) // src >= min_nbr
-        .persist(intermediateStorageLevel)
       // connect all strictly larger neighbors to the min neighbor (including self)
       ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
@@ -380,6 +386,10 @@ object ConnectedComponents extends Logging {
         converged = true
       } else {
         prevSum = currSum
+        prevMinNbrs1 = minNbrs1
+
+        minNbrs1 = minNbrs(ee) // src >= min_nbr
+          .persist(intermediateStorageLevel)
       }
 
       iteration += 1
