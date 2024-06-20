@@ -314,14 +314,30 @@ object ConnectedComponents extends Logging {
     var converged = false
     var iteration = 1
 
+    def _calcMinNbrSum(minNbrsDF: DataFrame): BigDecimal = {
+      // Taking the sum in DecimalType to preserve precision.
+      // We use 20 digits for long values and Spark SQL will add 10 digits for the sum.
+      // It should be able to handle 200 billion edges without overflow.
+      val (minNbrSum, cnt) = minNbrsDF.select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*")).rdd
+        .map { r =>
+          (r.getAs[BigDecimal](0), r.getLong(1))
+        }.first()
+      if (cnt != 0L && minNbrSum == null) {
+        throw new ArithmeticException(
+          s"""
+             |The total sum of edge src IDs is used to determine convergence during iterations.
+             |However, the total sum at iteration $iteration exceeded 30 digits (1e30),
+             |which should happen only if the graph contains more than 200 billion edges.
+             |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
+            """.stripMargin)
+      }
+      minNbrSum
+    }
     // compute min neighbors (including self-min)
     var minNbrs1: DataFrame = minNbrs(ee) // src >= min_nbr
       .persist(intermediateStorageLevel)
 
-    var prevSum: BigDecimal = minNbrs1.select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*")).rdd
-      .map { r =>
-        (r.getAs[BigDecimal](0), r.getLong(1))
-      }.first()._1
+    var prevSum: BigDecimal = _calcMinNbrSum(minNbrs1)
 
     while (!converged) {
       // large-star step
@@ -366,22 +382,7 @@ object ConnectedComponents extends Logging {
         .persist(intermediateStorageLevel)
 
       // test convergence
-      // Taking the sum in DecimalType to preserve precision.
-      // We use 20 digits for long values and Spark SQL will add 10 digits for the sum.
-      // It should be able to handle 200 billion edges without overflow.
-      val (currSum, cnt) = minNbrs1.select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*")).rdd
-        .map { r =>
-          (r.getAs[BigDecimal](0), r.getLong(1))
-        }.first()
-      if (cnt != 0L && currSum == null) {
-        throw new ArithmeticException(
-          s"""
-             |The total sum of edge src IDs is used to determine convergence during iterations.
-             |However, the total sum at iteration $iteration exceeded 30 digits (1e30),
-             |which should happen only if the graph contains more than 200 billion edges.
-             |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
-            """.stripMargin)
-      }
+      val currSum = _calcMinNbrSum(minNbrs1)
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
         // This also covers the case when cnt = 0 and currSum is null, which means no edges.
