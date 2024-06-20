@@ -8,16 +8,7 @@ jobs:
         include:
           - spark-version: 3.5.0
             scala-version: 2.12.18
-            python-version: 3.9
-          - spark-version: 3.4.1
-            scala-version: 2.12.17
-            python-version: 3.9
-          - spark-version: 3.3.3
-            scala-version: 2.12.15
-            python-version: 3.9
-          - spark-version: 3.2.4
-            scala-version: 2.12.15
-            python-version: 3.9
+            python-version: 3.9.19
     runs-on: ubuntu-22.04
     env:
       # define Java options for both official sbt and sbt-extras
@@ -36,7 +27,7 @@ jobs:
           ~/.ivy2/cache
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
     - name: Assembly
-      run: sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
+      run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
