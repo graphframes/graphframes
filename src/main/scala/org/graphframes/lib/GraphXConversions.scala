@@ -101,7 +101,7 @@ private[graphframes] object GraphXConversions {
     val renamedSubfields = origSubfields.zip(fieldNames).map { case (orig, newName) =>
       orig.as(newName)
     }
-    val otherFields = df.schema.fieldNames.filter(_ != structName).map(col)
+    val otherFields = df.schema.fieldNames.filter(_ != structName).map(quote).map(col)
     if (renamedSubfields.isEmpty) {
       // Do not attempt to add an empty structure.
       df.select(otherFields : _*)
@@ -112,7 +112,7 @@ private[graphframes] object GraphXConversions {
   }
 
   private def drop(df: DataFrame, cols: String*): DataFrame = {
-    val remainingCols = df.schema.map(_.name).filterNot(cols.contains).map(n => df(n))
+    val remainingCols = df.schema.map(_.name).filterNot(cols.contains).map(n => df(quote(n)))
     df.select(remainingCols: _*)
   }
 
@@ -120,8 +120,8 @@ private[graphframes] object GraphXConversions {
   private def unpackStructFields(df: DataFrame): DataFrame = {
     val cols = df.schema.flatMap {
       case StructField(fname, dt: StructType, nullable, meta) =>
-        dt.iterator.map(sub => col(s"$fname.${sub.name}").as(sub.name))
-      case f => Seq(col(f.name))
+        dt.iterator.map(sub => col(quote(fname, sub.name)).as(sub.name))
+      case f => Seq(col(quote(f.name)))
     }
     df.select(cols: _*)
   }
