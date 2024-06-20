@@ -339,18 +339,23 @@ object ConnectedComponents extends Logging {
 
     var prevSum: BigDecimal = _calcMinNbrSum(minNbrs1)
 
+    var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
     while (!converged) {
+      var currRoundPersistedDFs = Seq[DataFrame]()
       // large-star step
       // connect all strictly larger neighbors to the min neighbor (including self)
       ee = skewedJoin(ee, minNbrs1, broadcastThreshold, logPrefix)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
         .distinct()
         .persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ ee
 
       // small-star step
       // compute min neighbors (excluding self-min)
       val minNbrs2 = ee.groupBy(col(SRC)).agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT)) // src > min_nbr
         .persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs2
+
       // connect all smaller neighbors to the min neighbor
       ee = skewedJoin(ee, minNbrs2, broadcastThreshold, logPrefix)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
@@ -377,9 +382,11 @@ object ConnectedComponents extends Logging {
       }
 
       ee.persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ ee
 
       minNbrs1 = minNbrs(ee) // src >= min_nbr
         .persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs1
 
       // test convergence
       val currSum = _calcMinNbrSum(minNbrs1)
@@ -391,6 +398,15 @@ object ConnectedComponents extends Logging {
         prevSum = currSum
       }
 
+      // materialize all persisted DataFrames in current round,
+      // then we can unpersist last round persisted DataFrames.
+      for (persisted_df <- currRoundPersistedDFs) {
+        persisted_df.count()  // materialize it.
+      }
+      for (persisted_df <- lastRoundPersistedDFs) {
+        persisted_df.unpersist()
+      }
+      lastRoundPersistedDFs = currRoundPersistedDFs
       iteration += 1
     }
 
