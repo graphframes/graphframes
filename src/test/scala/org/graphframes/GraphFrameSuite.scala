@@ -291,4 +291,20 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     GraphFrame.setBroadcastThreshold(defaultThreshold)
   }
+
+  test("connection") {
+
+    val sqlContext = this.sqlContext
+    import sqlContext.implicits._
+
+    val g = GraphFrame(vertices, edges)
+
+    assert(g.connection(0) === "")
+    assert(g.connection(1) === "(v1)-[]->(v2)")
+    assert(g.connection(2) === "(v1)-[]->(v2);(v2)-[]->(v3)")
+    assert(g.connection(3) === "(v1)-[]->(v2);(v2)-[]->(v3);(v3)-[]->(v4)")
+    assert(g.connection(4) === "(v1)-[]->(v2);(v2)-[]->(v3);(v3)-[]->(v4);(v4)-[]->(v5)")
+    assert(g.connection(5) === "(v1)-[]->(v2);(v2)-[]->(v3);(v3)-[]->(v4);(v4)-[]->(v5);(v5)-[]->(v6)")
+
+  }
 }
