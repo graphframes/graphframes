@@ -20,6 +20,9 @@ This will also run the Scala unit tests.
 To run the Python unit tests, run the `run-tests.sh` script from the `python/` directory.
 You will need to set `SPARK_HOME` to your local Spark installation directory.
 
+## Release new version
+Please see guide `dev/release_guide.md`.
+
 ## Spark version compatibility
 
 This project is compatible with Spark 2.4+.  However, significant speed improvements have been

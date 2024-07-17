@@ -636,7 +636,14 @@ object GraphFrame extends Serializable with Logging {
     }
   }
 
-  /** Column name for vertex IDs in [[GraphFrame.vertices]] */
+  /**
+   * Column name for vertex IDs in [[GraphFrame.vertices]]
+   * Note that GraphFrame assigns a unique long ID to each vertex,
+   * If the vertex ID type is one of byte / int / long / short type,
+   * GraphFrame casts the original IDs to long as the unique long ID,
+   * otherwise GraphFrame generates the unique long ID by Spark function
+   * ``monotonically_increasing_id`` which is less performant.
+   */
   val ID: String = "id"
 
   /**
