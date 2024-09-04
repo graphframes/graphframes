@@ -45,6 +45,7 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
    * implementation, the algorithm will run for exactly this many iterations.
    */
   def maxIter(value: Int): this.type = {
+    require(value > 0, "maxIter should be > 0")
     maxIter = Some(value)
     this
   }
