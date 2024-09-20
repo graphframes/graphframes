@@ -253,6 +253,17 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  test("not leaking cached data") {
+    val priorCachedDFsSize = spark.sparkContext.getPersistentRDDs.size
+
+    val cc = Graphs.friends.connectedComponents
+    val components = cc.run()
+
+    components.unpersist(blocking = true)
+
+    assert(spark.sparkContext.getPersistentRDDs.size === priorCachedDFsSize)
+  }
+
   private def assertComponents[T: ClassTag: TypeTag](
       actual: DataFrame,
       expected: Set[Set[T]]): Unit = {
