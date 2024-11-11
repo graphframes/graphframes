@@ -413,8 +413,19 @@ object ConnectedComponents extends Logging {
     logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
 
     logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
-    vv.join(ee, vv(ID) === ee(DST), "left_outer")
+    val output = vv.join(ee, vv(ID) === ee(DST), "left_outer")
       .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
-      .select(col(s"$ATTR.*"), col(COMPONENT))
+      .select(col(s"$ATTR.*"), col(COMPONENT)).persist(intermediateStorageLevel)
+
+    // materialize the output DataFrame
+    output.count()
+
+    // clean up persisted DFs
+    for (persisted_df <- lastRoundPersistedDFs) {
+      persisted_df.unpersist()
+    }
+
+    output
+
   }
 }
