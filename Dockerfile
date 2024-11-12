@@ -10,7 +10,7 @@ RUN apt-get update && \
 # Install Spark and update env variables.
 ENV SCALA_VERSION "2.12.20"
 ENV SPARK_VERSION "3.5.3"
-ENV SPARK_BUILD "spark-${SPARK_VERSION}-bin-hadoop3.4"
+ENV SPARK_BUILD "spark-${SPARK_VERSION}-bin-hadoop3"
 ENV SPARK_BUILD_URL "https://dist.apache.org/repos/dist/release/spark/spark-${SPARK_VERSION}/${SPARK_BUILD}.tgz"
 RUN wget --quiet "$SPARK_BUILD_URL" -O /tmp/spark.tgz && \
     tar -C /opt -xf /tmp/spark.tgz && \
