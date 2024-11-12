@@ -27,23 +27,12 @@ Refer to the [User Guide](user-guide.html) for a full list of queries and algori
 
 __Will GraphFrames be part of Apache Spark?__
 
-The GraphX component of Apache Spark has no DataFrames- or Dataset-based equivalent, so it is
-natural to ask this question. The current plan is to keep GraphFrames separate from core Apache
-Spark for the time being:
+The GraphX component of Apache Spark has no DataFrames - or Dataset-based equivalent, so it is
+natural to ask this question.
 
-* we are still considering making small adjustments to the API. The GraphFrames project will be
-considered for inclusion into Spark once we are confident that the current API addresses current
-and future needs.
-
-* some important features present in GraphX such as partitioning are missing. We would like to
-offer some equivalent operations before considering merging with the Spark project.
-
-* GraphFrames is used as a testbed for advanced, graph-specific optimizations into Spark’s
-Catalyst engine. Having them in a separate project accelerates the development cycle.
-
-That being said, GraphFrames follows the same code quality standards as Spark, and it is
-cross-compiled and published for a large number of Spark versions. It is
-easy for users to depend on it.
+**The new plan is to merge GraphFrames with Apache Spark to make it a component of core Spark.
+[Spark committer Holden Karau](https://spark.apache.org/committers.html#:~:text=Holden%20Karau,Netflix)
+is willing to support this effort by reviewing the relevant pull requests.**
 
 # Downloading
 
