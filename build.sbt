@@ -3,7 +3,7 @@
 
 import ReleaseTransformations._
 
-val sparkVer = sys.props.getOrElse("spark.version", "3.5.0")
+val sparkVer = sys.props.getOrElse("spark.version", "3.5.3")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
   case "3.5" => "2.12.18"
@@ -63,7 +63,13 @@ scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
 fork in Test := true
 
 // This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
-javaOptions in Test ++= Seq("-Xmx2048m", "-XX:ReservedCodeCacheSize=384m", "-XX:MaxPermSize=384m")
+javaOptions in Test ++= Seq(
+  "-Xmx2048m",
+  "-XX:ReservedCodeCacheSize=384m",
+  "-XX:MaxMetaspaceSize=384m",
+  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+  "--add-opens=java.base/java.lang=ALL-UNNAMED"
+)
 
 concurrentRestrictions in Global := Seq(
   Tags.limitAll(1))
