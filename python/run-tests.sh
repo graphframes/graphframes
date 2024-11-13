@@ -38,11 +38,14 @@ echo $pyver
 
 LIBS=""
 for lib in "$SPARK_HOME/python/lib"/*zip ; do
-  LIBS=$LIBS:$lib
+    LIBS=$LIBS:$lib
 done
 
 # The current directory of the script.
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "\n\n\n\n\n"
+echo "DIR=$DIR"
+echo "\n\n\n\n\n"
 
 a=( ${SCALA_VERSION//./ } )
 scala_version_major_minor="${a[0]}.${a[1]}"
@@ -51,7 +54,7 @@ assembly_path="$DIR/../target/scala-$scala_version_major_minor"
 echo `ls $assembly_path/graphframes-assembly*.jar`
 JAR_PATH=""
 for assembly in $assembly_path/graphframes-assembly*.jar ; do
-  JAR_PATH=$assembly
+    JAR_PATH=$assembly
 done
 
 export PYSPARK_SUBMIT_ARGS="--driver-memory 2g --executor-memory 2g --jars $JAR_PATH pyspark-shell "
@@ -64,14 +67,14 @@ export PYTHONPATH=$PYTHONPATH:graphframes
 # Run test suites
 
 if [[ "$python_major" == "2" ]]; then
-
-  # Horrible hack for spark 1.x: we manually remove some log lines to stay below the 4MB log limit on Travis.
-  $PYSPARK_DRIVER_PYTHON `which nosetests` -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
-
+    
+    # Horrible hack for spark 1.x: we manually remove some log lines to stay below the 4MB log limit on Travis.
+    $PYSPARK_DRIVER_PYTHON `which nosetests` -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
+    
 else
-
-  $PYSPARK_DRIVER_PYTHON -m "nose" -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
-
+    
+    $PYSPARK_DRIVER_PYTHON -m "nose" -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
+    
 fi
 
 # Exit immediately if the tests fail.
