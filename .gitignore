@@ -22,3 +22,6 @@ project/plugins/project/
 
 # Mac
 *.DS_Store
+
+# Python
+python/graphframes.egg-info
