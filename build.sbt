@@ -6,7 +6,7 @@ import ReleaseTransformations._
 val sparkVer = sys.props.getOrElse("spark.version", "3.5.3")
 val sparkBranch = sparkVer.substring(0, 3)
 val defaultScalaVer = sparkBranch match {
-  case "3.5" => "2.12.18"
+  case "3.5" => "2.12.20"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
