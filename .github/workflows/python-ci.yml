@@ -17,11 +17,11 @@ jobs:
       SPARK_VERSION: ${{ matrix.spark-version }}
       SCALA_VERSION: ${{ matrix.scala-version }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: olafurpg/setup-scala@v13
       with:
         java-version: "openjdk@1.11"
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       with:
         path: |
           ~/.ivy2/cache
