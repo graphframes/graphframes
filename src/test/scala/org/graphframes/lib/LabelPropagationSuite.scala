@@ -39,4 +39,15 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
     assert(clique2.size === 1)
     assert(clique1 !== clique2)
   }
+
+  test("Invalid LabelPropagation parameters"){
+
+    withClue("LabelPropagation maxIter should be greater than 0") {
+      val g = Graphs.empty[Int]
+      intercept[IllegalArgumentException]{
+        g.labelPropagation.maxIter(0).run()
+      }
+    }
+  }
+
 }

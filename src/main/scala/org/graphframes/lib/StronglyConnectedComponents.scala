@@ -35,6 +35,8 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
   private var maxIter: Option[Int] = None
 
   def maxIter(value: Int): this.type = {
+    require(value > 0, s"Number of iterations must be greater than 0," +
+      s" but got ${value}")
     maxIter = Some(value)
     this
   }

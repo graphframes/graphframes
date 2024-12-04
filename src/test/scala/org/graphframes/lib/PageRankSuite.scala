@@ -46,4 +46,27 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(gRank === 0.0,
       s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got $gRank.")
   }
+
+  test("invalid PageRank parameters") {
+    val g = Graphs.empty[Int]
+
+    withClue("PageRank maxIter should be greater than 0") {
+      intercept[IllegalArgumentException]{
+        g.pageRank.maxIter(0).run()
+      }
+    }
+
+    withClue("PageRank tolerance should be non-negative") {
+      intercept[IllegalArgumentException]{
+        g.pageRank.tol(-1).run()
+      }
+    }
+
+    withClue("PageRank resetProb should be [0,1]") {
+      intercept[IllegalArgumentException]{
+       g.pageRank.resetProbability(2).run()
+      }
+    }
+  }
+
 }
