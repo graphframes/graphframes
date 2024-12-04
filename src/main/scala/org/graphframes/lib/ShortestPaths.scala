@@ -20,14 +20,13 @@ package org.graphframes.lib
 import java.util
 
 import scala.collection.JavaConverters._
-
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.api.java.UDF1
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.types.{IntegerType, MapType}
-
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFrame.quote
 
 /**
  * Computes shortest paths from every vertex to the given set of landmark vertices.
@@ -90,7 +89,7 @@ private object ShortestPaths {
       val mapToLandmark = udf(func, MapType(idType, IntegerType, false))
       mapToLandmark(col(DISTANCE_ID))
     }
-    val cols = graph.vertices.columns.map(col) :+ distanceCol.as(DISTANCE_ID)
+    val cols = graph.vertices.columns.map(quote).map(col) :+ distanceCol.as(DISTANCE_ID)
     g.vertices.select(cols: _*)
   }
 
