@@ -98,7 +98,8 @@ g2.vertices.show()
 
 # GraphFrames' most used feature...
 # Connected components can do big data entity resolution on billions or even trillions of records!
-# First connect records with a similarity metric, then run connectedComponents. That gives you groups of identical records, which you then link by edges or merge into list-based master records.
+# First connect records with a similarity metric, then run connectedComponents.
+# This gives you groups of identical records, which you then link by same_as edges or merge into list-based master records.
 sc.setCheckpointDir("/tmp/graphframes-example-connected-components")  # required by GraphFrames.connectedComponents
 g.connectedComponents().show()
 
