@@ -1045,4 +1045,4 @@ These conversions are only supported in Scala since GraphX does not have a Pytho
 # GraphFrames Internals
 
 To learn how GraphFrames works internally to combine graph and relational queries, check out the paper [GraphFrames: An Integrated API for Mixing Graph and
-Relational Queries, Ankur et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
+Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
