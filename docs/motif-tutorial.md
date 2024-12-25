@@ -48,11 +48,11 @@ Extraction complete: stats.meta.stackexchange.com
 
 # Build the Graph
 
-We will build a property graph from the Stack Exchange data dump using PySpark in the [python/graphframes/examples/graph.py](python/graphframes/examples/graph.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
+We will build a property graph from the Stack Exchange data dump using PySpark in the [python/graphframes/examples/stackexchange.py](python/graphframes/examples/stackexchange.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-$ spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/examples/graph.py
+$ spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/examples/stackexchange.py
 {% endhighlight %}
 </div>
 
@@ -68,7 +68,7 @@ For a quick run-through of the script, use the following command:
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/examples/graph.py
+spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/examples/stackexchange.py
 {% endhighlight %}
 </div>
 
@@ -76,6 +76,13 @@ Let's walk through what it does, line-by-line:
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
+import pyspark.sql.functions as F
+from graphframes import GraphFrame
+from pyspark import SparkContext
+from pyspark.sql import DataFrame, SparkSession
+from utils import three_edge_count, four_edge_count, add_degree, add_type_degree
+
+
 # Show all the rows in a pd.DataFrame
 pd.set_option("display.max_columns", None)
 
