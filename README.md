@@ -119,11 +119,13 @@ g.find("(a)-[e]->(b); (b)-[e2]->(a)").filter("e.relationship = 'friend' and e2.r
 # +------------+--------------+----------------+-------------+
 ```
 
-## GraphFrames on PyPI: Not from Us
+## GraphFrames on PyPI is Unofficial
 
 The project is not in ownership or control of the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.3). We recommend using the Spark Packages system to install the latest version of GraphFrames. The PyPI packages are not maintained by the GraphFrames project.
 
 If you are in control of one of these packages, please reach out to us to discuss how we can work together to keep them up to date. Hopefully this situation will be addressed in the near future.
+
+See [Installation and Quick-Start](#installation-and-quick-start) for the best way to install GraphFrames.
 
 ## GraphFrames Internals
 
