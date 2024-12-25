@@ -133,7 +133,7 @@ The project is not in ownership or control of the [graphframes PyPI package](htt
 
 If you are in control of one of these packages, please reach out to us to discuss how we can work together to keep them up to date. Hopefully this situation will be addressed in the near future.
 
-See [Installation and Quick-Start](#installation-and-quick-start) for the best way to install GraphFrames.
+See [Installation and Quick-Start](#installation-and-quick-start) for the best way to install and use GraphFrames.
 
 ## GraphFrames Internals
 
