@@ -119,6 +119,14 @@ g.find("(a)-[e]->(b); (b)-[e2]->(a)").filter("e.relationship = 'friend' and e2.r
 # +------------+--------------+----------------+-------------+
 ```
 
+## Learn GraphFrames
+
+To learn more about GraphFrames, check out these resources:
+
+* [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
+* [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
+* [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
+
 ## GraphFrames on PyPI is Unofficial
 
 The project is not in ownership or control of the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.3). We recommend using the Spark Packages system to install the latest version of GraphFrames. The PyPI packages are not maintained by the GraphFrames project.
