@@ -96,7 +96,8 @@ g2.vertices.show()
 # |  3|  Bob| 35|0.7758750474847483|
 # +---+-----+---+------------------+
 
-# GraphFrames' most used feature - for big data entity resolution on billions or even trillions of records!
+# GraphFrames' most used feature...
+# Used for big data entity resolution on billions or even trillions of records!
 sc.setCheckpointDir("/tmp/graphframes-example-connected-components")  # required by GraphFrames.connectedComponents
 g.connectedComponents().show()
 
