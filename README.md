@@ -5,7 +5,7 @@
 
 # GraphFrames: DataFrame-based Graphs
 
-This is a package for DataFrame-based graphs on top of Apache Spark. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine.
+This is a package for DataFrame-based graphs on top of Apache Spark. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
 You can find user guide and API docs at https://graphframes.github.io/graphframes
 
@@ -39,7 +39,7 @@ nodes = [
     (2, "Bob", 25),
     (3, "Charlie", 35)
 ]
-nodes_df = spark.createDataFrame(data1, ["id", "name", "age"])
+nodes_df = spark.createDataFrame(nodes, ["id", "name", "age"])
 
 edges = [
     (1, 2, "friend"),
@@ -47,12 +47,12 @@ edges = [
     (2, 3, "friend"),
     (3, 2, "enemy")  # eek!
 ]
-edges_df = spark.createDataFrame(relationships, ["src", "dst", "relationship"])
+edges_df = spark.createDataFrame(edges, ["src", "dst", "relationship"])
 
 g = GraphFrame(nodes_df, edges_df)
 ```
 
-Now run some graph algorithms at scale!
+Now let's run some graph algorithms at scale!
 
 ```python
 g.inDegrees.show()
@@ -110,6 +110,13 @@ g.connectedComponents().show()
 
 # Find frenemies with network motif finding! Isn't it cool how graph and relational queries are combined?
 g.find("(a)-[e]->(b); (b)-[e2]->(a)").filter("e.relationship = 'friend' and e2.relationship = 'enemy'").show()
+
+# These are paths, which you can aggregate and count to find complex patterns.
+# +------------+--------------+----------------+-------------+
+# |           a|             e|               b|           e2|
+# +------------+--------------+----------------+-------------+
+# |{2, Bob, 25}|{2, 3, friend}|{3, Charlie, 35}|{3, 2, enemy}|
+# +------------+--------------+----------------+-------------+
 ```
 
 ## GraphFrames on PyPI: Not from Us
