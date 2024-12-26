@@ -17,7 +17,7 @@ Graphlets are small, connected subgraphs of a larger graph. Network motifs are r
 
 <center>
     <a href="https://www.nature.com/articles/srep35098">
-        <img src="img/directed_graphlets.webp" width="600px" alt="Directed network motifs for up to Four nodes" title="Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016" />
+        <img src="img/directed_graphlets.webp" width="600px" alt="Directed network motifs for up to Four nodes" title="Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016" style="margin: 15px" />
     </a>
 </center>
 
