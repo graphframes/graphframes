@@ -63,7 +63,7 @@ class GraphFrame(object):
     def __init__(self, v, e):
         self._vertices = v
         self._edges = e
-        self._spark = SparkSession.getActiveSession()
+        self._spark = v.sparkSession
         self._sc = self._spark._sc
         self._jvm_gf_api = _java_api(self._sc)
 
