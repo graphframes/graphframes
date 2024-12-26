@@ -1,9 +1,9 @@
 # Build a Graph out of the Stack Exchange Data Dump XML files
 
 #
-# Interactive Usage: pyspark --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g
+# Interactive Usage: pyspark --packages com.databricks:spark-xml_2.12:0.18.0
 #
-# Batch Usage: spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/examples/graph.py
+# Batch Usage: spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/examples/stackexchange.py
 #
 
 import re
