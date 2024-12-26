@@ -177,9 +177,43 @@ The counts of the types of nodes are displayed.
 {% endhighlight %}
 </div>
 
-Now we create a `GraphFrame` object. We will use this object to find motifs in the graph.
+Now we create a [GraphFrame object](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph. There are many fields in the nodes of our `GraphFrame` because there only one node type is available. This makes it necessary to create a `Type` field for each type of node, and to merge all fields into a single, global `nodes_df` `DataFrame`. The `Type` column can then be used in relational `DataFrame` operations to distinguish between types of nodes. This is an annoyance that should be fixed in the near future, with the ability to have multiple node types in a `GraphFrame`. In practice it isn't a big hit in productivity, it means you have to [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html) certain columns for each node `Type` when you do a [DataFrame.show()](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html) or the width of the DataFrame will be too wide to easily read.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-g: GraphFrame = GraphFrame(nodes_df, edges_df)
+g = GraphFrame(nodes_df, edges_df)
+
+# Add the degree to use as a property in the motifs
+g = add_degree(g).cache()
+
+g.vertices.show(10)
+print(f"Node columns: {g.vertices.columns}")
+
+g.edges.show(10)
 {% endhighlight %}
+
+The `GraphFrame` object is created and the node columns and edges are displayed.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# Node DataFrame is too wide to display here... because it has this many columns.
+Node columns: ['id', 'AboutMe', 'AcceptedAnswerId', 'AccountId', 'AnswerCount', 'Body', 'Class', 'ClosedDate', 'CommentCount', 'CommunityOwnedDate', 'ContentLicense', 'Count', 'CreationDate', 'Date', 'DisplayName', 'DownVotes', 'ExcerptPostId', 'FavoriteCount', 'Id', 'IsModeratorOnly', 'IsRequired', 'LastAccessDate', 'LastActivityDate', 'LastEditDate', 'LastEditorDisplayName', 'LastEditorUserId', 'LinkTypeId', 'Location', 'Name', 'OwnerDisplayName', 'OwnerUserId', 'ParentId', 'PostId', 'PostTypeId', 'RelatedPostId', 'Reputation', 'Score', 'TagBased', 'TagName', 'Tags', 'Text', 'Title', 'Type', 'UpVotes', 'UserDisplayName', 'UserId', 'ViewCount', 'Views', 'VoteType', 'VoteTypeId', 'WebsiteUrl', 'WikiPostId', 'degree']
+
+# Edge DataFrame is simpler
++--------------------+--------------------+------------+
+|                 src|                 dst|relationship|
++--------------------+--------------------+------------+
+|afb0dcb7-1325-441...|7d1fdcf6-52ac-4ee...|     CastFor|
+|344c3ebe-6f7b-42a...|3d5aaba5-bf19-49c...|     CastFor|
+|b85f6a3e-518e-425...|29e78860-217a-4aa...|     CastFor|
+|13def23e-eed5-440...|88ec852f-5887-422...|     CastFor|
+|2b4dd817-349c-48c...|266e2b24-78e7-438...|     CastFor|
+|486d53ba-7aa7-4ff...|72db9a20-ccc1-431...|     CastFor|
+|038afb88-c9f0-496...|e837a1b1-4205-425...|     CastFor|
+|5ef6462c-d3f7-4bc...|4dacee4b-8703-4aa...|     CastFor|
+|497fcbfb-dd79-421...|6c35e5bf-9a88-455...|     CastFor|
+|1c0f584a-2b65-486...|0460e6c8-bb99-4b4...|     CastFor|
++--------------------+--------------------+------------+
+only showing top 10 rows
+{% endhighlight %}
+</div>
