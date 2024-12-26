@@ -26,9 +26,6 @@ spark: SparkSession = (
     SparkSession.builder.appName("Stack Overflow Motif Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
     .config("spark.sql.caseSensitive", True)
-    # Single node mode - 128GB machine
-    # .config("spark.driver.memory", "4g")
-    # .config("spark.executor.memory", "4g")
     .getOrCreate()
 )
 sc: SparkContext = spark.sparkContext
