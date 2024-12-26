@@ -83,12 +83,7 @@ print(f"Node columns: {g.vertices.columns}")
 g.vertices.show()
 g.edges.show()
 
-# Test out Connected Components - fun!
-sc.setCheckpointDir("/tmp/spark-checkpoints")
-
-# This is the top used algorithm in GraphFrames - really useful for big data entity resolution!
-components = g.connectedComponents()
-components.select("id", "component").groupBy("component").count().sort(F.desc("count")).show()
+# You can find a list of motifs here: 
 
 # G4: Continuous Triangles
 paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
