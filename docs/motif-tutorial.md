@@ -11,6 +11,18 @@ This tutorial covers GraphFrames' motif finding feature. We perform pattern matc
 * Table of contents (This text will be scraped.)
   {:toc}
 
+# What are graphlets and network motifs?
+
+Graphlets are small, connected subgraphs of a larger graph. Network motifs are recurring patterns in complex networks that are significantly more frequent than in random networks. They are the building blocks of complex networks and can be used to understand the structure and function of networks. Network motifs can be used to identify functional modules in biological networks, detect anomalies in social networks, and predict the behavior of complex systems.
+
+<center>
+    <a href="https://www.nature.com/articles/srep35098">
+        <img src="img/directed_graphlets.webp" width="600px" alt="Directed network motifs for up to Four nodes" title="Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016" />
+    </a>
+</center>
+
+We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames' motif finding feature to find network motifs in the graph. You'll see how to combine graph and relational queries to find complex patterns in the graph.
+
 # Download the Stack Exchange Dump for [stats.meta.stackexchange.com](stats.meta.stackexchange.com) at Internet Archive
 
 The Python examples include a CLI utility at `python/graphframes/examples/download.py` for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The script takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/examples/data` folder.
