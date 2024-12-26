@@ -16,9 +16,10 @@ This tutorial covers GraphFrames' motif finding feature. We perform pattern matc
 Graphlets are small, connected subgraphs of a larger graph. Network motifs are recurring patterns in complex networks that are significantly more frequent than in random networks. They are the building blocks of complex networks and can be used to understand the structure and function of networks. Network motifs can be used to identify functional modules in biological networks, detect anomalies in social networks, and predict the behavior of complex systems.
 
 <center>
-    <a href="https://www.nature.com/articles/srep35098">
+    <figure>
         <img src="img/directed_graphlets.webp" width="600px" alt="Directed network motifs for up to Four nodes" title="Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016" style="margin: 15px" />
-    </a>
+        <figcaption><a href="https://www.nature.com/articles/srep35098">Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016</a></figcaption>
+    </figure>
 </center>
 
 We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames' motif finding feature to find network motifs in the graph. You'll see how to combine graph and relational queries to find complex patterns in the graph.
