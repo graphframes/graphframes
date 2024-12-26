@@ -81,7 +81,7 @@ print(f"Node columns: {g.vertices.columns}")
 g.vertices.show()
 g.edges.show()
 
-# You can find a list of motifs here: 
+# You can find a list of directed motifs here: https://www.nature.com/articles/srep3509
 
 # G4: Continuous Triangles
 paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
