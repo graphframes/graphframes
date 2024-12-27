@@ -13,18 +13,18 @@ This tutorial covers GraphFrames' motif finding feature. We perform pattern matc
 
 # What are graphlets and network motifs?
 
-Graphlets are small, connected subgraphs of a larger graph. Network motifs are recurring patterns in complex networks that are significantly more frequent than in random networks. They are the building blocks of complex networks and can be used to understand the structure and function of networks. Network motifs can be used to identify functional modules in biological networks, detect anomalies in social networks, and predict the behavior of complex systems.
+Graphlets are small, connected subgraphs of a larger graph. Network motifs are recurring patterns in complex networks that are significantly more frequent than in random networks. They are the building blocks of complex networks and can be used to understand the structure and function of networks. Network motifs can be used to identify functional modules in biological networks, detect anomalies in social networks, detect money laundering and terrorism financing in financial networks, and predict the behavior of complex systems.
 
 <center>
     <figure>
-        <img src="img/directed_graphlets.webp" width="600px" alt="Directed network motifs for up to Four nodes" title="Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016" style="margin: 15px" />
+        <img src="img/directed_graphlets.webp" width="600px" alt="Directed network motifs for up to Four nodes" title="Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016" style="margin: 25px" />
         <figcaption><a href="https://www.nature.com/articles/srep35098">Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016</a></figcaption>
     </figure>
 </center>
 
 We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames' motif finding feature to find network motifs in the graph. You'll see how to combine graph and relational queries to find complex patterns in the graph.
 
-# Download the Stack Exchange Dump for [stats.meta.stackexchange.com](stats.meta.stackexchange.com) at Internet Archive
+# Download the Stack Exchange Dump for [stats.meta](https://stats.meta.stackexchange.com)
 
 The Python examples include a CLI utility at `python/graphframes/examples/download.py` for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The script takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/examples/data` folder.
 
@@ -103,9 +103,6 @@ spark: SparkSession = (
     SparkSession.builder.appName("Stack Overflow Motif Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
     .config("spark.sql.caseSensitive", True)
-    # Single node mode - 128GB machine
-    # .config("spark.driver.memory", "4g")
-    # .config("spark.executor.memory", "4g")
     .getOrCreate()
 )
 sc: SparkContext = spark.sparkContext
@@ -182,15 +179,9 @@ The counts of the types of nodes are displayed.
 {% endhighlight %}
 </div>
 
+Now we create a [GraphFrame object](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
 
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-
-{% endhighlight %}
-</div>
-
-Now we create a [GraphFrame object](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph. There are many fields in the nodes of our `GraphFrame` because there only one node type is available. This makes it necessary to create a `Type` field for each type of node, and to merge all fields into a single, global `nodes_df` `DataFrame`. The `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes. This is an annoyance that should be fixed in the near future, with the ability to have multiple node types in a `GraphFrame`. In practice it isn't a big hit in productivity, it means you have to [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html) certain columns for each node `Type` when you do a [DataFrame.show()](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html) or the width of the DataFrame will be too wide to easily read.
+Note a shortcoming... there are many fields in the nodes of our `GraphFrame` because there only one node type is available. This makes it necessary to create a `Type` field for each type of node, and to merge all fields into a single, global `nodes_df` `DataFrame`. The `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes. This is an annoyance that should be fixed in the near future, with the ability to have multiple node types in a `GraphFrame`. In practice it isn't a big hit in productivity, but it means you have to [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html) certain columns for each node `Type` when you do a [DataFrame.show()](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html) or the width of the DataFrame will be too wide to easily read.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -230,3 +221,28 @@ Node columns: ['id', 'AboutMe', 'AcceptedAnswerId', 'AccountId', 'AnswerCount', 
 only showing top 10 rows
 {% endhighlight %}
 </div>
+
+Let's look for a simple motif: a directed triangle. We will find all instances of a directed triangle in the graph. The [`GraphFrame.find()`](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find) method takes a string as an argument that specifies the structure of a motif one edge at a time, in the same syntax as Cypher, with a semi-colon between edges. For a triangle motif, that works out to: `(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)`. Edge labels are optional, this is valid graph query: `(a)-[]->(b)`.
+
+The `g.find()` method returns a `DataFrame` with fields fo each of the node and edge labels in the pattern. To further express the motif you're interested in, you can now use relational `DataFrame` operations to filter, group, and aggregate the results. This makes the network motif finding in GraphFrames very powerful, and this type of property graph motif was originally defined in the [graphframes paper](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
+
+A complete description of the graph query language is in the [GraphFrames User Guide](https://graphframes.github.io/graphframes/docs/_site/user-guide.html#motif-finding).
+
+Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
+
+<center>
+    <figure>
+        <img src="img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
+        <figcaption><a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent.</a></figcaption>
+    </figure>
+</center>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# G4: Continuous Triangles
+paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
+three_edge_count(paths).show()
+{% endhighlight %}
+</div>
+
+

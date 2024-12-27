@@ -47,6 +47,7 @@ def split_tags(tags: str) -> List[str]:
 #
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
+
 spark: SparkSession = (
     SparkSession.builder.appName("Stack Exchange Graph Builder Motif Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
@@ -85,6 +86,7 @@ posts_df: DataFrame = (
 #
 # Load the PostLinks...
 #
+
 post_links_df = (
     spark.read.format("xml")
     .options(rowTag="row")
@@ -99,6 +101,7 @@ post_links_df = remove_prefix(post_links_df).withColumn("Type", F.lit("PostLinks
 #
 # Load the PostHistory...
 #
+
 post_history_df = (
     spark.read.format("xml")
     .options(rowTag="row")
@@ -113,6 +116,7 @@ post_history_df = remove_prefix(post_history_df).withColumn("Type", F.lit("PostH
 #
 # Load the Comments...
 #
+
 comments_df = (
     spark.read.format("xml")
     .options(rowTag="row")
@@ -127,6 +131,7 @@ comments_df = remove_prefix(comments_df).withColumn("Type", F.lit("Comment"))
 #
 # Load the Users...
 #
+
 users_df = (
     spark.read.format("xml")
     .options(rowTag="row")
@@ -141,7 +146,7 @@ users_df = remove_prefix(users_df).withColumn("Type", F.lit("User"))
 #
 # Load the Votes...
 #
-# Use Spark-XML to split the XML file into records
+
 votes_df = (
     spark.read.format("xml")
     .options(rowTag="row")
@@ -173,6 +178,7 @@ votes_df = votes_df.withColumn(
 #
 # Load the Tags...
 #
+
 tags_df = (
     spark.read.format("xml")
     .options(rowTag="row")
@@ -187,6 +193,7 @@ tags_df = remove_prefix(tags_df).withColumn("Type", F.lit("Tag"))
 #
 # Load the Badges...
 #
+
 badges_df = (
     spark.read.format("xml")
     .options(rowTag="row")
@@ -255,16 +262,18 @@ print(f"Total distinct nodes: {nodes_df.count():,}")
 # Now add a unique ID field
 nodes_df: DataFrame = nodes_df.withColumn("id", F.expr("uuid()")).select("id", *all_column_names)
 
+
 #
 # Store the nodes to disk, reload and cache
 #
+
 NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
 
 # Write to disk and load back again
 nodes_df.write.mode("overwrite").parquet(NODES_PATH)
 nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
 
-nodes_df.select("id", "Type").groupBy("Type").count().show()
+nodes_df.select("id", "Type").groupBy("Type").count().orderBy(F.col("count").desc()).show()
 
 # +---------+------+
 # |     Type|count |
@@ -325,6 +334,7 @@ answers_df.select("ParentId", "Title", "Body").show(10)
 #
 # Create a [Vote]--CastFor-->[Post] edge
 #
+
 src_vote_df: DataFrame = votes_df.select(
     F.col("id").alias("src"),
     F.col("Id").alias("VoteId"),
@@ -347,6 +357,7 @@ print(f"Percentage of linked votes: {cast_for_edge_df.count() / votes_df.count()
 #
 # Create a [User]--Asks-->[Question] edge
 #
+
 questions_asked_df: DataFrame = questions_df.select(
     F.col("OwnerUserId").alias("QuestionUserId"),
     F.col("id").alias("dst"),
@@ -370,6 +381,7 @@ print(
 #
 # Create a [User]--Answers-->[Answer] edge. This could be against Question, but better that each Post get its User.
 #
+
 user_answers_df: DataFrame = answers_df.select(
     F.col("OwnerUserId").alias("AnswerUserId"),
     F.col("id").alias("dst"),
@@ -393,6 +405,7 @@ print(
 #
 # Create a [Answer]--Answers-->[Question] edge
 #
+
 src_answers_df: DataFrame = answers_df.select(
     F.col("id").alias("src"),
     F.col("Id").alias("AnswerId"),
@@ -414,6 +427,7 @@ print(f"Percentage of linked answers: {question_answers_edges_df.count() / answe
 #
 # Create a [Tag]--Tags-->[Post] edge
 #
+
 src_tags_df: DataFrame = posts_df.select(
     F.col("id").alias("dst"),
     # First remove leading/trailing < and >, then split on "><"
@@ -430,10 +444,10 @@ tags_edge_df: DataFrame = src_tags_df.join(tags_df, src_tags_df.Tag == tags_df.T
 print(f"Total Tags edges: {tags_edge_df.count():,}")
 print(f"Percentage of linked tags: {tags_edge_df.count() / posts_df.count():.2%}\n")
 
-
 #
 # Create a [User]--Earns-->[Badge] edge
 #
+
 earns_edges_df: DataFrame = badges_df.select(
     F.col("UserId").alias("BadgeUserId"),
     F.col("id").alias("dst"),
@@ -455,6 +469,7 @@ print(f"Percentage of earned badges: {earns_edges_df.count() / badges_df.count()
 #
 # Create a [Post]--Links-->[Post] edge
 #
+
 trim_links_df: DataFrame = post_links_df.select(
     F.col("PostId").alias("SrcPostId"), F.col("RelatedPostId").alias("DstPostId")
 )
@@ -479,6 +494,7 @@ print(f"Percentage of linked posts: {links_edge_df.count() / post_links_df.count
 #
 # Combine all the edges together into one relationships DataFrame
 #
+
 relationships_df: DataFrame = (
     cast_for_edge_df.unionByName(user_asks_edges_df)
     .unionByName(user_answers_edges_df)
@@ -488,7 +504,7 @@ relationships_df: DataFrame = (
     .unionByName(links_edge_df)
 )
 
-relationships_df.groupBy("relationship").count().show()
+relationships_df.groupBy("relationship").count().orderBy(F.col("count").desc()).show()
 
 # +------------+------+
 # |relationship|count |

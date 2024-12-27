@@ -6,12 +6,10 @@
 # Batch Usage: spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/examples/motif.py
 #
 
-import os
 import sys
 
 # This is needed for the utils import... need to set this project up as a proper package!
-os.chdir("python/graphframes/examples")
-sys.path.append(os.getcwd())
+sys.path.append("python/graphframes/examples")
 
 import pyspark.sql.functions as F
 from graphframes import GraphFrame
@@ -23,13 +21,18 @@ from utils import three_edge_count, four_edge_count, add_degree, add_type_degree
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
 
-spark: SparkSession = (
-    SparkSession.builder.appName("Stack Overflow Motif Analysis")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames UUID) coexist
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
-)
-sc: SparkContext = spark.sparkContext
+if "spark" in locals() or "spark" in globals() or "sc" in locals() or "sc" in globals():
+
+    try:
+        pass
+    except NameError:
+        spark: SparkSession = (
+            SparkSession.builder.appName("Stack Exchange Motif Analysis")
+            # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+            .config("spark.sql.caseSensitive", True)
+            .getOrCreate()
+        )
+        sc: SparkContext = spark.sparkContext
 
 # Change STACKEXCHANGE_SITE if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
