@@ -195,6 +195,7 @@ print(f"Node columns: {g.vertices.columns}")
 
 g.edges.show(10)
 {% endhighlight %}
+</div>
 
 The `GraphFrame` object is created and the node columns and edges are displayed.
 
@@ -226,14 +227,14 @@ Let's look for a simple motif: a directed triangle. We will find all instances o
 
 The `g.find()` method returns a `DataFrame` with fields fo each of the node and edge labels in the pattern. To further express the motif you're interested in, you can now use relational `DataFrame` operations to filter, group, and aggregate the results. This makes the network motif finding in GraphFrames very powerful, and this type of property graph motif was originally defined in the [graphframes paper](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
 
-A complete description of the graph query language is in the [GraphFrames User Guide](https://graphframes.github.io/graphframes/docs/_site/user-guide.html#motif-finding).
-
-Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
+A complete description of the graph query language is in the [GraphFrames User Guide](https://graphframes.github.io/graphframes/docs/_site/user-guide.html#motif-finding). Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
 
 <center>
     <figure>
         <img src="img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
-        <figcaption><a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent.</a></figcaption>
+        <figcaption>
+            <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
+        </figcaption>
     </figure>
 </center>
 
@@ -245,4 +246,71 @@ three_edge_count(paths).show()
 {% endhighlight %}
 </div>
 
+The `three_edge_count` function is a utility function that counts the number of instances of a motif in the graph. The function takes a `DataFrame` with fields for each of the node and edge labels in the pattern and returns a `DataFrame` with a count of the number of instances of the motif in the graph.
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+graphlet_type_df = paths.select(
+    F.col("a.Type").alias("A_Type"),
+    F.col("e.relationship").alias("E_relationship"),
+    F.col("b.Type").alias("B_Type"),
+    F.col("e2.relationship").alias("E2_relationship"),
+    F.col("c.Type").alias("C_Type"),
+    F.col("e3.relationship").alias("E3_relationship"),
+)
+
+graphlet_count_df = (
+    graphlet_type_df.groupby(
+        "A_Type", "E_relationship", "B_Type", "E2_relationship", "C_Type", "E3_relationship"
+    )
+    .count()
+    .orderBy(F.col("count").desc())
+)
+graphlet_count_df.show()
+{% endhighlight %}
+</div>
+
+The result is a count of the continuous triangles in the graph.
+
+<div data-lang="sql" markdown="1">
+{% highlight sql %}
++------+--------------+------+---------------+------+---------------+-----+
+|A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
++------+--------------+------+---------------+------+---------------+-----+
+|  Post|         Links|  Post|          Links|  Post|          Links|   39|
++------+--------------+------+---------------+------+---------------+-----+
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# G5: Divergent Triangles
+paths = g.find("(a)-[e]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
+three_edge_count(paths).show()
+{% endhighlight %}
+</div>
+
+The result is a count of the divergent triangles in the graph.
+
+<div data-lang="sql" markdown="1">
+{% highlight sql %}
++------+--------------+------+---------------+------+---------------+-----+
+|A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
++------+--------------+------+---------------+------+---------------+-----+
+|   Tag|          Tags|  Post|           Tags|  Post|          Links| 1915|
+|  Post|         Links|  Post|          Links|  Post|          Links|  293|
+|  User|          Asks|  Post|        Answers|  Post|        Answers|  274|
+|  User|          Asks|  Post|           Asks|  Post|          Links|  111|
++------+--------------+------+---------------+------+---------------+-----+
+{% endhighlight %}
+</div>
+
+We can also look for a more complex motif: a directed square. We will find all instances of a directed square in the graph.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# G8: Directed Square
+paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(d); (d)-[e4]->(a)")
+four_edge_count(paths).show()
+{% endhighlight %}
+</div>
