@@ -55,7 +55,6 @@ spark: SparkSession = (
     # Single node mode - 128GB machine
     .getOrCreate()
 )
-sc: SparkContext = spark.sparkContext
 
 print("Loading data for stats.meta.stackexchange.com ...")
 
