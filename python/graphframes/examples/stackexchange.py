@@ -48,13 +48,15 @@ def split_tags(tags: str) -> List[str]:
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
 
-spark: SparkSession = (
-    SparkSession.builder.appName("Stack Exchange Graph Builder Motif Analysis")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-    .config("spark.sql.caseSensitive", True)
-    # Single node mode - 128GB machine
-    .getOrCreate()
-)
+try:
+    spark
+except NameError:
+    spark: SparkSession = (
+        SparkSession.builder.appName("Stack Exchange Graph Builder")
+        # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+        .config("spark.sql.caseSensitive", True)
+        .getOrCreate()
+    )
 
 print("Loading data for stats.meta.stackexchange.com ...")
 
