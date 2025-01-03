@@ -63,7 +63,7 @@ GraphFrames supplied as a package.
 * [Quick Start](quick-start.html): a quick introduction to the GraphFrames API; start here!
 * [GraphFrames User Guide](user-guide.html): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
-* [Motif Finding Tutorial](motif-tutorial.html): learn to perform pattern recognition over the graph for `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange) using motif finding for GraphFrames
+* [Motif Finding Tutorial](motif-tutorial.html): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
 
 **API Docs:**
 
