@@ -111,8 +111,12 @@ g.connectedComponents().show()
 # |  3|  Bob| 35|        1|
 # +---+-----+---+---------+
 
-# Find frenemies with network motif finding! Isn't it cool how graph and relational queries are combined?
-g.find("(a)-[e]->(b); (b)-[e2]->(a)").filter("e.relationship = 'friend' and e2.relationship = 'enemy'").show()
+# Find frenemies with network motif finding! See how graph and relational queries are combined?
+(
+    g.find("(a)-[e]->(b); (b)-[e2]->(a)")
+    .filter("e.relationship = 'friend' and e2.relationship = 'enemy'")
+    .show()
+)
 
 # These are paths, which you can aggregate and count to find complex patterns.
 # +------------+--------------+----------------+-------------+
