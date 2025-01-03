@@ -11,8 +11,13 @@ from typing import List
 
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 
+
+#
+# Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
+#
+spark: SparkSession
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"

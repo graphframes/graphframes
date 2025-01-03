@@ -13,13 +13,14 @@ sys.path.append("python/graphframes/examples")
 
 import pyspark.sql.functions as F
 from graphframes import GraphFrame
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 from utils import three_edge_count, four_edge_count, add_degree, add_type_degree
 
 
 #
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
+spark: SparkSession
 
 # Change STACKEXCHANGE_SITE if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
