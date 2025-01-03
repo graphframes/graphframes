@@ -11,6 +11,7 @@ import sys
 # This is needed for the utils import... need to set this project up as a proper package!
 sys.path.append("python/graphframes/examples")
 
+from typing import Optional
 import pyspark.sql.functions as F
 from graphframes import GraphFrame
 from pyspark.sql import DataFrame, SparkSession
@@ -20,7 +21,7 @@ from utils import three_edge_count, four_edge_count, add_degree, add_type_degree
 #
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
-spark: SparkSession
+spark: Optional[SparkSession] = None
 
 # Change STACKEXCHANGE_SITE if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"

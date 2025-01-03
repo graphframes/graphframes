@@ -7,7 +7,7 @@
 #
 
 import re
-from typing import List
+from typing import List, Optional
 
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
@@ -17,7 +17,7 @@ from pyspark.sql import DataFrame, SparkSession
 #
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
-spark: SparkSession
+spark: Optional[SparkSession] = None
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
