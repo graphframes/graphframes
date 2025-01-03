@@ -11,8 +11,7 @@ from typing import List
 
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
-from pyspark import SparkContext
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 
 
 # Change me if you download a different stackexchange site
@@ -48,15 +47,14 @@ def split_tags(tags: str) -> List[str]:
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
 
-try:
-    spark
-except NameError:
-    spark: SparkSession = (
-        SparkSession.builder.appName("Stack Exchange Graph Builder")
-        # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-        .config("spark.sql.caseSensitive", True)
-        .getOrCreate()
-    )
+# Removed to fix build...
+# spark: SparkSession = (
+#     SparkSession.builder.appName("Stack Exchange Graph Builder")
+#     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+#     .config("spark.sql.caseSensitive", True)
+#     # Single node mode - 128GB machine
+#     .getOrCreate()
+# )
 
 print("Loading data for stats.meta.stackexchange.com ...")
 
