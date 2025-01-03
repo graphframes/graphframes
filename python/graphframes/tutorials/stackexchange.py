@@ -17,7 +17,13 @@ from pyspark.sql import DataFrame, SparkSession
 #
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
-spark: Optional[SparkSession] = None
+
+spark: SparkSession = (
+    SparkSession.builder.appName("Stack Exchange Graph Builder")
+    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+    .config("spark.sql.caseSensitive", True)
+    .getOrCreate()
+)
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"

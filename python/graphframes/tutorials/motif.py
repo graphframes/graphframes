@@ -21,7 +21,13 @@ from utils import three_edge_count, four_edge_count, add_degree, add_type_degree
 #
 # Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
 #
-spark: Optional[SparkSession] = None
+
+spark: SparkSession = (
+    SparkSession.builder.appName("Stack Exchange Motif Analysis")
+    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+    .config("spark.sql.caseSensitive", True)
+    .getOrCreate()
+)
 
 # Change STACKEXCHANGE_SITE if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
