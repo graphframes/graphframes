@@ -11,7 +11,7 @@ You can find user guide and API docs at https://graphframes.github.io/graphframe
 
 ## Installation and Quick-Start
 
-The easiest way to start using GraphFrames is through the Spark Packages system. Just run the following command:
+The easiest way to start using GraphFrames is through the [Spark Packages system](https://spark-packages.org/package/graphframes/graphframes). Just run the following command:
 
 ```bash
 # Interactive Scala/Java
