@@ -136,7 +136,16 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   }
 
   test("two components and two dangling vertices") {
-    withDisabledAQE {
+    withSparkConf(
+      Map(
+        "spark.sql.adaptive.enabled" -> "false",
+        "spark.sql.maxPlanStringLength" -> "4096",
+        // Add memory configurations
+        "spark.memory.fraction" -> "0.7",
+        "spark.memory.storageFraction" -> "0.3",
+        "spark.testing.memory" -> "2147483648" // 2GB
+      )
+    ) {
       val vertices = spark.range(8L).toDF(ID)
       val edges = spark.createDataFrame(Seq(
         (0L, 1L), (1L, 2L), (2L, 0L),
@@ -275,6 +284,21 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         spark.conf.set("spark.sql.adaptive.enabled", value = enabled.get)
       } else {
         spark.conf.unset("spark.sql.adaptive.enabled")
+      }
+    }
+  }
+
+  private def withSparkConf(conf: Map[String, String])(f: => Unit): Unit = {
+    val spark = this.spark
+    val originalConf = conf.keys.map(k => k -> spark.conf.getOption(k)).toMap
+    try {
+      conf.foreach { case (k, v) => spark.conf.set(k, v) }
+      f
+    } finally {
+      // Restore original configuration
+      originalConf.foreach {
+        case (k, Some(v)) => spark.conf.set(k, v)
+        case (k, None) => spark.conf.unset(k)
       }
     }
   }
