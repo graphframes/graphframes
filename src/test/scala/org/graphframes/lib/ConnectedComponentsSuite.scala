@@ -30,8 +30,9 @@ import org.apache.spark.storage.StorageLevel
 import org.graphframes._
 import org.graphframes.GraphFrame._
 import org.graphframes.examples.Graphs
+import org.graphframes.Logging
 
-class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
+class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext with Logging {
 
   test("default params") {
     val g = Graphs.empty[Int]
@@ -300,7 +301,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
           spark.conf.set(k, v)
         } catch {
           case _: Exception => 
-            logWarning(s"Could not set configuration $k=$v")
+            logInfo(s"Could not set configuration $k=$v") // Changed from logWarning to logInfo
         }
       }
       f
