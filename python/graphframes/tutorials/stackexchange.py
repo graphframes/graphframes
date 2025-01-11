@@ -7,7 +7,7 @@
 #
 
 import re
-from typing import List, Optional
+from typing import List, Tuple
 
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
@@ -55,19 +55,18 @@ def split_tags(tags: str) -> List[str]:
 
 
 #
-# Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
+# Initialize a SparkSession with case sensitivity
 #
 
-# Removed to fix build...
-# spark: SparkSession = (
-#     SparkSession.builder.appName("Stack Exchange Graph Builder")
-#     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-#     .config("spark.sql.caseSensitive", True)
-#     # Single node mode - 128GB machine
-#     .getOrCreate()
-# )
+spark: SparkSession = (
+    SparkSession.builder.appName("Stack Exchange Graph Builder")
+    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+    .config("spark.sql.caseSensitive", True)
+    .getOrCreate()
+)
 
 print("Loading data for stats.meta.stackexchange.com ...")
+
 
 #
 # Load the Posts...
@@ -93,6 +92,7 @@ posts_df: DataFrame = (
     .withColumn("Type", F.lit("Post"))
 )
 
+
 #
 # Load the PostLinks...
 #
@@ -107,6 +107,7 @@ print(f"Total PostLinks:   {post_links_df.count():,}")
 
 # Remove the _ prefix from field names
 post_links_df = remove_prefix(post_links_df).withColumn("Type", F.lit("PostLinks"))
+
 
 #
 # Load the PostHistory...
@@ -123,6 +124,7 @@ print(f"Total PostHistory: {post_links_df.count():,}")
 # Remove the _ prefix from field names
 post_history_df = remove_prefix(post_history_df).withColumn("Type", F.lit("PostHistory"))
 
+
 #
 # Load the Comments...
 #
@@ -138,6 +140,7 @@ print(f"Total Comments:    {comments_df.count():,}")
 # Remove the _ prefix from field names
 comments_df = remove_prefix(comments_df).withColumn("Type", F.lit("Comment"))
 
+
 #
 # Load the Users...
 #
@@ -152,6 +155,7 @@ print(f"Total Users:       {users_df.count():,}")
 
 # Remove the _ prefix from field names
 users_df = remove_prefix(users_df).withColumn("Type", F.lit("User"))
+
 
 #
 # Load the Votes...
@@ -185,6 +189,7 @@ votes_df = votes_df.withColumn(
     .otherwise("Unknown"),
 )
 
+
 #
 # Load the Tags...
 #
@@ -199,6 +204,7 @@ print(f"Total Tags:        {tags_df.count():,}")
 
 # Remove the _ prefix from field names
 tags_df = remove_prefix(tags_df).withColumn("Type", F.lit("Tag"))
+
 
 #
 # Load the Badges...
@@ -219,7 +225,8 @@ badges_df = remove_prefix(badges_df).withColumn("Type", F.lit("Badge"))
 #
 # Form the nodes from the UNION of posts, users, votes and their combined schemas
 #
-all_cols: List[str] = list(
+
+all_cols: List[Tuple[str, T.StructField]] = list(
     set(
         list(zip(posts_df.columns, posts_df.schema))
         + list(zip(post_links_df.columns, post_links_df.schema))
@@ -233,11 +240,11 @@ all_cols: List[str] = list(
 all_column_names: List[str] = sorted([x[0] for x in all_cols])
 
 
-def add_missing_columns(df, all_cols):
+def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]) -> DataFrame:
     """Add any missing columns from any DataFrame among several we want to merge."""
     for col_name, schema_field in all_cols:
         if col_name not in df.columns:
-            df: DataFrame = df.withColumn(col_name, F.lit(None).cast(schema_field.dataType))
+            df = df.withColumn(col_name, F.lit(None).cast(schema_field.dataType))
     return df
 
 
