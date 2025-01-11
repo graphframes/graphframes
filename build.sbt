@@ -64,25 +64,19 @@ fork in Test := true
 
 // This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
 javaOptions in Test ++= Seq(
-  "-Xmx2048m",
+  "-Xmx2g",
   "-XX:ReservedCodeCacheSize=384m",
   "-XX:MaxMetaspaceSize=384m",
-  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-  "--add-opens=java.base/java.lang=ALL-UNNAMED"
-)
-
-Test / fork := true
-Test / javaOptions ++= Seq(
+  "-XX:+UseG1GC",
+  "-XX:MaxGCPauseMillis=100",
   "--add-opens=java.base/java.nio=ALL-UNNAMED",
   "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
   "--add-opens=java.base/sun.misc=ALL-UNNAMED",
-  "-Xmx2g",
-  "-XX:+UseG1GC",
-  "-XX:MaxGCPauseMillis=100"
+  "--add-opens=java.base/java.lang=ALL-UNNAMED"
 )
 
 // Optional: Add these if you're still seeing memory issues
-Test / envVars ++= Map(
+envVars in Test ++= Map(
   "SPARK_DRIVER_MEMORY" -> "2g",
   "SPARK_WORKER_MEMORY" -> "2g"
 )
