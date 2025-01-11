@@ -71,6 +71,22 @@ javaOptions in Test ++= Seq(
   "--add-opens=java.base/java.lang=ALL-UNNAMED"
 )
 
+Test / fork := true
+Test / javaOptions ++= Seq(
+  "--add-opens=java.base/java.nio=ALL-UNNAMED",
+  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+  "--add-opens=java.base/sun.misc=ALL-UNNAMED",
+  "-Xmx2g",
+  "-XX:+UseG1GC",
+  "-XX:MaxGCPauseMillis=100"
+)
+
+// Optional: Add these if you're still seeing memory issues
+Test / envVars ++= Map(
+  "SPARK_DRIVER_MEMORY" -> "2g",
+  "SPARK_WORKER_MEMORY" -> "2g"
+)
+
 concurrentRestrictions in Global := Seq(
   Tags.limitAll(1))
 
