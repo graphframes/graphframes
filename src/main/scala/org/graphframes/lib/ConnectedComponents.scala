@@ -272,26 +272,24 @@ object ConnectedComponents extends Logging {
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel): DataFrame = {
     
+    require(supportedAlgorithms.contains(algorithm),
+      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
+
+    if (algorithm == ALGO_GRAPHX) {
+      return runGraphX(graph)
+    }
+
     val spark = graph.spark
-    // Only set modifiable runtime configurations
+    val sc = spark.sparkContext
+    // Store original AQE setting
     val originalAQE = spark.conf.get("spark.sql.adaptive.enabled")
-    
+
     try {
       spark.conf.set("spark.sql.adaptive.enabled", "false")
-      
-      require(supportedAlgorithms.contains(algorithm),
-        s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
-
-      if (algorithm == ALGO_GRAPHX) {
-        return runGraphX(graph)
-      }
 
       val runId = UUID.randomUUID().toString.takeRight(8)
       val logPrefix = s"[CC $runId]"
       logInfo(s"$logPrefix Start connected components with run ID $runId.")
-
-      val spark = graph.spark
-      val sc = spark.sparkContext
 
       val shouldCheckpoint = checkpointInterval > 0
       val checkpointDir: Option[String] = if (shouldCheckpoint) {
