@@ -66,9 +66,7 @@ fork in Test := true
 javaOptions in Test ++= Seq(
   "-Xmx2048m",
   "-XX:ReservedCodeCacheSize=384m",
-  "-XX:MaxMetaspaceSize=384m",
-  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-  "--add-opens=java.base/java.lang=ALL-UNNAMED"
+  "-XX:MaxMetaspaceSize=384m"
 )
 
 concurrentRestrictions in Global := Seq(
