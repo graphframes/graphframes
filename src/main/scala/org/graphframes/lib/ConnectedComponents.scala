@@ -273,11 +273,12 @@ object ConnectedComponents extends Logging {
       intermediateStorageLevel: StorageLevel): DataFrame = {
     
     val spark = graph.spark
-    // Set configurations to avoid OOM in query explanation and ensure Scala 2.13 compatibility
-    spark.conf.set("spark.sql.adaptive.enabled", "false")
-    spark.conf.set("spark.sql.maxPlanStringLength", "4096")
+    // Only set modifiable runtime configurations
+    val originalAQE = spark.conf.get("spark.sql.adaptive.enabled")
     
     try {
+      spark.conf.set("spark.sql.adaptive.enabled", "false")
+      
       require(supportedAlgorithms.contains(algorithm),
         s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
 
@@ -421,9 +422,8 @@ object ConnectedComponents extends Logging {
         .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
         .select(col(s"$ATTR.*"), col(COMPONENT))
     } finally {
-      // Reset configurations
-      spark.conf.unset("spark.sql.adaptive.enabled")
-      spark.conf.unset("spark.sql.maxPlanStringLength")
+      // Restore only modifiable settings
+      spark.conf.set("spark.sql.adaptive.enabled", originalAQE)
     }
   }
 }

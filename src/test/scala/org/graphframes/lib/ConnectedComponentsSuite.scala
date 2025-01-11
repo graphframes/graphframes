@@ -139,11 +139,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     withSparkConf(
       Map(
         "spark.sql.adaptive.enabled" -> "false",
-        "spark.sql.maxPlanStringLength" -> "4096",
-        // Add memory configurations
-        "spark.memory.fraction" -> "0.7",
-        "spark.memory.storageFraction" -> "0.3",
-        "spark.testing.memory" -> "2147483648" // 2GB
+        "spark.sql.maxPlanStringLength" -> "4096"
       )
     ) {
       val vertices = spark.range(8L).toDF(ID)
@@ -290,15 +286,33 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
 
   private def withSparkConf(conf: Map[String, String])(f: => Unit): Unit = {
     val spark = this.spark
-    val originalConf = conf.keys.map(k => k -> spark.conf.getOption(k)).toMap
+    val originalConf = conf.keys.flatMap(k => 
+      try {
+        Some(k -> spark.conf.get(k))
+      } catch {
+        case _: Exception => None
+      }
+    ).toMap
+    
     try {
-      conf.foreach { case (k, v) => spark.conf.set(k, v) }
+      conf.foreach { case (k, v) => 
+        try {
+          spark.conf.set(k, v)
+        } catch {
+          case _: Exception => 
+            logWarning(s"Could not set configuration $k=$v")
+        }
+      }
       f
     } finally {
-      // Restore original configuration
-      originalConf.foreach {
-        case (k, Some(v)) => spark.conf.set(k, v)
-        case (k, None) => spark.conf.unset(k)
+      // Restore original configuration for modifiable settings only
+      originalConf.foreach { case (k, v) =>
+        try {
+          spark.conf.set(k, v)
+        } catch {
+          case _: Exception =>
+            // Ignore errors when restoring configs
+        }
       }
     }
   }
