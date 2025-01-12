@@ -70,6 +70,8 @@ javaOptions in Test ++= Seq(
   "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
   "--add-opens=java.base/java.lang=ALL-UNNAMED"
 )
+// javaOptions in Test ++= Seq("-Xmx2048m", "-XX:ReservedCodeCacheSize=384m", "-XX:MaxPermSize=384m")
+
 
 concurrentRestrictions in Global := Seq(
   Tags.limitAll(1))
