@@ -281,27 +281,33 @@ object ConnectedComponents extends Logging {
       return runGraphX(graph)
     }
 
-    val runId = UUID.randomUUID().toString.takeRight(8)
-    val logPrefix = s"[CC $runId]"
-    logInfo(s"$logPrefix Start connected components with run ID $runId.")
 
     val spark = graph.spark
     val sc = spark.sparkContext
+    // Store original AQE setting
+    val originalAQE = spark.conf.get("spark.sql.adaptive.enabled")
 
-    val shouldCheckpoint = checkpointInterval > 0
-    val checkpointDir: Option[String] = if (shouldCheckpoint) {
-      val dir = sc.getCheckpointDir.map { d =>
-        new Path(d, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
-      }.getOrElse {
-        throw new IOException(
-          "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir().")
-      }
-      logInfo(s"$logPrefix Using $dir for checkpointing with interval $checkpointInterval.")
-      Some(dir)
-    } else {
-      logInfo(
-        s"$logPrefix Checkpointing is disabled because checkpointInterval=$checkpointInterval.")
-      None
+    try {
+      spark.conf.set("spark.sql.adaptive.enabled", "false")
+
+      val runId = UUID.randomUUID().toString.takeRight(8)
+      val logPrefix = s"[CC $runId]"
+      logInfo(s"$logPrefix Start connected components with run ID $runId.")
+
+      val shouldCheckpoint = checkpointInterval > 0
+      val checkpointDir: Option[String] = if (shouldCheckpoint) {
+        val dir = sc.getCheckpointDir.map { d =>
+          new Path(d, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
+        }.getOrElse {
+          throw new IOException(
+            "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir().")
+        }
+        logInfo(s"$logPrefix Using $dir for checkpointing with interval $checkpointInterval.")
+        Some(dir)
+      } else {
+        logInfo(
+          s"$logPrefix Checkpointing is disabled because checkpointInterval=$checkpointInterval.")
+        None
     }
 
     logInfo(s"$logPrefix Preparing the graph for connected component computation ...")
