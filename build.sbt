@@ -64,9 +64,12 @@ fork in Test := true
 
 // This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
 javaOptions in Test ++= Seq(
+  "-XX:+IgnoreUnrecognizedVMOptions",
   "-Xmx2048m",
   "-XX:ReservedCodeCacheSize=384m",
-  "-XX:MaxMetaspaceSize=384m"
+  "-XX:MaxMetaspaceSize=384m",
+  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+  "--add-opens=java.base/java.lang=ALL-UNNAMED"
 )
 
 concurrentRestrictions in Global := Seq(
