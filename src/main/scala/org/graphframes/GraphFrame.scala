@@ -20,7 +20,6 @@ package org.graphframes
 import java.util.Random
 
 import scala.reflect.runtime.universe.TypeTag
-import scala.collection.mutable.WrappedArray
 
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql._
