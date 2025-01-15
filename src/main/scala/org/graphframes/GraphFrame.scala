@@ -55,8 +55,8 @@ class GraphFrame private(
     // in the printed schema.
     val vCols = (ID +: vertices.columns.filter(_ != ID).toIndexedSeq).map(col)
     val eCols = (SRC +: DST +: edges.columns.filter(c => c != SRC && c != DST).toIndexedSeq).map(col)
-    val v = vertices.select(vCols.head, vCols.tail: _*).toString
-    val e = edges.select(eCols.head, eCols.tail: _*).toString
+    val v = vertices.select(vCols.toSeq: _*).toString
+    val e = edges.select(eCols.toSeq: _*).toString
     "GraphFrame(v:" + v + ", e:" + e + ")"
   }
 
