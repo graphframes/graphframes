@@ -802,7 +802,7 @@ object GraphFrame extends Serializable with Logging {
   private[graphframes] def colStar(df: DataFrame, col: String): Seq[String] = {
     df.schema(col).dataType match {
       case s: StructType =>
-        s.fieldNames.map(f => col + "." + f)
+        scala.collection.immutable.ArraySeq.unsafeWrapArray(s.fieldNames).map(f => col + "." + f)
       case other =>
         throw new RuntimeException(s"Unknown error in GraphFrame. Expected column $col to be" +
           s" StructType, but found type: $other")
