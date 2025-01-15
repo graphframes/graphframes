@@ -150,7 +150,7 @@ class Graphs private[graphframes] () {
       |4,2,5.0
       |4,3,1.0
       |4,4,5.0
-    """.stripMargin.split("\n").map(_.trim).filterNot(_.isEmpty)
+    """.stripMargin.split("\n").map(_.trim).filterNot(_.isEmpty).toIndexedSeq
 
   /**
    * This method generates a grid Ising model with random parameters.
