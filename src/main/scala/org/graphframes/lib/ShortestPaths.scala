@@ -19,7 +19,7 @@ package org.graphframes.lib
 
 import java.util
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.{Column, DataFrame, Row}
