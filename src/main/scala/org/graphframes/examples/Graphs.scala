@@ -127,7 +127,7 @@ class Graphs private[graphframes] () {
       (fields(0).toLong * 2, fields(1).toLong * 2 + 1, fields(2).toDouble)
     }
     val edges = spark.createDataFrame(data).toDF("src", "dst", "weight")
-    val vs = data.flatMap(r => r._1 :: r._2 :: Nil).collect().distinct.map(x => Tuple1(x))
+    val vs = data.flatMap(r => r._1 :: r._2 :: Nil).collect().distinct.map(x => Tuple1(x)).toIndexedSeq
     val vertices = spark.createDataFrame(vs).toDF("id")
     GraphFrame(vertices, edges)
   }
