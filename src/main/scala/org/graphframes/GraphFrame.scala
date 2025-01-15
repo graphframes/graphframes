@@ -814,7 +814,7 @@ object GraphFrame extends Serializable with Logging {
 
   /** Nest all columns within a single StructType column with the given name */
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
-    struct(df.columns.map(c => df(c)) :_*).as(name)
+    struct(df.columns.map(c => df(c)).toSeq: _*).as(name)
   }
 
   // ========== Motif finding ==========

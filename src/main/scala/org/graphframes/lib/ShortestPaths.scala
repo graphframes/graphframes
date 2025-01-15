@@ -91,7 +91,7 @@ private object ShortestPaths {
       mapToLandmark(col(DISTANCE_ID))
     }
     val cols = graph.vertices.columns.map(col) :+ distanceCol.as(DISTANCE_ID)
-    g.vertices.select(cols: _*)
+    g.vertices.select(cols.toSeq: _*)
   }
 
   private val DISTANCE_ID = "distances"
