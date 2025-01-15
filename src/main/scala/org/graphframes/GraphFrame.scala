@@ -20,6 +20,7 @@ package org.graphframes
 import java.util.Random
 
 import scala.reflect.runtime.universe.TypeTag
+import scala.collection.immutable.ArraySeq
 
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.sql._
@@ -802,7 +803,7 @@ object GraphFrame extends Serializable with Logging {
   private[graphframes] def colStar(df: DataFrame, col: String): Seq[String] = {
     df.schema(col).dataType match {
       case s: StructType =>
-        scala.collection.immutable.ArraySeq.unsafeWrapArray(s.fieldNames).map(f => col + "." + f)
+        ArraySeq.unsafeWrapArray(s.fieldNames).map(f => col + "." + f)
       case other =>
         throw new RuntimeException(s"Unknown error in GraphFrame. Expected column $col to be" +
           s" StructType, but found type: $other")
