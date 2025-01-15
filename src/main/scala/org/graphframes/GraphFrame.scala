@@ -53,8 +53,10 @@ class GraphFrame private(
   override def toString: String = {
     // We call select on the vertices and edges to ensure that ID, SRC, DST always come first
     // in the printed schema.
-    val v = vertices.select(ID +: vertices.columns.filter(_ != ID).toIndexedSeq: _*).toString
-    val e = edges.select((SRC +: DST +: edges.columns.filter(c => c != SRC && c != DST).toIndexedSeq): _*).toString
+    val vCols = ID +: vertices.columns.filter(_ != ID).toIndexedSeq
+    val eCols = SRC +: DST +: edges.columns.filter(c => c != SRC && c != DST).toIndexedSeq
+    val v = vertices.select(vCols: _*).toString
+    val e = edges.select(eCols: _*).toString
     "GraphFrame(v:" + v + ", e:" + e + ")"
   }
 
