@@ -708,7 +708,7 @@ object GraphFrame extends Serializable with Logging {
   def fromEdges(e: DataFrame): GraphFrame = {
     val srcs = e.select(e("src").as("id"))
     val dsts = e.select(e("dst").as("id"))
-    val v = srcs.unionAll(dsts).distinct
+    val v = srcs.unionAll(dsts).distinct()
     v.persist(StorageLevel.MEMORY_AND_DISK)
     apply(v, e)
   }
