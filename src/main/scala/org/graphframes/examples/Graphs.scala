@@ -122,7 +122,7 @@ class Graphs private[graphframes] () {
    */
   def ALSSyntheticData(): GraphFrame = {
     val sc = spark.sparkContext
-    val data = sc.parallelize(als_data).map { line =>
+    val data = sc.parallelize(als_data.toIndexedSeq).map { line =>
       val fields = line.split(",")
       (fields(0).toLong * 2, fields(1).toLong * 2 + 1, fields(2).toDouble)
     }
@@ -150,7 +150,7 @@ class Graphs private[graphframes] () {
       |4,2,5.0
       |4,3,1.0
       |4,4,5.0
-    """.stripMargin.split("\n").map(_.trim).filterNot(_.isEmpty).toIndexedSeq
+    """.stripMargin.split("\n").map(_.trim).filterNot(_.isEmpty)
 
   /**
    * This method generates a grid Ising model with random parameters.
