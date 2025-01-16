@@ -16,17 +16,18 @@
 #
 
 import sys
+from typing import Any
+
 if sys.version > '3':
     basestring = str
 
+from graphframes.lib import Pregel
 from pyspark import SparkContext
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.storagelevel import StorageLevel
 
-from graphframes.lib import Pregel
 
-
-def _from_java_gf(jgf, spark):
+def _from_java_gf(jgf: Any, spark: SparkSession) -> 'GraphFrame':
     """
     (internal) creates a python GraphFrame wrapper from a java GraphFrame.
 
@@ -36,13 +37,13 @@ def _from_java_gf(jgf, spark):
     pe = DataFrame(jgf.edges(), spark)
     return GraphFrame(pv, pe)
 
-def _java_api(jsc):
+def _java_api(jsc: SparkContext) -> Any:
     javaClassName = "org.graphframes.GraphFramePythonAPI"
     return jsc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName) \
             .newInstance()
 
 
-class GraphFrame(object):
+class GraphFrame:
     """
     Represents a graph with vertices and edges stored as DataFrames.
 
@@ -60,7 +61,7 @@ class GraphFrame(object):
     >>> g = GraphFrame(v, e)
     """
 
-    def __init__(self, v, e):
+    def __init__(self, v: DataFrame, e: DataFrame) -> None:
         self._vertices = v
         self._edges = e
         self._spark = SparkSession.getActiveSession()
@@ -89,7 +90,7 @@ class GraphFrame(object):
         self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
     @property
-    def vertices(self):
+    def vertices(self) -> DataFrame:
         """
         :class:`DataFrame` holding vertex information, with unique column "id"
         for vertex IDs.
@@ -97,7 +98,7 @@ class GraphFrame(object):
         return self._vertices
 
     @property
-    def edges(self):
+    def edges(self) -> DataFrame:
         """
         :class:`DataFrame` holding edge information, with unique columns "src" and
         "dst" storing source vertex IDs and destination vertex IDs of edges,
@@ -108,14 +109,14 @@ class GraphFrame(object):
     def __repr__(self):
         return self._jvm_graph.toString()
 
-    def cache(self):
+    def cache(self) -> 'GraphFrame':
         """ Persist the dataframe representation of vertices and edges of the graph with the default
         storage level.
         """
         self._jvm_graph.cache()
         return self
 
-    def persist(self, storageLevel=StorageLevel.MEMORY_ONLY):
+    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrame":
         """Persist the dataframe representation of vertices and edges of the graph with the given
         storage level.
         """
@@ -123,7 +124,7 @@ class GraphFrame(object):
         self._jvm_graph.persist(javaStorageLevel)
         return self
 
-    def unpersist(self, blocking=False):
+    def unpersist(self, blocking: bool = False) -> 'GraphFrame':
         """Mark the dataframe representation of vertices and edges of the graph as non-persistent,
         and remove all blocks for it from memory and disk.
         """
@@ -131,7 +132,7 @@ class GraphFrame(object):
         return self
 
     @property
-    def outDegrees(self):
+    def outDegrees(self) -> DataFrame:
         """
         The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
          - "id": the ID of the vertex
@@ -145,7 +146,7 @@ class GraphFrame(object):
         return DataFrame(jdf, self._spark)
 
     @property
-    def inDegrees(self):
+    def inDegrees(self) -> DataFrame:
         """
         The in-degree of each vertex in the graph, returned as a DataFame with two columns:
          - "id": the ID of the vertex
@@ -159,7 +160,7 @@ class GraphFrame(object):
         return DataFrame(jdf, self._spark)
 
     @property
-    def degrees(self):
+    def degrees(self) -> DataFrame:
         """
         The degree of each vertex in the graph, returned as a DataFrame with two columns:
          - "id": the ID of the vertex
@@ -173,7 +174,7 @@ class GraphFrame(object):
         return DataFrame(jdf, self._spark)
 
     @property
-    def triplets(self):
+    def triplets(self) -> DataFrame:
         """
         The triplets (source vertex)-[edge]->(destination vertex) for all edges in the graph.
 
@@ -196,7 +197,7 @@ class GraphFrame(object):
         """
         return Pregel(self)
 
-    def find(self, pattern):
+    def find(self, pattern: str) -> DataFrame:
         """
         Motif finding.
 
@@ -208,7 +209,7 @@ class GraphFrame(object):
         jdf = self._jvm_graph.find(pattern)
         return DataFrame(jdf, self._spark)
 
-    def filterVertices(self, condition):
+    def filterVertices(self, condition: str | Column) -> 'GraphFrame':
         """
         Filters the vertices based on expression, remove edges containing any dropped vertices.
         
@@ -224,7 +225,7 @@ class GraphFrame(object):
             raise TypeError("condition should be string or Column")
         return _from_java_gf(jdf, self._spark)
 
-    def filterEdges(self, condition):
+    def filterEdges(self, condition: str | Column) -> 'GraphFrame':
         """
         Filters the edges based on expression, keep all vertices.
         
@@ -239,7 +240,7 @@ class GraphFrame(object):
             raise TypeError("condition should be string or Column")
         return _from_java_gf(jdf, self._spark)
 
-    def dropIsolatedVertices(self):
+    def dropIsolatedVertices(self) -> 'GraphFrame':
         """
         Drops isolated vertices, vertices are not contained in any edges.
 
@@ -248,7 +249,9 @@ class GraphFrame(object):
         jdf = self._jvm_graph.dropIsolatedVertices()
         return _from_java_gf(jdf, self._spark)
 
-    def bfs(self, fromExpr, toExpr, edgeFilter=None, maxPathLength=10):
+    def bfs(self, fromExpr: str, toExpr: str,
+            edgeFilter: str | None = None,
+            maxPathLength: int = 10) -> DataFrame:
         """
         Breadth-first search (BFS).
 
@@ -265,7 +268,9 @@ class GraphFrame(object):
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
-    def aggregateMessages(self, aggCol, sendToSrc=None, sendToDst=None):
+    def aggregateMessages(self, aggCol: Column | str,
+                         sendToSrc: Column | str | None = None,
+                         sendToDst: Column | str | None = None) -> DataFrame:
         """
         Aggregates messages from the neighbours.
 
@@ -309,8 +314,9 @@ class GraphFrame(object):
 
     # Standard algorithms
 
-    def connectedComponents(self, algorithm = "graphframes", checkpointInterval = 2,
-                            broadcastThreshold = 1000000):
+    def connectedComponents(self, algorithm: str = 'graphframes',
+                          checkpointInterval: int = 2,
+                          broadcastThreshold: int = 1000000) -> DataFrame:
         """
         Computes the connected components of the graph.
 
@@ -331,7 +337,7 @@ class GraphFrame(object):
             .run()
         return DataFrame(jdf, self._spark)
 
-    def labelPropagation(self, maxIter):
+    def labelPropagation(self, maxIter: int) -> DataFrame:
         """
         Runs static label propagation for detecting communities in networks.
 
@@ -343,8 +349,10 @@ class GraphFrame(object):
         jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
         return DataFrame(jdf, self._spark)
 
-    def pageRank(self, resetProbability = 0.15, sourceId = None, maxIter = None,
-                 tol = None):
+    def pageRank(self, resetProbability: float = 0.15,
+                 sourceId: Any | None = None,
+                 maxIter: int | None = None,
+                 tol: float | None = None) -> 'GraphFrame':
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
@@ -371,8 +379,9 @@ class GraphFrame(object):
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)
 
-    def parallelPersonalizedPageRank(self, resetProbability = 0.15, sourceIds = None,
-                                     maxIter = None):
+    def parallelPersonalizedPageRank(self, resetProbability: float = 0.15,
+                                   sourceIds: list[Any] | None = None,
+                                   maxIter: int | None = None) -> 'GraphFrame':
         """
         Run the personalized PageRank algorithm on the graph,
         from the provided list of sources in parallel for a fixed number of iterations.
@@ -394,7 +403,7 @@ class GraphFrame(object):
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)
 
-    def shortestPaths(self, landmarks):
+    def shortestPaths(self, landmarks: list[Any]) -> DataFrame:
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
 
@@ -406,7 +415,7 @@ class GraphFrame(object):
         jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
         return DataFrame(jdf, self._spark)
 
-    def stronglyConnectedComponents(self, maxIter):
+    def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
         """
         Runs the strongly connected components algorithm on this graph.
 
@@ -418,8 +427,10 @@ class GraphFrame(object):
         jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
         return DataFrame(jdf, self._spark)
 
-    def svdPlusPlus(self, rank = 10, maxIter = 2, minValue = 0.0, maxValue = 5.0,
-                    gamma1 = 0.007, gamma2 = 0.007, gamma6 = 0.005, gamma7 = 0.015):
+    def svdPlusPlus(self, rank: int = 10, maxIter: int = 2,
+                    minValue: float = 0.0, maxValue: float = 5.0,
+                    gamma1: float = 0.007, gamma2: float = 0.007,
+                    gamma6: float = 0.005, gamma7: float = 0.015) -> tuple[DataFrame, float]:
         """
         Runs the SVD++ algorithm.
 
@@ -436,7 +447,7 @@ class GraphFrame(object):
         v = DataFrame(jdf, self._spark)
         return (v, loss)
 
-    def triangleCount(self):
+    def triangleCount(self) -> DataFrame:
         """
         Counts the number of triangles passing through each vertex in this graph.
 

@@ -27,7 +27,7 @@ from pyspark.sql import SparkSession, functions as sqlfunctions, types
 __all__ = ['BeliefPropagation']
 
 
-class BeliefPropagation(object):
+class BeliefPropagation:
     """Example code for Belief Propagation (BP)
 
     This provides a template for building customized BP algorithms for different types of graphical
@@ -63,7 +63,7 @@ class BeliefPropagation(object):
      """
 
     @classmethod
-    def runBPwithGraphFrames(cls, g, numIter):
+    def runBPwithGraphFrames(cls, g: GraphFrame, numIter: int) -> GraphFrame:
         """Run Belief Propagation using GraphFrame.
 
         This implementation of BP shows how to use GraphFrame's aggregateMessages method.
@@ -117,7 +117,7 @@ class BeliefPropagation(object):
         return GraphFrame(gx.vertices.drop('color'), gx.edges)
 
     @staticmethod
-    def _colorGraph(g):
+    def _colorGraph(g: GraphFrame) -> GraphFrame:
         """Given a GraphFrame, choose colors for each vertex.
 
         No neighboring vertices will share the same color. The number of colors is minimized.
@@ -135,7 +135,7 @@ class BeliefPropagation(object):
         return GraphFrame(v, g.edges)
 
     @staticmethod
-    def _sigmoid(x):
+    def _sigmoid(x: int | float | None) -> float | None:
         """Numerically stable sigmoid function 1 / (1 + exp(-x))"""
         if not x:
             return None
@@ -147,7 +147,7 @@ class BeliefPropagation(object):
             return z / (1 + z)
 
 
-def main():
+def main() -> None:
     """Run the belief propagation algorithm for an example problem."""
     # setup spark session
     spark = SparkSession.builder.appName("BeliefPropagation example").getOrCreate()
