@@ -16,7 +16,7 @@
 #
 
 import sys
-from typing import Any
+from typing import Any, Union
 
 if sys.version > '3':
     basestring = str
@@ -209,7 +209,7 @@ class GraphFrame:
         jdf = self._jvm_graph.find(pattern)
         return DataFrame(jdf, self._spark)
 
-    def filterVertices(self, condition: str | Column) -> 'GraphFrame':
+    def filterVertices(self, condition: Union[str, Column]) -> 'GraphFrame':
         """
         Filters the vertices based on expression, remove edges containing any dropped vertices.
         
@@ -225,7 +225,7 @@ class GraphFrame:
             raise TypeError("condition should be string or Column")
         return _from_java_gf(jdf, self._spark)
 
-    def filterEdges(self, condition: str | Column) -> 'GraphFrame':
+    def filterEdges(self, condition: Union[str, Column]) -> 'GraphFrame':
         """
         Filters the edges based on expression, keep all vertices.
         
@@ -268,9 +268,9 @@ class GraphFrame:
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
-    def aggregateMessages(self, aggCol: Column | str,
-                         sendToSrc: Column | str | None = None,
-                         sendToDst: Column | str | None = None) -> DataFrame:
+    def aggregateMessages(self, aggCol: Union[Column, str],
+                         sendToSrc: Union[Column, str, None] = None,
+                         sendToDst: Union[Column, str, None] = None) -> DataFrame:
         """
         Aggregates messages from the neighbours.
 
