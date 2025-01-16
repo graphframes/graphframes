@@ -16,7 +16,7 @@
 #
 
 import sys
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 if sys.version > '3':
     basestring = str
@@ -250,7 +250,7 @@ class GraphFrame:
         return _from_java_gf(jdf, self._spark)
 
     def bfs(self, fromExpr: str, toExpr: str,
-            edgeFilter: str | None = None,
+            edgeFilter: Optional[str] = None,
             maxPathLength: int = 10) -> DataFrame:
         """
         Breadth-first search (BFS).
@@ -350,9 +350,9 @@ class GraphFrame:
         return DataFrame(jdf, self._spark)
 
     def pageRank(self, resetProbability: float = 0.15,
-                 sourceId: Any | None = None,
-                 maxIter: int | None = None,
-                 tol: float | None = None) -> 'GraphFrame':
+                 sourceId: Optional[Any] = None,
+                 maxIter: Optional[int] = None,
+                 tol: Optional[float] = None) -> 'GraphFrame':
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
@@ -380,8 +380,8 @@ class GraphFrame:
         return _from_java_gf(jgf, self._spark)
 
     def parallelPersonalizedPageRank(self, resetProbability: float = 0.15,
-                                   sourceIds: list[Any] | None = None,
-                                   maxIter: int | None = None) -> 'GraphFrame':
+                                   sourceIds: Optional[list[Any]] = None,
+                                   maxIter: Optional[int] = None) -> 'GraphFrame':
         """
         Run the personalized PageRank algorithm on the graph,
         from the provided list of sources in parallel for a fixed number of iterations.
