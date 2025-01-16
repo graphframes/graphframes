@@ -16,6 +16,7 @@
 #
 
 import math
+from typing import Union
 
 # Import subpackage examples here explicitly so that
 # this module can be run directly with spark-submit.
@@ -135,7 +136,7 @@ class BeliefPropagation:
         return GraphFrame(v, g.edges)
 
     @staticmethod
-    def _sigmoid(x: int | float | None) -> float | None:
+    def _sigmoid(x: Union[int, float, None]) -> Union[float, None]:
         """Numerically stable sigmoid function 1 / (1 + exp(-x))"""
         if not x:
             return None
