@@ -23,7 +23,6 @@ if sys.version > '3':
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col
 from pyspark.ml.wrapper import JavaWrapper
-from graphframes import GraphFrame
 
 
 class Pregel(JavaWrapper):
@@ -78,8 +77,9 @@ class Pregel(JavaWrapper):
     ...     .run()
     """
 
-    def __init__(self, graph: GraphFrame) -> None:
+    def __init__(self, graph: "GraphFrame") -> None:
         super(Pregel, self).__init__()
+        from graphframes import GraphFrame
         self.graph = graph
         self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", graph._jvm_graph)
 
