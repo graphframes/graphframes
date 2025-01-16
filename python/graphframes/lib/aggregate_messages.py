@@ -18,7 +18,7 @@
 from typing import Any
 
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, functions as sqlfunctions, SparkSession
+from pyspark.sql import DataFrame, functions as sqlfunctions, SparkSession, Column
 
 
 def _java_api(jsc: SparkContext) -> Any:

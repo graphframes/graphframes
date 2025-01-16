@@ -17,7 +17,7 @@
 
 import itertools
 
-from pyspark.sql import functions as sqlfunctions
+from pyspark.sql import functions as sqlfunctions, SparkSession
 
 from graphframes import GraphFrame
 
