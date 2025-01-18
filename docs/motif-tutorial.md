@@ -364,8 +364,8 @@ graphlet_count_df.show()
 
 The result shows the only continuous triangles in the graph are 39 post-link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Motif finding based on topology alone can be used to explore a knowledge graph in the same way you might run your first GROUP BY query on a new relational database.
 
-<div data-lang="sql" markdown="1">
-{% highlight sql %}
+<div data-lang="python" markdown="1">
+{% highlight python %}
 +------+--------------+------+---------------+------+---------------+-----+
 |A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
 +------+--------------+------+---------------+------+---------------+-----+
@@ -385,8 +385,8 @@ paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
 
 The result is a count of the divergent triangles in the graph by type.
 
-<div data-lang="sql" markdown="1">
-{% highlight sql %}
+<div data-lang="python" markdown="1">
+{% highlight python %}
 +------+--------------+------+---------------+------+---------------+-----+
 |A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
 +------+--------------+------+---------------+------+---------------+-----+
@@ -406,10 +406,88 @@ We can do more with the properties of paths than just count them by node and edg
 
 For example, we can use <i>property graph motifs</i> to find all questions about statistics answered by the same user that asked it with at least 10 votes. This involves a path search followed by a relational query: a group by on path elements. Aggregations can supercharge <i>property graph motifs</i> compared with traditional network motifs. They can be of arbitrary graph and relational complexity.
 
+First lets express the structural logic of the motif we are looking for. We will use a four-path to express the logic of the query. The path is a user asking a question, answered by the same user, with an upvote, tagged with 'statistics'. This looks like the following:
+
 <div data-lang="python" markdown="1">
 {% highlight python %}
 paths = g.find("(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (e)-[e4]->(b)")
+{% endhighlight %}
+</div>
 
+Let's count the number of instances by type for of this path in the graph:
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# Visualize the four-path by counting instances of paths by node / edge type
+graphlet_type_df = paths.select(
+    F.col("a.Type").alias("A_Type"),
+    F.col("e1.relationship").alias("E_relationship"),
+    F.col("b.Type").alias("B_Type"),
+    F.col("e2.relationship").alias("E2_relationship"),
+    F.col("c.Type").alias("C_Type"),
+    F.col("e3.relationship").alias("E3_relationship"),
+    F.col("d.Type").alias("D_Type"),
+    F.col("e4.relationship").alias("E4_relationship"),
+)
+graphlet_count_df = (
+    graphlet_type_df.groupby(
+        "A_Type",
+        "E_relationship",
+        "B_Type",
+        "E2_relationship",
+        "C_Type",
+        "E3_relationship",
+        "D_Type",
+        "E4_relationship",
+    )
+    .count()
+    .orderBy(F.col("count").desc())
+)
+{% endhighlight %}
+</div>
+
+The results show a diverse set of paths. Remember the graph pattern: <code>(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (e)-[e4]->(b)</code>. That looks like this:
+
+<center>
+    <figure>
+        <img src="img/G11_motif.png" width="65px" alt="G11 5-node Directed Graphlet" title="G11 5-node Directed Graphlet" style="margin: 15px" />
+        <figcaption>
+            <a href="https://www.nature.com/articles/srep35098">G11 is a cross with all edges pointing at the center node.</a>
+        </figcaption>
+    </figure>
+</center>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
++------+--------------+------+---------------+------+---------------+------+---------------+----------+
+|A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|D_Type|E4_relationship|     count|
++------+--------------+------+---------------+------+---------------+------+---------------+----------+
+|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|1294603755|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  79555150|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  71080047|
+|  Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  71080047|
+|  Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  71080047|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|          Links|  Post|        CastFor|  53621993|
+|  Post|         Links|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  53621993|
+|  Vote|       CastFor|  Post|          Links|  Post|        CastFor|  Vote|        CastFor|  53621993|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|          Links|  53621993|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|           Tags|   Tag|        CastFor|  28074497|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|           Tags|  28074497|
+|   Tag|          Tags|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  28074497|
+|  Vote|       CastFor|  Post|           Tags|   Tag|        CastFor|  Vote|        CastFor|  28074497|
+|  Post|       Answers|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  13737539|
+|  Post|       Answers|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  13737539|
+|  Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        Answers|  13737539|
+|  Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  13737539|
+|  Vote|       CastFor|  Post|        Answers|  Post|        Answers|  Post|        CastFor|  13737539|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        Answers|  13737539|
+|  Vote|       CastFor|  Post|        CastFor|  Vote|           Asks|  User|        CastFor|  11545634|
++------+--------------+------+---------------+------+---------------+------+---------------+----------+
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
 # Find paths that match the pattern of a user asking a question, answered by the same user,
 # with an upvote, tagged with 'statistics'
 bootstrap_paths = (
