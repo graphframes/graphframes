@@ -446,11 +446,19 @@ graphlet_count_df = (
 {% endhighlight %}
 </div>
 
-The results show a diverse set of paths. Remember the graph pattern: <code>(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (e)-[e4]->(b)</code>. That looks like this:
+The results show a diverse set of paths. Remember the graph pattern:
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (e)-[e4]->(b)
+{% endhighlight %}
+</div>
+
+Visually this pattern looks like this:
 
 <center>
     <figure>
-        <img src="img/G11_motif.png" width="65px" alt="G11 5-node Directed Graphlet" title="G11 5-node Directed Graphlet" style="margin: 15px" />
+        <img src="img/G11_motif.png" width="115px" alt="G11 5-node Directed Graphlet" title="G11 5-node Directed Graphlet" style="margin: 15px" />
         <figcaption>
             <a href="https://www.nature.com/articles/srep35098">G11 is a cross with all edges pointing at the center node.</a>
         </figcaption>
