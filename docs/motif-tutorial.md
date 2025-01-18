@@ -266,7 +266,7 @@ g = GraphFrame(nodes_df, edges_df)
 g.vertices.show(10)
 print(f"Node columns: {g.vertices.columns}")
 
-g.edges.show(10)
+g.edges.sample(0.0001).show(10)
 {% endhighlight %}
 </div>
 
@@ -281,16 +281,16 @@ Node columns: ['id', 'AboutMe', 'AcceptedAnswerId', 'AccountId', 'AnswerCount', 
 +--------------------+--------------------+------------+
 |                 src|                 dst|relationship|
 +--------------------+--------------------+------------+
-|afb0dcb7-1325-441...|7d1fdcf6-52ac-4ee...|     CastFor|
-|344c3ebe-6f7b-42a...|3d5aaba5-bf19-49c...|     CastFor|
-|b85f6a3e-518e-425...|29e78860-217a-4aa...|     CastFor|
-|13def23e-eed5-440...|88ec852f-5887-422...|     CastFor|
-|2b4dd817-349c-48c...|266e2b24-78e7-438...|     CastFor|
-|486d53ba-7aa7-4ff...|72db9a20-ccc1-431...|     CastFor|
-|038afb88-c9f0-496...|e837a1b1-4205-425...|     CastFor|
-|5ef6462c-d3f7-4bc...|4dacee4b-8703-4aa...|     CastFor|
-|497fcbfb-dd79-421...|6c35e5bf-9a88-455...|     CastFor|
-|1c0f584a-2b65-486...|0460e6c8-bb99-4b4...|     CastFor|
+|be3ab453-e776-48e...|8aaaecd7-7ec9-4b9...|     CastFor|
+|4c781826-3112-4b2...|07665936-d759-4f6...|       Earns|
+|a11d77a7-da09-4b0...|a9ea6e7d-7cc1-408...|     CastFor|
+|bd42f75a-b3ee-4d0...|fe216e41-1ae0-4c0...|       Earns|
+|4dd3c6be-b103-4ab...|2aa18136-59a7-498...|       Earns|
+|13540451-5823-417...|37966108-de38-4aa...|     CastFor|
+|f60ed1aa-5361-4ab...|1c5352c1-d084-47c...|       Earns|
+|9cb948f8-c7d5-40d...|71bc77c4-dfe7-47e...|       Earns|
+|03980309-e97e-402...|d0b4c366-c8d0-458...|        Asks|
+|b3736001-b654-419...|14920c81-232b-479...|       Earns|
 +--------------------+--------------------+------------+
 only showing top 10 rows
 {% endhighlight %}
@@ -316,7 +316,7 @@ A complete description of the graph query language is in the [GraphFrames User G
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # G4: Continuous Triangles
-paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
+paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
 
 # Show the first path
 paths.show(1)
@@ -328,7 +328,7 @@ The resulting path has a field for each step in the `find()`; each field has all
 <div data-lang="python" markdown="1">
 {% highlight python %}
 +--------+--------+--------+--------+--------+--------+
-|       a|       e|       b|      e2|       c|      e3|
+|       a|      e1|       b|      e2|       c|      e3|
 +-----------------+--------+--------+--------+--------+
 |{1038...|{1038...|{ac7a...|{ac7a...|{4e6b...|{4e6b...|
 +--------+--------+--------+--------+--------+--------+
@@ -344,7 +344,7 @@ Aggregating paths can express powerful semantics. Let's count the types of paths
 {% highlight python %}
 graphlet_type_df = paths.select(
     F.col("a.Type").alias("A_Type"),
-    F.col("e.relationship").alias("E_relationship"),
+    F.col("e1.relationship").alias("E_relationship"),
     F.col("b.Type").alias("B_Type"),
     F.col("e2.relationship").alias("E2_relationship"),
     F.col("c.Type").alias("C_Type"),
@@ -362,7 +362,7 @@ graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The result shows the only continuous triangles in the graph are post link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Motif finding based on topology alone can be used to explore a knowledge graph in the same way you might run your first GROUP BY query on a new relational database.
+The result shows the only continuous triangles in the graph are 39 post-link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Motif finding based on topology alone can be used to explore a knowledge graph in the same way you might run your first GROUP BY query on a new relational database.
 
 <div data-lang="sql" markdown="1">
 {% highlight sql %}
@@ -379,7 +379,7 @@ Let's try a different triangle, a divergent triangle. The code to visualize a 3-
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # G5: Divergent Triangles
-paths = g.find("(a)-[e]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
+paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
 {% endhighlight %}
 </div>
 
