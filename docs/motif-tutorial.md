@@ -256,9 +256,6 @@ Back to our motifs :) It is time to create our <a href="https://graphframes.gith
 {% highlight python %}
 g = GraphFrame(nodes_df, edges_df)  
 
-# Add the degree to use as a property in the motifs
-g = add_degree(g).cache()
-
 g.vertices.show(10)
 print(f"Node columns: {g.vertices.columns}")
 
@@ -313,11 +310,28 @@ A complete description of the graph query language is in the [GraphFrames User G
 {% highlight python %}
 # G4: Continuous Triangles
 paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
-three_edge_count(paths).show()
+
+# Show the first path
+paths.show(1)
 {% endhighlight %}
 </div>
 
-The `three_edge_count` function is a utility function that counts the number of instances of a motif in the graph. The function takes a `DataFrame` with fields for each of the node and edge labels in the pattern and returns a `DataFrame` with a count of the number of instances of the motif in the graph.
+The resulting path has a field for each step in the `find()`; each field has all properties of our nodes or edges.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
++--------+--------+--------+--------+--------+--------+
+|       a|       e|       b|      e2|       c|      e3|
++-----------------+--------+--------+--------+--------+
+|{1038...|{1038...|{ac7a...|{ac7a...|{4e6b...|{4e6b...|
++--------+--------+--------+--------+--------+--------+
+only showing top 1 row
+{% endhighlight %}
+</div>
+
+This can be overwhelming to look at, so in practice you will `DataFrame.select()` (a path is just a <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html">pyspark.sql.DataFrame</a>) the properties of interest.
+
+Aggregating paths can express powerful semantics. Let's count the types of paths of this triangle motif in the graph of each node and edge type.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -341,7 +355,7 @@ graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The result is a count of the continuous triangles in the graph.
+The result shows the only continuous triangles in the graph are post link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Sometimes motif finding is used to explore. Other times, as in the next section, we are looking for specific patterns or variations of a known pattern. This can be used to expand domain knowledge about a knowledge graph.
 
 <div data-lang="sql" markdown="1">
 {% highlight sql %}
