@@ -362,7 +362,7 @@ graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The result shows the only continuous triangles in the graph are 39 post-link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Motif finding based on topology alone can be used to explore a knowledge graph in the same way you might run your first GROUP BY query on a new relational database.
+The result shows the only continuous triangles in the graph are 39 post-link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Motif matching for simple motifs based on topology alone can be used to for exploratory data analysis over a knowledge graph in the same way you might run <code>GROUP BY / COUNT</code> queries on a table in a relational database to start to understand its contents.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -428,6 +428,7 @@ graphlet_type_df = paths.select(
     F.col("e3.relationship").alias("E3_relationship"),
     F.col("d.Type").alias("D_Type"),
     F.col("e4.relationship").alias("E4_relationship"),
+    F.col("e.Type").alias("E_Type"),
 )
 graphlet_count_df = (
     graphlet_type_df.groupby(
@@ -439,6 +440,7 @@ graphlet_count_df = (
         "E3_relationship",
         "D_Type",
         "E4_relationship",
+        "E_Type",
     )
     .count()
     .orderBy(F.col("count").desc())
@@ -446,7 +448,7 @@ graphlet_count_df = (
 {% endhighlight %}
 </div>
 
-The results show a diverse set of paths. Remember the graph pattern:
+Remember the graph pattern:
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -465,32 +467,36 @@ Visually this pattern looks like this:
     </figure>
 </center>
 
+The results show a diverse set of paths. J bave added numbers for each row for clarity. Some observations:
+
+* The first, most frequent path is simply four separate votes for a post.
+
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+------+--------------+------+---------------+------+---------------+------+---------------+----------+
-|A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|D_Type|E4_relationship|     count|
-+------+--------------+------+---------------+------+---------------+------+---------------+----------+
-|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|1294603755|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  79555150|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  71080047|
-|  Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  71080047|
-|  Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  71080047|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|          Links|  Post|        CastFor|  53621993|
-|  Post|         Links|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  53621993|
-|  Vote|       CastFor|  Post|          Links|  Post|        CastFor|  Vote|        CastFor|  53621993|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|          Links|  53621993|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|           Tags|   Tag|        CastFor|  28074497|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|           Tags|  28074497|
-|   Tag|          Tags|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  28074497|
-|  Vote|       CastFor|  Post|           Tags|   Tag|        CastFor|  Vote|        CastFor|  28074497|
-|  Post|       Answers|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  13737539|
-|  Post|       Answers|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  13737539|
-|  Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        Answers|  13737539|
-|  Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  13737539|
-|  Vote|       CastFor|  Post|        Answers|  Post|        Answers|  Post|        CastFor|  13737539|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        Answers|  13737539|
-|  Vote|       CastFor|  Post|        CastFor|  Vote|           Asks|  User|        CastFor|  11545634|
-+------+--------------+------+---------------+------+---------------+------+---------------+----------+
++-------+--------------+------+---------------+------+---------------+------+---------------+------+----------+
+|A_Type |E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|D_Type|E4_relationship|E_Type|     count|
++-------+--------------+------+---------------+------+---------------+------+---------------+-----------------+
+|1. Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  Vote|1294603755|
+|2. Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  Vote|  79555150|
+|3. Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  Vote|  71080047|
+|4. Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  Post|  71080047|
+|5. Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|  71080047|
+|6. Vote|       CastFor|  Post|        CastFor|  Vote|          Links|  Post|        CastFor|  Post|  53621993|
+|7. Post|         Links|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  Vote|  53621993|
+|8. Vote|       CastFor|  Post|          Links|  Post|        CastFor|  Vote|        CastFor|  Vote|  53621993|
+|9. Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|          Links|  Vote|  53621993|
+|10 Vote|       CastFor|  Post|        CastFor|  Vote|           Tags|   Tag|        CastFor|  Vote|  28074497|
+|11.Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|           Tags|  Vote|  28074497|
+|12. Tag|          Tags|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|   Tag|  28074497|
+|13.Vote|       CastFor|  Post|           Tags|   Tag|        CastFor|  Vote|        CastFor|  Vote|  28074497|
+|14.Post|       Answers|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  Vote|  13737539|
+|15.Post|       Answers|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  Post|  13737539|
+|16.Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        Answers|  Vote|  13737539|
+|17.Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  Post|  13737539|
+|18.Vote|       CastFor|  Post|        Answers|  Post|        Answers|  Post|        CastFor|  Vote|  13737539|
+|19.Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        Answers|  Post|  13737539|
+|20.Vote|       CastFor|  Post|        CastFor|  Vote|           Asks|  User|        CastFor|  User|  11545634|
++------+--------------+------+---------------+------+---------------+-- ----+---------------+------+----------+
 {% endhighlight %}
 </div>
 
