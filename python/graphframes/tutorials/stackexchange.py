@@ -14,17 +14,6 @@ import pyspark.sql.types as T
 from pyspark.sql import DataFrame, SparkSession
 
 
-#
-# Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
-#
-
-spark: SparkSession = (
-    SparkSession.builder.appName("Stack Exchange Graph Builder")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
-)
-
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
 BASE_PATH = f"python/graphframes/examples/data/{STACKEXCHANGE_SITE}"
@@ -60,7 +49,7 @@ def split_tags(tags: str) -> List[str]:
 
 spark: SparkSession = (
     SparkSession.builder.appName("Stack Exchange Graph Builder")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+    # Lets the Id:(Stack Overflow int) and id:(GraphFrames UUID) coexist
     .config("spark.sql.caseSensitive", True)
     .getOrCreate()
 )
@@ -80,10 +69,10 @@ posts_df: DataFrame = (
 print(f"\nTotal Posts:       {posts_df.count():,}")
 
 # Remove the _ prefix from field names
-posts_df: DataFrame = remove_prefix(posts_df)
+posts_df = remove_prefix(posts_df)
 
 # Create a list of tags
-posts_df: DataFrame = (
+posts_df = (
     posts_df.withColumn(
         "ParsedTags", F.split(F.regexp_replace(F.col("Tags"), "^\\||\\|$", ""), "\\|")
     )
@@ -249,12 +238,12 @@ def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]
 
 
 # Now apply this function to each of your DataFrames to get a consistent schema
-posts_df: DataFrame = add_missing_columns(posts_df, all_cols).select(all_column_names)
-post_links_df: DataFrame = add_missing_columns(post_links_df, all_cols).select(all_column_names)
-users_df: DataFrame = add_missing_columns(users_df, all_cols).select(all_column_names)
-votes_df: DataFrame = add_missing_columns(votes_df, all_cols).select(all_column_names)
-tags_df: DataFrame = add_missing_columns(tags_df, all_cols).select(all_column_names)
-badges_df: DataFrame = add_missing_columns(badges_df, all_cols).select(all_column_names)
+posts_df = add_missing_columns(posts_df, all_cols).select(all_column_names)
+post_links_df = add_missing_columns(post_links_df, all_cols).select(all_column_names)
+users_df = add_missing_columns(users_df, all_cols).select(all_column_names)
+votes_df = add_missing_columns(votes_df, all_cols).select(all_column_names)
+tags_df = add_missing_columns(tags_df, all_cols).select(all_column_names)
+badges_df = add_missing_columns(badges_df, all_cols).select(all_column_names)
 assert (
     set(posts_df.columns)
     == set(post_links_df.columns)
@@ -277,7 +266,7 @@ nodes_df: DataFrame = (
 print(f"Total distinct nodes: {nodes_df.count():,}")
 
 # Now add a unique ID field
-nodes_df: DataFrame = nodes_df.withColumn("id", F.expr("uuid()")).select("id", *all_column_names)
+nodes_df = nodes_df.withColumn("id", F.expr("uuid()")).select("id", *all_column_names)
 
 
 #
@@ -288,7 +277,7 @@ NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
 
 # Write to disk and load back again
 nodes_df.write.mode("overwrite").parquet(NODES_PATH)
-nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
+nodes_df = spark.read.parquet(NODES_PATH)
 
 nodes_df.select("id", "Type").groupBy("Type").count().orderBy(F.col("count").desc()).show()
 
@@ -304,15 +293,15 @@ nodes_df.select("id", "Type").groupBy("Type").count().orderBy(F.col("count").des
 # +---------+------+
 
 # Helps performance of GraphFrames' algorithms
-nodes_df: DataFrame = nodes_df.cache()
+nodes_df = nodes_df.cache()
 
 # Make sure we have the right columns and cached data
-posts_df: DataFrame = nodes_df.filter(nodes_df.Type == "Post").cache()
-post_links_df: DataFrame = nodes_df.filter(nodes_df.Type == "PostLinks").cache()
-users_df: DataFrame = nodes_df.filter(nodes_df.Type == "User").cache()
-votes_df: DataFrame = nodes_df.filter(nodes_df.Type == "Vote").cache()
-tags_df: DataFrame = nodes_df.filter(nodes_df.Type == "Tag").cache()
-badges_df: DataFrame = nodes_df.filter(nodes_df.Type == "Badge").cache()
+posts_df = nodes_df.filter(nodes_df.Type == "Post").cache()
+post_links_df = nodes_df.filter(nodes_df.Type == "PostLinks").cache()
+users_df = nodes_df.filter(nodes_df.Type == "User").cache()
+votes_df = nodes_df.filter(nodes_df.Type == "Vote").cache()
+tags_df = nodes_df.filter(nodes_df.Type == "Tag").cache()
+badges_df = nodes_df.filter(nodes_df.Type == "Badge").cache()
 
 
 #
