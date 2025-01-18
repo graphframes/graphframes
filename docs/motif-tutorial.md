@@ -95,9 +95,7 @@ from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 
 
-#
-# Initialize a SparkSession. You can configre SparkSession via: .config("spark.some.config.option", "some-value")
-#
+# Initialize a SparkSession
 spark: SparkSession = (
     SparkSession.builder.appName("Stack Overflow Motif Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
@@ -105,6 +103,7 @@ spark: SparkSession = (
     .getOrCreate()
 )
 sc: SparkContext = spark.sparkContext
+sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
@@ -112,21 +111,27 @@ BASE_PATH = f"python/graphframes/examples/data/{STACKEXCHANGE_SITE}"
 {% endhighlight %}
 </div>
 
-Load the nodes and edges of the graph from the `data` folder and count the types of node and edge.
+Load the nodes and edges of the graph from the `data` folder and count the types of node and edge. We repartition the nodes and edges to give our motif searches parallelism. GraphFrames likes nodes/vertices and edges/relatonships to be cached.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 #
-# Load the nodes and edges from disk and cache. GraphFrames likes nodes/vertices and edges/relatonships to be cached.
+# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache. 
 #
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
 NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
-nodes_df: DataFrame = spark.read.parquet(NODES_PATH).cache()
+nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
+
+# Repartition the nodes to give our motif searches parallelism
+nodes_df = nodes_df.repartition(50).checkpoint().cache()
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
 EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
-edges_df: DataFrame = spark.read.parquet(EDGES_PATH).cache()
+edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
+
+# Repartition the edges to give our motif searches parallelism
+edges_df = edges_df.repartition(50).checkpoint().cache()
 {% endhighlight %}
 </div>
 
@@ -193,11 +198,13 @@ edge_counts.show()
 
 <h2 id="combine-node-types">Combining Node Types</h2>
 
+<b>Note: you don't need to run the code in this section, it is just for reference. The data we loaded above is already prepared for use.</b> Jump ahead to <a href="#creating-graphframes">Creating GraphFrames</a> and run that next :)
+
 At the moment, GraphFrames has a limitation: <i>there is only one node and edge type (for now).</i> There are many fields in the nodes of our `GraphFrame` because there only one node type is available. I have combined different types of node into a single type by including all properties of all types in one class of node. I created a `Type` field for each type of node, then merged all fields into a single, global `nodes_df` `DataFrame`. This `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes.
 
 This limitation is an annoyance that should be fixed in the future, with the ability to have multiple node types in a `GraphFrame`. In practice it isn't a big hit in productivity, but it means you have to [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html) certain columns for each node `Type` when you do a [DataFrame.show()](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html) or the width of the DataFrame will be too wide to easily read.
 
-Here is how that was accomplished in <a href="https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/stackexchange.py">python/graphframes/tutorials/stackexchange.py</a>. <b>Note: you don't need to run the next code box, it is just for reference.</b> The data we loaded above is already prepared for use.
+Here is how that was accomplished in <a href="https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/stackexchange.py">python/graphframes/tutorials/stackexchange.py</a>.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -246,7 +253,7 @@ assert (
 {% endhighlight %}
 </div>
 
-<h2 id="create-a-graphframe">Creating GraphFrames</h2>
+<h2 id="creating-graphframes">Creating GraphFrames</h2>
 
 Now we create a [GraphFrame object](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
 
@@ -401,28 +408,31 @@ For example, we can use <i>property graph motifs</i> to find all questions about
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-paths = g.find("(a)-[e]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (ee)-[e4]->(b)")
-boostrap_paths = (
+paths = g.find("(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (e)-[e4]->(b)")
+
+# Find paths that match the pattern of a user asking a question, answered by the same user,
+# with an upvote, tagged with 'statistics'
+bootstrap_paths = (
     paths
 
     # (user)-[asks]->(question)
-    .filter(a.Type == "User")
-    .filter(e.relationship == "Asks")
-    .filter(b.Type == "Question")
+    .filter(F.col("a.Type") == "User")
+    .filter(F.col("e1.relationship") == "Asks")
+    .filter(F.col("b.Type") == "Post")  # Post is a Question
 
     # (user)-[answers]->(question)
-    .filter(c.Type == "User")
-    .filter(e2.relationship == "Answers")
+    .filter(F.col("c.Type") == "User")
+    .filter(F.col("e2.relationship") == "Answers")
 
     # (vote)-[castfor]->(question)
-    .filter(d.Type == "Vote")
-    .filter(d.VoteType == "UpVote")
-    .filter(e3.relationship == "CastFor")
+    .filter(F.col("d.Type") == "Vote")
+    .filter(F.col("d.VoteType") == "UpVote")
+    .filter(F.col("e3.relationship") == "CastFor")
 
     # (tag)-[tags]->(question)
-    .filter(ee.Type == "Tag")
-    .filter(ee.TagName == "statistics")
-    .filter(e4.relationship == "Tags")
+    .filter(F.col("e.Type") == "Tag")
+    .filter(F.col("e.TagName") == "statistics")
+    .filter(F.col("e4.relationship") == "Tags")
 )
 {% endhighlight %}
 </div>
