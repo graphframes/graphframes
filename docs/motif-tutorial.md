@@ -400,7 +400,7 @@ The result is a count of the divergent triangles in the graph by type.
 
 <h2 id="property-graph-motifs">Property Graph Motifs</h2>
 
-Sometimes motif finding is used to explore a knowledge graph, as above. Other times they are used to find known patterns or variations of known patterns. This can be used to apply and then expand domain knowledge about a knowledge graph. It is powerful stuff!
+Simple motif finding can be used to explore a knowledge graph. It is also possibel to use domain knowledge to define and match known patterns and then explore new variant motifs. This can be used to apply and then expand domain knowledge about a knowledge graph. It is powerful stuff!
 
 We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form <i>property graph motifs</i>. Such complex motifs were first defined (without being formally named) in the paper describing this prject: <a href="https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf">GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016</a>. They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.
 
@@ -436,3 +436,7 @@ bootstrap_paths = (
 )
 {% endhighlight %}
 </div>
+
+<h1 id="conclusion">Conclusion</h1>
+
+In this tutorial, we learned to use GraphFrames to find network motifs in a property graph. We saw how to combine graph and relational queries to find complex patterns in the graph. We also saw how to use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form complex <i>property graph motifs</i>. Motif finding in GraphFrames is a powerful technique that can be used to explore and understand complex networks. Network motifs are the building blocks of complex networks.
