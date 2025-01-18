@@ -191,15 +191,13 @@ edge_counts.show()
 {% endhighlight %}
 </div>
 
-<h2 id="creating-a-graphframe">Creating a GraphFrame</h2>
-
-Now we create a [GraphFrame object](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
+<h2 id="combine-node-types">Combining Node Types</h2>
 
 At the moment, GraphFrames has a limitation: <i>there is only one node and edge type (for now).</i> There are many fields in the nodes of our `GraphFrame` because there only one node type is available. I have combined different types of node into a single type by including all properties of all types in one class of node. I created a `Type` field for each type of node, then merged all fields into a single, global `nodes_df` `DataFrame`. This `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes.
 
 This limitation is an annoyance that should be fixed in the future, with the ability to have multiple node types in a `GraphFrame`. In practice it isn't a big hit in productivity, but it means you have to [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html) certain columns for each node `Type` when you do a [DataFrame.show()](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html) or the width of the DataFrame will be too wide to easily read.
 
-Here is how that was accomplished in <a href="https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/stackexchange.py">python/graphframes/tutorials/stackexchange.py</a>:
+Here is how that was accomplished in <a href="https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/stackexchange.py">python/graphframes/tutorials/stackexchange.py</a>. <b>Note: you don't need to run the next code box, it is just for reference.</b> The data we loaded above is already prepared for use.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -248,7 +246,11 @@ assert (
 {% endhighlight %}
 </div>
 
-It is time to create our <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame">GraphFrame</a> object. It has a number of powerful APIs, including the [GraphFrame.find()](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find) method for finding motifs in the graph.
+<h2 id="create-a-graphframe">Creating GraphFrames</h2>
+
+Now we create a [GraphFrame object](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
+
+Back to our motifs :) It is time to create our <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame">GraphFrame</a> object. It has a number of powerful APIs, including the [GraphFrame.find()](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find) method for finding motifs in the graph.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -289,6 +291,8 @@ Node columns: ['id', 'AboutMe', 'AcceptedAnswerId', 'AccountId', 'AnswerCount', 
 only showing top 10 rows
 {% endhighlight %}
 </div>
+
+<h2 id="structural-motifs">Structural Motifs</h2>
 
 Let's look for a simple motif: a directed triangle. We will find all instances of a directed triangle in the graph. The [`GraphFrame.find()`](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find) method takes a string as an argument that specifies the structure of a motif one edge at a time, in the same syntax as Cypher, with a semi-colon between edges. For a triangle motif, that works out to: `(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)`. Edge labels are optional, this is valid graph query: `(a)-[]->(b)`.
 
@@ -379,15 +383,32 @@ The result is a count of the divergent triangles in the graph by type.
 
 We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form <i>property graph motifs</i>. Such complex motifs were first defined (without being formally named) in the paper describing this prject: <a href="https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf">GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016</a>. They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.
 
-For example, we can use <i>property graph motifs</i> to find all questions answered by the same user that asked it with at least 10 votes. This involves a path search followed by a relational query: a group by on path elements. Aggregations can supercharge <i>property graph motifs</i> compared with traditional network motifs. They can be of arbitrary graph and relational complexity.
+For example, we can use <i>property graph motifs</i> to find all questions about statistics answered by the same user that asked it with at least 10 votes. This involves a path search followed by a relational query: a group by on path elements. Aggregations can supercharge <i>property graph motifs</i> compared with traditional network motifs. They can be of arbitrary graph and relational complexity.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); ")
-boostrap_vote_paths = (
-    paths.filter(a.Type == "Question")
-    .filter(e2.Type == "CastFor")
-    .filter(c.Type == "Post")
+paths = g.find("(a)-[e]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (ee)-[e4]->(b)")
+boostrap_paths = (
+    paths
+
+    # (user)-[asks]->(question)
+    .filter(a.Type == "User")
+    .filter(e.relationship == "Asks")
+    .filter(b.Type == "Question")
+
+    # (user)-[answers]->(question)
+    .filter(c.Type == "User")
+    .filter(e2.relationship == "Answers")
+
+    # (vote)-[castfor]->(question)
+    .filter(d.Type == "Vote")
+    .filter(d.VoteType == "UpVote")
+    .filter(e3.relationship == "CastFor")
+
+    # (tag)-[tags]->(question)
+    .filter(ee.Type == "Tag")
+    .filter(ee.TagName == "statistics")
+    .filter(e4.relationship == "Tags")
 )
 {% endhighlight %}
 </div>
