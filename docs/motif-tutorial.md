@@ -355,7 +355,7 @@ graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The result shows the only continuous triangles in the graph are post link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Sometimes motif finding is used to explore. Other times, as in the next section, we are looking for specific patterns or variations of a known pattern. This can be used to expand domain knowledge about a knowledge graph.
+The result shows the only continuous triangles in the graph are post link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Motif finding based on topology alone can be used to explore a knowledge graph in the same way you might run your first GROUP BY query on a new relational database.
 
 <div data-lang="sql" markdown="1">
 {% highlight sql %}
@@ -367,9 +367,7 @@ The result shows the only continuous triangles in the graph are post link loops.
 {% endhighlight %}
 </div>
 
-Note: The code to visualize a 3-edged motif is the same each time, so I'll omit it this time.
-
-Let's try a different triangle, a divergent triangle.
+Let's try a different triangle, a divergent triangle. The code to visualize a 3-edged motif is the same each time, so let's skip it this time.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -394,6 +392,8 @@ The result is a count of the divergent triangles in the graph by type.
 </div>
 
 <h2 id="property-graph-motifs">Property Graph Motifs</h2>
+
+Sometimes motif finding is used to explore a knowledge graph, as above. Other times they are used to find known patterns or variations of known patterns. This can be used to apply and then expand domain knowledge about a knowledge graph. It is powerful stuff!
 
 We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form <i>property graph motifs</i>. Such complex motifs were first defined (without being formally named) in the paper describing this prject: <a href="https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf">GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016</a>. They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.
 
