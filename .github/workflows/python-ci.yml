@@ -6,7 +6,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.0
+          - spark-version: 3.5.4
             scala-version: 2.12.18
             python-version: 3.9.19
     runs-on: ubuntu-22.04

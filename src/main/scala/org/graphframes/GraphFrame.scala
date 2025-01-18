@@ -52,8 +52,10 @@ class GraphFrame private(
   override def toString: String = {
     // We call select on the vertices and edges to ensure that ID, SRC, DST always come first
     // in the printed schema.
-    val v = vertices.select(ID, vertices.columns.filter(_ != ID) :_ *).toString
-    val e = edges.select(SRC, DST +: edges.columns.filter(c => c != SRC && c != DST) :_ *).toString
+    val vCols = (ID +: vertices.columns.filter(_ != ID).toIndexedSeq).map(col)
+    val eCols = (SRC +: DST +: edges.columns.filter(c => c != SRC && c != DST).toIndexedSeq).map(col)
+    val v = vertices.select(vCols.toSeq: _*).toString
+    val e = edges.select(eCols.toSeq: _*).toString
     "GraphFrame(v:" + v + ", e:" + e + ")"
   }
 
@@ -708,7 +710,7 @@ object GraphFrame extends Serializable with Logging {
   def fromEdges(e: DataFrame): GraphFrame = {
     val srcs = e.select(e("src").as("id"))
     val dsts = e.select(e("dst").as("id"))
-    val v = srcs.unionAll(dsts).distinct
+    val v = srcs.unionAll(dsts).distinct()
     v.persist(StorageLevel.MEMORY_AND_DISK)
     apply(v, e)
   }
@@ -802,7 +804,7 @@ object GraphFrame extends Serializable with Logging {
   private[graphframes] def colStar(df: DataFrame, col: String): Seq[String] = {
     df.schema(col).dataType match {
       case s: StructType =>
-        s.fieldNames.map(f => col + "." + f)
+        s.fieldNames.map(f => col + "." + f).toIndexedSeq
       case other =>
         throw new RuntimeException(s"Unknown error in GraphFrame. Expected column $col to be" +
           s" StructType, but found type: $other")
@@ -811,7 +813,7 @@ object GraphFrame extends Serializable with Logging {
 
   /** Nest all columns within a single StructType column with the given name */
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
-    struct(df.columns.map(c => df(c)) :_*).as(name)
+    struct(df.columns.map(c => df(c)).toSeq: _*).as(name)
   }
 
   // ========== Motif finding ==========
