@@ -93,7 +93,6 @@ import pyspark.sql.functions as F
 from graphframes import GraphFrame
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
-from utils import three_edge_count, four_edge_count, add_degree, add_type_degree
 
 
 #
@@ -113,18 +112,28 @@ BASE_PATH = f"python/graphframes/examples/data/{STACKEXCHANGE_SITE}"
 {% endhighlight %}
 </div>
 
-Next, we load the nodes and edges of the graph from the `data` folder and count the types of node and edge.
+Load the nodes and edges of the graph from the `data` folder and count the types of node and edge.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 #
-# Load the nodes from disk and cache. GraphFrames likes nodes/vertices and edges/relatonships to be cached.
+# Load the nodes and edges from disk and cache. GraphFrames likes nodes/vertices and edges/relatonships to be cached.
 #
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
 NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
 nodes_df: DataFrame = spark.read.parquet(NODES_PATH).cache()
 
+# We created these in stackexchange.py from Stack Exchange data dump XML files
+EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
+edges_df: DataFrame = spark.read.parquet(EDGES_PATH).cache()
+{% endhighlight %}
+</div>
+
+Check out the node types we have to work with:
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
 # What kind of nodes we do we have to work with?
 node_counts = (
     nodes_df
@@ -134,12 +143,28 @@ node_counts = (
     .orderBy(F.col("count").desc())
 )
 node_counts.show()
+{% endhighlight %}
+</div>
 
-# We created these in stackexchange.py from Stack Exchange data dump XML files
-EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
-edges_df: DataFrame = spark.read.parquet(EDGES_PATH).cache()
+<div data-lang="python" markdown="1">
+{% highlight python %}
++---------+------+                                                               
+|Node Type|count |
++---------+------+
+|    Badge|43,029|
+|     Vote|42,593|
+|     User|37,709|
+|     Post| 5,003|
+|PostLinks| 1,274|
+|      Tag|   143|
++---------+------+
+{% endhighlight %}
+</div>
 
-# What kind of edges do we have to work with?
+Check out the edge types we have to work with:
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
 edge_counts = (
     edges_df
     .select("src", "dst", F.col("relationship").alias("Edge Type"))
@@ -151,41 +176,83 @@ edge_counts.show()
 {% endhighlight %}
 </div>
 
-The counts of the types of nodes are displayed.
-
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+---------+-----+
-|Node Type|count|
-+---------+-----+
-|    Badge|43029|
-|     Vote|42593|
-|     User|37709|
-|     Post| 5003|
-|PostLinks| 1274|
-|      Tag|  143|
-+---------+-----+
-
-+---------+-----+
-|Edge Type|count|
-+---------+-----+
-|    Earns|43029|
-|  CastFor|40701|
-|  Answers| 5745|
-|     Tags| 4427|
-|     Asks| 1934|
-|    Links| 1268|
-+---------+-----+
++---------+------+
+|Edge Type|count |
++---------+------+
+|    Earns|43,029|
+|  CastFor|40,701|
+|  Answers| 5,745|
+|     Tags| 4,427|
+|     Asks| 1,934|
+|    Links| 1,268|
++---------+------+
 {% endhighlight %}
 </div>
 
+<h2 id="creating-a-graphframe">Creating a GraphFrame</h2>
+
 Now we create a [GraphFrame object](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
 
-Note a shortcoming... there are many fields in the nodes of our `GraphFrame` because there only one node type is available. This makes it necessary to create a `Type` field for each type of node, and to merge all fields into a single, global `nodes_df` `DataFrame`. The `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes. This is an annoyance that should be fixed in the near future, with the ability to have multiple node types in a `GraphFrame`. In practice it isn't a big hit in productivity, but it means you have to [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html) certain columns for each node `Type` when you do a [DataFrame.show()](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html) or the width of the DataFrame will be too wide to easily read.
+At the moment, GraphFrames has a limitation: <i>there is only one node and edge type (for now).</i> There are many fields in the nodes of our `GraphFrame` because there only one node type is available. I have combined different types of node into a single type by including all properties of all types in one class of node. I created a `Type` field for each type of node, then merged all fields into a single, global `nodes_df` `DataFrame`. This `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes.
+
+This limitation is an annoyance that should be fixed in the future, with the ability to have multiple node types in a `GraphFrame`. In practice it isn't a big hit in productivity, but it means you have to [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html) certain columns for each node `Type` when you do a [DataFrame.show()](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html) or the width of the DataFrame will be too wide to easily read.
+
+Here is how that was accomplished in <a href="https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/stackexchange.py">python/graphframes/tutorials/stackexchange.py</a>:
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-g = GraphFrame(nodes_df, edges_df)
+#
+# Form the nodes from the UNION of posts, users, votes and their combined schemas
+#
+
+all_cols: List[Tuple[str, T.StructField]] = list(
+    set(
+        list(zip(posts_df.columns, posts_df.schema))
+        + list(zip(post_links_df.columns, post_links_df.schema))
+        + list(zip(comments_df.columns, comments_df.schema))
+        + list(zip(users_df.columns, users_df.schema))
+        + list(zip(votes_df.columns, votes_df.schema))
+        + list(zip(tags_df.columns, tags_df.schema))
+        + list(zip(badges_df.columns, badges_df.schema))
+    )
+)
+all_column_names: List[str] = sorted([x[0] for x in all_cols])
+
+
+def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]) -> DataFrame:
+    """Add any missing columns from any DataFrame among several we want to merge."""
+    for col_name, schema_field in all_cols:
+        if col_name not in df.columns:
+            df = df.withColumn(col_name, F.lit(None).cast(schema_field.dataType))
+    return df
+
+
+# Now apply this function to each of your DataFrames to get a consistent schema
+posts_df = add_missing_columns(posts_df, all_cols).select(all_column_names)
+post_links_df = add_missing_columns(post_links_df, all_cols).select(all_column_names)
+users_df = add_missing_columns(users_df, all_cols).select(all_column_names)
+votes_df = add_missing_columns(votes_df, all_cols).select(all_column_names)
+tags_df = add_missing_columns(tags_df, all_cols).select(all_column_names)
+badges_df = add_missing_columns(badges_df, all_cols).select(all_column_names)
+assert (
+    set(posts_df.columns)
+    == set(post_links_df.columns)
+    == set(users_df.columns)
+    == set(votes_df.columns)
+    == set(all_column_names)
+    == set(tags_df.columns)
+    == set(badges_df.columns)
+)
+{% endhighlight %}
+</div>
+
+It is time to create our <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame">GraphFrame</a> object. It has a number of powerful APIs, including the [GraphFrame.find()](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find) method for finding motifs in the graph.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+g = GraphFrame(nodes_df, edges_df)  
 
 # Add the degree to use as a property in the motifs
 g = add_degree(g).cache()
@@ -282,15 +349,18 @@ The result is a count of the continuous triangles in the graph.
 {% endhighlight %}
 </div>
 
+Note: The code to visualize a 3-edged motif is the same each time, so I'll omit it this time.
+
+Let's try a different triangle, a divergent triangle.
+
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # G5: Divergent Triangles
 paths = g.find("(a)-[e]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
-three_edge_count(paths).show()
 {% endhighlight %}
 </div>
 
-The result is a count of the divergent triangles in the graph.
+The result is a count of the divergent triangles in the graph by type.
 
 <div data-lang="sql" markdown="1">
 {% highlight sql %}
@@ -305,12 +375,19 @@ The result is a count of the divergent triangles in the graph.
 {% endhighlight %}
 </div>
 
-We can also look for a more complex motif: a directed square. We will find all instances of a directed square in the graph.
+<h2 id="property-graph-motifs">Property Graph Motifs</h2>
+
+We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form <i>property graph motifs</i>. Such complex motifs were first defined (without being formally named) in the paper describing this prject: <a href="https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf">GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016</a>. They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.
+
+For example, we can use <i>property graph motifs</i> to find all questions answered by the same user that asked it with at least 10 votes. This involves a path search followed by a relational query: a group by on path elements. Aggregations can supercharge <i>property graph motifs</i> compared with traditional network motifs. They can be of arbitrary graph and relational complexity.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# G8: Directed Square
-paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(d); (d)-[e4]->(a)")
-four_edge_count(paths).show()
+paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); ")
+boostrap_vote_paths = (
+    paths.filter(a.Type == "Question")
+    .filter(e2.Type == "CastFor")
+    .filter(c.Type == "Post")
+)
 {% endhighlight %}
 </div>
