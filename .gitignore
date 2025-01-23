@@ -20,5 +20,8 @@ project/plugins/project/
 # intellij
 .idea/
 
+# VSCode
+.vscode
+
 # Mac
 *.DS_Store

@@ -218,7 +218,7 @@ private object BFS extends Logging with Serializable {
         }
       }
       val ordered = paths.columns.sortBy(rank _)
-      paths.select(ordered.map(col): _*)
+      paths.select(ordered.map(col).toSeq: _*)
     } else {
       logInfo(s"GraphFrame.bfs failed to find a path of length <= $maxPathLength.")
       // Return empty DataFrame

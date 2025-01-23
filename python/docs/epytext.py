@@ -1,4 +1,5 @@
 import re
+from sphinx.application import Sphinx
 
 RULES = (
     (r"<(!BLANKLINE)[\w.]+>", r""),
@@ -9,7 +10,7 @@ RULES = (
     ('pyspark.rdd.RDD', 'RDD'),
 )
 
-def _convert_epytext(line):
+def _convert_epytext(line: str) -> str:
     """
     >>> _convert_epytext("L{A}")
     :class:`A`
@@ -19,9 +20,9 @@ def _convert_epytext(line):
         line = re.sub(p, sub, line)
     return line
 
-def _process_docstring(app, what, name, obj, options, lines):
+def _process_docstring(app: "Sphinx", what: str, name: str, obj: object, options: dict, lines: list[str]) -> None:
     for i in range(len(lines)):
         lines[i] = _convert_epytext(lines[i])
 
-def setup(app):
+def setup(app: "Sphinx") -> None:
     app.connect("autodoc-process-docstring", _process_docstring)

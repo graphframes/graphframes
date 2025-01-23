@@ -129,7 +129,7 @@ object BeliefPropagation {
   def runBPwithGraphX(g: GraphFrame, numIter: Int): GraphFrame = {
     // Choose colors for vertices for BP scheduling.
     val colorG = colorGraph(g)
-    val numColors: Int = colorG.vertices.select("color").distinct.count().toInt
+    val numColors: Int = colorG.vertices.select("color").distinct().count().toInt
 
     // Convert GraphFrame to GraphX, and initialize beliefs.
     val gx0 = colorG.toGraphX
@@ -206,7 +206,7 @@ object BeliefPropagation {
   def runBPwithGraphFrames(g: GraphFrame, numIter: Int): GraphFrame = {
     // Choose colors for vertices for BP scheduling.
     val colorG = colorGraph(g)
-    val numColors: Int = colorG.vertices.select("color").distinct.count().toInt
+    val numColors: Int = colorG.vertices.select("color").distinct().count().toInt
 
     // TODO: Handle vertices without any edges.
 

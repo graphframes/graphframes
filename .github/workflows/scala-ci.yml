@@ -6,9 +6,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.0
+          - spark-version: 3.5.4
             scala-version: 2.13.8
-          - spark-version: 3.5.0
+          - spark-version: 3.5.4
             scala-version: 2.12.12
     runs-on: ubuntu-22.04
     env:
@@ -17,11 +17,11 @@ jobs:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -Dfile.encoding=UTF-8
       JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -Dfile.encoding=UTF-8
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: olafurpg/setup-scala@v13
       with:
         java-version: "openjdk@1.11"
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       with:
         path: |
           ~/.ivy2/cache

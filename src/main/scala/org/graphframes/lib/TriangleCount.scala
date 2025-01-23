@@ -68,7 +68,7 @@ private object TriangleCount {
     val v = graph.vertices
     val countsCol = when(col("count").isNull, 0L).otherwise(col("count"))
     val newV = v.join(triangleCounts, v(ID) === triangleCounts(ID), "left_outer")
-      .select(countsCol.as(COUNT_ID) +: v.columns.map(v.apply) :_ *)
+      .select((countsCol.as(COUNT_ID) +: v.columns.map(v.apply)).toSeq: _*)
     newV
   }
 

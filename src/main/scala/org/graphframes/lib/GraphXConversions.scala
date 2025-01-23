@@ -104,10 +104,10 @@ private[graphframes] object GraphXConversions {
     val otherFields = df.schema.fieldNames.filter(_ != structName).map(col)
     if (renamedSubfields.isEmpty) {
       // Do not attempt to add an empty structure.
-      df.select(otherFields : _*)
+      df.select(otherFields.toSeq: _*)
     } else {
-      val renamedStruct = struct(renamedSubfields : _*).as(structName)
-      df.select(renamedStruct +: otherFields : _*)
+      val renamedStruct = struct(renamedSubfields.toSeq: _*).as(structName)
+      df.select((renamedStruct +: otherFields).toSeq: _*)
     }
   }
 

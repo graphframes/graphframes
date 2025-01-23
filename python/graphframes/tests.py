@@ -409,6 +409,28 @@ class GraphFrameLibTest(GraphFrameTestCase):
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
             self.assertEqual(row.asDict()['count'], 1)
+            
+    def test_mutithreaded_sparksession_usage(self):
+        # Test that we can use the GraphFrame API from multiple threads
+        localVertices = [(1, "A"), (2, "B"), (3, "C")]
+        localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
+        v = self.spark.createDataFrame(localVertices, ["id", "name"])
+        e = self.spark.createDataFrame(localEdges, ["src", "dst", "action"])
+        
+        
+        exc = None
+        def run_graphframe() -> None:
+            try:
+                GraphFrame(v, e)
+            except Exception as _e:
+                nonlocal exc
+                exc = _e
+        
+        import threading
+        thread = threading.Thread(target=run_graphframe)
+        thread.start()
+        thread.join()
+        self.assertIsNone(exc, f"Exception was raised in thread: {exc}")
 
 
 class GraphFrameExamplesTest(GraphFrameTestCase):

@@ -29,27 +29,33 @@
 """
 import os
 import shutil
+from collections.abc import Callable
+from typing import Any
+from sphinx.application import Sphinx
 
-
-def setup(app):
+def setup(app: Sphinx) -> None:
     """
     Add a html-page-context  and a build-finished event handlers
     """
     app.connect('html-page-context', change_pathto)
     app.connect('build-finished', move_private_folders)
 
-def change_pathto(app, pagename, templatename, context, doctree):
+def change_pathto(app: Sphinx,
+                 pagename: str,
+                 templatename: str,
+                 context: dict[str, Any],
+                 doctree: Any | None) -> None:
     """
     Replace pathto helper to change paths to folders with a leading underscore.
     """
-    pathto = context.get('pathto')
-    def gh_pathto(otheruri, *args, **kw):
+    pathto: Callable = context.get('pathto')
+    def gh_pathto(otheruri: str, *args: Any, **kw: Any) -> Any:
         if otheruri.startswith('_'):
             otheruri = otheruri[1:]
         return pathto(otheruri, *args, **kw)
     context['pathto'] = gh_pathto
 
-def move_private_folders(app, e):
+def move_private_folders(app: Sphinx, e: Exception | None) -> None:
     """
     remove leading underscore from folders in in the output folder.
 
