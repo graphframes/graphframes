@@ -26,4 +26,4 @@ project/plugins/project/
 # Mac
 *.DS_Store
 .vscode
-python/graphframes/examples/data
+python/graphframes/tutorials/data
