@@ -49,6 +49,8 @@ node_counts = (
     .groupBy("Node Type")
     .count()
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 node_counts.show()
 
@@ -63,6 +65,8 @@ edge_counts = (
     .groupBy("Edge Type")
     .count()
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 edge_counts.show()
 

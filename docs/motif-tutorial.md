@@ -145,6 +145,8 @@ node_counts = (
     .groupBy("Node Type")
     .count()
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 node_counts.show()
 {% endhighlight %}
@@ -152,15 +154,15 @@ node_counts.show()
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+---------+------+                                                               
-|Node Type|count |
 +---------+------+
-|    Badge|43,029|
-|     Vote|42,593|
-|     User|37,709|
-|     Post| 5,003|
-|PostLinks| 1,274|
-|      Tag|   143|
+|Edge Type| count|
++---------+------+
+|    Earns|43,029|
+|  CastFor|40,701|
+|  Answers| 5,745|
+|     Tags| 4,427|
+|     Asks| 1,934|
+|    Links| 1,268|
 +---------+------+
 {% endhighlight %}
 </div>
@@ -169,12 +171,15 @@ Check out the edge types we have to work with:
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
+# What kind of edges do we have to work with?
 edge_counts = (
     edges_df
     .select("src", "dst", F.col("relationship").alias("Edge Type"))
     .groupBy("Edge Type")
     .count()
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 edge_counts.show()
 {% endhighlight %}
@@ -183,7 +188,7 @@ edge_counts.show()
 <div data-lang="python" markdown="1">
 {% highlight python %}
 +---------+------+
-|Edge Type|count |
+|Edge Type| count|
 +---------+------+
 |    Earns|43,029|
 |  CastFor|40,701|
