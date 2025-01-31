@@ -25,7 +25,7 @@ We are going to mine motifs using Stack Exchange data. The Stack Exchange networ
 
 # Download the Stack Exchange Dump for [stats.meta](https://stats.meta.stackexchange.com)
 
-The Python examples include a CLI utility at `python/graphframes/examples/download.py` for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The script takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/examples/data` folder.
+The Python tutorials include a CLI utility at [`python/graphframes/tutorials/download.py`](python/graphframes/tutorials/download.py) for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The script takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/tutorials/data` folder.
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
@@ -33,7 +33,7 @@ Usage: download.py [OPTIONS] SUBDOMAIN
 
   Download Stack Exchange archive for a given SUBDOMAIN.
 
-  Example: python/graphframes/examples/download.py stats.meta
+  Example: python/graphframes/tutorials/download.py stats.meta
 
   Note: This won't work for stackoverflow.com archives due to size.
 
@@ -48,11 +48,11 @@ Use `download.py` to download the Stack Exchange Data Dump for `stats.meta.stack
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-$ python python/graphframes/examples/download.py stats.meta
+$ python python/graphframes/tutorials/download.py stats.meta
 
 Downloading archive from <https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z>
 Downloading  [####################################]  100%
-Download complete: python/graphframes/examples/data/stats.meta.stackexchange.com.7z
+Download complete: python/graphframes/tutorials/data/stats.meta.stackexchange.com.7z
 Extracting archive...
 Extraction complete: stats.meta.stackexchange.com
 {% endhighlight %}
@@ -60,19 +60,19 @@ Extraction complete: stats.meta.stackexchange.com
 
 # Build the Graph
 
-We will build a property graph from the Stack Exchange data dump using PySpark in the [python/graphframes/examples/stackexchange.py](python/graphframes/examples/stackexchange.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
+We will build a property graph from the Stack Exchange data dump using PySpark in the [python/graphframes/tutorials/stackexchange.py](python/graphframes/tutorials/stackexchange.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-$ spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/examples/stackexchange.py
+$ spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/tutorials/stackexchange.py
 {% endhighlight %}
 </div>
 
-The script will output the nodes and edges of the graph in the `python/graphframes/examples/data` folder. We can now use GraphFrames to load the graph and perform motif finding.
+The script will output the nodes and edges of the graph in the `python/graphframes/tutorials/data` folder. We can now use GraphFrames to load the graph and perform motif finding.
 
 # Motif Finding
 
-We will use GraphFrames to find motifs in the Stack Exchange property graph. The script [python/graphframes/examples/motif.py](python/graphframes/examples/motif.py) demonstrates how to load the graph, define various motifs and find all instances of the motif in the graph.
+We will use GraphFrames to find motifs in the Stack Exchange property graph. The script [python/graphframes/tutorials/motif.py](python/graphframes/tutorials/motif.py) demonstrates how to load the graph, define various motifs and find all instances of the motif in the graph.
 
 NOTE: I use the terms `node` as interchangaable with `vertex` and `edge` with `link` or `relationship`. The API is [GraphFrame.vertices](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.vertices) and [GraphFrames.edges](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.edges) but some documentation says `relationships`. We need to add an alias from `g.vertices` to `g.nodes` and `g.edges` to both `g.relationships` and `g.links`.
 
@@ -80,11 +80,11 @@ For a quick run-through of the script, use the following command:
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/examples/stackexchange.py
+spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
 {% endhighlight %}
 </div>
 
-Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](https://graphframes.github.io/graphframes/docs/_site/user-guide.html#motif-finding). Note that if you give `python/graphframes/examples/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
+Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](https://graphframes.github.io/graphframes/docs/_site/user-guide.html#motif-finding). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -106,7 +106,7 @@ sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/examples/data/{STACKEXCHANGE_SITE}"
+BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 {% endhighlight %}
 </div>
 
