@@ -3,7 +3,7 @@
 #
 # Interactive Usage: pyspark --packages com.databricks:spark-xml_2.12:0.18.0
 #
-# Batch Usage: spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/examples/stackexchange.py
+# Batch Usage: spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
 #
 
 import re
@@ -16,7 +16,7 @@ from pyspark.sql import DataFrame, SparkSession
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/examples/data/{STACKEXCHANGE_SITE}"
+BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 
 
 #

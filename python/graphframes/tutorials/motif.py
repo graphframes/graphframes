@@ -3,13 +3,13 @@
 #
 # Interactive Usage: pyspark --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12
 #
-# Batch Usage: spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/examples/motif.py
+# Batch Usage: spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
 #
 
 import sys
 
 # This is needed for the utils import... need to set this project up as a proper package!
-sys.path.append("python/graphframes/examples")
+sys.path.append("python/graphframes/tutorials")
 
 from typing import Optional
 import pyspark.sql.functions as F
@@ -31,7 +31,7 @@ spark: SparkSession = (
 
 # Change STACKEXCHANGE_SITE if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/examples/data/{STACKEXCHANGE_SITE}"
+BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 
 
 #

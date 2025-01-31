@@ -8,14 +8,14 @@ import py7zr
 
 @click.command()
 @click.argument("subdomain")
-@click.option("--data-dir", default="python/graphframes/examples/data", help="Directory to store downloaded files")
+@click.option("--data-dir", default="python/graphframes/tutorials/data", help="Directory to store downloaded files")
 @click.option(
     "--extract/--no-extract", default=True, help="Whether to extract the archive after download"
 )
 def download_stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
     """Download Stack Exchange archive for a given SUBDOMAIN.
 
-    Example: python/graphframes/examples/download.py stats.meta
+    Example: python/graphframes/tutorials/download.py stats.meta
 
     Note: This won't work for stackoverflow.com archives due to size.
     """
