@@ -134,25 +134,27 @@ graphlet_count_df = (
     .count()
     .filter(F.col("A_Type") == "Vote")
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 graphlet_count_df.show()
 
-# +------+----------+--------------+------+---------------+------+---------------+-----+
-# |A_Type|A_VoteType|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
-# +------+----------+--------------+------+---------------+------+---------------+-----+
-# |  Vote|    UpVote|       CastFor|  Post|        Answers|  Post|          Links|27197|
-# |  Vote|    UpVote|       CastFor|  Post|          Links|  Post|          Links|22947|
-# |  Vote|  DownVote|       CastFor|  Post|        Answers|  Post|          Links| 2129|
-# |  Vote|  DownVote|       CastFor|  Post|          Links|  Post|          Links| 1503|
-# |  Vote|   Unknown|       CastFor|  Post|        Answers|  Post|          Links|  523|
-# |  Vote|   Unknown|       CastFor|  Post|          Links|  Post|          Links|  165|
-# |  Vote|      Spam|       CastFor|  Post|          Links|  Post|          Links|   18|
-# |  Vote|    UpVote|       CastFor|  Post|          Links|  Post|        Answers|   17|
-# |  Vote|      Spam|       CastFor|  Post|        Answers|  Post|          Links|   16|
-# |  Vote|Undeletion|       CastFor|  Post|        Answers|  Post|          Links|    1|
-# |  Vote|   Unknown|       CastFor|  Post|          Links|  Post|        Answers|    1|
-# |  Vote|    Reopen|       CastFor|  Post|          Links|  Post|          Links|    1|
-# +------+----------+--------------+------+---------------+------+---------------+-----+
+# +------+----------+--------------+------+---------------+------+---------------+------+
+# |A_Type|A_VoteType|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship| count|
+# +------+----------+--------------+------+---------------+------+---------------+------+
+# |  Vote|    UpVote|       CastFor|  Post|        Answers|  Post|          Links|27,197|
+# |  Vote|    UpVote|       CastFor|  Post|          Links|  Post|          Links|22,947|
+# |  Vote|  DownVote|       CastFor|  Post|        Answers|  Post|          Links| 2,129|
+# |  Vote|  DownVote|       CastFor|  Post|          Links|  Post|          Links| 1,503|
+# |  Vote|   Unknown|       CastFor|  Post|        Answers|  Post|          Links|   523|
+# |  Vote|   Unknown|       CastFor|  Post|          Links|  Post|          Links|   165|
+# |  Vote|      Spam|       CastFor|  Post|          Links|  Post|          Links|    18|
+# |  Vote|    UpVote|       CastFor|  Post|          Links|  Post|        Answers|    17|
+# |  Vote|      Spam|       CastFor|  Post|        Answers|  Post|          Links|    16|
+# |  Vote|Undeletion|       CastFor|  Post|        Answers|  Post|          Links|     1|
+# |  Vote|   Unknown|       CastFor|  Post|          Links|  Post|        Answers|     1|
+# |  Vote|    Reopen|       CastFor|  Post|          Links|  Post|          Links|     1|
+# +------+----------+--------------+------+---------------+------+---------------+------+
 
 # G10: Convergent Triangle
 paths = g.find("(a)-[e]->(b); (c)-[e2]->(a); (d)-[e3]->(a)")
@@ -187,34 +189,35 @@ graphlet_count_df = (
     .filter(F.col("C_Type") == "Vote")
     .filter(F.col("E3_relationship") == "CastFor")
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 graphlet_count_df.show()
 
-# +------+--------------+------+---------------+------+----------+---------------+------+----------+------+
-# |A_Type|E_relationship|B_Type|E2_relationship|C_Type|C_VoteType|E3_relationship|D_Type|D_VoteType| count|
-# +------+--------------+------+---------------+------+----------+---------------+------+----------+------+
-# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|    UpVote|313807|
-# |  Post|         Links|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|    UpVote|271944|
-# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|   Unknown|  8159|
-# |  Post|       Answers|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|    UpVote|  8159|
-# |  Post|         Links|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|  DownVote|  6749|
-# |  Post|         Links|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|    UpVote|  6749|
-# |  Post|       Answers|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|    UpVote|  6586|
-# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|  DownVote|  6586|
-# |  Post|         Links|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|  DownVote|  4266|
-# |  Post|       Answers|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|  DownVote|  4190|
-# |  Post|         Links|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|   Unknown|  1617|
-# |  Post|         Links|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|    UpVote|  1617|
-# |  Post|       Answers|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|   Unknown|   919|
-# |  Post|         Links|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|  DownVote|   317|
-# |  Post|         Links|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|   Unknown|   317|
-# |  Post|         Links|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|   Unknown|   239|
-# |  Post|       Answers|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|  DownVote|   113|
-# |  Post|       Answers|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|   Unknown|   113|
-# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|      Spam|    92|
-# |  Post|       Answers|  Post|        CastFor|  Vote|      Spam|        CastFor|  Vote|    UpVote|    92|
-# +------+--------------+------+---------------+------+----------+---------------+------+----------+------+
-# only showing top 20 rows
+# +------+--------------+------+---------------+------+----------+---------------+------+----------+-------+
+# |A_Type|E_relationship|B_Type|E2_relationship|C_Type|C_VoteType|E3_relationship|D_Type|D_VoteType|  count|
+# +------+--------------+------+---------------+------+----------+---------------+------+----------+-------+
+# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|    UpVote|313,807|
+# |  Post|         Links|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|    UpVote|271,944|
+# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|   Unknown|  8,159|
+# |  Post|       Answers|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|    UpVote|  8,159|
+# |  Post|         Links|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|  DownVote|  6,749|
+# |  Post|         Links|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|    UpVote|  6,749|
+# |  Post|       Answers|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|    UpVote|  6,586|
+# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|  DownVote|  6,586|
+# |  Post|         Links|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|  DownVote|  4,266|
+# |  Post|       Answers|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|  DownVote|  4,190|
+# |  Post|         Links|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|   Unknown|  1,617|
+# |  Post|         Links|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|    UpVote|  1,617|
+# |  Post|       Answers|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|   Unknown|    919|
+# |  Post|         Links|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|  DownVote|    317|
+# |  Post|         Links|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|   Unknown|    317|
+# |  Post|         Links|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|   Unknown|    239|
+# |  Post|       Answers|  Post|        CastFor|  Vote|   Unknown|        CastFor|  Vote|  DownVote|    113|
+# |  Post|       Answers|  Post|        CastFor|  Vote|  DownVote|        CastFor|  Vote|   Unknown|    113|
+# |  Post|       Answers|  Post|        CastFor|  Vote|    UpVote|        CastFor|  Vote|      Spam|     92|
+# |  Post|       Answers|  Post|        CastFor|  Vote|      Spam|        CastFor|  Vote|    UpVote|     92|
+# +------+--------------+------+---------------+------+----------+---------------+------+----------+-------+
 
 # G14: Cyclic Quadrilaterals
 paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(d); (d)-[e4]->(a)")

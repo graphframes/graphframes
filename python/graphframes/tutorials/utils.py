@@ -30,6 +30,8 @@ def three_edge_count(paths: DataFrame) -> DataFrame:
         )
         .count()
         .orderBy(F.col("count").desc())
+        # Add a comma formatted column for display
+        .withColumn("count", F.format_number(F.col("count"), 0))
     )
     return graphlet_count_df
 
@@ -71,6 +73,8 @@ def four_edge_count(paths: DataFrame) -> DataFrame:
         )
         .count()
         .orderBy(F.col("count").desc())
+        # Add a comma formatted column for display
+        .withColumn("count", F.format_number(F.col("count"), 0))
     )
     return graphlet_count_df
 
