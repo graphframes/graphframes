@@ -50,7 +50,7 @@ def four_edge_count(paths: DataFrame) -> DataFrame:
 
     graphlet_type_df = paths.select(
         F.col("a.Type").alias("A_Type"),
-        F.col("e.relationship").alias("E_relationship"),
+        F.col("e1.relationship").alias("E_relationship"),
         F.col("b.Type").alias("B_Type"),
         F.col("e2.relationship").alias("E2_relationship"),
         F.col("c.Type").alias("C_Type"),
@@ -92,7 +92,7 @@ def add_degree(g: GraphFrame) -> GraphFrame:
     return GraphFrame(degree_vertices, g.edges)
 
 
-def add_type_degree(g: GraphFrame) -> GraphFrame:
+def add_type_degree(g: GraphFrame) -> DataFrame:
     """add_type_degree add a map property to the vertices with the degree by each type of relationship.
 
     Parameters
@@ -102,7 +102,7 @@ def add_type_degree(g: GraphFrame) -> GraphFrame:
 
     Returns
     -------
-    GraphFrame
+    DataFrame - I am broke, next line is wrong
         A GraphFrame with a map[type:degree] 'type_degree' field added to the vertices
     """
     type_degree: DataFrame = (
