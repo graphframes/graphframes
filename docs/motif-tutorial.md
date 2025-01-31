@@ -2,8 +2,7 @@
 layout: global
 displayTitle: GraphFrames Network Motif Finding Tutorial
 title: Network Motif Finding Tutorial
-description: GraphFrames GRAPHFRAMES_VERSION motif finding tutorial - teaches you to find motifs 
-  using Stack Exchange data
+description: GraphFrames GRAPHFRAMES_VERSION motif finding tutorial - teaches you to find motifs using Stack Exchange data
 ---
 
 This tutorial covers GraphFrames' motif finding feature. We perform pattern matching on a property graph representing a Stack Exchange site using Apache Spark and [GraphFrames' motif finding](user-guide.html#motif-finding) feature. We will download the `stats.meta` archive from the [Stack Exchange Data Dump at the Internet Archive](https://archive.org/details/stackexchange), use PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
