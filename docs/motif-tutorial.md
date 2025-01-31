@@ -300,7 +300,9 @@ only showing top 10 rows
 {% endhighlight %}
 </div>
 
-Let's validate that all edges have valid IDs - it is common to make mistakes in ETL for knowledge graph construction and have edges that point nowhere. GraphFrames tries to validate itself but can sometimes accept bogus edges.
+<h2 id="validating-graphframes">Validating GraphFrames</h2>
+
+Let's validate that all edges in our `GraphFrame` object have valid IDs - it is common to make mistakes in ETL for knowledge graph construction and have edges that point nowhere. GraphFrames tries to validate itself but can sometimes accept bogus edges.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
