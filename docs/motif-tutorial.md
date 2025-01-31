@@ -155,14 +155,14 @@ node_counts.show()
 <div data-lang="python" markdown="1">
 {% highlight python %}
 +---------+------+
-|Edge Type| count|
+|Node Type| count|
 +---------+------+
-|    Earns|43,029|
-|  CastFor|40,701|
-|  Answers| 5,745|
-|     Tags| 4,427|
-|     Asks| 1,934|
-|    Links| 1,268|
+|    Badge|43,029|
+|     Vote|42,593|
+|     User|37,709|
+|     Post| 5,003|
+|PostLinks| 1,274|
+|      Tag|   143|
 +---------+------+
 {% endhighlight %}
 </div>
