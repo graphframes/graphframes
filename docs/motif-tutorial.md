@@ -409,12 +409,30 @@ The result shows the only continuous triangles in the graph are 39 post-link loo
 {% endhighlight %}
 </div>
 
-Let's try a different triangle, a divergent triangle. The code to visualize a 3-edged motif is the same each time, so let's skip it this time.
+Let's try a different triangle, a divergent triangle. The code to visualize a 3-edged motif is the same each time.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # G5: Divergent Triangles
 paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
+
+graphlet_type_df = paths.select(
+    F.col("a.Type").alias("A_Type"),
+    F.col("e1.relationship").alias("E_relationship"),
+    F.col("b.Type").alias("B_Type"),
+    F.col("e2.relationship").alias("E2_relationship"),
+    F.col("c.Type").alias("C_Type"),
+    F.col("e3.relationship").alias("E3_relationship"),
+)
+
+graphlet_count_df = (
+    graphlet_type_df.groupby(
+        "A_Type", "E_relationship", "B_Type", "E2_relationship", "C_Type", "E3_relationship"
+    )
+    .count()
+    .orderBy(F.col("count").desc())
+)
+graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
