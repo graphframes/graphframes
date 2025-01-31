@@ -1,92 +1,82 @@
-// Your sbt build file. Guides on how to write one can be found at
-// http://www.scala-sbt.org/0.13/docs/index.html
-
 import ReleaseTransformations._
 
-val sparkVer = sys.props.getOrElse("spark.version", "3.5.3")
-val sparkBranch = sparkVer.substring(0, 3)
-val defaultScalaVer = sparkBranch match {
+lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.3")
+lazy val sparkBranch = sparkVer.substring(0, 3)
+lazy val defaultScalaVer = sparkBranch match {
   case "3.5" => "2.12.18"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
-val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
-val defaultScalaTestVer = scalaVer match {
+lazy val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
+lazy val defaultScalaTestVer = scalaVer match {
   case s if s.startsWith("2.12") || s.startsWith("2.13") => "3.0.8"
 }
 
-sparkVersion := sparkVer
+ThisBuild / version := {
+  val baseVersion = (ThisBuild / version).value
+  s"${baseVersion}-spark${sparkBranch}"
+}
 
-scalaVersion := scalaVer
+ThisBuild / scalaVersion := scalaVer
+ThisBuild / organization := "org.graphframes"
 
-name := "graphframes"
+lazy val root = (project in file("."))
+  .settings(
+    name := "graphframes",
 
-spName := "graphframes/graphframes"
+    // Replace spark-packages plugin functionality with explicit dependencies
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-graphx" % sparkVer % "provided",
+      "org.apache.spark" %% "spark-sql" % sparkVer % "provided",
+      "org.apache.spark" %% "spark-mllib" % sparkVer % "provided",
+      "org.slf4j" % "slf4j-api" % "1.7.16",
+      "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
+      "com.github.zafarkhaja" % "java-semver" % "0.9.0" % Test
+    ),
 
-organization := "org.graphframes"
+    licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0")),
 
-version := (version in ThisBuild).value + s"-spark$sparkBranch"
+    // Modern way to set Scala options
+    Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
 
-isSnapshot := version.value.contains("SNAPSHOT")
+    Compile / doc / scalacOptions ++= Seq(
+      "-groups",
+      "-implicits",
+      "-skip-packages", Seq("org.apache.spark").mkString(":")
+    ),
 
-// All Spark Packages need a license
-licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
+    Test / doc / scalacOptions ++= Seq("-groups", "-implicits"),
 
-spAppendScalaVersion := true
+    // Test settings
+    Test / fork := true,
+    Test / parallelExecution := false,
 
-// Add Spark components this package depends on, e.g, "mllib", ....
-sparkComponents ++= Seq("graphx", "sql", "mllib")
+    Test / javaOptions ++= Seq(
+      "-XX:+IgnoreUnrecognizedVMOptions",
+      "-Xmx2048m",
+      "-XX:ReservedCodeCacheSize=384m",
+      "-XX:MaxMetaspaceSize=384m",
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED"
+    ),
 
-// uncomment and change the value below to change the directory where your zip artifact will be created
-// spDistDirectory := target.value
+    // Global settings
+    Global / concurrentRestrictions := Seq(
+      Tags.limitAll(1)
+    ),
 
-// add any Spark Package dependencies using spDependencies.
-// e.g. spDependencies += "databricks/spark-avro:0.1"
+    autoAPIMappings := true,
 
-libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.16"
+    coverageHighlighting := false,
 
-libraryDependencies += "org.scalatest" %% "scalatest" % defaultScalaTestVer % "test"
+    // Release settings
+    releaseProcess := Seq[ReleaseStep](
+      inquireVersions,
+      setReleaseVersion,
+      commitReleaseVersion,
+      tagRelease,
+      setNextVersion,
+      commitNextVersion
+    ),
 
-libraryDependencies += "com.github.zafarkhaja" % "java-semver" % "0.9.0" % "test" // MIT license
-
-parallelExecution := false
-
-scalacOptions ++= Seq("-deprecation", "-feature")
-
-scalacOptions in (Compile, doc) ++= Seq(
-  "-groups",
-  "-implicits",
-  "-skip-packages", Seq("org.apache.spark").mkString(":"))
-
-scalacOptions in (Test, doc) ++= Seq("-groups", "-implicits")
-
-// This fixes a class loader problem with scala.Tuple2 class, scala-2.11, Spark 2.x
-fork in Test := true
-
-// This and the next line fix a problem with forked run: https://github.com/scalatest/scalatest/issues/770
-javaOptions in Test ++= Seq(
-  "-XX:+IgnoreUnrecognizedVMOptions",
-  "-Xmx2048m",
-  "-XX:ReservedCodeCacheSize=384m",
-  "-XX:MaxMetaspaceSize=384m",
-  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-  "--add-opens=java.base/java.lang=ALL-UNNAMED"
-)
-
-concurrentRestrictions in Global := Seq(
-  Tags.limitAll(1))
-
-autoAPIMappings := true
-
-coverageHighlighting := false
-
-// We only use sbt-release to update version numbers.
-releaseProcess := Seq[ReleaseStep](
-  inquireVersions,
-  setReleaseVersion,
-  commitReleaseVersion,
-  tagRelease,
-  setNextVersion,
-  commitNextVersion
-)
-
-credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
+    credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
+  )
