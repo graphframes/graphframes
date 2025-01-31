@@ -1,8 +1,8 @@
-# Guild for releasing a new Graphframe version
+# Guild for releasing a new Graphframes version
 
-## How to build GraphFrame package ?
+## How to build GraphFrames package ?
 
-To build a GraphFrame package for releasing, you only need to run the following command:
+To build a GraphFrames package for releasing, you only need to run the following command:
 
 ```
 cd graphframe_repo
