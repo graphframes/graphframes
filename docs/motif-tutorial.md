@@ -300,6 +300,33 @@ only showing top 10 rows
 {% endhighlight %}
 </div>
 
+Let's validate that all edges have valid IDs - it is common to make mistakes in ETL for knowledge graph construction and have edges that point nowhere. GraphFrames tries to validate itself but can sometimes accept bogus edges.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# Sanity test that all edges have valid ids
+edge_count = g.edges.count()
+valid_edge_count = (
+    g.edges.join(g.vertices, on=g.edges.src == g.vertices.id)
+    .select("src", "dst", "relationship")
+    .join(g.vertices, on=g.edges.dst == g.vertices.id)
+    .count()
+)
+
+# Just up and die if we have edges that point to non-existent nodes
+assert (
+    edge_count == valid_edge_count
+), f"Edge count {edge_count} != valid edge count {valid_edge_count}"
+print(f"Edge count: {edge_count:,} == Valid edge count: {valid_edge_count:,}")
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+Edge count: 97,104 == Valid edge count: 97,104
+{% endhighlight %}
+</div>
+
 <h2 id="structural-motifs">Structural Motifs</h2>
 
 Let's look for a simple motif: a directed triangle. We will find all instances of a directed triangle in the graph. The [`GraphFrame.find()`](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find) method takes a string as an argument that specifies the structure of a motif one edge at a time, in the same syntax as Cypher, with a semi-colon between edges. For a triangle motif, that works out to: `(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)`. Edge labels are optional, this is valid graph query: `(a)-[]->(b)`.

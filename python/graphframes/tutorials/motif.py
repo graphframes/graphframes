@@ -25,8 +25,7 @@ from utils import three_edge_count, four_edge_count, add_degree, add_type_degree
 spark: SparkSession = (
     SparkSession.builder.appName("Stack Exchange Motif Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
+    .config("spark.sql.caseSensitive", True).getOrCreate()
 )
 
 # Change STACKEXCHANGE_SITE if you download a different stackexchange site
@@ -44,8 +43,7 @@ nodes_df: DataFrame = spark.read.parquet(NODES_PATH).cache()
 
 # What kind of nodes we do we have to work with?
 node_counts = (
-    nodes_df
-    .select("id", F.col("Type").alias("Node Type"))
+    nodes_df.select("id", F.col("Type").alias("Node Type"))
     .groupBy("Node Type")
     .count()
     .orderBy(F.col("count").desc())
@@ -60,8 +58,7 @@ edges_df: DataFrame = spark.read.parquet(EDGES_PATH).cache()
 
 # What kind of edges do we have to work with?
 edge_counts = (
-    edges_df
-    .select("src", "dst", F.col("relationship").alias("Edge Type"))
+    edges_df.select("src", "dst", F.col("relationship").alias("Edge Type"))
     .groupBy("Edge Type")
     .count()
     .orderBy(F.col("count").desc())
@@ -83,7 +80,24 @@ print(f"Node columns: {g.vertices.columns}")
 g.vertices.show()
 g.edges.show()
 
+# Sanity test that all edges have valid ids
+edge_count = g.edges.count()
+valid_edge_count = (
+    g.edges.join(g.vertices, on=g.edges.src == g.vertices.id)
+    .select("src", "dst", "relationship")
+    .join(g.vertices, on=g.edges.dst == g.vertices.id)
+    .count()
+)
+
+# Just up and die if we have edges that point to non-existent nodes
+assert (
+    edge_count == valid_edge_count
+), f"Edge count {edge_count} != valid edge count {valid_edge_count}"
+print(f"Edge count: {edge_count:,} == Valid edge count: {valid_edge_count:,}")
+
+#
 # You can find a list of directed motifs here: https://www.nature.com/articles/srep3509
+#
 
 # G4: Continuous Triangles
 paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
