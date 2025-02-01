@@ -15,12 +15,13 @@
 # limitations under the License.
 #
 
+import os
 import tempfile
 import shutil
 import re
 
 import pytest
-from pyspark import SparkContext
+from pyspark import SparkConf, SparkContext
 from pyspark.sql import functions as F, SparkSession
 
 from .graphframe import GraphFrame, Pregel, _java_api, _from_java_gf
@@ -68,7 +69,12 @@ class GraphFrameTestUtils(object):
 
     @classmethod
     def createSparkContext(cls):
-        cls.sc = SparkContext("local[4]", "GraphFramesTests")
+        cls.conf = SparkConf().setAppName("GraphFramesTests")
+        cls.conf.set(
+            "spark.submit.pyFiles",
+            os.path.abspath("python/dist/graphframes-0.8.4-py3-none-any.whl"),
+        )
+        cls.sc = SparkContext(master="local[4]", appName="GraphFramesTests", conf=cls.conf)
         cls.checkpointDir = tempfile.mkdtemp()
         cls.sc.setCheckpointDir(cls.checkpointDir)
         cls.spark_version = cls.parse_spark_version(cls.sc.version)
