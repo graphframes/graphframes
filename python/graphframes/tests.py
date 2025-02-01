@@ -267,7 +267,7 @@ class TestPregel:
                 + F.lit(alpha / numVertices),
             )
             .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-            .aggMsgs(sum(Pregel.msg()))
+            .aggMsgs(F.sum(Pregel.msg()))
             .run()
         )
 
