@@ -16,8 +16,9 @@ Graphlets are small, connected subgraphs of a larger graph. Network motifs are r
 
 <center>
     <figure>
-        <img src="img/directed_graphlets.webp" width="600px" alt="Directed network motifs for up to Four nodes" title="Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016" style="margin: 25px" />
-        <figcaption><a href="https://www.nature.com/articles/srep35098">Directed Network Motifs for Up to Four Nodes, Graphlet-based Characterization of Directed Networks, Sarajlić et al. 2016</a></figcaption>
+        <img src="img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
+        <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of
+Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
     </figure>
 </center>
 
@@ -392,6 +393,8 @@ graphlet_count_df = (
     )
     .count()
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 graphlet_count_df.show()
 {% endhighlight %}
@@ -431,6 +434,8 @@ graphlet_count_df = (
     )
     .count()
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 graphlet_count_df.show()
 {% endhighlight %}
@@ -443,7 +448,7 @@ The result is a count of the divergent triangles in the graph by type.
 +------+--------------+------+---------------+------+---------------+-----+
 |A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
 +------+--------------+------+---------------+------+---------------+-----+
-|   Tag|          Tags|  Post|           Tags|  Post|          Links| 1915|
+|   Tag|          Tags|  Post|           Tags|  Post|          Links|1,915|
 |  Post|         Links|  Post|          Links|  Post|          Links|  293|
 |  User|          Asks|  Post|        Answers|  Post|        Answers|  274|
 |  User|          Asks|  Post|           Asks|  Post|          Links|  111|
@@ -497,6 +502,8 @@ graphlet_count_df = (
     )
     .count()
     .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
 )
 {% endhighlight %}
 </div>
@@ -513,7 +520,7 @@ Visually this pattern looks like this:
 
 <center>
     <figure>
-        <img src="img/G11_motif.png" width="115px" alt="G11 5-node Directed Graphlet" title="G11 5-node Directed Graphlet" style="margin: 15px" />
+        <img src="img/G10_motif.png" width="115px" alt="G11 5-node Directed Graphlet" title="G11 5-node Directed Graphlet" style="margin: 15px" />
         <figcaption>
             <a href="https://www.nature.com/articles/srep35098">G11 is a cross with all edges pointing at the center node.</a>
         </figcaption>
@@ -556,7 +563,7 @@ The results show a diverse set of paths. J bave added numbers for each row for c
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # Find paths that match the pattern of a user asking a question, answered by the same user,
-# with an upvote, tagged with 'statistics'
+# with an upvote, tagged with 'statistics' This is Graphlet G10.
 bootstrap_paths = (
     paths
 

@@ -27,6 +27,7 @@ spark: SparkSession = (
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
     .config("spark.sql.caseSensitive", True).getOrCreate()
 )
+spark.sparkContext.setCheckpointDir("data/checkpoints")
 
 # Change STACKEXCHANGE_SITE if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
@@ -100,22 +101,22 @@ print(f"Edge count: {edge_count:,} == Valid edge count: {valid_edge_count:,}")
 #
 
 # G4: Continuous Triangles
-paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
+paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
 three_edge_count(paths).show()
 
 # G5: Divergent Triangles
-paths = g.find("(a)-[e]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
+paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
 three_edge_count(paths).show()
 
 # G6: Continuous Path
-paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(d)")
+paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(d)")
 three_edge_count(paths).show()
 
 # G6: Continuous Path Votes with VoteTypes
 graphlet_type_df = paths.select(
     F.col("a.Type").alias("A_Type"),
     F.col("a.VoteType").alias("A_VoteType"),
-    F.col("e.relationship").alias("E_relationship"),
+    F.col("e1.relationship").alias("E_relationship"),
     F.col("b.Type").alias("B_Type"),
     F.col("e2.relationship").alias("E2_relationship"),
     F.col("c.Type").alias("C_Type"),
@@ -157,14 +158,14 @@ graphlet_count_df.show()
 # +------+----------+--------------+------+---------------+------+---------------+------+
 
 # G10: Convergent Triangle
-paths = g.find("(a)-[e]->(b); (c)-[e2]->(a); (d)-[e3]->(a)")
+paths = g.find("(a)-[e1]->(b); (c)-[e2]->(a); (d)-[e3]->(a)")
 three_edge_count(paths).show()
 
 # G10: Convergent Triangle with VoteTypes
-paths = g.find("(a)-[e]->(b); (c)-[e2]->(a); (d)-[e3]->(a)")
+paths = g.find("(a)-[e1]->(b); (c)-[e2]->(a); (d)-[e3]->(a)")
 graphlet_type_df = paths.select(
     F.col("a.Type").alias("A_Type"),
-    F.col("e.relationship").alias("E_relationship"),
+    F.col("e1.relationship").alias("E_relationship"),
     F.col("b.Type").alias("B_Type"),
     F.col("e2.relationship").alias("E2_relationship"),
     F.col("c.Type").alias("C_Type"),
@@ -220,33 +221,41 @@ graphlet_count_df.show()
 # +------+--------------+------+---------------+------+----------+---------------+------+----------+-------+
 
 # G14: Cyclic Quadrilaterals
-paths = g.find("(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(d); (d)-[e4]->(a)")
+paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(d); (d)-[e4]->(a)")
 four_edge_count(paths).show()
 
 # Shows two matches:
 # - (Post)-[Answers]->(Post)<--[Posted]-(User)
 # - (Post)-[Answers]->(Post)<--[VotedFor]-(User)
-paths = g.find("(a)-[e]->(b); (c)-[e2]->(a)")
+paths = g.find("(a)-[e1]->(b); (c)-[e2]->(a)")
 paths.select("a.Type", "e.*", "b.Type", "e2.*", "c.Type").show()
 
 # Figure out how often questions are answered and the question poster votes for the answer. Neat!
 # Shows (User A)-[Posted]->(Post)<-[Answers]-(Post)<-[VotedFor]-(User)
-paths = g.find("(a)-[e]->(b); (c)-[e2]->(b); (d)-[e3]->(c)")
+paths = g.find("(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(c)")
+three_edge_count(paths).show(30, False)
+
 
 # If the node types are right...
 paths = paths.filter(F.col("a.Type") == "User")
 paths = paths.filter(F.col("b.Type") == "Post")
 paths = paths.filter(F.col("c.Type") == "Post")
 paths = paths.filter(F.col("d.Type") == "User")
+# ... if the edge types are right...
+paths = paths.filter(F.col("e1.relationship") == "Posted")
+paths = paths.filter(F.col("e2.relationship") == "Answers")
+paths = paths.filter(F.col("e3.relationship") == "VotedFor")
+# ... if the user that posts the question and votes for the answer
+paths = paths.filter(F.col("a.id") == F.col("d.id"))
 
 # If the edge types are right...
-# paths = paths.filter(F.col("e.relationship") == "Posted")
+# paths = paths.filter(F.col("e1.relationship") == "Posted")
 # paths = paths.filter(F.col("e2.relationship") == "Answers")
 paths = paths.filter(F.col("e3.relationship") == "VotedFor")
 
 paths.select(
     "a.Type",
-    "e.relationship",
+    "e1.relationship",
     "b.Type",
     "e2.relationship",
     "c.Type",
