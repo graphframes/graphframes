@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.9
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
