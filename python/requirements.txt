@@ -1,7 +1,6 @@
 # This file should list any python package dependencies.
 pyspark>=2.0.0
 click==8.1.8
-pytest==8.3.4
 numpy>=1.7
 py7zr==0.22.0
 requests==2.32.3
