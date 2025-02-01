@@ -26,4 +26,9 @@ project/plugins/project/
 # Mac
 *.DS_Store
 .vscode
+
+# Python specific
+python/build
+python/dist
+python/graphframes.egg-info
 python/graphframes/tutorials/data
