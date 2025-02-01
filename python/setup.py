@@ -19,13 +19,13 @@ setup(
     name="graphframes",
     version="0.8.4",  # Update this version as needed
     description="GraphFrames: Graph Processing Framework for Apache Spark",
-    long_description=open(os.path.join(f"{here}/../", "README.md"), encoding="utf-8").read(),
+    long_description=open(os.path.join(f"{here}/..", "README.md"), encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="GraphFrames Contributors",
     author_email="graphframes@googlegroups.com",
-    url="https://github.com/graphframes/graphframes",
+    url="https://pypi.org/project/graphframes-py",
     packages=find_packages(where="python"),
-    package_dir={"": "."},
+    package_dir={"": "python"},
     include_package_data=True,  # Include non-code files specified in MANIFEST.in
     install_requires=requirements,
     classifiers=[
