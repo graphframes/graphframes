@@ -62,7 +62,7 @@ export PYTHONPATH=$PYTHONPATH:graphframes
 
 
 # Run test suites
-$PYSPARK_DRIVER_PYTHON -m "pytest" -v -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
+$PYSPARK_DRIVER_PYTHON -m "pytest" -v $DIR/graphframes/tests.py 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
 
 # Exit immediately if the tests fail.
 # Since we pipe to remove the output, we need to use some horrible BASH features:
