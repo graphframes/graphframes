@@ -82,7 +82,7 @@ lazy val root = (project in file("."))
     // Assembly settings
     assembly / test := {}, // No tests in assembly
     assembly / assemblyMergeStrategy := {
-      case PathList("META-INF", xs*) => MergeStrategy.discard
+      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
       case x if x.endsWith("module-info.class") => MergeStrategy.discard
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
