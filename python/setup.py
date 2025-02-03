@@ -17,7 +17,7 @@ requirements = parse_requirements(os.path.join(here, "requirements.txt"))
 
 setup(
     name="graphframes",
-    version=open("VERSION").read().strip(),  # Update this version as needed
+    version=open("version.sbt").read().strip(),  # Update this version as needed
     description="GraphFrames: Graph Processing Framework for Apache Spark",
     long_description=open(os.path.join(f"{here}/..", "README.md"), encoding="utf-8").read(),
     long_description_content_type="text/markdown",
