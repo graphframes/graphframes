@@ -551,16 +551,6 @@ The results show a diverse set of paths. Can you imagine doing this WITHOUT nami
 {% endhighlight %}
 </div>
 
-<div data-lang="python" markdown="1">
-{% highlight python %}
-# Anyone know how to write a CSV into a file, not a folder?
-graphlet_count_df.write.csv("/tmp/patterns.csv", mode="overwrite", header=True)
-
-# Then from a Mac - your filename will vary
-open /tmp/patterns.csv/part-00000-2bc9db1a-ae34-4474-b4c4-82e254eed010-c000.csv
-{% endhighlight %}
-</div>
-
 G22 is hard on the eyes! These motif paths are more difficult to interpret than simpler structural patterns - and we haven't looked at properties yet. Let's sort the data using Pandas. Rather than sort on counts, let's sort by each column in turn to group similar path-logic together.
 
 <div data-lang="python" markdown="1">
@@ -612,6 +602,16 @@ The Pandas table is clearer to read now that it is grouped.
 </div>
 
 As I start from the top and explain each path to myself, I get tripped up and lose my place. It becomes clear that text or a notebook is not the best tool for this job. We're going to load the data in a spreadsheet and write a text description for some of the paths. I find it much easier to understand the patterns in Excel than a Pandas table in a notebook, so I'm going to use that.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# Anyone know how to write a CSV into a file, not a folder?
+graphlet_count_df.write.csv("/tmp/patterns.csv", mode="overwrite", header=True)
+
+# Then from a Mac - your filename will vary
+open /tmp/patterns.csv/part-00000-2bc9db1a-ae34-4474-b4c4-82e254eed010-c000.csv
+{% endhighlight %}
+</div>
 
 <center>
     <figure>
