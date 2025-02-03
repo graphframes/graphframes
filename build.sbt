@@ -18,6 +18,7 @@ ThisBuild / version := {
 
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
+ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
 
 lazy val root = (project in file("."))
   .settings(
