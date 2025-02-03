@@ -29,7 +29,7 @@ from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
 
 
-VERSION = open("../VERSION").read().strip()
+VERSION = open("version.sbt").read().strip()
 
 
 @pytest.fixture(scope="class", autouse=True)
