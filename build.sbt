@@ -26,9 +26,9 @@ lazy val root = (project in file("."))
 
     // Replace spark-packages plugin functionality with explicit dependencies
     libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-graphx" % sparkVer % "provided",
-      "org.apache.spark" %% "spark-sql" % sparkVer % "provided",
-      "org.apache.spark" %% "spark-mllib" % sparkVer % "provided",
+      "org.apache.spark" %% "spark-graphx" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
+      "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
+      "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
       "org.slf4j" % "slf4j-api" % "1.7.16",
       "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
       "com.github.zafarkhaja" % "java-semver" % "0.9.0" % Test
@@ -78,6 +78,16 @@ lazy val root = (project in file("."))
       setNextVersion,
       commitNextVersion
     ),
+
+    // Assembly settings
+    assembly / test := {}, // No tests in assembly
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", xs*) => MergeStrategy.discard
+      case x if x.endsWith("module-info.class") => MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    },
 
     credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
   )
