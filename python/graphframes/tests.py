@@ -72,7 +72,7 @@ class GraphFrameTestUtils(object):
         cls.conf = SparkConf().setAppName("GraphFramesTests")
         cls.conf.set(
             "spark.submit.pyFiles",
-            os.path.abspath("python/dist/graphframes-0.8.4-py3-none-any.whl"),
+            os.path.abspath("python/dist/graphframes-0.8.5-py3-none-any.whl"),
         )
         cls.sc = SparkContext(master="local[4]", appName="GraphFramesTests", conf=cls.conf)
         cls.checkpointDir = tempfile.mkdtemp()
