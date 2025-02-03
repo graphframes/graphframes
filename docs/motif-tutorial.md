@@ -464,128 +464,103 @@ We can do more with the properties of paths than just count them by node and edg
 
 For example, we can use <i>property graph motifs</i> to find all questions about statistics answered by the same user that asked it with at least 10 votes. This involves a path search followed by a relational query: a group by on path elements. Aggregations can supercharge <i>property graph motifs</i> compared with traditional network motifs. They can be of arbitrary graph and relational complexity.
 
-First lets express the structural logic of the motif we are looking for. We will use a four-path to express the logic of the query. The path is a user asking a question, answered by the same user, with an upvote, tagged with 'statistics'. This looks like the following:
+The larger motifs get, the more interesting they are. Five nodes is often the limit with a Spark cluster, depending on how large your graph is. In this instance I will limit myself to a 3-path pattern as you may not have a Spark cluster on which to learn.
 
-<div data-lang="python" markdown="1">
-{% highlight python %}
-paths = g.find("(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (e)-[e4]->(b)")
-{% endhighlight %}
-</div>
-
-Let's count the number of instances by type for of this path in the graph:
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-# Visualize the four-path by counting instances of paths by node / edge type
-graphlet_type_df = paths.select(
-    F.col("a.Type").alias("A_Type"),
-    F.col("e1.relationship").alias("E_relationship"),
-    F.col("b.Type").alias("B_Type"),
-    F.col("e2.relationship").alias("E2_relationship"),
-    F.col("c.Type").alias("C_Type"),
-    F.col("e3.relationship").alias("E3_relationship"),
-    F.col("d.Type").alias("D_Type"),
-    F.col("e4.relationship").alias("E4_relationship"),
-    F.col("e.Type").alias("E_Type"),
-)
-graphlet_count_df = (
-    graphlet_type_df.groupby(
-        "A_Type",
-        "E_relationship",
-        "B_Type",
-        "E2_relationship",
-        "C_Type",
-        "E3_relationship",
-        "D_Type",
-        "E4_relationship",
-        "E_Type",
-    )
-    .count()
-    .orderBy(F.col("count").desc())
-    # Add a comma formatted column for display
-    .withColumn("count", F.format_number(F.col("count"), 0))
-)
-{% endhighlight %}
-</div>
-
-Remember the graph pattern:
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(b); (e)-[e4]->(b)
-{% endhighlight %}
-</div>
+First lets express the structural logic of the motif we are looking for. We are looking for a pattern of a 
 
 Visually this pattern looks like this:
 
 <center>
     <figure>
-        <img src="img/G10_motif.png" width="115px" alt="G11 5-node Directed Graphlet" title="G11 5-node Directed Graphlet" style="margin: 15px" />
+        <img src="img/Directed-Graphlet-G22.png" width="115px" alt="G22: A triangle with a fourth node pointing at the node with in-degree of 2" title="G11 5-node Directed Graphlet" style="margin: 15px" />
         <figcaption>
             <a href="https://www.nature.com/articles/srep35098">G11 is a cross with all edges pointing at the center node.</a>
         </figcaption>
     </figure>
 </center>
 
-The results show a diverse set of paths. J bave added numbers for each row for clarity. Some observations:
-
-* The first, most frequent path is simply four separate votes for a post.
-
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+-------+--------------+------+---------------+------+---------------+------+---------------+------+----------+
-|A_Type |E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|D_Type|E4_relationship|E_Type|     count|
-+-------+--------------+------+---------------+------+---------------+------+---------------+-----------------+
-|1. Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  Vote|1294603755|
-|2. Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  Vote|  79555150|
-|3. Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  Vote|  71080047|
-|4. Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  Post|  71080047|
-|5. Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|  71080047|
-|6. Vote|       CastFor|  Post|        CastFor|  Vote|          Links|  Post|        CastFor|  Post|  53621993|
-|7. Post|         Links|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|  Vote|  53621993|
-|8. Vote|       CastFor|  Post|          Links|  Post|        CastFor|  Vote|        CastFor|  Vote|  53621993|
-|9. Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|          Links|  Vote|  53621993|
-|10 Vote|       CastFor|  Post|        CastFor|  Vote|           Tags|   Tag|        CastFor|  Vote|  28074497|
-|11.Vote|       CastFor|  Post|        CastFor|  Vote|        CastFor|  Vote|           Tags|  Vote|  28074497|
-|12. Tag|          Tags|  Post|        CastFor|  Vote|        CastFor|  Vote|        CastFor|   Tag|  28074497|
-|13.Vote|       CastFor|  Post|           Tags|   Tag|        CastFor|  Vote|        CastFor|  Vote|  28074497|
-|14.Post|       Answers|  Post|        CastFor|  Vote|        Answers|  Post|        CastFor|  Vote|  13737539|
-|15.Post|       Answers|  Post|        Answers|  Post|        CastFor|  Vote|        CastFor|  Post|  13737539|
-|16.Vote|       CastFor|  Post|        Answers|  Post|        CastFor|  Vote|        Answers|  Vote|  13737539|
-|17.Post|       Answers|  Post|        CastFor|  Vote|        CastFor|  Vote|        Answers|  Post|  13737539|
-|18.Vote|       CastFor|  Post|        Answers|  Post|        Answers|  Post|        CastFor|  Vote|  13737539|
-|19.Vote|       CastFor|  Post|        CastFor|  Vote|        Answers|  Post|        Answers|  Post|  13737539|
-|20.Vote|       CastFor|  Post|        CastFor|  Vote|           Asks|  User|        CastFor|  User|  11545634|
-+------+--------------+------+---------------+------+---------------+-- ----+---------------+------+----------+
+# G22: A triangle with a fourth node pointing at the node with in-degree of 2
+paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b); (d)-[e4]->(b)")
 {% endhighlight %}
 </div>
 
+Let's count the number of instances by type for of this path in the graph. To let you know of a hard-won tip: it can be hard to recall what the edge means when looking at the results, so alias the edge with its pattern. This makes it easier to read the results, even when C points to A or B, not D.
+
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# Find paths that match the pattern of a user asking a question, answered by the same user,
-# with an upvote, tagged with 'statistics' This is Graphlet G10.
-bootstrap_paths = (
-    paths
-
-    # (user)-[asks]->(question)
-    .filter(F.col("a.Type") == "User")
-    .filter(F.col("e1.relationship") == "Asks")
-    .filter(F.col("b.Type") == "Post")  # Post is a Question
-
-    # (user)-[answers]->(question)
-    .filter(F.col("c.Type") == "User")
-    .filter(F.col("e2.relationship") == "Answers")
-
-    # (vote)-[castfor]->(question)
-    .filter(F.col("d.Type") == "Vote")
-    .filter(F.col("d.VoteType") == "UpVote")
-    .filter(F.col("e3.relationship") == "CastFor")
-
-    # (tag)-[tags]->(question)
-    .filter(F.col("e.Type") == "Tag")
-    .filter(F.col("e.TagName") == "statistics")
-    .filter(F.col("e4.relationship") == "Tags")
+# Visualize the four-path by counting instances of paths by node / edge type
+graphlet_type_df = paths.select(
+    F.col("a.Type").alias("A_Type"),
+    F.col("e1.relationship").alias("(a)-[e1]->(b)"),
+    F.col("b.Type").alias("B_Type"),
+    F.col("e2.relationship").alias("(a)-[e2]->(c)"),
+    F.col("c.Type").alias("C_Type"),
+    F.col("e3.relationship").alias("(c)-[e3]->(b)"),
+    F.col("d.Type").alias("D_Type"),
+    F.col("e4.relationship").alias("(d)-[e4]->(b)"),
 )
+graphlet_count_df = (
+    graphlet_type_df.groupby(
+        "A_Type",
+        "(a)-[e1]->(b)",
+        "B_Type",
+        "(a)-[e2]->(c)",
+        "C_Type",
+        "(c)-[e3]->(b)",
+        "D_Type",
+        "(d)-[e4]->(b)",
+    )
+    .count()
+    .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
+)
+
+graphlet_count_df.show()
+{% endhighlight %}
+</div>
+
+The results show a diverse set of paths. Some observations:
+
+* 
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
++------+-------------+------+-------------+------+-------------+------+-------------+------+
+|A_Type|(a)-[e1]->(b)|B_Type|(a)-[e2]->(c)|C_Type|(c)-[e3]->(b)|D_Type|(d)-[e4]->(b)| count|
++------+-------------+------+-------------+------+-------------+------+-------------+------+
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Vote|      CastFor|35,707|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|        Links|10,627|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|      Answers| 7,523|
+|  Post|        Links|  Post|        Links|  Post|        Links|  Vote|      CastFor| 6,866|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|   Tag|         Tags| 5,815|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  Vote|      CastFor| 3,555|
+|  Post|        Links|  Post|        Links|  Post|        Links|  Post|        Links| 2,616|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  User|         Asks| 1,787|
+|  Post|        Links|  Post|        Links|  Post|        Links|  Post|      Answers| 1,601|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  Vote|      CastFor| 1,497|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|      Answers| 1,108|
+|  Post|        Links|  Post|        Links|  Post|        Links|   Tag|         Tags|   867|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|   Tag|         Tags|   797|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|        Links|   523|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|      Answers|   367|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|        Links|   358|
+|  User|         Asks|  Post|         Asks|  Post|        Links|   Tag|         Tags|   292|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  User|         Asks|   274|
+|  Post|        Links|  Post|        Links|  Post|        Links|  User|         Asks|   264|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  User|         Asks|   111|
++------+-------------+------+-------------+------+-------------+------+-------------+------+
+{% endhighlight %}
+</div>
+
+|  User|          Asks|  Post|           Asks|  Post|          Links|  111|
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# Find paths that match the pattern of a user asking two questions that are linked together.
+paths = g.find("(a)-[e1]->(b); 
 {% endhighlight %}
 </div>
 
