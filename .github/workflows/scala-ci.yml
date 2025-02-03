@@ -28,7 +28,7 @@ jobs:
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
     - name: Remove scoverage because of bugs
       run: |
-        rm -rf ~/.ivy2/cache/org.scoverage
+        rm -rf ~/.ivy2/cache/localorg.scoverage
     - name: Build and Test
       run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} coverage test coverageReport
     - uses: codecov/codecov-action@v3
