@@ -32,3 +32,5 @@ python/build
 python/dist
 python/graphframes.egg-info
 python/graphframes/tutorials/data
+python/docs/_build
+python/docs/_site
