@@ -553,6 +553,7 @@ The results show a diverse set of paths. Can you imagine doing this WITHOUT nami
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
+# Anyone know how to write a CSV into a file, not a folder?
 graphlet_count_df.write.csv("/tmp/patterns.csv", mode="overwrite", header=True)
 
 # Then from a Mac - your filename will vary
@@ -560,12 +561,80 @@ open /tmp/patterns.csv/part-00000-2bc9db1a-ae34-4474-b4c4-82e254eed010-c000.csv
 {% endhighlight %}
 </div>
 
+G22 is hard on the eyes! These motif paths are more difficult to interpret than simpler structural patterns - and we haven't looked at properties yet. Let's sort the data using Pandas. Rather than sort on counts, let's sort by each column in turn to group similar path-logic together.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+
+# Sort by each column in turn to group similar path-logic
+graphlet_count_df.toPandas().sort_values(
+    by=[
+        "A_Type",
+        "(a)-[e1]->(b)",
+        "B_Type",
+        "(a)-[e2]->(c)",
+        "C_Type",
+        "(c)-[e3]->(b)",
+        "D_Type",
+        "(d)-[e4]->(b)",
+    ],
+    ascending=True,
+)
+{% endhighlight %}
+</div>
+
+The Pandas table is clearer to read now that it is grouped.
+
+<div data-lang="text" markdown="1">
+{% highlight text %}
+   A_Type (a)-[e1]->(b) B_Type (a)-[e2]->(c) C_Type (c)-[e3]->(b) D_Type (d)-[e4]->(b)   count
+8    Post         Links   Post         Links   Post         Links   Post       Answers   1,601
+6    Post         Links   Post         Links   Post         Links   Post         Links   2,616
+11   Post         Links   Post         Links   Post         Links    Tag          Tags     867
+18   Post         Links   Post         Links   Post         Links   User          Asks     264
+3    Post         Links   Post         Links   Post         Links   Vote       CastFor   6,866
+2     Tag          Tags   Post          Tags   Post         Links   Post       Answers   7,523
+1     Tag          Tags   Post          Tags   Post         Links   Post         Links  10,627
+4     Tag          Tags   Post          Tags   Post         Links    Tag          Tags   5,815
+7     Tag          Tags   Post          Tags   Post         Links   User          Asks   1,787
+0     Tag          Tags   Post          Tags   Post         Links   Vote       CastFor  35,707
+10   User          Asks   Post       Answers   Post       Answers   Post       Answers   1,108
+13   User          Asks   Post       Answers   Post       Answers   Post         Links     523
+12   User          Asks   Post       Answers   Post       Answers    Tag          Tags     797
+17   User          Asks   Post       Answers   Post       Answers   User          Asks     274
+5    User          Asks   Post       Answers   Post       Answers   Vote       CastFor   3,555
+14   User          Asks   Post          Asks   Post         Links   Post       Answers     367
+15   User          Asks   Post          Asks   Post         Links   Post         Links     358
+16   User          Asks   Post          Asks   Post         Links    Tag          Tags     292
+19   User          Asks   Post          Asks   Post         Links   User          Asks     111
+9    User          Asks   Post          Asks   Post         Links   Vote       CastFor   1,497
+{% endhighlight %}
+</div>
+
+As I start from the top and explain each path to myself, I get tripped up and lose my place. It becomes clear that text or a notebook is not the best tool for this job. We're going to load the data in a spreadsheet and write a text description for some of the paths. I find it much easier to understand the patterns in Excel than a Pandas table in a notebook, so I'm going to use that.
+
 <center>
     <figure>
-        <img src="img/Excel-with-Motif-Paths.png" width="800px" alt="Excel makes motif counts easy to sort and understand" title="G11 5-node Directed Graphlet" style="margin: 15px" />
-        <figcaption>
-            <a href="https://www.nature.com/articles/srep35098">Excel makes motif counts easy to sort and understand</a>
-        </figcaption>
+        <img src="img/Excel-with-Motif-Paths.png" width="1000px" alt="Excel annotations make motif paths easier to understand" title="Motif paths in Excel" style="margin: 10px 25px 10px 25px" />
+        <figcaption>Excel makes motif counts easy to sort and understand</figcaption>
+    </figure>
+</center>
+
+Let's reproduce the sort by selecting all the data with the top left corner of the table, right-clicking to get a context menu, and selecting "Sort". Then we sort by each column in turn to group similar path-logic together.
+
+<center>
+    <figure>
+        <img src="img/Excel-Sort-by-Columns.png" width="600px" alt="Sorting motif paths by consecutive columns semantically groups paths" title="Sorting motif paths by consecutive columns semantically groups paths" style="margin: 10px 25px 10px 25px" />
+        <figcaption>Sorting motif paths by consecutive columns semantically groups paths</figcaption>
+    </figure>
+</center>
+
+We 
+
+<center>
+    <figure>
+        <img src="img/Handwritten-Motif-Descriptions.png" width="1000px" alt="Describing motif paths in Excel" title="Describing motif paths in Excel" style="margin: 10px 25px 10px 25px" />
+        <figcaption>Describing motif paths in Excel</figcaption>
     </figure>
 </center>
 
