@@ -29,6 +29,9 @@ from .lib import AggregateMessages as AM
 from .examples import Graphs, BeliefPropagation
 
 
+VERSION = open("../VERSION").read().strip()
+
+
 @pytest.fixture(scope="class", autouse=True)
 def set_spark(request, spark_session):
     request.cls.spark = spark_session
@@ -72,7 +75,7 @@ class GraphFrameTestUtils(object):
         cls.conf = SparkConf().setAppName("GraphFramesTests")
         cls.conf.set(
             "spark.submit.pyFiles",
-            os.path.abspath("python/dist/graphframes-0.8.5-py3-none-any.whl"),
+            os.path.abspath("python/dist/graphframes-{VERSION}-py3-none-any.whl"),
         )
         cls.sc = SparkContext(master="local[4]", appName="GraphFramesTests", conf=cls.conf)
         cls.checkpointDir = tempfile.mkdtemp()
