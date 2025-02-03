@@ -462,11 +462,9 @@ Simple motif finding can be used to explore a knowledge graph. It is also possib
 
 We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form <i>property graph motifs</i>. Such complex motifs were first defined (without being formally named) in the paper describing this prject: <a href="https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf">GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016</a>. They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.
 
-For example, we can use <i>property graph motifs</i> to find all questions about statistics answered by the same user that asked it with at least 10 votes. This involves a path search followed by a relational query: a group by on path elements. Aggregations can supercharge <i>property graph motifs</i> compared with traditional network motifs. They can be of arbitrary graph and relational complexity.
+The larger motifs get, the more interesting they are. Five nodes is often the limit with a Spark cluster, depending on how large your graph is. In this instance I will limit myself to a 4-path pattern as you may not have a Spark cluster on which to learn. Keep in mind that I am talking about paths - through aggregation a motif might cover thousands of nodes!
 
-The larger motifs get, the more interesting they are. Five nodes is often the limit with a Spark cluster, depending on how large your graph is. In this instance I will limit myself to a 3-path pattern as you may not have a Spark cluster on which to learn.
-
-First lets express the structural logic of the motif we are looking for. We are looking for a pattern of a 
+First lets express the structural logic of the motif we are looking for. Let's try G22 - a triangle with a fourth node pointing at the node with in-degree of 2. The pattern is <code>(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b); (d)-[e4]->(b)</code>.
 
 Visually this pattern looks like this:
 
@@ -474,7 +472,7 @@ Visually this pattern looks like this:
     <figure>
         <img src="img/Directed-Graphlet-G22.png" width="115px" alt="G22: A triangle with a fourth node pointing at the node with in-degree of 2" title="G11 5-node Directed Graphlet" style="margin: 15px" />
         <figcaption>
-            <a href="https://www.nature.com/articles/srep35098">G11 is a cross with all edges pointing at the center node.</a>
+            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G22: A triangle with a fourth node pointing at the node with in-degree of 2</a>
         </figcaption>
     </figure>
 </center>
@@ -522,9 +520,7 @@ graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The results show a diverse set of paths. Some observations:
-
-* 
+The results show a diverse set of paths. Can you imagine doing this WITHOUT naming the edges by their pattern? I can, and it's prohibitive :) I still find it hard to read them, so I'm going to store them as CSV and load them in Excel.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -555,14 +551,23 @@ The results show a diverse set of paths. Some observations:
 {% endhighlight %}
 </div>
 
-|  User|          Asks|  Post|           Asks|  Post|          Links|  111|
-
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# Find paths that match the pattern of a user asking two questions that are linked together.
-paths = g.find("(a)-[e1]->(b); 
+graphlet_count_df.write.csv("/tmp/patterns.csv", mode="overwrite", header=True)
+
+# Then from a Mac - your filename will vary
+open /tmp/patterns.csv/part-00000-2bc9db1a-ae34-4474-b4c4-82e254eed010-c000.csv
 {% endhighlight %}
 </div>
+
+<center>
+    <figure>
+        <img src="img/Excel-with-Motif-Paths.png" width="800px" alt="Excel makes motif counts easy to sort and understand" title="G11 5-node Directed Graphlet" style="margin: 15px" />
+        <figcaption>
+            <a href="https://www.nature.com/articles/srep35098">Excel makes motif counts easy to sort and understand</a>
+        </figcaption>
+    </figure>
+</center>
 
 <h1 id="conclusion">Conclusion</h1>
 
