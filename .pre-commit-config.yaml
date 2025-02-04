@@ -1,0 +1,10 @@
+---
+repos:
+  - repo: git@github.com:LiveIntent/pre-commit-hooks.git
+    rev: v1.6.1
+    hooks:
+      - id: circleci_docker
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.35.0
+    hooks:
+      - id: markdownlint

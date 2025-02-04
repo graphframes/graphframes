@@ -1,0 +1,3 @@
+* @LiveIntent/cph-compute-infra
+/.circleci/ @LiveIntent/cph-compute-infra @LiveIntent/guild-devops
+/.github/ @LiveIntent/cph-compute-infra @LiveIntent/guild-devops
