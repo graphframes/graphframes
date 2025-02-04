@@ -520,7 +520,7 @@ graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The results show a diverse set of paths. Can you imagine doing this WITHOUT naming the edges by their pattern? I can, and it's prohibitive :) I still find it hard to read them, so I'm going to store them as CSV and load them in Excel.
+The results show a diverse set of paths. Can you imagine doing this WITHOUT naming the edges by their pattern? I can, and it's prohibitive :)
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -551,57 +551,54 @@ The results show a diverse set of paths. Can you imagine doing this WITHOUT nami
 {% endhighlight %}
 </div>
 
-G22 is hard on the eyes! These motif paths are more difficult to interpret than simpler structural patterns - and we haven't looked at properties yet. Let's sort the data using Pandas. Rather than sort on counts, let's sort by each column in turn to group similar path-logic together.
+I still find it hard to read them, so I'm going to sort them by their colunns from left to right to group them semanticaly. G22 is hard on the eyes! These motif paths are more difficult to interpret than simpler structural patterns - and we haven't looked at properties yet.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 
-# Sort by each column in turn to group similar path-logic
-graphlet_count_df.toPandas().sort_values(
-    by=[
-        "A_Type",
-        "(a)-[e1]->(b)",
-        "B_Type",
-        "(a)-[e2]->(c)",
-        "C_Type",
-        "(c)-[e3]->(b)",
-        "D_Type",
-        "(d)-[e4]->(b)",
-    ],
-    ascending=True,
-)
+graphlet_count_df.orderBy([
+    "A_Type",
+    "(a)-[e1]->(b)",
+    "B_Type",
+    "(a)-[e2]->(c)",
+    "C_Type",
+    "(c)-[e3]->(b)",
+    "D_Type",
+    "(d)-[e4]->(b)",
+], ascending=False).show()
 {% endhighlight %}
 </div>
 
-The Pandas table is clearer to read now that it is grouped.
-
-<div data-lang="text" markdown="1">
-{% highlight text %}
-   A_Type (a)-[e1]->(b) B_Type (a)-[e2]->(c) C_Type (c)-[e3]->(b) D_Type (d)-[e4]->(b)   count
-8    Post         Links   Post         Links   Post         Links   Post       Answers   1,601
-6    Post         Links   Post         Links   Post         Links   Post         Links   2,616
-11   Post         Links   Post         Links   Post         Links    Tag          Tags     867
-18   Post         Links   Post         Links   Post         Links   User          Asks     264
-3    Post         Links   Post         Links   Post         Links   Vote       CastFor   6,866
-2     Tag          Tags   Post          Tags   Post         Links   Post       Answers   7,523
-1     Tag          Tags   Post          Tags   Post         Links   Post         Links  10,627
-4     Tag          Tags   Post          Tags   Post         Links    Tag          Tags   5,815
-7     Tag          Tags   Post          Tags   Post         Links   User          Asks   1,787
-0     Tag          Tags   Post          Tags   Post         Links   Vote       CastFor  35,707
-10   User          Asks   Post       Answers   Post       Answers   Post       Answers   1,108
-13   User          Asks   Post       Answers   Post       Answers   Post         Links     523
-12   User          Asks   Post       Answers   Post       Answers    Tag          Tags     797
-17   User          Asks   Post       Answers   Post       Answers   User          Asks     274
-5    User          Asks   Post       Answers   Post       Answers   Vote       CastFor   3,555
-14   User          Asks   Post          Asks   Post         Links   Post       Answers     367
-15   User          Asks   Post          Asks   Post         Links   Post         Links     358
-16   User          Asks   Post          Asks   Post         Links    Tag          Tags     292
-19   User          Asks   Post          Asks   Post         Links   User          Asks     111
-9    User          Asks   Post          Asks   Post         Links   Vote       CastFor   1,497
+<div data-lang="python" markdown="1">
+{% highlight python %}
++------+-------------+------+-------------+------+-------------+------+-------------+------+
+|A_Type|(a)-[e1]->(b)|B_Type|(a)-[e2]->(c)|C_Type|(c)-[e3]->(b)|D_Type|(d)-[e4]->(b)| count|
++------+-------------+------+-------------+------+-------------+------+-------------+------+
+|  Post|        Links|  Post|        Links|  Post|        Links|  Post|      Answers| 1,601|
+|  Post|        Links|  Post|        Links|  Post|        Links|  Post|        Links| 2,616|
+|  Post|        Links|  Post|        Links|  Post|        Links|   Tag|         Tags|   867|
+|  Post|        Links|  Post|        Links|  Post|        Links|  User|         Asks|   264|
+|  Post|        Links|  Post|        Links|  Post|        Links|  Vote|      CastFor| 6,866|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|      Answers| 7,523|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|        Links|10,627|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|   Tag|         Tags| 5,815|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  User|         Asks| 1,787|
+|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Vote|      CastFor|35,707|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|      Answers| 1,108|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|        Links|   523|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|   Tag|         Tags|   797|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  User|         Asks|   274|
+|  User|         Asks|  Post|      Answers|  Post|      Answers|  Vote|      CastFor| 3,555|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|      Answers|   367|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|        Links|   358|
+|  User|         Asks|  Post|         Asks|  Post|        Links|   Tag|         Tags|   292|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  User|         Asks|   111|
+|  User|         Asks|  Post|         Asks|  Post|        Links|  Vote|      CastFor| 1,497|
++------+-------------+------+-------------+------+-------------+------+-------------+------+
 {% endhighlight %}
 </div>
 
-As I start from the top and explain each path to myself, I get tripped up and lose my place. It becomes clear that text or a notebook is not the best tool for this job. We're going to load the data in a spreadsheet and write a text description for some of the paths. I find it much easier to understand the patterns in Excel than a Pandas table in a notebook, so I'm going to use that.
+I decided to use Excel to document my finds within this mine of data. I find it much easier to understand the patterns in Excel than a DataFrame table in a notebook. Your mileage may vary.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -615,28 +612,32 @@ open /tmp/patterns.csv/part-00000-2bc9db1a-ae34-4474-b4c4-82e254eed010-c000.csv
 
 <center>
     <figure>
-        <img src="img/Excel-with-Motif-Paths.png" width="1000px" alt="Excel annotations make motif paths easier to understand" title="Motif paths in Excel" style="margin: 10px 25px 10px 25px" />
-        <figcaption>Excel makes motif counts easy to sort and understand</figcaption>
-    </figure>
-</center>
-
-Let's reproduce the sort by selecting all the data with the top left corner of the table, right-clicking to get a context menu, and selecting "Sort". Then we sort by each column in turn to group similar path-logic together.
-
-<center>
-    <figure>
-        <img src="img/Excel-Sort-by-Columns.png" width="600px" alt="Sorting motif paths by consecutive columns semantically groups paths" title="Sorting motif paths by consecutive columns semantically groups paths" style="margin: 10px 25px 10px 25px" />
-        <figcaption>Sorting motif paths by consecutive columns semantically groups paths</figcaption>
-    </figure>
-</center>
-
-We 
-
-<center>
-    <figure>
-        <img src="img/Handwritten-Motif-Descriptions.png" width="1000px" alt="Describing motif paths in Excel" title="Describing motif paths in Excel" style="margin: 10px 25px 10px 25px" />
+        <img src="img/Excel-Descriptions-of-Motif-Paths.png" width="1000px" alt="Describing motif paths in Excel" title="Describing motif paths in Excel" style="margin: 10px 25px 10px 25px" />
         <figcaption>Describing motif paths in Excel</figcaption>
     </figure>
 </center>
+
+These patterns are pretty simple because the Stack Overflow graph is pretty simple but... we did discover self-answered questions, which I noted in the comments field of my spreadsheet :) That's an example of what pattern matching with motifs can do. Let's make this a property graph motif by adding properties to the mix.
+
+We will group by some fields of the paths and leave others outside of the group to count their frequency. Look at item 
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+paths = paths.filter(
+    F.col("a.Type") == "User",
+    F.col("e1.relationship") == "Asks",
+    F.col("b.Type") == "Post",
+    F.col("e2.relationship") == "Answers",
+    F.col("c.Type") == "Post",
+    F.col("e3.relationship") == "Answers",
+    F.col("d.Type") == "Vote",
+    F.col("e4.relationship") == "CastFor",
+)
+
+{% endhighlight %}
+</div>
+
+
 
 <h1 id="conclusion">Conclusion</h1>
 

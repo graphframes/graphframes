@@ -224,41 +224,70 @@ graphlet_count_df.show()
 paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(d); (d)-[e4]->(a)")
 four_edge_count(paths).show()
 
-# Shows two matches:
-# - (Post)-[Answers]->(Post)<--[Posted]-(User)
-# - (Post)-[Answers]->(Post)<--[VotedFor]-(User)
-paths = g.find("(a)-[e1]->(b); (c)-[e2]->(a)")
-paths.select("a.Type", "e.*", "b.Type", "e2.*", "c.Type").show()
+# G22: A triangle with a fourth node pointing at the node with in-degree of 2
+paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b); (d)-[e4]->(b)")
 
-# Figure out how often questions are answered and the question poster votes for the answer. Neat!
-# Shows (User A)-[Posted]->(Post)<-[Answers]-(Post)<-[VotedFor]-(User)
-paths = g.find("(a)-[e1]->(b); (c)-[e2]->(b); (d)-[e3]->(c)")
-three_edge_count(paths).show(30, False)
+# Visualize the counts by frequency
+graphlet_type_df = paths.select(
+    F.col("a.Type").alias("A_Type"),
+    F.col("e1.relationship").alias("(a)-[e1]->(b)"),
+    F.col("b.Type").alias("B_Type"),
+    F.col("e2.relationship").alias("(a)-[e2]->(c)"),
+    F.col("c.Type").alias("C_Type"),
+    F.col("e3.relationship").alias("(c)-[e3]->(b)"),
+    F.col("d.Type").alias("D_Type"),
+    F.col("e4.relationship").alias("(d)-[e4]->(b)"),
+)
+graphlet_count_df = (
+    graphlet_type_df.groupby(
+        "A_Type",
+        "(a)-[e1]->(b)",
+        "B_Type",
+        "(a)-[e2]->(c)",
+        "C_Type",
+        "(c)-[e3]->(b)",
+        "D_Type",
+        "(d)-[e4]->(b)",
+    )
+    .count()
+    .orderBy(F.col("count").desc())
+    # Add a comma formatted column for display
+    .withColumn("count", F.format_number(F.col("count"), 0))
+)
 
+graphlet_count_df.show()
 
-# If the node types are right...
-paths = paths.filter(F.col("a.Type") == "User")
-paths = paths.filter(F.col("b.Type") == "Post")
-paths = paths.filter(F.col("c.Type") == "Post")
-paths = paths.filter(F.col("d.Type") == "User")
-# ... if the edge types are right...
-paths = paths.filter(F.col("e1.relationship") == "Posted")
-paths = paths.filter(F.col("e2.relationship") == "Answers")
-paths = paths.filter(F.col("e3.relationship") == "VotedFor")
-# ... if the user that posts the question and votes for the answer
-paths = paths.filter(F.col("a.id") == F.col("d.id"))
-
-# If the edge types are right...
-# paths = paths.filter(F.col("e1.relationship") == "Posted")
-# paths = paths.filter(F.col("e2.relationship") == "Answers")
-paths = paths.filter(F.col("e3.relationship") == "VotedFor")
-
-paths.select(
-    "a.Type",
-    "e1.relationship",
-    "b.Type",
-    "e2.relationship",
-    "c.Type",
-    "e3.relationship",
-    "d.Type",
+# Sort the table across its path to see the logic of the graphlet paths
+graphlet_count_df.orderBy(
+    [
+        "A_Type",
+        "(a)-[e1]->(b)",
+        "B_Type",
+        "(a)-[e2]->(c)",
+        "C_Type",
+        "(c)-[e3]->(b)",
+        "D_Type",
+        "(d)-[e4]->(b)",
+    ],
+    ascending=True,
 ).show()
+
+# Let's group by and count the votes for self-answered questions
+match_paths = paths.filter(
+    (F.col("a.Type") == "User")
+    & (F.col("e1.relationship") == "Asks")
+    & (F.col("b.Type") == "Post")
+    & (F.col("e2.relationship") == "Answers")
+    & (F.col("c.Type") == "Post")
+    & (F.col("e3.relationship") == "Answers")
+    & (F.col("d.Type") == "Vote")
+    & (F.col("e4.relationship") == "CastFor")
+)
+print(f"Self-answered questions with at leaast one vote, paths: {match_paths.count():,}")
+
+# Now group by all fields but the vote field and count votes
+match_paths.groupBy(
+    "a.id",
+    "b.id",
+    "c.id",
+).count().show()
