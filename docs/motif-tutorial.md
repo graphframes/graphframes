@@ -494,9 +494,9 @@ Visually this pattern looks like this:
 
 <center>
     <figure>
-        <img src="img/Directed-Graphlet-G22.png" width="115px" alt="G22: A triangle with a fourth node pointing at the node with in-degree of 2" title="G11 5-node Directed Graphlet" style="margin: 15px" />
+        <img src="img/Directed-Graphlet-G17.png" width="115px" alt="G17: a 3-path" title="G17: a 3-path" style="margin: 15px" />
         <figcaption>
-            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G22: A triangle with a fourth node pointing at the node with in-degree of 2</a>
+            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G17: a 3-path</a>
         </figcaption>
     </figure>
 </center>
