@@ -474,7 +474,11 @@ The result is a count of the divergent triangles in the graph by type.
 {% endhighlight %}
 </div>
 
-The first row is interesting: <code>(Tag)-[Tags]->(Question); (Tag)-[Tags]->(Question); (Question)-[Links]->(Question)</code>, or "A tag is used on a question, that tag is used on another question, and the two questions are linked." It makes sense that questions sharing tags are often linked.
+1. <code>(Tag)-[Tags]->(Question B); (Tag)-[Tags]->(Question C); (Question C)-[Links]->(Question B)</code>, or "A tag is used on a question, that tag is used on another question, and the two questions are linked." It makes sense that questions sharing tags are often linked.
+2. <code>(User)-[Asks]->(Question B); (User)-[Posts]->(Answer C); (Answer C)-[Answers]->(Question B)</code>, or "A user answers their own question."
+3. A triangle of linked questions.
+4. <code>(Tag)-[Tags]->(Question B); (Tag)-[Tags]->(Question C); (Question B)-[Duplicates]->(Question C)</code>, or "A tag appears for a pair of duplicate answers."
+5. A user asks linked questions.
 
 <h2 id="property-graph-motifs">Property Graph Motifs</h2>
 
