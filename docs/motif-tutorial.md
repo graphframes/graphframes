@@ -161,7 +161,8 @@ node_counts.show()
 |    Badge|43,029|
 |     Vote|42,593|
 |     User|37,709|
-|     Post| 5,003|
+|   Answer| 2,978|
+| Question| 2,025|
 |PostLinks| 1,274|
 |      Tag|   143|
 +---------+------+
@@ -188,16 +189,18 @@ edge_counts.show()
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+---------+------+
-|Edge Type| count|
-+---------+------+
-|    Earns|43,029|
-|  CastFor|40,701|
-|  Answers| 5,745|
-|     Tags| 4,427|
-|     Asks| 1,934|
-|    Links| 1,268|
-+---------+------+
++----------+------+
+| Edge Type| count|
++----------+------+
+|     Earns|43,029|
+|   CastFor|40,701|
+|      Tags| 4,427|
+|   Answers| 2,978|
+|     Posts| 2,767|
+|      Asks| 1,934|
+|     Links| 1,180|
+|Duplicates|    88|
++----------+------+
 {% endhighlight %}
 </div>
 
@@ -286,7 +289,7 @@ Node columns: ['id', 'AboutMe', 'AcceptedAnswerId', 'AccountId', 'AnswerCount', 
 +--------------------+--------------------+------------+
 |                 src|                 dst|relationship|
 +--------------------+--------------------+------------+
-|be3ab453-e776-48e...|8aaaecd7-7ec9-4b9...|     CastFor|
+|b0d39443-5b0b-42e...|3e84a1ed-1c20-413...|     Answers|
 |4c781826-3112-4b2...|07665936-d759-4f6...|       Earns|
 |a11d77a7-da09-4b0...|a9ea6e7d-7cc1-408...|     CastFor|
 |bd42f75a-b3ee-4d0...|fe216e41-1ae0-4c0...|       Earns|
@@ -380,16 +383,16 @@ Aggregating paths can express powerful semantics. Let's count the types of paths
 {% highlight python %}
 graphlet_type_df = paths.select(
     F.col("a.Type").alias("A_Type"),
-    F.col("e1.relationship").alias("E_relationship"),
+    F.col("e1.relationship").alias("(a)-[e1]->(b)"),
     F.col("b.Type").alias("B_Type"),
-    F.col("e2.relationship").alias("E2_relationship"),
+    F.col("e2.relationship").alias("(b)-[e2]->(c)"),
     F.col("c.Type").alias("C_Type"),
-    F.col("e3.relationship").alias("E3_relationship"),
+    F.col("e3.relationship").alias("(c)-[e3]->(a)"),
 )
 
 graphlet_count_df = (
     graphlet_type_df.groupby(
-        "A_Type", "E_relationship", "B_Type", "E2_relationship", "C_Type", "E3_relationship"
+        "A_Type", "(a)-[e1]->(b)", "B_Type", "(b)-[e2]->(c)", "C_Type", "(c)-[e3]->(a)"
     )
     .count()
     .orderBy(F.col("count").desc())
@@ -400,15 +403,21 @@ graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The result shows the only continuous triangles in the graph are 39 post-link loops. This is an interesting result in terms of information architecture: it indicates a second degree self-reference. Motif matching for simple motifs based on topology alone can be used to for exploratory data analysis over a knowledge graph in the same way you might run <code>GROUP BY / COUNT</code> queries on a table in a relational database to start to understand its contents.
+The result shows the only continuous triangles in the graph are 39 question-link loops. Motif matching for simple motifs based on topology alone can be used to for exploratory data analysis over a knowledge graph in the same way you might run <code>GROUP BY / COUNT</code> queries on a table in a relational database to start to understand its contents.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+------+--------------+------+---------------+------+---------------+-----+
-|A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
-+------+--------------+------+---------------+------+---------------+-----+
-|  Post|         Links|  Post|          Links|  Post|          Links|   39|
-+------+--------------+------+---------------+------+---------------+-----+
++--------+-------------+--------+-------------+--------+-------------+-----+
+|  A_Type|(a)-[e1]->(b)|  B_Type|(b)-[e2]->(c)|  C_Type|(c)-[e3]->(a)|count|
++--------+-------------+--------+-------------+--------+-------------+-----+
+|Question|        Links|Question|        Links|Question|        Links|   24|
+|Question|   Duplicates|Question|        Links|Question|        Links|    4|
+|Question|        Links|Question|        Links|Question|   Duplicates|    4|
+|Question|        Links|Question|   Duplicates|Question|        Links|    4|
+|Question|   Duplicates|Question|        Links|Question|   Duplicates|    1|
+|Question|   Duplicates|Question|   Duplicates|Question|        Links|    1|
+|Question|        Links|Question|   Duplicates|Question|   Duplicates|    1|
++--------+-------------+--------+-------------+--------+-------------+-----+
 {% endhighlight %}
 </div>
 
@@ -421,16 +430,16 @@ paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b)")
 
 graphlet_type_df = paths.select(
     F.col("a.Type").alias("A_Type"),
-    F.col("e1.relationship").alias("E_relationship"),
+    F.col("e1.relationship").alias("(a)-[e1]->(b)"),
     F.col("b.Type").alias("B_Type"),
-    F.col("e2.relationship").alias("E2_relationship"),
+    F.col("e2.relationship").alias("(a)-[e2]->(c)"),
     F.col("c.Type").alias("C_Type"),
-    F.col("e3.relationship").alias("E3_relationship"),
+    F.col("e3.relationship").alias("(c)-[e3]->(b)"),
 )
 
 graphlet_count_df = (
     graphlet_type_df.groupby(
-        "A_Type", "E_relationship", "B_Type", "E2_relationship", "C_Type", "E3_relationship"
+        "A_Type", "(a)-[e1]->(b)", "B_Type", "(a)-[e2]->(c)", "C_Type", "(c)-[e3]->(b)"
     )
     .count()
     .orderBy(F.col("count").desc())
@@ -445,16 +454,27 @@ The result is a count of the divergent triangles in the graph by type.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+------+--------------+------+---------------+------+---------------+-----+
-|A_Type|E_relationship|B_Type|E2_relationship|C_Type|E3_relationship|count|
-+------+--------------+------+---------------+------+---------------+-----+
-|   Tag|          Tags|  Post|           Tags|  Post|          Links|1,915|
-|  Post|         Links|  Post|          Links|  Post|          Links|  293|
-|  User|          Asks|  Post|        Answers|  Post|        Answers|  274|
-|  User|          Asks|  Post|           Asks|  Post|          Links|  111|
-+------+--------------+------+---------------+------+---------------+-----+
++--------+-------------+--------+-------------+--------+-------------+-----+
+|  A_Type|(a)-[e1]->(b)|  B_Type|(a)-[e2]->(c)|  C_Type|(c)-[e3]->(b)|count|
++--------+-------------+--------+-------------+--------+-------------+-----+
+|     Tag|         Tags|Question|         Tags|Question|        Links|1,775|
+|    User|         Asks|Question|        Posts|  Answer|      Answers|  274|
+|Question|        Links|Question|        Links|Question|        Links|  236|
+|     Tag|         Tags|Question|         Tags|Question|   Duplicates|  140|
+|    User|         Asks|Question|         Asks|Question|        Links|  103|
+|Question|        Links|Question|        Links|Question|   Duplicates|   14|
+|Question|   Duplicates|Question|        Links|Question|        Links|   13|
+|Question|        Links|Question|   Duplicates|Question|        Links|   12|
+|    User|         Asks|Question|         Asks|Question|   Duplicates|    8|
+|Question|   Duplicates|Question|        Links|Question|   Duplicates|    8|
+|Question|   Duplicates|Question|   Duplicates|Question|        Links|    7|
+|Question|   Duplicates|Question|   Duplicates|Question|   Duplicates|    2|
+|Question|        Links|Question|   Duplicates|Question|   Duplicates|    1|
++--------+-------------+--------+-------------+--------+-------------+-----+
 {% endhighlight %}
 </div>
+
+The first row is interesting: <code>(Tag)-[Tags]->(Question); (Tag)-[Tags]->(Question); (Question)-[Links]->(Question)</code>, or "A tag is used on a question, that tag is used on another question, and the two questions are linked." It makes sense that questions sharing tags are often linked.
 
 <h2 id="property-graph-motifs">Property Graph Motifs</h2>
 
@@ -477,14 +497,16 @@ Visually this pattern looks like this:
     </figure>
 </center>
 
+The simplest pattern with four nodes is a 3-path, directed graphlet G17. Let's see how aggregation makes this a powerful pattern.
+
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# G22: A triangle with a fourth node pointing at the node with in-degree of 2
-paths = g.find("(a)-[e1]->(b); (a)-[e2]->(c); (c)-[e3]->(b); (d)-[e4]->(b)")
+# G17: A directed 3-path is a surprisingly diverse graphlet
+paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(d)")
 {% endhighlight %}
 </div>
 
-Let's count the number of instances by type for of this path in the graph. To let you know of a hard-won tip: it can be hard to recall what the edge means when looking at the results, so alias the edge with its pattern. This makes it easier to read the results, even when C points to A or B, not D.
+Let's count the number of instances by type for of this path in the graph. To let you know of a hard-won tip: alias the edge with its pattern. This makes it easier to read the results, even when C points to A or B, not D.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -493,147 +515,112 @@ graphlet_type_df = paths.select(
     F.col("a.Type").alias("A_Type"),
     F.col("e1.relationship").alias("(a)-[e1]->(b)"),
     F.col("b.Type").alias("B_Type"),
-    F.col("e2.relationship").alias("(a)-[e2]->(c)"),
+    F.col("e2.relationship").alias("(b)-[e2]->(c)"),
     F.col("c.Type").alias("C_Type"),
-    F.col("e3.relationship").alias("(c)-[e3]->(b)"),
+    F.col("e3.relationship").alias("(c)-[e3]->(d)"),
     F.col("d.Type").alias("D_Type"),
-    F.col("e4.relationship").alias("(d)-[e4]->(b)"),
 )
 graphlet_count_df = (
     graphlet_type_df.groupby(
         "A_Type",
         "(a)-[e1]->(b)",
         "B_Type",
-        "(a)-[e2]->(c)",
+        "(b)-[e2]->(c)",
         "C_Type",
-        "(c)-[e3]->(b)",
+        "(c)-[e3]->(d)",
         "D_Type",
-        "(d)-[e4]->(b)",
     )
     .count()
     .orderBy(F.col("count").desc())
     # Add a comma formatted column for display
     .withColumn("count", F.format_number(F.col("count"), 0))
 )
-
 graphlet_count_df.show()
 {% endhighlight %}
 </div>
 
-The results show a diverse set of paths. Can you imagine doing this WITHOUT naming the edges by their pattern? I can, and it's prohibitive :)
-
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+------+-------------+------+-------------+------+-------------+------+-------------+------+
-|A_Type|(a)-[e1]->(b)|B_Type|(a)-[e2]->(c)|C_Type|(c)-[e3]->(b)|D_Type|(d)-[e4]->(b)| count|
-+------+-------------+------+-------------+------+-------------+------+-------------+------+
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Vote|      CastFor|35,707|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|        Links|10,627|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|      Answers| 7,523|
-|  Post|        Links|  Post|        Links|  Post|        Links|  Vote|      CastFor| 6,866|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|   Tag|         Tags| 5,815|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  Vote|      CastFor| 3,555|
-|  Post|        Links|  Post|        Links|  Post|        Links|  Post|        Links| 2,616|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  User|         Asks| 1,787|
-|  Post|        Links|  Post|        Links|  Post|        Links|  Post|      Answers| 1,601|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  Vote|      CastFor| 1,497|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|      Answers| 1,108|
-|  Post|        Links|  Post|        Links|  Post|        Links|   Tag|         Tags|   867|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|   Tag|         Tags|   797|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|        Links|   523|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|      Answers|   367|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|        Links|   358|
-|  User|         Asks|  Post|         Asks|  Post|        Links|   Tag|         Tags|   292|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  User|         Asks|   274|
-|  Post|        Links|  Post|        Links|  Post|        Links|  User|         Asks|   264|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  User|         Asks|   111|
-+------+-------------+------+-------------+------+-------------+------+-------------+------+
++------+-------------+------+-------------+------+-------------+------+------+
+|A_Type|(a)-[e1]->(b)|B_Type|(b)-[e2]->(c)|C_Type|(c)-[e3]->(d)|D_Type| count|
++------+-------------+------+-------------+------+-------------+------+------+
+|  Vote|      CastFor|  Post|      Answers|  Post|        Links|  Post|29,866|
+|  Vote|      CastFor|  Post|        Links|  Post|        Links|  Post|24,634|
+|   Tag|         Tags|  Post|        Links|  Post|        Links|  Post| 5,798|
+|  Post|      Answers|  Post|        Links|  Post|        Links|  Post| 5,434|
+|  Post|        Links|  Post|        Links|  Post|        Links|  Post| 3,987|
+|  User|      Answers|  Post|      Answers|  Post|        Links|  Post| 3,018|
+|  User|         Asks|  Post|        Links|  Post|        Links|  Post| 2,029|
+|  Vote|      CastFor|  Post|        Links|  Post|      Answers|  Post|    18|
+|   Tag|         Tags|  Post|        Links|  Post|      Answers|  Post|     8|
+|  Post|        Links|  Post|      Answers|  Post|        Links|  Post|     4|
+|  Post|        Links|  Post|        Links|  Post|      Answers|  Post|     2|
+|  Post|      Answers|  Post|        Links|  Post|      Answers|  Post|     2|
+|  User|         Asks|  Post|        Links|  Post|      Answers|  Post|     1|
++------+-------------+------+-------------+------+-------------+------+------+
 {% endhighlight %}
 </div>
 
-I still find it hard to read them, so I'm going to sort them by their colunns from left to right to group them semanticaly. G22 is hard on the eyes! These motif paths are more difficult to interpret than simpler structural patterns - and we haven't looked at properties yet.
+Let's order by the successive elements of the pattern to group them logically.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-
 graphlet_count_df.orderBy([
     "A_Type",
     "(a)-[e1]->(b)",
     "B_Type",
-    "(a)-[e2]->(c)",
+    "(b)-[e2]->(c)",
     "C_Type",
-    "(c)-[e3]->(b)",
+    "(c)-[e3]->(d)",
     "D_Type",
-    "(d)-[e4]->(b)",
 ], ascending=False).show()
 {% endhighlight %}
 </div>
 
+
+
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+------+-------------+------+-------------+------+-------------+------+-------------+------+
-|A_Type|(a)-[e1]->(b)|B_Type|(a)-[e2]->(c)|C_Type|(c)-[e3]->(b)|D_Type|(d)-[e4]->(b)| count|
-+------+-------------+------+-------------+------+-------------+------+-------------+------+
-|  Post|        Links|  Post|        Links|  Post|        Links|  Post|      Answers| 1,601|
-|  Post|        Links|  Post|        Links|  Post|        Links|  Post|        Links| 2,616|
-|  Post|        Links|  Post|        Links|  Post|        Links|   Tag|         Tags|   867|
-|  Post|        Links|  Post|        Links|  Post|        Links|  User|         Asks|   264|
-|  Post|        Links|  Post|        Links|  Post|        Links|  Vote|      CastFor| 6,866|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|      Answers| 7,523|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Post|        Links|10,627|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|   Tag|         Tags| 5,815|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  User|         Asks| 1,787|
-|   Tag|         Tags|  Post|         Tags|  Post|        Links|  Vote|      CastFor|35,707|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|      Answers| 1,108|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  Post|        Links|   523|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|   Tag|         Tags|   797|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  User|         Asks|   274|
-|  User|         Asks|  Post|      Answers|  Post|      Answers|  Vote|      CastFor| 3,555|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|      Answers|   367|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  Post|        Links|   358|
-|  User|         Asks|  Post|         Asks|  Post|        Links|   Tag|         Tags|   292|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  User|         Asks|   111|
-|  User|         Asks|  Post|         Asks|  Post|        Links|  Vote|      CastFor| 1,497|
-+------+-------------+------+-------------+------+-------------+------+-------------+------+
++------+-------------+------+-------------+------+-------------+------+------+
+|A_Type|(a)-[e1]->(b)|B_Type|(b)-[e2]->(c)|C_Type|(c)-[e3]->(d)|D_Type| count|
++------+-------------+------+-------------+------+-------------+------+------+
+|  Vote|      CastFor|  Post|        Links|  Post|        Links|  Post|24,634|
+|  Vote|      CastFor|  Post|        Links|  Post|      Answers|  Post|    18|
+|  Vote|      CastFor|  Post|      Answers|  Post|        Links|  Post|29,866|
+|  User|         Asks|  Post|        Links|  Post|        Links|  Post| 2,029|
+|  User|         Asks|  Post|        Links|  Post|      Answers|  Post|     1|
+|  User|      Answers|  Post|      Answers|  Post|        Links|  Post| 3,018|
+|   Tag|         Tags|  Post|        Links|  Post|        Links|  Post| 5,798|
+|   Tag|         Tags|  Post|        Links|  Post|      Answers|  Post|     8|
+|  Post|        Links|  Post|        Links|  Post|        Links|  Post| 3,987|
+|  Post|        Links|  Post|        Links|  Post|      Answers|  Post|     2|
+|  Post|        Links|  Post|      Answers|  Post|        Links|  Post|     4|
+|  Post|      Answers|  Post|        Links|  Post|        Links|  Post| 5,434|
+|  Post|      Answers|  Post|        Links|  Post|      Answers|  Post|     2|
++------+-------------+------+-------------+------+-------------+------+------+
 {% endhighlight %}
 </div>
 
-I decided to use Excel to document my finds within this mine of data. I find it much easier to understand the patterns in Excel than a DataFrame table in a notebook. Your mileage may vary.
+
+|  User|      Answers|  Post|      Answers|  Post|        Links|  Post| 3,018|
+
+A vote is cast for an answer that answers question that links to a post.
+|  Vote|      CastFor|  Post|      Answers|  Post|        Links|  Post|29,866|
+
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# Anyone know how to write a CSV into a file, not a folder?
-graphlet_count_df.write.csv("/tmp/patterns.csv", mode="overwrite", header=True)
-
-# Then from a Mac - your filename will vary
-open /tmp/patterns.csv/part-00000-2bc9db1a-ae34-4474-b4c4-82e254eed010-c000.csv
-{% endhighlight %}
-</div>
-
-<center>
-    <figure>
-        <img src="img/Excel-Descriptions-of-Motif-Paths.png" width="1000px" alt="Describing motif paths in Excel" title="Describing motif paths in Excel" style="margin: 10px 25px 10px 25px" />
-        <figcaption>Describing motif paths in Excel</figcaption>
-    </figure>
-</center>
-
-These patterns are pretty simple because the Stack Overflow graph is pretty simple but... we did discover self-answered questions, which I noted in the comments field of my spreadsheet :) That's an example of what pattern matching with motifs can do. Let's make this a property graph motif by adding properties to the mix.
-
-We will group by some fields of the paths and leave others outside of the group to count their frequency. Look at item 
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
+# A user answers an answer that answers a question that links to an answer.
 paths = paths.filter(
-    F.col("a.Type") == "User",
-    F.col("e1.relationship") == "Asks",
-    F.col("b.Type") == "Post",
-    F.col("e2.relationship") == "Answers",
-    F.col("c.Type") == "Post",
-    F.col("e3.relationship") == "Answers",
-    F.col("d.Type") == "Vote",
-    F.col("e4.relationship") == "CastFor",
+    (F.col("a.Type") == "User") &
+    (F.col("e1.relationship") == "Answers") &
+    (F.col("b.Type") == "Post") &
+    (F.col("e2.relationship") == "Answers") &
+    (F.col("c.Type") == "Post") &
+    (F.col("e3.relationship") == "Links") &
+    (F.col("d.Type") == "Post")
 )
-
+paths.select("a.DisplayName", "b.Title", "c.Title", "d.Title").show(20, False)
 {% endhighlight %}
 </div>
 
