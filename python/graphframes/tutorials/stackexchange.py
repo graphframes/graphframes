@@ -13,7 +13,6 @@ import pyspark.sql.functions as F
 import pyspark.sql.types as T
 from pyspark.sql import DataFrame, SparkSession
 
-
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
 BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
@@ -22,6 +21,7 @@ BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 #
 # Some utility functions
 #
+
 
 def remove_prefix(df: DataFrame) -> DataFrame:
     """Remove the _ prefix present in the fields of the DataFrame"""
@@ -50,8 +50,7 @@ def split_tags(tags: str) -> List[str]:
 spark: SparkSession = (
     SparkSession.builder.appName("Stack Exchange Graph Builder")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames UUID) coexist
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
+    .config("spark.sql.caseSensitive", True).getOrCreate()
 )
 
 print("Loading data for stats.meta.stackexchange.com ...")
@@ -78,8 +77,26 @@ posts_df = (
     )
     .drop("Tags")
     .withColumnRenamed("ParsedTags", "Tags")
-    .withColumn("Type", F.lit("Post"))
 )
+
+
+#
+# Building blocks: separate the questions and answers
+#
+
+# Do the questions look ok? Questions have NO parent ID and DO have a Title
+questions_df: DataFrame = posts_df.filter(posts_df.ParentId.isNull())
+questions_df = questions_df.withColumn("Type", F.lit("Question")).cache()
+print(f"\nTotal questions: {questions_df.count():,}\n")
+
+questions_df.select("ParentId", "Title", "Body").show(10)
+
+# Answers DO have a ParentId parent post and no Title
+answers_df: DataFrame = posts_df.filter(posts_df.ParentId.isNotNull())
+answers_df = answers_df.withColumn("Type", F.lit("Answer")).cache()
+print(f"\nTotal answers: {answers_df.count():,}\n")
+
+answers_df.select("ParentId", "Title", "Body").show(10)
 
 
 #
@@ -95,7 +112,16 @@ post_links_df = (
 print(f"Total PostLinks:   {post_links_df.count():,}")
 
 # Remove the _ prefix from field names
-post_links_df = remove_prefix(post_links_df).withColumn("Type", F.lit("PostLinks"))
+post_links_df = (
+    remove_prefix(post_links_df)
+    .withColumn(
+        "LinkType",
+        F.when(F.col("LinkTypeId") == 1, "Linked")
+        .when(F.col("LinkTypeId") == 3, "Duplicate")
+        .otherwise("Unknown"),
+    )
+    .withColumn("Type", F.lit("PostLinks"))
+)
 
 
 #
@@ -108,7 +134,7 @@ post_history_df = (
     .options(rootTag="posthistory")
     .load(f"{BASE_PATH}/PostHistory.xml")
 )
-print(f"Total PostHistory: {post_links_df.count():,}")
+print(f"Total PostHistory: {post_history_df.count():,}")
 
 # Remove the _ prefix from field names
 post_history_df = remove_prefix(post_history_df).withColumn("Type", F.lit("PostHistory"))
@@ -217,7 +243,8 @@ badges_df = remove_prefix(badges_df).withColumn("Type", F.lit("Badge"))
 
 all_cols: List[Tuple[str, T.StructField]] = list(
     set(
-        list(zip(posts_df.columns, posts_df.schema))
+        list(zip(answers_df.columns, answers_df.schema))
+        + list(zip(questions_df.columns, questions_df.schema))
         + list(zip(post_links_df.columns, post_links_df.schema))
         + list(zip(comments_df.columns, comments_df.schema))
         + list(zip(users_df.columns, users_df.schema))
@@ -238,14 +265,17 @@ def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]
 
 
 # Now apply this function to each of your DataFrames to get a consistent schema
-posts_df = add_missing_columns(posts_df, all_cols).select(all_column_names)
+# posts_df = add_missing_columns(posts_df, all_cols).select(all_column_names)
+questions_df = add_missing_columns(questions_df, all_cols).select(all_column_names)
+answers_df = add_missing_columns(answers_df, all_cols).select(all_column_names)
 post_links_df = add_missing_columns(post_links_df, all_cols).select(all_column_names)
 users_df = add_missing_columns(users_df, all_cols).select(all_column_names)
 votes_df = add_missing_columns(votes_df, all_cols).select(all_column_names)
 tags_df = add_missing_columns(tags_df, all_cols).select(all_column_names)
 badges_df = add_missing_columns(badges_df, all_cols).select(all_column_names)
 assert (
-    set(posts_df.columns)
+    set(questions_df.columns)
+    == set(answers_df.columns)
     == set(post_links_df.columns)
     == set(users_df.columns)
     == set(votes_df.columns)
@@ -256,7 +286,8 @@ assert (
 
 # Now union them together and remove duplicates
 nodes_df: DataFrame = (
-    posts_df.unionByName(post_links_df)
+    questions_df.unionByName(answers_df)
+    .unionByName(post_links_df)
     .unionByName(users_df)
     .unionByName(votes_df)
     .unionByName(tags_df)
@@ -268,6 +299,8 @@ print(f"Total distinct nodes: {nodes_df.count():,}")
 # Now add a unique ID field
 nodes_df = nodes_df.withColumn("id", F.expr("uuid()")).select("id", *all_column_names)
 
+# Now create posts - combined questions and answers for things that can apply to them both
+posts_df = questions_df.unionByName(answers_df).cache()
 
 #
 # Store the nodes to disk, reload and cache
@@ -282,21 +315,24 @@ nodes_df = spark.read.parquet(NODES_PATH)
 nodes_df.select("id", "Type").groupBy("Type").count().orderBy(F.col("count").desc()).show()
 
 # +---------+------+
-# |     Type|count |
+# |     Type| count|
 # +---------+------+
-# |PostLinks| 1,344|
-# |     Vote|41,851|
-# |     User|36,653|
-# |    Badge|41,573|
-# |      Tag|   145|
-# |     Post| 4,930|
+# |    Badge|43,029|
+# |     Vote|42,593|
+# |     User|37,709|
+# |   Answer| 2,978|
+# | Question| 2,025|
+# |PostLinks| 1,274|
+# |      Tag|   143|
 # +---------+------+
 
 # Helps performance of GraphFrames' algorithms
 nodes_df = nodes_df.cache()
 
 # Make sure we have the right columns and cached data
-posts_df = nodes_df.filter(nodes_df.Type == "Post").cache()
+posts_df = nodes_df.filter(nodes_df.Type.isin("Question", "Answer")).cache()
+questions_df = nodes_df.filter(nodes_df.Type == "Question").cache()
+answers_df = nodes_df.filter(nodes_df.Type == "Answer").cache()
 post_links_df = nodes_df.filter(nodes_df.Type == "PostLinks").cache()
 users_df = nodes_df.filter(nodes_df.Type == "User").cache()
 votes_df = nodes_df.filter(nodes_df.Type == "Vote").cache()
@@ -305,29 +341,12 @@ badges_df = nodes_df.filter(nodes_df.Type == "Badge").cache()
 
 
 #
-# Building blocks: separate the questions and answers
-#
-
-# Do the questions look ok? Questions have NO parent ID and DO have a Title
-questions_df: DataFrame = posts_df[posts_df.ParentId.isNull()].cache()
-print(f"\nTotal questions: {questions_df.count():,}\n")
-
-questions_df.select("ParentId", "Title", "Body").show(10)
-
-# Answers DO have a ParentId parent post and no Title
-answers_df: DataFrame = posts_df[posts_df.ParentId.isNotNull()].cache()
-print(f"\nTotal answers: {answers_df.count():,}\n")
-
-answers_df.select("ParentId", "Title", "Body").show(10)
-
-
-#
 # Build the edges DataFrame:
 #
 # * [Vote]--CastFor-->[Post]
-# * [User]--Asks-->[Post]
-# * [User]--Answers-->[Post]
-# * [Post]--Answers-->[Post]
+# * [User]--Asks-->[Question]
+# * [User]--Posts-->[Answer]
+# * [Post]--Answers-->[Question]
 # * [Tag]--Tags-->[Post]
 # * [User]--Earns-->[Badge]
 # * [Post]--Links-->[Post]
@@ -336,9 +355,8 @@ answers_df.select("ParentId", "Title", "Body").show(10)
 # Remember: we must produce src/dst based on lowercase 'id' UUID, not 'Id' which is Stack Overflow's integer.
 #
 
-
 #
-# Create a [Vote]--CastFor-->[Post] edge
+# Create a [Vote]--CastFor-->[Post] edge... remember a Post is a Question or Answer
 #
 
 src_vote_df: DataFrame = votes_df.select(
@@ -348,7 +366,7 @@ src_vote_df: DataFrame = votes_df.select(
     F.col("PostId").alias("VotePostId"),
 )
 cast_for_edge_df: DataFrame = src_vote_df.join(
-    posts_df, src_vote_df.VotePostId == posts_df.Id
+    posts_df, on=src_vote_df.VotePostId == posts_df.Id, how="inner"
 ).select(
     # 'src' comes from the votes' 'id'
     "src",
@@ -370,7 +388,7 @@ questions_asked_df: DataFrame = questions_df.select(
     F.lit("Asks").alias("relationship"),
 )
 user_asks_edges_df: DataFrame = questions_asked_df.join(
-    users_df, questions_asked_df.QuestionUserId == users_df.Id
+    users_df, on=questions_asked_df.QuestionUserId == users_df.Id, how="inner"
 ).select(
     # 'src' comes from the users' 'id'
     F.col("id").alias("src"),
@@ -385,16 +403,16 @@ print(
 )
 
 #
-# Create a [User]--Answers-->[Answer] edge. This could be against Question, but better that each Post get its User.
+# Create a [User]--Posts-->[Answer] edge.
 #
 
 user_answers_df: DataFrame = answers_df.select(
     F.col("OwnerUserId").alias("AnswerUserId"),
     F.col("id").alias("dst"),
-    F.lit("Answers").alias("relationship"),
+    F.lit("Posts").alias("relationship"),
 )
 user_answers_edges_df = user_answers_df.join(
-    users_df, user_answers_df.AnswerUserId == users_df.Id
+    users_df, on=user_answers_df.AnswerUserId == users_df.Id, how="inner"
 ).select(
     # 'src' comes from the users' 'id'
     F.col("id").alias("src"),
@@ -418,7 +436,7 @@ src_answers_df: DataFrame = answers_df.select(
     F.col("ParentId").alias("AnswerParentId"),
 )
 question_answers_edges_df: DataFrame = src_answers_df.join(
-    posts_df, src_answers_df.AnswerParentId == questions_df.Id
+    posts_df, on=src_answers_df.AnswerParentId == questions_df.Id, how="inner"
 ).select(
     # 'src' comes from the answers' 'id'
     "src",
@@ -428,10 +446,12 @@ question_answers_edges_df: DataFrame = src_answers_df.join(
     F.lit("Answers").alias("relationship"),
 )
 print(f"Total Posts Answers edges: {question_answers_edges_df.count():,}")
-print(f"Percentage of linked answers: {question_answers_edges_df.count() / answers_df.count():.2%}\n")
+print(
+    f"Percentage of linked answers: {question_answers_edges_df.count() / answers_df.count():.2%}\n"
+)
 
 #
-# Create a [Tag]--Tags-->[Post] edge
+# Create a [Tag]--Tags-->[Post] edge... remember a Post is a Question or Answer
 #
 
 src_tags_df: DataFrame = posts_df.select(
@@ -439,7 +459,9 @@ src_tags_df: DataFrame = posts_df.select(
     # First remove leading/trailing < and >, then split on "><"
     F.explode("Tags").alias("Tag"),
 )
-tags_edge_df: DataFrame = src_tags_df.join(tags_df, src_tags_df.Tag == tags_df.TagName).select(
+tags_edge_df: DataFrame = src_tags_df.join(
+    tags_df, on=src_tags_df.Tag == tags_df.TagName, how="inner"
+).select(
     # 'src' comes from the posts' 'id'
     F.col("id").alias("src"),
     # 'dst' comes from the tags' 'id'
@@ -460,7 +482,7 @@ earns_edges_df: DataFrame = badges_df.select(
     F.lit("Earns").alias("relationship"),
 )
 earns_edges_df = earns_edges_df.join(
-    users_df, earns_edges_df.BadgeUserId == users_df.Id
+    users_df, on=earns_edges_df.BadgeUserId == users_df.Id, how="inner"
 ).select(
     # 'src' comes from the users' 'id'
     F.col("id").alias("src"),
@@ -473,28 +495,49 @@ print(f"Total Earns edges: {earns_edges_df.count():,}")
 print(f"Percentage of earned badges: {earns_edges_df.count() / badges_df.count():.2%}\n")
 
 #
-# Create a [Post]--Links-->[Post] edge
+# Create a [Post]--Links-->[Post] edge... remember a Post is a Question or Answer
+# Also a   [Post]--Duplicates-->[Post] edge... remember a Post is a Question or Answer
 #
 
 trim_links_df: DataFrame = post_links_df.select(
-    F.col("PostId").alias("SrcPostId"), F.col("RelatedPostId").alias("DstPostId")
+    F.col("PostId").alias("SrcPostId"),
+    F.col("RelatedPostId").alias("DstPostId"),
+    "LinkType",
 )
 links_src_edge_df: DataFrame = trim_links_df.join(
-    posts_df, trim_links_df.SrcPostId == posts_df.Id
+    posts_df.drop("LinkType"), on=trim_links_df.SrcPostId == posts_df.Id, how="inner"
 ).select(
     # 'dst' comes from the posts' 'id'
     F.col("id").alias("src"),
     "DstPostId",
+    "LinkType",
 )
-links_edge_df = links_src_edge_df.join(posts_df, links_src_edge_df.DstPostId == posts_df.Id).select(
+raw_links_edge_df = links_src_edge_df.join(
+    posts_df.drop("LinkType"), on=links_src_edge_df.DstPostId == posts_df.Id, how="inner"
+).select(
     "src",
     # 'src' comes from the posts' 'id'
     F.col("id").alias("dst"),
     # All edges have a 'relationship' field
     F.lit("Links").alias("relationship"),
+    "LinkType",
 )
-print(f"Total Links edges: {links_edge_df.count():,}")
-print(f"Percentage of linked posts: {links_edge_df.count() / post_links_df.count():.2%}\n")
+
+duplicates_edge_df: DataFrame = (
+    raw_links_edge_df.filter(F.col("LinkType") == "Duplicate")
+    .withColumn("relationship", F.lit("Duplicates"))
+    .select("src", "dst", "relationship")
+)
+print(f"Total Duplicates edges: {duplicates_edge_df.count():,}")
+print(f"Percentage of duplicate posts: {duplicates_edge_df.count() / post_links_df.count():.2%}\n")
+
+linked_edge_df = (
+    raw_links_edge_df.filter(F.col("LinkType") == "Linked")
+    .withColumn("relationship", F.lit("Links"))
+    .select("src", "dst", "relationship")
+)
+print(f"Total Links edges: {linked_edge_df.count():,}")
+print(f"Percentage of linked posts: {linked_edge_df.count() / post_links_df.count():.2%}\n")
 
 
 #
@@ -507,20 +550,24 @@ relationships_df: DataFrame = (
     .unionByName(question_answers_edges_df)
     .unionByName(tags_edge_df)
     .unionByName(earns_edges_df)
-    .unionByName(links_edge_df)
+    .unionByName(duplicates_edge_df)
+    .unionByName(linked_edge_df)
 )
-
-relationships_df.groupBy("relationship").count().orderBy(F.col("count").desc()).show()
+relationships_df.groupBy("relationship").count().orderBy(F.col("count").desc()).withColumn(
+    "count", F.format_number(F.col("count"), 0)
+).show()
 
 # +------------+------+
-# |relationship|count |
+# |relationship| count|
 # +------------+------+
-# |     CastFor|40,701|
-# |        Asks| 2,025|
-# |     Answers| 2,978|
-# |        Tags| 4,427|
 # |       Earns|43,029|
-# |       Links| 1,268|
+# |     CastFor|40,701|
+# |        Tags| 4,427|
+# |     Answers| 2,978|
+# |       Posts| 2,767|
+# |        Asks| 1,934|
+# |       Links| 1,180|
+# |  Duplicates|    88|
 # +------------+------+
 
 EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
