@@ -742,12 +742,13 @@ c_vote_counts = linked_vote_paths.select("c", "d").distinct().groupBy("c").count
 {% endhighlight %}
 </div>
 
-Now join the counts to the links to get the total votes for each pair of linked questions. Then run `pyspark.sql.DataFrame.stats.corr()` to get the correlation between the vote counts for linked questions.
+Now join the counts to the links to get the total votes for each pair of linked questions. Then run `pyspark.sql.DataFrame.stats.corr()` to get the correlation between the vote counts for linked questions. We'll use the `Vote.VoteTypeId` to ensure only positive votes are counted.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 linked_vote_counts = (
     linked_vote_paths
+    .filter((F.col("a.VoteTypeId") == 2) & (F.col("d.VoteTypeId") == 2))
     .select("b", "c")
     .join(b_vote_counts, on="b", how="inner")
     .withColumnRenamed("count", "b_count")
@@ -755,7 +756,12 @@ linked_vote_counts = (
     .withColumnRenamed("count", "c_count")
 )
 linked_vote_counts.stat.corr("b_count", "c_count")
+0.4287709940689788 
 {% endhighlight %}
+
+We conclude there is a moderate correlation in the vote counts of linked questions. This makes sense. Note that this is only the fourth row, there are many more patterns to be examined and considered.
+
+This is just one type of aggregation you can employ - but hopefully it illustrates the way properties and aggregation and other relational operators can transform simple pattern matching into a powerful tool for exploring a knowledge graph.
 
 <h1 id="conclusion">Conclusion</h1>
 
