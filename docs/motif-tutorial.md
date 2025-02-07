@@ -494,19 +494,19 @@ Visually this pattern looks like this:
 
 <center>
     <figure>
-        <img src="img/Directed-Graphlet-G17.png" width="115px" alt="G17: a 3-path" title="G17: a 3-path" style="margin: 15px" />
+        <img src="img/Directed-Graphlet-G30.png" width="90px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
         <figcaption>
-            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G17: a 3-path</a>
+            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
         </figcaption>
     </figure>
 </center>
 
-The simplest pattern with four nodes is a 3-path, directed graphlet G17. Let's see how aggregation makes this a powerful pattern.
+The simplest pattern with four nodes is a 3-path, directed graphlet G30. Let's see how aggregation makes this a more powerful pattern than we might at first guess.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # G17: A directed 3-path is a surprisingly diverse graphlet
-paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(d)")
+paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (d)-[e3]->(c)")
 {% endhighlight %}
 </div>
 
@@ -521,7 +521,7 @@ graphlet_type_df = paths.select(
     F.col("b.Type").alias("B_Type"),
     F.col("e2.relationship").alias("(b)-[e2]->(c)"),
     F.col("c.Type").alias("C_Type"),
-    F.col("e3.relationship").alias("(c)-[e3]->(d)"),
+    F.col("e3.relationship").alias("(d)-[e3]->(c)"),
     F.col("d.Type").alias("D_Type"),
 )
 graphlet_count_df = (
@@ -531,7 +531,7 @@ graphlet_count_df = (
         "B_Type",
         "(b)-[e2]->(c)",
         "C_Type",
-        "(c)-[e3]->(d)",
+        "(d)-[e3]->(c)",
         "D_Type",
     )
     .count()
@@ -577,31 +577,120 @@ graphlet_count_df.orderBy([
     "C_Type",
     "(c)-[e3]->(d)",
     "D_Type",
-], ascending=False).show()
+], ascending=False).show(200)
 {% endhighlight %}
 </div>
 
-
-
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+------+-------------+------+-------------+------+-------------+------+------+
-|A_Type|(a)-[e1]->(b)|B_Type|(b)-[e2]->(c)|C_Type|(c)-[e3]->(d)|D_Type| count|
-+------+-------------+------+-------------+------+-------------+------+------+
-|  Vote|      CastFor|  Post|        Links|  Post|        Links|  Post|24,634|
-|  Vote|      CastFor|  Post|        Links|  Post|      Answers|  Post|    18|
-|  Vote|      CastFor|  Post|      Answers|  Post|        Links|  Post|29,866|
-|  User|         Asks|  Post|        Links|  Post|        Links|  Post| 2,029|
-|  User|         Asks|  Post|        Links|  Post|      Answers|  Post|     1|
-|  User|      Answers|  Post|      Answers|  Post|        Links|  Post| 3,018|
-|   Tag|         Tags|  Post|        Links|  Post|        Links|  Post| 5,798|
-|   Tag|         Tags|  Post|        Links|  Post|      Answers|  Post|     8|
-|  Post|        Links|  Post|        Links|  Post|        Links|  Post| 3,987|
-|  Post|        Links|  Post|        Links|  Post|      Answers|  Post|     2|
-|  Post|        Links|  Post|      Answers|  Post|        Links|  Post|     4|
-|  Post|      Answers|  Post|        Links|  Post|        Links|  Post| 5,434|
-|  Post|      Answers|  Post|        Links|  Post|      Answers|  Post|     2|
-+------+-------------+------+-------------+------+-------------+------+------+
++--------+-------------+--------+-------------+--------+-------------+--------+-------+
+|  A_Type|(a)-[e1]->(b)|  B_Type|(b)-[e2]->(c)|  C_Type|(c)-[e3]->(d)|  D_Type|  count|
++--------+-------------+--------+-------------+--------+-------------+--------+-------+
+|    Vote|      CastFor|Question|        Links|Question|         Tags|     Tag| 38,633|
+|    Vote|      CastFor|Question|        Links|Question|        Links|Question| 73,227|
+|    Vote|      CastFor|Question|        Links|Question|   Duplicates|Question|  3,337|
+|    Vote|      CastFor|Question|        Links|Question|      CastFor|    Vote|300,017|
+|    Vote|      CastFor|Question|        Links|Question|         Asks|    User| 13,252|
+|    Vote|      CastFor|Question|        Links|Question|      Answers|  Answer| 55,938|
+|    Vote|      CastFor|Question|        Links|  Answer|        Posts|    User|     18|
+|    Vote|      CastFor|Question|        Links|  Answer|        Links|Question|     18|
+|    Vote|      CastFor|Question|        Links|  Answer|      CastFor|    Vote|     36|
+|    Vote|      CastFor|Question|   Duplicates|Question|         Tags|     Tag|  1,292|
+|    Vote|      CastFor|Question|   Duplicates|Question|        Links|Question|  1,556|
+|    Vote|      CastFor|Question|   Duplicates|Question|   Duplicates|Question|    693|
+|    Vote|      CastFor|Question|   Duplicates|Question|      CastFor|    Vote|  8,205|
+|    Vote|      CastFor|Question|   Duplicates|Question|         Asks|    User|    418|
+|    Vote|      CastFor|Question|   Duplicates|Question|      Answers|  Answer|  2,423|
+|    Vote|      CastFor|  Answer|      Answers|Question|         Tags|     Tag| 64,510|
+|    Vote|      CastFor|  Answer|      Answers|Question|        Links|Question| 55,139|
+|    Vote|      CastFor|  Answer|      Answers|Question|   Duplicates|Question|  3,941|
+|    Vote|      CastFor|  Answer|      Answers|Question|      CastFor|    Vote|445,707|
+|    Vote|      CastFor|  Answer|      Answers|Question|         Asks|    User| 23,234|
+|    Vote|      CastFor|  Answer|      Answers|Question|      Answers|  Answer|117,981|
+|    User|        Posts|  Answer|      Answers|Question|         Tags|     Tag|  7,164|
+|    User|        Posts|  Answer|      Answers|Question|        Links|Question|  4,494|
+|    User|        Posts|  Answer|      Answers|Question|   Duplicates|Question|    378|
+|    User|        Posts|  Answer|      Answers|Question|      CastFor|    Vote| 37,655|
+|    User|        Posts|  Answer|      Answers|Question|         Asks|    User|  2,614|
+|    User|        Posts|  Answer|      Answers|Question|      Answers|  Answer| 12,105|
+|    User|         Asks|Question|        Links|Question|         Tags|     Tag|  3,169|
+|    User|         Asks|Question|        Links|Question|        Links|Question|  6,119|
+|    User|         Asks|Question|        Links|Question|   Duplicates|Question|    331|
+|    User|         Asks|Question|        Links|Question|      CastFor|    Vote| 22,243|
+|    User|         Asks|Question|        Links|Question|         Asks|    User|  1,064|
+|    User|         Asks|Question|        Links|Question|      Answers|  Answer|  4,599|
+|    User|         Asks|Question|        Links|  Answer|        Posts|    User|      1|
+|    User|         Asks|Question|        Links|  Answer|        Links|Question|      1|
+|    User|         Asks|Question|        Links|  Answer|      CastFor|    Vote|      2|
+|    User|         Asks|Question|   Duplicates|Question|         Tags|     Tag|    264|
+|    User|         Asks|Question|   Duplicates|Question|        Links|Question|    338|
+|    User|         Asks|Question|   Duplicates|Question|   Duplicates|Question|    134|
+|    User|         Asks|Question|   Duplicates|Question|      CastFor|    Vote|  1,528|
+|    User|         Asks|Question|   Duplicates|Question|         Asks|    User|     86|
+|    User|         Asks|Question|   Duplicates|Question|      Answers|  Answer|    374|
+|     Tag|         Tags|Question|        Links|Question|         Tags|     Tag|  9,332|
+|     Tag|         Tags|Question|        Links|Question|        Links|Question| 17,266|
+|     Tag|         Tags|Question|        Links|Question|   Duplicates|Question|    931|
+|     Tag|         Tags|Question|        Links|Question|      CastFor|    Vote| 62,203|
+|     Tag|         Tags|Question|        Links|Question|         Asks|    User|  3,037|
+|     Tag|         Tags|Question|        Links|Question|      Answers|  Answer| 12,920|
+|     Tag|         Tags|Question|        Links|  Answer|        Posts|    User|      8|
+|     Tag|         Tags|Question|        Links|  Answer|        Links|Question|      8|
+|     Tag|         Tags|Question|        Links|  Answer|      CastFor|    Vote|     16|
+|     Tag|         Tags|Question|   Duplicates|Question|         Tags|     Tag|    666|
+|     Tag|         Tags|Question|   Duplicates|Question|        Links|Question|    828|
+|     Tag|         Tags|Question|   Duplicates|Question|   Duplicates|Question|    341|
+|     Tag|         Tags|Question|   Duplicates|Question|      CastFor|    Vote|  3,715|
+|     Tag|         Tags|Question|   Duplicates|Question|         Asks|    User|    215|
+|     Tag|         Tags|Question|   Duplicates|Question|      Answers|  Answer|    965|
+|Question|        Links|Question|        Links|Question|         Tags|     Tag|  5,220|
+|Question|        Links|Question|        Links|Question|        Links|Question| 10,140|
+|Question|        Links|Question|        Links|Question|   Duplicates|Question|    387|
+|Question|        Links|Question|        Links|Question|      CastFor|    Vote| 33,747|
+|Question|        Links|Question|        Links|Question|         Asks|    User|  1,740|
+|Question|        Links|Question|        Links|Question|      Answers|  Answer|  7,330|
+|Question|        Links|Question|        Links|  Answer|        Posts|    User|      2|
+|Question|        Links|Question|        Links|  Answer|        Links|Question|      2|
+|Question|        Links|Question|        Links|  Answer|      CastFor|    Vote|      4|
+|Question|        Links|Question|   Duplicates|Question|         Tags|     Tag|    102|
+|Question|        Links|Question|   Duplicates|Question|        Links|Question|    163|
+|Question|        Links|Question|   Duplicates|Question|   Duplicates|Question|     85|
+|Question|        Links|Question|   Duplicates|Question|      CastFor|    Vote|    611|
+|Question|        Links|Question|   Duplicates|Question|         Asks|    User|     45|
+|Question|        Links|Question|   Duplicates|Question|      Answers|  Answer|    308|
+|Question|        Links|  Answer|      Answers|Question|         Tags|     Tag|      4|
+|Question|        Links|  Answer|      Answers|Question|        Links|Question|      4|
+|Question|        Links|  Answer|      Answers|Question|      CastFor|    Vote|     10|
+|Question|        Links|  Answer|      Answers|Question|         Asks|    User|      2|
+|Question|        Links|  Answer|      Answers|Question|      Answers|  Answer|     17|
+|Question|   Duplicates|Question|        Links|Question|         Tags|     Tag|    328|
+|Question|   Duplicates|Question|        Links|Question|        Links|Question|    511|
+|Question|   Duplicates|Question|        Links|Question|   Duplicates|Question|     38|
+|Question|   Duplicates|Question|        Links|Question|      CastFor|    Vote|  2,019|
+|Question|   Duplicates|Question|        Links|Question|         Asks|    User|    125|
+|Question|   Duplicates|Question|        Links|Question|      Answers|  Answer|    559|
+|Question|   Duplicates|Question|   Duplicates|Question|         Tags|     Tag|     19|
+|Question|   Duplicates|Question|   Duplicates|Question|        Links|Question|     20|
+|Question|   Duplicates|Question|   Duplicates|Question|   Duplicates|Question|     17|
+|Question|   Duplicates|Question|   Duplicates|Question|      CastFor|    Vote|     98|
+|Question|   Duplicates|Question|   Duplicates|Question|         Asks|    User|      9|
+|Question|   Duplicates|Question|   Duplicates|Question|      Answers|  Answer|     67|
+|  Answer|      Answers|Question|        Links|Question|         Tags|     Tag|  8,187|
+|  Answer|      Answers|Question|        Links|Question|        Links|Question| 16,362|
+|  Answer|      Answers|Question|        Links|Question|   Duplicates|Question|    811|
+|  Answer|      Answers|Question|        Links|Question|      CastFor|    Vote| 56,119|
+|  Answer|      Answers|Question|        Links|Question|         Asks|    User|  2,758|
+|  Answer|      Answers|Question|        Links|Question|      Answers|  Answer| 14,013|
+|  Answer|      Answers|Question|        Links|  Answer|        Posts|    User|      2|
+|  Answer|      Answers|Question|        Links|  Answer|        Links|Question|      2|
+|  Answer|      Answers|Question|        Links|  Answer|      CastFor|    Vote|      4|
+|  Answer|      Answers|Question|   Duplicates|Question|         Tags|     Tag|    224|
+|  Answer|      Answers|Question|   Duplicates|Question|        Links|Question|    316|
+|  Answer|      Answers|Question|   Duplicates|Question|   Duplicates|Question|    198|
+|  Answer|      Answers|Question|   Duplicates|Question|      CastFor|    Vote|  1,330|
+|  Answer|      Answers|Question|   Duplicates|Question|         Asks|    User|    110|
+|  Answer|      Answers|Question|   Duplicates|Question|      Answers|  Answer|  1,174|
++--------+-------------+--------+-------------+--------+-------------+--------+-------+
 {% endhighlight %}
 </div>
 
