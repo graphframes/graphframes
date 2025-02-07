@@ -545,27 +545,44 @@ graphlet_count_df.show()
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-+------+-------------+------+-------------+------+-------------+------+------+
-|A_Type|(a)-[e1]->(b)|B_Type|(b)-[e2]->(c)|C_Type|(c)-[e3]->(d)|D_Type| count|
-+------+-------------+------+-------------+------+-------------+------+------+
-|  Vote|      CastFor|  Post|      Answers|  Post|        Links|  Post|29,866|
-|  Vote|      CastFor|  Post|        Links|  Post|        Links|  Post|24,634|
-|   Tag|         Tags|  Post|        Links|  Post|        Links|  Post| 5,798|
-|  Post|      Answers|  Post|        Links|  Post|        Links|  Post| 5,434|
-|  Post|        Links|  Post|        Links|  Post|        Links|  Post| 3,987|
-|  User|      Answers|  Post|      Answers|  Post|        Links|  Post| 3,018|
-|  User|         Asks|  Post|        Links|  Post|        Links|  Post| 2,029|
-|  Vote|      CastFor|  Post|        Links|  Post|      Answers|  Post|    18|
-|   Tag|         Tags|  Post|        Links|  Post|      Answers|  Post|     8|
-|  Post|        Links|  Post|      Answers|  Post|        Links|  Post|     4|
-|  Post|        Links|  Post|        Links|  Post|      Answers|  Post|     2|
-|  Post|      Answers|  Post|        Links|  Post|      Answers|  Post|     2|
-|  User|         Asks|  Post|        Links|  Post|      Answers|  Post|     1|
-+------+-------------+------+-------------+------+-------------+------+------+
++--------+-------------+--------+-------------+--------+-------------+--------+-------+
+|  A_Type|(a)-[e1]->(b)|  B_Type|(b)-[e2]->(c)|  C_Type|(d)-[e3]->(c)|  D_Type|  count|
++--------+-------------+--------+-------------+--------+-------------+--------+-------+
+|    Vote|      CastFor|  Answer|      Answers|Question|      CastFor|    Vote|445,707|
+|    Vote|      CastFor|Question|        Links|Question|      CastFor|    Vote|300,017|
+|    Vote|      CastFor|  Answer|      Answers|Question|      Answers|  Answer|117,981|
+|    Vote|      CastFor|Question|        Links|Question|        Links|Question| 73,227|
+|    Vote|      CastFor|  Answer|      Answers|Question|         Tags|     Tag| 64,510|
+|     Tag|         Tags|Question|        Links|Question|      CastFor|    Vote| 62,203|
+|  Answer|      Answers|Question|        Links|Question|      CastFor|    Vote| 56,119|
+|    Vote|      CastFor|Question|        Links|Question|      Answers|  Answer| 55,938|
+|    Vote|      CastFor|  Answer|      Answers|Question|        Links|Question| 55,139|
+|    Vote|      CastFor|Question|        Links|Question|         Tags|     Tag| 38,633|
+|    User|        Posts|  Answer|      Answers|Question|      CastFor|    Vote| 37,655|
+|Question|        Links|Question|        Links|Question|      CastFor|    Vote| 33,747|
+|    Vote|      CastFor|  Answer|      Answers|Question|         Asks|    User| 23,234|
+|    User|         Asks|Question|        Links|Question|      CastFor|    Vote| 22,243|
+|     Tag|         Tags|Question|        Links|Question|        Links|Question| 17,266|
+|  Answer|      Answers|Question|        Links|Question|        Links|Question| 16,362|
+|  Answer|      Answers|Question|        Links|Question|      Answers|  Answer| 14,013|
+|    Vote|      CastFor|Question|        Links|Question|         Asks|    User| 13,252|
+|     Tag|         Tags|Question|        Links|Question|      Answers|  Answer| 12,920|
+|    User|        Posts|  Answer|      Answers|Question|      Answers|  Answer| 12,105|
++--------+-------------+--------+-------------+--------+-------------+--------+-------+
+only showing top 20 rows
 {% endhighlight %}
 </div>
 
-Let's order by the successive elements of the pattern to group them logically.
+How many of these motifs are there in the graph? Let's count them.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+graphlet_count_df.count()
+104
+{% endhighlight %}
+</div>
+
+104 - we hit the network motif jackpot with this pattern! Let's order by the successive elements of the pattern to group them logically.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -575,16 +592,16 @@ graphlet_count_df.orderBy([
     "B_Type",
     "(b)-[e2]->(c)",
     "C_Type",
-    "(c)-[e3]->(d)",
+    "(d)-[e3]->(c)",
     "D_Type",
-], ascending=False).show(200)
+], ascending=False).show(104)
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 +--------+-------------+--------+-------------+--------+-------------+--------+-------+
-|  A_Type|(a)-[e1]->(b)|  B_Type|(b)-[e2]->(c)|  C_Type|(c)-[e3]->(d)|  D_Type|  count|
+|  A_Type|(a)-[e1]->(b)|  B_Type|(b)-[e2]->(c)|  C_Type|(d)-[e3]->(c)|  D_Type|  count|
 +--------+-------------+--------+-------------+--------+-------------+--------+-------+
 |    Vote|      CastFor|Question|        Links|Question|         Tags|     Tag| 38,633|
 |    Vote|      CastFor|Question|        Links|Question|        Links|Question| 73,227|
@@ -694,30 +711,51 @@ graphlet_count_df.orderBy([
 {% endhighlight %}
 </div>
 
-
-|  User|      Answers|  Post|      Answers|  Post|        Links|  Post| 3,018|
-
-A vote is cast for an answer that answers question that links to a post.
-|  Vote|      CastFor|  Post|      Answers|  Post|        Links|  Post|29,866|
-
+The fourth row catches my eye - there are 300,017 matches for the votes cast for linked questions: <code>(Vote A)-[CastFor]->(Question B); (Question B)-[Links]->(Question C); (Vote D)-[CastFor]->(Question C)</code>. This gives a way to compare the popularity of linked questions! Let's calculate how correlated linked questions are.
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # A user answers an answer that answers a question that links to an answer.
-paths = paths.filter(
-    (F.col("a.Type") == "User") &
-    (F.col("e1.relationship") == "Answers") &
-    (F.col("b.Type") == "Post") &
-    (F.col("e2.relationship") == "Answers") &
-    (F.col("c.Type") == "Post") &
-    (F.col("e3.relationship") == "Links") &
-    (F.col("d.Type") == "Post")
+linked_vote_paths = paths.filter(
+    (F.col("a.Type") == "Vote") &
+    (F.col("e1.relationship") == "CastFor") &
+    (F.col("b.Type") == "Question") &
+    (F.col("e2.relationship") == "Links") &
+    (F.col("c.Type") == "Question") &
+    (F.col("e3.relationship") == "CastFor") &
+    (F.col("d.Type") == "Vote")
 )
-paths.select("a.DisplayName", "b.Title", "c.Title", "d.Title").show(20, False)
+
+# Sanity check the count - it should match the table above
+linked_vote_paths.count()
+
+300017
 {% endhighlight %}
 </div>
 
+We start by using aggregation to count the total votes cast for each end of a link questions. To get the count for Question B, get the distinct 3-paths, group by it's ID and count the votes.
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+b_vote_counts = linked_vote_paths.select("a", "b").distinct().groupBy("b").count()
+c_vote_counts = linked_vote_paths.select("c", "d").distinct().groupBy("c").count()
+{% endhighlight %}
+</div>
+
+Now join the counts to the links to get the total votes for each pair of linked questions. Then run `pyspark.sql.DataFrame.stats.corr()` to get the correlation between the vote counts for linked questions.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+linked_vote_counts = (
+    linked_vote_paths
+    .select("b", "c")
+    .join(b_vote_counts, on="b", how="inner")
+    .withColumnRenamed("count", "b_count")
+    .join(c_vote_counts, on="c", how="inner")
+    .withColumnRenamed("count", "c_count")
+)
+linked_vote_counts.stat.corr("b_count", "c_count")
+{% endhighlight %}
 
 <h1 id="conclusion">Conclusion</h1>
 
