@@ -11,7 +11,7 @@ from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.storagelevel import StorageLevel
 
 from .proto import graphframes_pb2 as pb
-from .utils import dataframe_to_proto, make_column_or_expr
+from .utils import dataframe_to_proto, make_column_or_expr, make_str_or_long_id
 
 
 class PregelConnect:
@@ -461,54 +461,53 @@ class GraphFrameConnect:
 
     def aggregateMessages(
         self,
-        aggCol: Union[Column, str],
-        sendToSrc: Union[Column, str, None] = None,
-        sendToDst: Union[Column, str, None] = None,
+        aggCol: Column | str,
+        sendToSrc: Column | str | None = None,
+        sendToDst: Column | str | None = None,
     ) -> DataFrame:
-        """
-        Aggregates messages from the neighbours.
+        class AggregateMessages(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                agg_col: Column | str,
+                send2src: Column | str | None,
+                send2dst: Column | str | None,
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.agg_col = agg_col
+                self.send2src = send2src
+                self.send2dst = send2dst
 
-        When specifying the messages and aggregation function, the user may reference columns using
-        the static methods in :class:`graphframes.lib.AggregateMessages`.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.aggregate_messages = pb.AggregateMessages(
+                    agg_col=make_column_or_expr(self.agg_col, session),
+                    send_to_src=None
+                    if self.send2src is None
+                    else make_column_or_expr(self.send2src, session),
+                    send_to_dst=None
+                    if self.send2dst is None
+                    else make_column_or_expr(self.send2dst, session),
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        See Scala documentation for more details.
-
-        :param aggCol: the requested aggregation output either as
-            :class:`pyspark.sql.Column` or SQL expression string
-        :param sendToSrc: message sent to the source vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
-        :param sendToDst: message sent to the destination vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
-
-        :return: DataFrame with columns for the vertex ID and the resulting aggregated message
-        """
-        # Check that either sendToSrc, sendToDst, or both are provided
         if sendToSrc is None and sendToDst is None:
             raise ValueError(
                 "Either `sendToSrc`, `sendToDst`, or both have to be provided"
             )
-        builder = self._jvm_graph.aggregateMessages()
-        if sendToSrc is not None:
-            if isinstance(sendToSrc, Column):
-                builder.sendToSrc(sendToSrc._jc)
-            elif isinstance(sendToSrc, basestring):
-                builder.sendToSrc(sendToSrc)
-            else:
-                raise TypeError("Provide message either as `Column` or `str`")
-        if sendToDst is not None:
-            if isinstance(sendToDst, Column):
-                builder.sendToDst(sendToDst._jc)
-            elif isinstance(sendToDst, basestring):
-                builder.sendToDst(sendToDst)
-            else:
-                raise TypeError("Provide message either as `Column` or `str`")
-        if isinstance(aggCol, Column):
-            jdf = builder.agg(aggCol._jc)
-        else:
-            jdf = builder.agg(aggCol)
-        return DataFrame(jdf, self._spark)
 
-    # Standard algorithms
+        return DataFrame.withPlan(
+            AggregateMessages(
+                self._vertices, self._edges, aggCol, sendToSrc, sendToDst
+            ),
+            self._spark,
+        )
 
     def connectedComponents(
         self,
@@ -516,39 +515,66 @@ class GraphFrameConnect:
         checkpointInterval: int = 2,
         broadcastThreshold: int = 1000000,
     ) -> DataFrame:
-        """
-        Computes the connected components of the graph.
+        class ConnectedComponents(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                algorithm: str,
+                checkpoint_interval: int,
+                broadcast_threshold: int,
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.algorithm = algorithm
+                self.checkpoint_interval = checkpoint_interval
+                self.broadcast_threshold = broadcast_threshold
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.connected_components = pb.ConnectedComponents(
+                    algorithm=self.algorithm,
+                    checkpoint_interval=self.checkpoint_interval,
+                    broadcast_threshold=self.broadcast_threshold,
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :param algorithm: connected components algorithm to use (default: "graphframes")
-          Supported algorithms are "graphframes" and "graphx".
-        :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
-        :param broadcastThreshold: broadcast threshold in propagating component assignments
-          (default: 1000000)
-
-        :return: DataFrame with new vertices column "component"
-        """
-        jdf = (
-            self._jvm_graph.connectedComponents()
-            .setAlgorithm(algorithm)
-            .setCheckpointInterval(checkpointInterval)
-            .setBroadcastThreshold(broadcastThreshold)
-            .run()
+        return DataFrame.withPlan(
+            ConnectedComponents(
+                self._vertices,
+                self._edges,
+                algorithm,
+                checkpointInterval,
+                broadcastThreshold,
+            ),
+            self._spark,
         )
-        return DataFrame(jdf, self._spark)
 
     def labelPropagation(self, maxIter: int) -> DataFrame:
-        """
-        Runs static label propagation for detecting communities in networks.
+        class LabelPropagation(LogicalPlan):
+            def __init__(self, v: DataFrame, e: DataFrame, max_iter: int) -> None:
+                self.v = v
+                self.e = e
+                self.max_iter = max_iter
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.label_propagation = pb.LabelPropagation(
+                    max_iter=self.max_iter
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :param maxIter: the number of iterations to be performed
-        :return: DataFrame with new vertices column "label"
-        """
-        jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
-        return DataFrame(jdf, self._spark)
+        return DataFrame.withPlan(
+            LabelPropagation(self._vertices, self._edges, maxIter), self._spark
+        )
 
     def pageRank(
         self,
@@ -557,20 +583,6 @@ class GraphFrameConnect:
         maxIter: Optional[int] = None,
         tol: Optional[float] = None,
     ) -> "GraphFrame":
-        """
-        Runs the PageRank algorithm on the graph.
-        Note: Exactly one of fixed_num_iter or tolerance must be set.
-
-        See Scala documentation for more details.
-
-        :param resetProbability: Probability of resetting to a random vertex.
-        :param sourceId: (optional) the source vertex for a personalized PageRank.
-        :param maxIter: If set, the algorithm is run for a fixed number
-               of iterations. This may not be set if the `tol` parameter is set.
-        :param tol: If set, the algorithm is run until the given tolerance.
-               This may not be set if the `numIter` parameter is set.
-        :return:  GraphFrame with new vertices column "pagerank" and new edges column "weight"
-        """
         builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
         if sourceId is not None:
             builder = builder.sourceId(sourceId)
@@ -589,17 +601,6 @@ class GraphFrameConnect:
         sourceIds: Optional[list[Any]] = None,
         maxIter: Optional[int] = None,
     ) -> "GraphFrame":
-        """
-        Run the personalized PageRank algorithm on the graph,
-        from the provided list of sources in parallel for a fixed number of iterations.
-
-        See Scala documentation for more details.
-
-        :param resetProbability: Probability of resetting to a random vertex
-        :param sourceIds: the source vertices for a personalized PageRank
-        :param maxIter: the fixed number of iterations this algorithm runs
-        :return:  GraphFrame with new vertices column "pageranks" and new edges column "weight"
-        """
         assert (
             sourceIds is not None and len(sourceIds) > 0
         ), "Source vertices Ids sourceIds must be provided"
@@ -612,29 +613,52 @@ class GraphFrameConnect:
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)
 
-    def shortestPaths(self, landmarks: list[Any]) -> DataFrame:
-        """
-        Runs the shortest path algorithm from a set of landmark vertices in the graph.
+    def shortestPaths(self, landmarks: list[str | int]) -> DataFrame:
+        class ShortestPaths(LogicalPlan):
+            def __init__(
+                self, v: DataFrame, e: DataFrame, landmarks: list[str | int]
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.landmarks = landmarks
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.shortest_paths = pb.ShortestPaths(
+                    landmarks=[make_str_or_long_id(raw_id) for raw_id in self.landmarks]
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :param landmarks: a set of one or more landmarks
-        :return: DataFrame with new vertices column "distances"
-        """
-        jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
-        return DataFrame(jdf, self._spark)
+        return DataFrame.withPlan(
+            ShortestPaths(self._vertices, self._edges, landmarks), self._spark
+        )
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
-        """
-        Runs the strongly connected components algorithm on this graph.
+        class StronglyConnectedComponents(LogicalPlan):
+            def __init__(self, v: DataFrame, e: DataFrame, max_iter: int) -> None:
+                self.v = v
+                self.e = e
+                self.max_iter = max_iter
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.strongly_connected_components = (
+                    pb.StronglyConnectedComponents(max_iter=self.max_iter)
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :param maxIter: the number of iterations to run
-        :return: DataFrame with new vertex column "component"
-        """
-        jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
-        return DataFrame(jdf, self._spark)
+        return DataFrame.withPlan(
+            StronglyConnectedComponents(self._vertices, self._edges, maxIter),
+            self._spark,
+        )
 
     def svdPlusPlus(
         self,
@@ -646,30 +670,88 @@ class GraphFrameConnect:
         gamma2: float = 0.007,
         gamma6: float = 0.005,
         gamma7: float = 0.015,
+        return_loss: bool = False,  # TODO: should it be True to mimic the classic API?
     ) -> tuple[DataFrame, float]:
-        """
-        Runs the SVD++ algorithm.
+        class SVDPlusPlus(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                rank: int,
+                max_iter: int,
+                min_value: float,
+                max_value: float,
+                gamma1: float,
+                gamma2: float,
+                gamma6: float,
+                gamma7: float,
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.rank = rank
+                self.max_iter = max_iter
+                self.min_value = min_value
+                self.max_value = max_value
+                self.gamma1 = gamma1
+                self.gamma2 = gamma2
+                self.gamma6 = gamma6
+                self.gamma7 = gamma7
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.svd_plus_plus = pb.SVDPlusPlus(
+                    rank=self.rank,
+                    max_iter=self.max_iter,
+                    min_value=self.min_value,
+                    max_value=self.max_value,
+                    gamma1=self.gamma1,
+                    gamma2=self.gamma2,
+                    gamma6=self.gamma6,
+                    gamma7=self.gamma7,
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :return: Tuple of DataFrame with new vertex columns storing learned model, and loss value
-        """
-        # This call is actually useless, because one needs to build the configuration first...
-        builder = self._jvm_graph.svdPlusPlus()
-        builder.rank(rank).maxIter(maxIter).minValue(minValue).maxValue(maxValue)
-        builder.gamma1(gamma1).gamma2(gamma2).gamma6(gamma6).gamma7(gamma7)
-        jdf = builder.run()
-        loss = builder.loss()
-        v = DataFrame(jdf, self._spark)
-        return (v, loss)
+        output = DataFrame.withPlan(
+            SVDPlusPlus(
+                self._vertices,
+                self._edges,
+                rank=rank,
+                max_iter=maxIter,
+                min_value=minValue,
+                max_value=maxValue,
+                gamma1=gamma1,
+                gamma2=gamma2,
+                gamma6=gamma6,
+                gamma7=gamma7,
+            ),
+            self._spark,
+        )
+
+        if return_loss:
+            # This branch may be computationaly expensive and it is not lazy!
+            return (output.drop("loss"), output.select("loss").take(1)[0]["loss"])
+        else:
+            return (output.drop("loss"), -1.0)
 
     def triangleCount(self) -> DataFrame:
-        """
-        Counts the number of triangles passing through each vertex in this graph.
+        class TriangleCount(LogicalPlan):
+            def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                self.v = v
+                self.e = e
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.triangle_count = pb.TriangleCount()
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :return:  DataFrame with new vertex column "count"
-        """
-        jdf = self._jvm_graph.triangleCount().run()
-        return DataFrame(jdf, self._spark)
+        return DataFrame.withPlan(
+            TriangleCount(self._vertices, self._edges), self._spark
+        )

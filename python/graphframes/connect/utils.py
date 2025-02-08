@@ -4,7 +4,7 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.expressions import Expression
 from pyspark.sql.connect.plan import LogicalPlan
 
-from .proto.graphframes_pb2 import ColumnOrExpression
+from .proto.graphframes_pb2 import ColumnOrExpression, StringOrLongID
 
 
 def dataframe_to_proto(df: DataFrame, client: SparkConnectClient) -> bytes:
@@ -25,3 +25,9 @@ def make_column_or_expr(col: Column | str, client: SparkConnectClient) -> Column
         return ColumnOrExpression(col=column_to_proto(col, client))
     else:
         return ColumnOrExpression(expr=col)
+
+def make_str_or_long_id(str_or_long: str | int) -> StringOrLongID:
+    if isinstance(str_or_long, str):
+        return StringOrLongID(string_id=str_or_long)
+    else:
+        return StringOrLongID(long_id=str_or_long)
