@@ -15,9 +15,10 @@ class GraphFramesConnect extends RelationPlugin {
     if (relation.is(classOf[GraphFramesAPI])) {
       val protoCall = relation.unpack(classOf[GraphFramesAPI])
       // Because the plugins API is changed in spark 4.0 it makes sense to separate plugin impl from the parsing logic
-      Option(GraphFramesConnectUtils.parseAPICall(protoCall, planner).logicalPlan)
+      val result = GraphFramesConnectUtils.parseAPICall(protoCall, planner)
+      Some(result.logicalPlan)
     } else {
-      Option.empty
+      None
     }
   }
 }

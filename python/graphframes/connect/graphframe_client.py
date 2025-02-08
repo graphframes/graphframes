@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Self
+from typing_extensions import Self
 
 from pyspark.sql.connect import functions as F
 from pyspark.sql.connect import proto
@@ -103,7 +103,7 @@ class PregelConnect:
                     vertices=dataframe_to_proto(self.vertices, session),
                     edges=dataframe_to_proto(self.edges, session),
                 )
-                pb_message.pregel = pregel
+                pb_message.pregel.CopyFrom(pregel)
                 plan.extension.Pack(pb_message)
                 return plan
 
@@ -235,6 +235,7 @@ class GraphFrameConnect:
     def outDegrees(self) -> DataFrame:
         class OutDegrees(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
 
@@ -242,7 +243,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.out_degrees = pb.OutDegrees()
+                graphframes_api_call.out_degrees.CopyFrom(pb.OutDegrees())
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -253,6 +254,7 @@ class GraphFrameConnect:
     def inDegrees(self) -> DataFrame:
         class InDegrees(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
 
@@ -260,7 +262,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.in_degrees = pb.InDegrees()
+                graphframes_api_call.in_degrees.CopyFrom(pb.InDegrees())
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -271,6 +273,7 @@ class GraphFrameConnect:
     def degrees(self) -> DataFrame:
         class Degrees(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
 
@@ -278,7 +281,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.degrees = pb.Degrees()
+                graphframes_api_call.degrees.CopyFrom(pb.Degrees())
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -289,6 +292,7 @@ class GraphFrameConnect:
     def triplets(self) -> DataFrame:
         class Triplets(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
 
@@ -296,7 +300,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.triplets = pb.Triplets()
+                graphframes_api_call.triplets.CopyFrom(pb.Triplets())
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -310,6 +314,7 @@ class GraphFrameConnect:
     def find(self, pattern: str) -> DataFrame:
         class Find(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, pattern: str) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.p = pattern
@@ -318,7 +323,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.find = pb.Find(pattern=self.p)
+                graphframes_api_call.find.CopyFrom(pb.Find(pattern=self.p))
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -332,6 +337,7 @@ class GraphFrameConnect:
             def __init__(
                 self, v: DataFrame, e: DataFrame, condition: str | Column
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.c = condition
@@ -341,8 +347,8 @@ class GraphFrameConnect:
                     self.v, self.e, session
                 )
                 col_or_expr = make_column_or_expr(self.c, session)
-                graphframes_api_call.filter_vertices = pb.FilterVertices(
-                    condition=col_or_expr
+                graphframes_api_call.filter_vertices.CopyFrom(
+                    pb.FilterVertices(condition=col_or_expr)
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -368,6 +374,7 @@ class GraphFrameConnect:
             def __init__(
                 self, v: DataFrame, e: DataFrame, condition: str | Column
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.c = condition
@@ -377,8 +384,8 @@ class GraphFrameConnect:
                     self.v, self.e, session
                 )
                 col_or_expr = make_column_or_expr(self.c, session)
-                graphframes_api_call.filter_edges = pb.FilterEdges(
-                    condition=col_or_expr
+                graphframes_api_call.filter_edges.CopyFrom(
+                    pb.FilterEdges(condition=col_or_expr)
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -392,6 +399,7 @@ class GraphFrameConnect:
     def dropIsolatedVertices(self) -> "GraphFrameConnect":
         class DropIsolatedVertices(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
 
@@ -399,7 +407,9 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.drop_isolated_vertices = pb.DropIsolatedVertices()
+                graphframes_api_call.drop_isolated_vertices.CopyFrom(
+                    pb.DropIsolatedVertices()
+                )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -426,6 +436,7 @@ class GraphFrameConnect:
                 edge_filter: Column | str,
                 max_path_len: int,
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.from_expr = from_expr
@@ -437,11 +448,13 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.bfs = pb.BFS(
-                    from_expr=make_column_or_expr(self.from_expr, session),
-                    to_expr=make_column_or_expr(self.to_expr, session),
-                    edge_filter=make_column_or_expr(self.edge_filter, session),
-                    max_path_length=self.max_path_len,
+                graphframes_api_call.bfs.CopyFrom(
+                    pb.BFS(
+                        from_expr=make_column_or_expr(self.from_expr, session),
+                        to_expr=make_column_or_expr(self.to_expr, session),
+                        edge_filter=make_column_or_expr(self.edge_filter, session),
+                        max_path_length=self.max_path_len,
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -477,6 +490,7 @@ class GraphFrameConnect:
                 send2src: Column | str | None,
                 send2dst: Column | str | None,
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.agg_col = agg_col
@@ -487,14 +501,16 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.aggregate_messages = pb.AggregateMessages(
-                    agg_col=make_column_or_expr(self.agg_col, session),
-                    send_to_src=None
-                    if self.send2src is None
-                    else make_column_or_expr(self.send2src, session),
-                    send_to_dst=None
-                    if self.send2dst is None
-                    else make_column_or_expr(self.send2dst, session),
+                graphframes_api_call.aggregate_messages.CopyFrom(
+                    pb.AggregateMessages(
+                        agg_col=make_column_or_expr(self.agg_col, session),
+                        send_to_src=None
+                        if self.send2src is None
+                        else make_column_or_expr(self.send2src, session),
+                        send_to_dst=None
+                        if self.send2dst is None
+                        else make_column_or_expr(self.send2dst, session),
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -527,6 +543,7 @@ class GraphFrameConnect:
                 checkpoint_interval: int,
                 broadcast_threshold: int,
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.algorithm = algorithm
@@ -537,10 +554,12 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.connected_components = pb.ConnectedComponents(
-                    algorithm=self.algorithm,
-                    checkpoint_interval=self.checkpoint_interval,
-                    broadcast_threshold=self.broadcast_threshold,
+                graphframes_api_call.connected_components.CopyFrom(
+                    pb.ConnectedComponents(
+                        algorithm=self.algorithm,
+                        checkpoint_interval=self.checkpoint_interval,
+                        broadcast_threshold=self.broadcast_threshold,
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -560,6 +579,7 @@ class GraphFrameConnect:
     def labelPropagation(self, maxIter: int) -> DataFrame:
         class LabelPropagation(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, max_iter: int) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.max_iter = max_iter
@@ -568,8 +588,8 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.label_propagation = pb.LabelPropagation(
-                    max_iter=self.max_iter
+                graphframes_api_call.label_propagation.CopyFrom(
+                    pb.LabelPropagation(max_iter=self.max_iter)
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -616,6 +636,7 @@ class GraphFrameConnect:
                 max_iter: int | None,
                 tol: float | None,
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.reset_prob = reset_prob
@@ -627,13 +648,15 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.page_rank = pb.PageRank(
-                    reset_probability=self.reset_prob,
-                    source_id=None
-                    if self.source_id is None
-                    else make_str_or_long_id(self.source_id),
-                    max_iter=self.max_iter,
-                    tol=self.tol,
+                graphframes_api_call.page_rank.CopyFrom(
+                    pb.PageRank(
+                        reset_probability=self.reset_prob,
+                        source_id=None
+                        if self.source_id is None
+                        else make_str_or_long_id(self.source_id),
+                        max_iter=self.max_iter,
+                        tol=self.tol,
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -673,6 +696,7 @@ class GraphFrameConnect:
                 source_ids: list[str | int],
                 max_iter: int,
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.reset_prob = reset_prob
@@ -683,7 +707,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.parallel_personalized_page_rank = (
+                graphframes_api_call.parallel_personalized_page_rank.CopyFrom(
                     pb.ParallelPersonalizedPageRank(
                         reset_probability=self.reset_prob,
                         source_ids=[
@@ -718,6 +742,7 @@ class GraphFrameConnect:
             def __init__(
                 self, v: DataFrame, e: DataFrame, landmarks: list[str | int]
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.landmarks = landmarks
@@ -726,8 +751,12 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.shortest_paths = pb.ShortestPaths(
-                    landmarks=[make_str_or_long_id(raw_id) for raw_id in self.landmarks]
+                graphframes_api_call.shortest_paths.CopyFrom(
+                    pb.ShortestPaths(
+                        landmarks=[
+                            make_str_or_long_id(raw_id) for raw_id in self.landmarks
+                        ]
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -740,6 +769,7 @@ class GraphFrameConnect:
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
         class StronglyConnectedComponents(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, max_iter: int) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.max_iter = max_iter
@@ -748,7 +778,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.strongly_connected_components = (
+                graphframes_api_call.strongly_connected_components.CopyFrom(
                     pb.StronglyConnectedComponents(max_iter=self.max_iter)
                 )
                 plan = self._create_proto_relation()
@@ -786,6 +816,7 @@ class GraphFrameConnect:
                 gamma6: float,
                 gamma7: float,
             ) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
                 self.rank = rank
@@ -801,15 +832,17 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.svd_plus_plus = pb.SVDPlusPlus(
-                    rank=self.rank,
-                    max_iter=self.max_iter,
-                    min_value=self.min_value,
-                    max_value=self.max_value,
-                    gamma1=self.gamma1,
-                    gamma2=self.gamma2,
-                    gamma6=self.gamma6,
-                    gamma7=self.gamma7,
+                graphframes_api_call.svd_plus_plus.CopyFrom(
+                    pb.SVDPlusPlus(
+                        rank=self.rank,
+                        max_iter=self.max_iter,
+                        min_value=self.min_value,
+                        max_value=self.max_value,
+                        gamma1=self.gamma1,
+                        gamma2=self.gamma2,
+                        gamma6=self.gamma6,
+                        gamma7=self.gamma7,
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -840,6 +873,7 @@ class GraphFrameConnect:
     def triangleCount(self) -> DataFrame:
         class TriangleCount(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                super().__init__(None)
                 self.v = v
                 self.e = e
 
@@ -847,7 +881,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.triangle_count = pb.TriangleCount()
+                graphframes_api_call.triangle_count.CopyFrom(pb.TriangleCount())
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan

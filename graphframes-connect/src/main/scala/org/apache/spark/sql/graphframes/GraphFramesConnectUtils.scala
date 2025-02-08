@@ -45,10 +45,14 @@ object GraphFramesConnectUtils {
   private[graphframes] def parseDataFrame(
       data: ByteString,
       planner: SparkConnectPlanner): DataFrame = {
+    if (data.isEmpty) {
+      throw new IllegalArgumentException(
+        "Expected a serialized DataFrame but got an empty ByteString.")
+    }
     Dataset.ofRows(
       planner.sessionHolder.session,
       planner.transformRelation(
-        org.apache.spark.connect.proto.Relation.parseFrom(data.toByteArray)))
+        org.apache.spark.connect.proto.Plan.parseFrom(data.toByteArray).getRoot))
   }
 
   private[graphframes] def extractGraphFrame(
