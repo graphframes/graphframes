@@ -126,12 +126,13 @@ object GraphFramesConnectUtils {
       }
       case MethodCase.PAGE_RANK => {
         val pageRankProto = apiMessage.getPageRank
-        val pageRank = graphFrame.pageRank
+        val pageRank = graphFrame.pageRank.resetProbability(pageRankProto.getResetProbability)
 
-        pageRank
-          .maxIter(pageRankProto.getMaxIter)
-          .tol(pageRankProto.getTol)
-          .resetProbability(pageRankProto.getResetProbability)
+        if (pageRankProto.hasMaxIter) {
+          pageRank.maxIter(pageRankProto.getMaxIter)
+        } else {
+          pageRank.tol(pageRankProto.getTol)
+        }
 
         if (pageRankProto.hasSourceId) {
           pageRank.sourceId(parseLongOrStringID(pageRankProto.getSourceId))
@@ -139,6 +140,7 @@ object GraphFramesConnectUtils {
 
         // Edges should be updated on the client side
         // TODO: do we really need an edge weights in that case?
+        // see comments in the Python API
         pageRank.run().vertices
       }
       case MethodCase.PARALLEL_PERSONALIZED_PAGE_RANK => {

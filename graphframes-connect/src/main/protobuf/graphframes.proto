@@ -94,8 +94,8 @@ message OutDegrees {}
 message PageRank {
   double reset_probability = 1;
   optional StringOrLongID source_id = 2;
-  int32 max_iter = 3;
-  double tol = 4;
+  optional int32 max_iter = 3;
+  optional double tol = 4;
 }
 
 message ParallelPersonalizedPageRank {

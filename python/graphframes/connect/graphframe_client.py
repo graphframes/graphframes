@@ -214,20 +214,22 @@ class GraphFrameConnect:
 
         return f"GraphFrame(v:{v}, e:{e})"
 
-    def cache(self) -> Self:
-        self._vertices = self._vertices.cache()
-        self._edges = self._edges.cache()
-        return self
+    def cache(self) -> "GraphFrameConnect":
+        new_vertices = self._vertices.cache()
+        new_edges = self._edges.cache()
+        return GraphFrameConnect(new_vertices, new_edges)
 
-    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> Self:
-        self._vertices = self._vertices.persist(storageLevel=storageLevel)
-        self._edges = self._edges.persist(storageLevel=storageLevel)
-        return self
+    def persist(
+        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+    ) -> "GraphFrameConnect":
+        new_vertices = self._vertices.persist(storageLevel=storageLevel)
+        new_edges = self._edges.persist(storageLevel=storageLevel)
+        return GraphFrameConnect(new_vertices, new_edges)
 
-    def unpersist(self, blocking: bool = False) -> Self:
-        self._vertices = self._vertices.unpersist(blocking=blocking)
-        self._edges = self._edges.unpersist(blocking=blocking)
-        return self
+    def unpersist(self, blocking: bool = False) -> "GraphFrameConnect":
+        new_vertices = self._vertices.unpersist(blocking=blocking)
+        new_edges = self._edges.unpersist(blocking=blocking)
+        return GraphFrameConnect(new_vertices, new_edges)
 
     @property
     def outDegrees(self) -> DataFrame:
@@ -325,7 +327,7 @@ class GraphFrameConnect:
             Find(self._vertices, self._edges, pattern), self._spark
         )
 
-    def filterVertices(self, condition: str | Column) -> Self:
+    def filterVertices(self, condition: str | Column) -> "GraphFrameConnect":
         class FilterVertices(LogicalPlan):
             def __init__(
                 self, v: DataFrame, e: DataFrame, condition: str | Column
@@ -346,21 +348,22 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        self._vertices = DataFrame.withPlan(
+        new_vertices = DataFrame.withPlan(
             FilterVertices(self._vertices, self._edges, condition), self._spark
         )
-        self._edges = self._edges.join(
-            self._vertices.withColumn(self.SRC, F.col(self.ID)),
+        # Exactly like in the scala-core
+        new_edges = self._edges.join(
+            new_vertices.withColumn(self.SRC, F.col(self.ID)),
             on=[self.SRC],
             how="left_semi",
         ).join(
-            self._vertices.withColumn(self.DST, F.col(self.ID)),
+            new_vertices.withColumn(self.DST, F.col(self.ID)),
             on=[self.DST],
             how="left_semi",
         )
-        return self
+        return GraphFrameConnect(new_vertices, new_edges)
 
-    def filterEdges(self, condition: str | Column) -> Self:
+    def filterEdges(self, condition: str | Column) -> "GraphFrameConnect":
         class FilterEdges(LogicalPlan):
             def __init__(
                 self, v: DataFrame, e: DataFrame, condition: str | Column
@@ -381,12 +384,12 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        self._edges = DataFrame.withPlan(
+        new_edges = DataFrame.withPlan(
             FilterEdges(self._vertices, self._edges, condition), self._spark
         )
-        return self
+        return GraphFrameConnect(self._vertices, new_edges)
 
-    def dropIsolatedVertices(self) -> Self:
+    def dropIsolatedVertices(self) -> "GraphFrameConnect":
         class DropIsolatedVertices(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
                 self.v = v
@@ -401,10 +404,10 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        self._vertices = DataFrame.withPlan(
+        new_vertices = DataFrame.withPlan(
             DropIsolatedVertices(self._vertices, self._edges), self._spark
         )
-        return self
+        return GraphFrameConnect(new_vertices, self._edges)
 
     def bfs(
         self,
@@ -576,42 +579,139 @@ class GraphFrameConnect:
             LabelPropagation(self._vertices, self._edges, maxIter), self._spark
         )
 
+    def _update_page_rank_edge_weights(
+        self, new_vertices: DataFrame
+    ) -> "GraphFrameConnect":
+        cols2select = self.edges.columns + ["weight"]
+        new_edges = (
+            self._edges.join(
+                new_vertices.withColumn(self.SRC, F.col(self.ID)),
+                on=[self.SRC],
+                how="inner",
+            )
+            .join(
+                self.outDegrees.withColumn(self.SRC, F.col(self.ID)),
+                on=[self.SRC],
+                how="inner",
+            )
+            .withColumn("weight", F.col("pagerank") / F.col("outDegree"))
+            .select(*cols2select)
+        )
+        return GraphFrameConnect(new_vertices, new_edges)
+
     def pageRank(
         self,
         resetProbability: float = 0.15,
-        sourceId: Optional[Any] = None,
-        maxIter: Optional[int] = None,
-        tol: Optional[float] = None,
-    ) -> "GraphFrame":
-        builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
-        if sourceId is not None:
-            builder = builder.sourceId(sourceId)
-        if maxIter is not None:
-            builder = builder.maxIter(maxIter)
-            assert tol is None, "Exactly one of maxIter or tol should be set."
-        else:
-            assert tol is not None, "Exactly one of maxIter or tol should be set."
-            builder = builder.tol(tol)
-        jgf = builder.run()
-        return _from_java_gf(jgf, self._spark)
+        sourceId: str | int | None = None,
+        maxIter: int | None = None,
+        tol: float | None = None,
+    ) -> "GraphFrameConnect":
+        class PageRank(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                reset_prob: float,
+                source_id: str | int | None,
+                max_iter: int | None,
+                tol: float | None,
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.reset_prob = reset_prob
+                self.source_id = source_id
+                self.max_iter = max_iter
+                self.tol = tol
+
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.page_rank = pb.PageRank(
+                    reset_probability=self.reset_prob,
+                    source_id=None
+                    if self.source_id is None
+                    else make_str_or_long_id(self.source_id),
+                    max_iter=self.max_iter,
+                    tol=self.tol,
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        if (maxIter is None) == (tol is None):
+            # TODO: in classic it is not an axception but assert;
+            # at the same time I think it should be an exception.
+            raise ValueError("Exactly one of maxIter or tol should be set.")
+
+        new_vertices = DataFrame.withPlan(
+            PageRank(
+                self._vertices,
+                self._edges,
+                reset_prob=resetProbability,
+                source_id=sourceId,
+                max_iter=maxIter,
+                tol=tol,
+            ),
+            self._spark,
+        )
+        # TODO: should this part to be optional? Like 'compute_edge_weights'?
+        return self._update_page_rank_edge_weights(new_vertices)
 
     def parallelPersonalizedPageRank(
         self,
         resetProbability: float = 0.15,
-        sourceIds: Optional[list[Any]] = None,
-        maxIter: Optional[int] = None,
-    ) -> "GraphFrame":
+        sourceIds: list[str | int] | None = None,
+        maxIter: int | None = None,
+    ) -> "GraphFrameConnect":
+        class ParallelPersonalizedPageRank(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                reset_prob: float,
+                source_ids: list[str | int],
+                max_iter: int,
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.reset_prob = reset_prob
+                self.source_ids = source_ids
+                self.max_iter = max_iter
+
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.parallel_personalized_page_rank = (
+                    pb.ParallelPersonalizedPageRank(
+                        reset_probability=self.reset_prob,
+                        source_ids=[
+                            make_str_or_long_id(raw_id) for raw_id in self.source_ids
+                        ],
+                        max_iter=self.max_iter,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
         assert (
             sourceIds is not None and len(sourceIds) > 0
         ), "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
-        sourceIds = self._sc._jvm.PythonUtils.toArray(sourceIds)
-        builder = self._jvm_graph.parallelPersonalizedPageRank()
-        builder = builder.resetProbability(resetProbability)
-        builder = builder.sourceIds(sourceIds)
-        builder = builder.maxIter(maxIter)
-        jgf = builder.run()
-        return _from_java_gf(jgf, self._spark)
+
+        new_vertices = DataFrame.withPlan(
+            ParallelPersonalizedPageRank(
+                self._vertices,
+                self._edges,
+                reset_prob=resetProbability,
+                source_ids=sourceIds,
+                max_iter=maxIter,
+            ),
+            self._spark,
+        )
+        return self._update_page_rank_edge_weights(new_vertices)
 
     def shortestPaths(self, landmarks: list[str | int]) -> DataFrame:
         class ShortestPaths(LogicalPlan):
