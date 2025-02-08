@@ -1,13 +1,159 @@
+from __future__ import annotations
+
 from typing import Self
 
+from pyspark.sql.connect import functions as F
 from pyspark.sql.connect import proto
 from pyspark.sql.connect.client import SparkConnectClient
+from pyspark.sql.connect.column import Column
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.storagelevel import StorageLevel
 
 from .proto import graphframes_pb2 as pb
-from .utils import column_to_proto, dataframe_to_proto
+from .utils import dataframe_to_proto, make_column_or_expr
+
+
+class PregelConnect:
+    def __init__(self, graph: "GraphFrameConnect") -> None:
+        self.graph = graph
+        self._max_iter = 10
+        self._checkpoint_interval = 2
+        self._col_name = None
+        self._initial_expr = None
+        self._update_after_agg_msgs_expr = None
+        self._send_msg_to_src = None
+        self._send_msg_to_dst = None
+        self._agg_msg = None
+
+    def setMaxIter(self, value: int) -> Self:
+        self._max_iter = value
+        return self
+
+    def setCheckpointInterval(self, value: int) -> Self:
+        self._checkpoint_interval = value
+        return self
+
+    def withVertexColumn(
+        self,
+        colName: str,
+        initialExpr: Column | str,
+        updateAfterAggMsgsExpr: Column | str,
+    ) -> Self:
+        self._col_name = colName
+        self._initial_expr = initialExpr
+        self._update_after_agg_msgs_expr = updateAfterAggMsgsExpr
+        return self
+
+    def sendMsgToSrc(self, msgExpr: Column | str) -> Self:
+        self._send_msg_to_src = msgExpr
+        return self
+
+    def sendMsgToDst(self, msgExpr: Column | str) -> Self:
+        self._send_msg_to_dst = msgExpr
+        return self
+
+    def aggMsgs(self, aggExpr: Column) -> Self:
+        self._agg_msg = aggExpr
+        return self
+
+    def run(self) -> DataFrame:
+        class Pregel(LogicalPlan):
+            def __init__(
+                self,
+                max_iter: int,
+                checkpoint_interval: int,
+                vertex_col_name: str,
+                agg_msg: Column | str,
+                send2dst: Column | str,
+                send2src: Column | str,
+                vertex_col_init: Column | str,
+                vertex_col_upd: Column | str,
+                vertices: DataFrame,
+                edges: DataFrame,
+            ) -> None:
+                self.max_iter = max_iter
+                self.checkpoint_interval = checkpoint_interval
+                self.vertex_col_name = vertex_col_name
+                self.agg_msg = agg_msg
+                self.send2dst = send2dst
+                self.send2src = send2src
+                self.vertex_col_init = vertex_col_init
+                self.vertex_col_upd = vertex_col_upd
+                self.vertices = vertices
+                self.edges = edges
+
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                plan = self._create_proto_relation()
+                pregel = pb.Pregel(
+                    agg_msgs=make_column_or_expr(self.agg_msg, session),
+                    send_msg_to_dst=make_column_or_expr(self.send2dst, session),
+                    send_msg_to_src=make_column_or_expr(self.send2src, session),
+                    checkpoint_interval=self.checkpoint_interval,
+                    max_iter=self.max_iter,
+                    additional_col_name=self.vertex_col_name,
+                    additional_col_initial=make_column_or_expr(
+                        self.vertex_col_init, session
+                    ),
+                    additional_col_upd=make_column_or_expr(
+                        self.vertex_col_upd, session
+                    ),
+                )
+                pb_message = pb.GraphFramesAPI(
+                    vertices=dataframe_to_proto(self.vertices, session),
+                    edges=dataframe_to_proto(self.edges, session),
+                )
+                pb_message.pregel = pregel
+                plan.extension.Pack(pb_message)
+                return plan
+
+        if (
+            (self._col_name is None)
+            or (self._initial_expr is None)
+            or (self._update_after_agg_msgs_expr is None)
+        ):
+            raise ValueError("Initial vertex column is not initialized!")
+
+        if self._agg_msg is None:
+            raise ValueError("AggMsg is not initialized!")
+
+        if self._send_msg_to_src is None:
+            raise ValueError("Send-to-src column is not initialized!")
+
+        if self._send_msg_to_dst is None:
+            raise ValueError("Send-to-dst column is not initialized!")
+
+        return DataFrame.withPlan(
+            Pregel(
+                max_iter=self._max_iter,
+                checkpoint_interval=self._checkpoint_interval,
+                vertex_col_name=self._col_name,
+                vertex_col_init=self._initial_expr,
+                vertex_col_upd=self._update_after_agg_msgs_expr,
+                agg_msg=self._agg_msg,
+                send2dst=self._send_msg_to_dst,
+                send2src=self._send_msg_to_src,
+                vertices=self.graph._vertices,
+                edges=self.graph._edges,
+            ),
+            session=self.graph._spark,
+        )
+
+    @staticmethod
+    def msg() -> Column:
+        return F.col("_pregel_msg_")
+
+    @staticmethod
+    def src(colName: str) -> Column:
+        return F.col("src." + colName)
+
+    @staticmethod
+    def dst(colName: str) -> Column:
+        return F.col("dst." + colName)
+
+    @staticmethod
+    def edge(colName: str) -> Column:
+        return F.col("edge." + colName)
 
 
 class GraphFrameConnect:
@@ -51,19 +197,10 @@ class GraphFrameConnect:
 
     @property
     def vertices(self) -> DataFrame:
-        """
-        :class:`DataFrame` holding vertex information, with unique column "id"
-        for vertex IDs.
-        """
         return self._vertices
 
     @property
     def edges(self) -> DataFrame:
-        """
-        :class:`DataFrame` holding edge information, with unique columns "src" and
-        "dst" storing source vertex IDs and destination vertex IDs of edges,
-        respectively.
-        """
         return self._edges
 
     def __repr__(self) -> str:
@@ -78,47 +215,28 @@ class GraphFrameConnect:
         return f"GraphFrame(v:{v}, e:{e})"
 
     def cache(self) -> Self:
-        """Persist the dataframe representation of vertices and edges of the graph with the default
-        storage level.
-        """
         self._vertices = self._vertices.cache()
         self._edges = self._edges.cache()
         return self
 
     def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> Self:
-        """Persist the dataframe representation of vertices and edges of the graph with the given
-        storage level.
-        """
         self._vertices = self._vertices.persist(storageLevel=storageLevel)
         self._edges = self._edges.persist(storageLevel=storageLevel)
         return self
 
     def unpersist(self, blocking: bool = False) -> Self:
-        """Mark the dataframe representation of vertices and edges of the graph as non-persistent,
-        and remove all blocks for it from memory and disk.
-        """
         self._vertices = self._vertices.unpersist(blocking=blocking)
         self._edges = self._edges.unpersist(blocking=blocking)
         return self
 
     @property
     def outDegrees(self) -> DataFrame:
-        """
-        The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
-         - "id": the ID of the vertex
-         - "outDegree" (integer) storing the out-degree of the vertex
-
-        Note that vertices with 0 out-edges are not returned in the result.
-
-        :return:  DataFrame with new vertices column "outDegree"
-        """
-
         class OutDegrees(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
                 self.v = v
                 self.e = e
 
-            def plan(self, session: "SparkConnectClient") -> proto.Relation:
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
@@ -131,22 +249,12 @@ class GraphFrameConnect:
 
     @property
     def inDegrees(self) -> DataFrame:
-        """
-        The in-degree of each vertex in the graph, returned as a DataFame with two columns:
-         - "id": the ID of the vertex
-         - "inDegree" (int) storing the in-degree of the vertex
-
-        Note that vertices with 0 in-edges are not returned in the result.
-
-        :return:  DataFrame with new vertices column "inDegree"
-        """
-
         class InDegrees(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
                 self.v = v
                 self.e = e
 
-            def plan(self, session: "SparkConnectClient") -> proto.Relation:
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
@@ -159,22 +267,12 @@ class GraphFrameConnect:
 
     @property
     def degrees(self) -> DataFrame:
-        """
-        The degree of each vertex in the graph, returned as a DataFrame with two columns:
-         - "id": the ID of the vertex
-         - 'degree' (integer) the degree of the vertex
-
-        Note that vertices with 0 edges are not returned in the result.
-
-        :return:  DataFrame with new vertices column "degree"
-        """
-
         class Degrees(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
                 self.v = v
                 self.e = e
 
-            def plan(self, session: "SparkConnectClient") -> proto.Relation:
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
@@ -187,104 +285,179 @@ class GraphFrameConnect:
 
     @property
     def triplets(self) -> DataFrame:
-        """
-        The triplets (source vertex)-[edge]->(destination vertex) for all edges in the graph.
+        class Triplets(LogicalPlan):
+            def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                self.v = v
+                self.e = e
 
-        Returned as a :class:`DataFrame` with three columns:
-         - "src": source vertex with schema matching 'vertices'
-         - "edge": edge with schema matching 'edges'
-         - 'dst': destination vertex with schema matching 'vertices'
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.triplets = pb.Triplets()
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :return:  DataFrame with columns 'src', 'edge', and 'dst'
-        """
-        jdf = self._jvm_graph.triplets()
-        return DataFrame(jdf, self._spark)
+        return DataFrame.withPlan(Triplets(self._vertices, self._edges), self._spark)
 
     @property
     def pregel(self):
-        """
-        Get the :class:`graphframes.lib.Pregel` object for running pregel.
-
-        See :class:`graphframes.lib.Pregel` for more details.
-        """
-        return Pregel(self)
+        return PregelConnect(self)
 
     def find(self, pattern: str) -> DataFrame:
-        """
-        Motif finding.
+        class Find(LogicalPlan):
+            def __init__(self, v: DataFrame, e: DataFrame, pattern: str) -> None:
+                self.v = v
+                self.e = e
+                self.p = pattern
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.find = pb.Find(pattern=self.p)
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :param pattern:  String describing the motif to search for.
-        :return:  DataFrame with one Row for each instance of the motif found
-        """
-        jdf = self._jvm_graph.find(pattern)
-        return DataFrame(jdf, self._spark)
+        return DataFrame.withPlan(
+            Find(self._vertices, self._edges, pattern), self._spark
+        )
 
-    def filterVertices(self, condition: Union[str, Column]) -> "GraphFrame":
-        """
-        Filters the vertices based on expression, remove edges containing any dropped vertices.
+    def filterVertices(self, condition: str | Column) -> Self:
+        class FilterVertices(LogicalPlan):
+            def __init__(
+                self, v: DataFrame, e: DataFrame, condition: str | Column
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.c = condition
 
-        :param condition: String or Column describing the condition expression for filtering.
-        :return: GraphFrame with filtered vertices and edges.
-        """
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                col_or_expr = make_column_or_expr(self.c, session)
+                graphframes_api_call.filter_vertices = pb.FilterVertices(
+                    condition=col_or_expr
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        if isinstance(condition, basestring):
-            jdf = self._jvm_graph.filterVertices(condition)
-        elif isinstance(condition, Column):
-            jdf = self._jvm_graph.filterVertices(condition._jc)
-        else:
-            raise TypeError("condition should be string or Column")
-        return _from_java_gf(jdf, self._spark)
+        self._vertices = DataFrame.withPlan(
+            FilterVertices(self._vertices, self._edges, condition), self._spark
+        )
+        self._edges = self._edges.join(
+            self._vertices.withColumn(self.SRC, F.col(self.ID)),
+            on=[self.SRC],
+            how="left_semi",
+        ).join(
+            self._vertices.withColumn(self.DST, F.col(self.ID)),
+            on=[self.DST],
+            how="left_semi",
+        )
+        return self
 
-    def filterEdges(self, condition: Union[str, Column]) -> "GraphFrame":
-        """
-        Filters the edges based on expression, keep all vertices.
+    def filterEdges(self, condition: str | Column) -> Self:
+        class FilterEdges(LogicalPlan):
+            def __init__(
+                self, v: DataFrame, e: DataFrame, condition: str | Column
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.c = condition
 
-        :param condition: String or Column describing the condition expression for filtering.
-        :return: GraphFrame with filtered edges.
-        """
-        if isinstance(condition, basestring):
-            jdf = self._jvm_graph.filterEdges(condition)
-        elif isinstance(condition, Column):
-            jdf = self._jvm_graph.filterEdges(condition._jc)
-        else:
-            raise TypeError("condition should be string or Column")
-        return _from_java_gf(jdf, self._spark)
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                col_or_expr = make_column_or_expr(self.c, session)
+                graphframes_api_call.filter_edges = pb.FilterEdges(
+                    condition=col_or_expr
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-    def dropIsolatedVertices(self) -> "GraphFrame":
-        """
-        Drops isolated vertices, vertices are not contained in any edges.
+        self._edges = DataFrame.withPlan(
+            FilterEdges(self._vertices, self._edges, condition), self._spark
+        )
+        return self
 
-        :return: GraphFrame with filtered vertices.
-        """
-        jdf = self._jvm_graph.dropIsolatedVertices()
-        return _from_java_gf(jdf, self._spark)
+    def dropIsolatedVertices(self) -> Self:
+        class DropIsolatedVertices(LogicalPlan):
+            def __init__(self, v: DataFrame, e: DataFrame) -> None:
+                self.v = v
+                self.e = e
+
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.drop_isolated_vertices = pb.DropIsolatedVertices()
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        self._vertices = DataFrame.withPlan(
+            DropIsolatedVertices(self._vertices, self._edges), self._spark
+        )
+        return self
 
     def bfs(
         self,
-        fromExpr: str,
-        toExpr: str,
-        edgeFilter: Optional[str] = None,
+        fromExpr: Column | str,
+        toExpr: Column | str,
+        edgeFilter: Column | str | None = None,
         maxPathLength: int = 10,
     ) -> DataFrame:
-        """
-        Breadth-first search (BFS).
+        class BFS(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                from_expr: Column | str,
+                to_expr: Column | str,
+                edge_filter: Column | str,
+                max_path_len: int,
+            ) -> None:
+                self.v = v
+                self.e = e
+                self.from_expr = from_expr
+                self.to_expr = to_expr
+                self.edge_filter = edge_filter
+                self.max_path_len = max_path_len
 
-        See Scala documentation for more details.
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.bfs = pb.BFS(
+                    from_expr=make_column_or_expr(self.from_expr, session),
+                    to_expr=make_column_or_expr(self.to_expr, session),
+                    edge_filter=make_column_or_expr(self.edge_filter, session),
+                    max_path_length=self.max_path_len,
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
-        :return: DataFrame with one Row for each shortest path between matching vertices.
-        """
-        builder = (
-            self._jvm_graph.bfs()
-            .fromExpr(fromExpr)
-            .toExpr(toExpr)
-            .maxPathLength(maxPathLength)
+        if edgeFilter is None:
+            edgeFilter = F.lit(True)
+
+        return DataFrame.withPlan(
+            BFS(
+                v=self._vertices,
+                e=self._edges,
+                from_expr=fromExpr,
+                to_expr=toExpr,
+                edge_filter=edgeFilter,
+                max_path_len=maxPathLength,
+            ),
+            self._spark,
         )
-        if edgeFilter is not None:
-            builder.edgeFilter(edgeFilter)
-        jdf = builder.run()
-        return DataFrame(jdf, self._spark)
 
     def aggregateMessages(
         self,

@@ -4,6 +4,8 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.expressions import Expression
 from pyspark.sql.connect.plan import LogicalPlan
 
+from .proto.graphframes_pb2 import ColumnOrExpression
+
 
 def dataframe_to_proto(df: DataFrame, client: SparkConnectClient) -> bytes:
     plan = df._plan
@@ -17,3 +19,9 @@ def column_to_proto(col: Column, client: SparkConnectClient) -> bytes:
     assert expr is not None
     assert isinstance(expr, Expression)
     return expr.to_plan(client).SerializeToString()
+
+def make_column_or_expr(col: Column | str, client: SparkConnectClient) -> ColumnOrExpression:
+    if isinstance(col, Column):
+        return ColumnOrExpression(col=column_to_proto(col, client))
+    else:
+        return ColumnOrExpression(expr=col)
