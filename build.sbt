@@ -39,9 +39,6 @@ lazy val root = (project in file("."))
     // Modern way to set Scala options
     Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
 
-    // Scalafmt
-    scalafmtOnCompile := true,
-
     Compile / doc / scalacOptions ++= Seq(
       "-groups",
       "-implicits",
