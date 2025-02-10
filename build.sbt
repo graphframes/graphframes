@@ -1,4 +1,4 @@
-import ReleaseTransformations._
+import ReleaseTransformations.*
 
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.4")
 lazy val sparkBranch = sparkVer.substring(0, 3)
@@ -38,6 +38,9 @@ lazy val root = (project in file("."))
 
     // Modern way to set Scala options
     Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
+
+    // Scalafmt
+    scalafmtOnCompile := true,
 
     Compile / doc / scalacOptions ++= Seq(
       "-groups",
