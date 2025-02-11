@@ -8,3 +8,7 @@ ThisBuild / libraryDependencySchemes ++= Seq(
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.10")
 addSbtPlugin("com.github.sbt" % "sbt-release" % "1.4.0")
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.3.1")
+
+// Protobuf things needed for the Spark Connect
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.10"
