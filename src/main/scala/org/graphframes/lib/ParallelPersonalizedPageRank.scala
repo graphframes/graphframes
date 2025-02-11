@@ -23,11 +23,10 @@ import org.graphframes.{GraphFrame, Logging}
 /**
  * Parallel Personalized PageRank algorithm implementation.
  *
- * This implementation uses the standalone [[GraphFrame]] interface and
- * runs personalized PageRank in parallel for a fixed number of iterations.
- * This can be run by setting `maxIter`.
- * The source vertex Ids are set in `sourceIds`.
- * A simple local implementation of this algorithm is as follows.
+ * This implementation uses the standalone [[GraphFrame]] interface and runs personalized PageRank
+ * in parallel for a fixed number of iterations. This can be run by setting `maxIter`. The source
+ * vertex Ids are set in `sourceIds`. A simple local implementation of this algorithm is as
+ * follows.
  * {{{
  * var oldPR = Array.fill(n)( 1.0 )
  * val PR = (0 until n).map(i => if sourceIds.contains(i) alpha else 0.0)
@@ -40,21 +39,20 @@ import org.graphframes.{GraphFrame, Logging}
  * }
  * }}}
  *
- * `alpha` is the random reset probability (typically 0.15), `inNbrs[i]` is the set of
- * neighbors which link to `i` and `outDeg[j]` is the out degree of vertex `j`.
+ * `alpha` is the random reset probability (typically 0.15), `inNbrs[i]` is the set of neighbors
+ * which link to `i` and `outDeg[j]` is the out degree of vertex `j`.
  *
- * Note that this is not the "normalized" PageRank and as a consequence pages that have no
- * inlinks will have a PageRank of alpha. In particular, the pageranks may have some values
- * greater than 1.
+ * Note that this is not the "normalized" PageRank and as a consequence pages that have no inlinks
+ * will have a PageRank of alpha. In particular, the pageranks may have some values greater than 1.
  *
  * The resulting vertices DataFrame contains one additional column:
- *  - pageranks (`VectorType`): the pageranks of this vertex from all input source vertices
+ *   - pageranks (`VectorType`): the pageranks of this vertex from all input source vertices
  *
  * The resulting edges DataFrame contains one additional column:
- *  - weight (`DoubleType`): the normalized weight of this edge after running PageRank
+ *   - weight (`DoubleType`): the normalized weight of this edge after running PageRank
  */
-class ParallelPersonalizedPageRank private[graphframes] (
-      private val graph: GraphFrame) extends Arguments {
+class ParallelPersonalizedPageRank private[graphframes] (private val graph: GraphFrame)
+    extends Arguments {
 
   private var resetProb: Option[Double] = Some(0.15)
   private var maxIter: Option[Int] = None
@@ -86,6 +84,7 @@ class ParallelPersonalizedPageRank private[graphframes] (
 }
 
 private object ParallelPersonalizedPageRank {
+
   /** Default name for the pageranks column. */
   private val PAGERANKS = "pageranks"
 
@@ -93,18 +92,21 @@ private object ParallelPersonalizedPageRank {
   private val WEIGHT = "weight"
 
   /**
-   * Run Personalized PageRank for a fixed number of iterations, for a
-   * set of starting nodes in parallel. Returns a graph with vertex attributes
-   * containing the pageranks relative to all starting nodes (as a vector) and
-   * edge attributes the normalized edge weight
+   * Run Personalized PageRank for a fixed number of iterations, for a set of starting nodes in
+   * parallel. Returns a graph with vertex attributes containing the pageranks relative to all
+   * starting nodes (as a vector) and edge attributes the normalized edge weight
    *
-   * @param graph     The graph on which to compute personalized pagerank
-   * @param maxIter   The number of iterations to run
-   * @param resetProb The random reset probability
-   * @param sourceIds   The list of sources to compute personalized pagerank from
-   * @return the graph with vertex attributes
-   *         containing the pageranks relative to all starting nodes as a vector and
-   *         edge attributes the normalized edge weight
+   * @param graph
+   *   The graph on which to compute personalized pagerank
+   * @param maxIter
+   *   The number of iterations to run
+   * @param resetProb
+   *   The random reset probability
+   * @param sourceIds
+   *   The list of sources to compute personalized pagerank from
+   * @return
+   *   the graph with vertex attributes containing the pageranks relative to all starting nodes as
+   *   a vector and edge attributes the normalized edge weight
    */
   def run(
       graph: GraphFrame,
@@ -113,7 +115,10 @@ private object ParallelPersonalizedPageRank {
       sourceIds: Array[Any]): GraphFrame = {
     val longSrcIds = sourceIds.map(GraphXConversions.integralId(graph, _))
     val gx = graphxlib.PageRank.runParallelPersonalizedPageRank(
-      graph.cachedTopologyGraphX, maxIter, resetProb, longSrcIds)
+      graph.cachedTopologyGraphX,
+      maxIter,
+      resetProb,
+      longSrcIds)
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANKS), edgeNames = Seq(WEIGHT))
   }
 }

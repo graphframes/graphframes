@@ -2,7 +2,6 @@ package org.graphframes
 
 // All the public exceptions thrown by GraphFrame methods
 
-
 /**
  * Exception thrown when a pattern String for motif finding cannot be parsed.
  */

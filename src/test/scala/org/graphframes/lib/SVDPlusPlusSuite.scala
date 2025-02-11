@@ -23,7 +23,6 @@ import org.apache.spark.sql.types.DataTypes
 import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 import org.graphframes.examples.Graphs
 
-
 class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("Test SVD++ with mean square error on training set") {
@@ -33,16 +32,21 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val v2 = g.svdPlusPlus.maxIter(2).run()
     TestUtils.testSchemaInvariants(g, v2)
     Seq(SVDPlusPlus.COLUMN1, SVDPlusPlus.COLUMN2).foreach { case c =>
-      TestUtils.checkColumnType(v2.schema, c,
+      TestUtils.checkColumnType(
+        v2.schema,
+        c,
         DataTypes.createArrayType(DataTypes.DoubleType, false))
     }
     Seq(SVDPlusPlus.COLUMN3, SVDPlusPlus.COLUMN4).foreach { case c =>
       TestUtils.checkColumnType(v2.schema, c, DataTypes.DoubleType)
     }
-    val err = v2.select(GraphFrame.ID, SVDPlusPlus.COLUMN4).rdd.map {
-      case Row(vid: Long, vd: Double) =>
+    val err = v2
+      .select(GraphFrame.ID, SVDPlusPlus.COLUMN4)
+      .rdd
+      .map { case Row(vid: Long, vd: Double) =>
         if (vid % 2 == 1) vd else 0.0
-    }.reduce(_ + _) / g.edges.count()
+      }
+      .reduce(_ + _) / g.edges.count()
     assert(err <= svdppErr)
   }
 }

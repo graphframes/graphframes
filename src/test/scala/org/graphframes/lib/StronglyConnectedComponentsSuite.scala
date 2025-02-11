@@ -24,19 +24,15 @@ import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, T
 
 class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Island Strongly Connected Components") {
-    val vertices = spark.createDataFrame(Seq(
-      (1L, "a"),
-      (2L, "b"),
-      (3L, "c"),
-      (4L, "d"),
-      (5L, "e"))).toDF("id", "value")
+    val vertices = spark
+      .createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"), (4L, "d"), (5L, "e")))
+      .toDF("id", "value")
     val edges = spark.createDataFrame(Seq.empty[(Long, Long)]).toDF("src", "dst")
     val graph = GraphFrame(vertices, edges)
     val c = graph.stronglyConnectedComponents.maxIter(5).run()
     TestUtils.testSchemaInvariants(graph, c)
     TestUtils.checkColumnType(c.schema, "component", DataTypes.LongType)
-    for (Row(id: Long, component: Long, _)
-         <- c.select("id", "component", "value").collect()) {
+    for (Row(id: Long, component: Long, _) <- c.select("id", "component", "value").collect()) {
       assert(id === component)
     }
   }

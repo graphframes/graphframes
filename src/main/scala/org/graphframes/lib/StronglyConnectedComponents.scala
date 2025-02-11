@@ -27,10 +27,10 @@ import org.graphframes.GraphFrame
  * vertex assigned to the SCC containing that vertex.
  *
  * The resulting DataFrame contains all the original vertex information and one additional column:
- *  - component (`LongType`): unique ID for this component
+ *   - component (`LongType`): unique ID for this component
  */
 class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame)
-  extends Arguments {
+    extends Arguments {
 
   private var maxIter: Option[Int] = None
 
@@ -43,7 +43,6 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
     StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
   }
 }
-
 
 /** Strongly connected components algorithm implementation. */
 private object StronglyConnectedComponents {

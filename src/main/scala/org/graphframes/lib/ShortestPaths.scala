@@ -30,13 +30,13 @@ import org.apache.spark.sql.types.{IntegerType, MapType}
 import org.graphframes.GraphFrame
 
 /**
- * Computes shortest paths from every vertex to the given set of landmark vertices.
- * Note that this takes edge direction into account.
+ * Computes shortest paths from every vertex to the given set of landmark vertices. Note that this
+ * takes edge direction into account.
  *
  * The returned DataFrame contains all the original vertex information as well as one additional
  * column:
- *  - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing
- *    the shortest-path distance to each reachable landmark vertex.
+ *   - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing the
+ *     shortest-path distance to each reachable landmark vertex.
  */
 class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var lmarks: Option[Seq[Any]] = None
@@ -67,9 +67,9 @@ private object ShortestPaths {
   private def run(graph: GraphFrame, landmarks: Seq[Any]): DataFrame = {
     val idType = graph.vertices.schema(GraphFrame.ID).dataType
     val longIdToLandmark = landmarks.map(l => GraphXConversions.integralId(graph, l) -> l).toMap
-    val gx = graphxlib.ShortestPaths.run(
-      graph.cachedTopologyGraphX,
-      longIdToLandmark.keys.toSeq.sorted).mapVertices { case (_, m) => m.toSeq }
+    val gx = graphxlib.ShortestPaths
+      .run(graph.cachedTopologyGraphX, longIdToLandmark.keys.toSeq.sorted)
+      .mapVertices { case (_, m) => m.toSeq }
     val g = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
     val distanceCol: Column = if (graph.hasIntegralIdType) {
       // It seems there are no easy way to convert a sequence of pairs into a map
@@ -83,7 +83,7 @@ private object ShortestPaths {
       val func = new UDF1[Seq[Row], Map[Any, Int]] {
         override def call(t1: Seq[Row]): Map[Any, Int] = {
           t1.map { case Row(k: Long, v: Int) =>
-              longIdToLandmark(k) -> v
+            longIdToLandmark(k) -> v
           }.toMap
         }
       }

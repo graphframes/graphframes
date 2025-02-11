@@ -24,7 +24,6 @@ import org.apache.spark.sql.functions._
 import org.graphframes.examples.Graphs
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
 
-
 class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("aggregateMessages") {
@@ -41,18 +40,28 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
       .agg(sum(AM.msg).as("summedAges"))
     // Convert agg to a Map.
     import org.apache.spark.sql._
-    val aggMap: Map[String, Long] = agg.select("id", "summedAges").collect().map {
-      case Row(id: String, s: Long) => id -> s
-    }.toMap
+    val aggMap: Map[String, Long] = agg
+      .select("id", "summedAges")
+      .collect()
+      .map { case Row(id: String, s: Long) =>
+        id -> s
+      }
+      .toMap
     // Compute the truth via brute force for comparison.
     val trueAgg: Map[String, Int] = {
-      val user2age = g.vertices.select("id", "age").collect().map {
-        case Row(id: String, age: Int) => id -> age
-      }.toMap
+      val user2age = g.vertices
+        .select("id", "age")
+        .collect()
+        .map { case Row(id: String, age: Int) =>
+          id -> age
+        }
+        .toMap
       val a = mutable.HashMap.empty[String, Int]
       g.edges.select("src", "dst", "relationship").collect().foreach {
         case Row(src: String, dst: String, relationship: String) =>
-          a.put(src, a.getOrElse(src, 0) + user2age(dst) + (if (relationship == "friend") 1 else 0))
+          a.put(
+            src,
+            a.getOrElse(src, 0) + user2age(dst) + (if (relationship == "friend") 1 else 0))
           a.put(dst, a.getOrElse(dst, 0) + user2age(src))
       }
       a.toMap
@@ -69,9 +78,13 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
       .sendToDst(msgToDst2)
       .agg("sum(MSG) AS `summedAges`")
     // Convert agg2 to a Map.
-    val agg2Map: Map[String, Long] = agg2.select("id", "summedAges").collect().map {
-      case Row(id: String, s: Long) => id -> s
-    }.toMap
+    val agg2Map: Map[String, Long] = agg2
+      .select("id", "summedAges")
+      .collect()
+      .map { case Row(id: String, s: Long) =>
+        id -> s
+      }
+      .toMap
     // Compare to the true values.
     agg2Map.keys.foreach { case user =>
       assert(agg2Map(user) === trueAgg(user), s"Failure on user $user")

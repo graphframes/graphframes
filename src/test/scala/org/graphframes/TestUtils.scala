@@ -15,16 +15,19 @@ object TestUtils {
       case Some(m) =>
         (m.group(1).toInt, m.group(2).toInt)
       case None =>
-        throw new IllegalArgumentException(s"Spark tried to parse '$sparkVersion' as a Spark" +
-          s" version string, but it could not find the major and minor version numbers.")
+        throw new IllegalArgumentException(
+          s"Spark tried to parse '$sparkVersion' as a Spark" +
+            s" version string, but it could not find the major and minor version numbers.")
     }
   }
 
   /**
    * Check whether the given schema contains a column of the required data type.
    *
-   * @param colName  column name
-   * @param dataType  required column data type
+   * @param colName
+   *   column name
+   * @param dataType
+   *   required column data type
    */
   def checkColumnType(
       schema: StructType,
@@ -33,7 +36,8 @@ object TestUtils {
       msg: String = ""): Unit = {
     val actualDataType = schema(colName).dataType
     val message = if (msg != null && msg.trim.length > 0) " " + msg else ""
-    require(actualDataType.equals(dataType),
+    require(
+      actualDataType.equals(dataType),
       s"Column $colName must be of type $dataType but was actually $actualDataType.$message")
   }
 
@@ -47,10 +51,9 @@ object TestUtils {
   }
 
   /**
-   * Test validity of both GraphFrames.
-   * Also ensure that the GraphFrames match:
-   *  - vertex column schema match
-   *  - `before` columns are a subset of the `after` columns, and schema match
+   * Test validity of both GraphFrames. Also ensure that the GraphFrames match:
+   *   - vertex column schema match
+   *   - `before` columns are a subset of the `after` columns, and schema match
    */
   def testSchemaInvariants(before: GraphFrame, after: GraphFrame): Unit = {
     testSchemaInvariant(before)
@@ -76,23 +79,24 @@ object TestUtils {
       if (!afterVNames.contains(f.name)) {
         throw new Exception(s"vertex error: ${f.name} should be in ${afterVNames.mkString(", ")}")
       }
-      assert(before.vertices.schema(f.name) == after.vertices.schema(f.name),
+      assert(
+        before.vertices.schema(f.name) == after.vertices.schema(f.name),
         s"${before.vertices.schema} != ${after.vertices.schema}")
     }
 
     for (f <- before.edges.schema.iterator) {
       val a = before.edges.schema(f.name)
       val b = after.edges.schema(f.name)
-      assert(a.dataType == b.dataType,
+      assert(
+        a.dataType == b.dataType,
         s"${before.edges.schema} not a subset of ${after.edges.schema}")
     }
   }
 
   /**
-   * Test validity of both GraphFrames.
-   * Also ensure that the GraphFrames match:
-   *  - vertex column schema match
-   *  - `before` columns are a subset of the `after` columns, and schema match
+   * Test validity of both GraphFrames. Also ensure that the GraphFrames match:
+   *   - vertex column schema match
+   *   - `before` columns are a subset of the `after` columns, and schema match
    */
   def testSchemaInvariants(before: GraphFrame, afterVertices: DataFrame): Unit = {
     testSchemaInvariants(before, GraphFrame(afterVertices, before.edges))

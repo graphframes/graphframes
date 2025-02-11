@@ -27,64 +27,59 @@ import org.graphframes.GraphFrame.nestAsCol
 /**
  * Breadth-first search (BFS)
  *
- * This method returns a DataFrame of valid shortest paths from vertices matching `fromExpr`
- * to vertices matching `toExpr`.  If multiple paths are valid and have the same length,
- * the DataFrame will return one Row for each path.  If no paths are valid, the DataFrame will
- * be empty.
- * Note: "Shortest" means globally shortest path.  I.e., if the shortest path between two vertices
+ * This method returns a DataFrame of valid shortest paths from vertices matching `fromExpr` to
+ * vertices matching `toExpr`. If multiple paths are valid and have the same length, the DataFrame
+ * will return one Row for each path. If no paths are valid, the DataFrame will be empty. Note:
+ * "Shortest" means globally shortest path. I.e., if the shortest path between two vertices
  * matching `fromExpr` and `toExpr` is length 5 (edges) but no path is shorter than 5, then all
  * paths returned by BFS will have length 5.
  *
  * The returned DataFrame will have the following columns:
- *  - `from` start vertex of path
- *  - `e[i]` edge i in the path, indexed from 0
- *  - `v[i]` intermediate vertex i in the path, indexed from 1
- *  - `to` end vertex of path
+ *   - `from` start vertex of path
+ *   - `e[i]` edge i in the path, indexed from 0
+ *   - `v[i]` intermediate vertex i in the path, indexed from 1
+ *   - `to` end vertex of path
  * Each of these columns is a StructType whose fields are the same as the columns of
  * [[GraphFrame.vertices]] or [[GraphFrame.edges]].
  *
- * For example, suppose we have a graph g.  Say the vertices DataFrame of g has columns "id" and
+ * For example, suppose we have a graph g. Say the vertices DataFrame of g has columns "id" and
  * "job", and the edges DataFrame of g has columns "src", "dst", and "relation".
  * {{{
  *   // Search from vertex "Joe" to find the closet vertices with attribute job = CEO.
  *   g.bfs(col("id") === "Joe", col("job") === "CEO").run()
  * }}}
  * If we found a path of 3 edges, each row would have columns:
- * {{{from | e0 | v1 | e1 | v2 | e2 | to}}}
- * In the above row, each vertex column (from, v1, v2, to) would have fields "id" and "job"
- * (just like g.vertices).
- * Each edge column (e0, e1, e2) would have fields "src", "dst", and "relation".
+ * {{{from | e0 | v1 | e1 | v2 | e2 | to}}} In the above row, each vertex column (from, v1, v2,
+ * to) would have fields "id" and "job" (just like g.vertices). Each edge column (e0, e1, e2)
+ * would have fields "src", "dst", and "relation".
  *
  * If there are ties, then each of the equal paths will be returned as a separate Row.
  *
- * If one or more vertices match both the from and to conditions, then there is a 0-hop path.
- * The returned DataFrame will have the "from" and "to" columns (as above); however,
- * the "from" and "to" columns will be exactly the same.  There will be one row for each vertex
- * in [[GraphFrame.vertices]] matching both `fromExpr` and `toExpr`.
+ * If one or more vertices match both the from and to conditions, then there is a 0-hop path. The
+ * returned DataFrame will have the "from" and "to" columns (as above); however, the "from" and
+ * "to" columns will be exactly the same. There will be one row for each vertex in
+ * [[GraphFrame.vertices]] matching both `fromExpr` and `toExpr`.
  *
  * Parameters:
  *
- *  - `fromExpr`  Spark SQL expression specifying valid starting vertices for the BFS.
- *                  This condition will be matched against each vertex's id or attributes.
- *                  To start from a specific vertex, this could be "id = [start vertex id]".
- *                  To start from multiple valid vertices, this can operate on vertex attributes.
- *
- *  - `toExpr`  Spark SQL expression specifying valid target vertices for the BFS.
- *                This condition will be matched against each vertex's id or attributes.
- *
- *  - `maxPathLength`  Limit on the length of paths.  If no valid paths of length
- *                       <= maxPathLength are found, then the BFS is terminated.
- *                       (default = 10)
- *  - `edgeFilter`  Spark SQL expression specifying edges which may be used in the search.
- *                    This allows the user to disallow crossing certain edges.  Such filters
- *                    can be applied post-hoc after BFS, run specifying the filter here is more
- *                    efficient.
+ *   - `fromExpr` Spark SQL expression specifying valid starting vertices for the BFS. This
+ *     condition will be matched against each vertex's id or attributes. To start from a specific
+ *     vertex, this could be "id = [start vertex id]". To start from multiple valid vertices, this
+ *     can operate on vertex attributes.
+ *   - `toExpr` Spark SQL expression specifying valid target vertices for the BFS. This condition
+ *     will be matched against each vertex's id or attributes.
+ *   - `maxPathLength` Limit on the length of paths. If no valid paths of length <= maxPathLength
+ *     are found, then the BFS is terminated. (default = 10)
+ *   - `edgeFilter` Spark SQL expression specifying edges which may be used in the search. This
+ *     allows the user to disallow crossing certain edges. Such filters can be applied post-hoc
+ *     after BFS, run specifying the filter here is more efficient.
  *
  * Returns:
- *  - DataFrame of valid shortest paths found in the BFS
+ *   - DataFrame of valid shortest paths found in the BFS
  */
 class BFS private[graphframes] (private val graph: GraphFrame)
-  extends Arguments with Serializable {
+    extends Arguments
+    with Serializable {
 
   private var maxPathLength: Int = 10
   private var edgeFilter: Option[Column] = None
@@ -125,7 +120,6 @@ class BFS private[graphframes] (private val graph: GraphFrame)
   }
 }
 
-
 private object BFS extends Logging with Serializable {
 
   private def run(
@@ -147,7 +141,8 @@ private object BFS extends Logging with Serializable {
     if (fromEqualsToDF.take(1).nonEmpty) {
       // from == to, so return matching vertices
       return fromEqualsToDF.select(
-        nestAsCol(fromEqualsToDF, "from"), nestAsCol(fromEqualsToDF, "to"))
+        nestAsCol(fromEqualsToDF, "from"),
+        nestAsCol(fromEqualsToDF, "to"))
     }
 
     // We handled edge cases above, so now we do BFS.
@@ -179,15 +174,20 @@ private object BFS extends Logging with Serializable {
       if (iter == 0) {
         // Note: We could avoid this special case by initializing paths with just 1 "from" column,
         // but that would create a longer lineage for the result DataFrame.
-        paths = a2b.filter(fromAExpr)
-          .filter(col("a.id") =!= col("b.id"))  // remove self-loops
-          .withColumnRenamed("a", "from").withColumnRenamed("e", nextEdge)
+        paths = a2b
+          .filter(fromAExpr)
+          .filter(col("a.id") =!= col("b.id")) // remove self-loops
+          .withColumnRenamed("a", "from")
+          .withColumnRenamed("e", nextEdge)
           .withColumnRenamed("b", nextVertex)
       } else {
         val prevVertex = s"v$iter"
-        val nextLinks = a2b.withColumnRenamed("a", prevVertex).withColumnRenamed("e", nextEdge)
+        val nextLinks = a2b
+          .withColumnRenamed("a", prevVertex)
+          .withColumnRenamed("e", nextEdge)
           .withColumnRenamed("b", nextVertex)
-        paths = paths.join(nextLinks, paths(prevVertex + ".id") === nextLinks(prevVertex + ".id"))
+        paths = paths
+          .join(nextLinks, paths(prevVertex + ".id") === nextLinks(prevVertex + ".id"))
           .drop(paths(prevVertex))
         // Make sure we are not backtracking within each path.
         // TODO: Avoid crossing paths; i.e., touch each vertex at most once.
@@ -222,24 +222,24 @@ private object BFS extends Logging with Serializable {
     } else {
       logInfo(s"GraphFrame.bfs failed to find a path of length <= $maxPathLength.")
       // Return empty DataFrame
-      g.spark.createDataFrame(
-        g.spark.sparkContext.parallelize(Seq.empty[Row]),
-        g.vertices.schema)
+      g.spark.createDataFrame(g.spark.sparkContext.parallelize(Seq.empty[Row]), g.vertices.schema)
     }
   }
 
-
   /**
-   * Apply the given SQL expression (such as `id = 3`) to the field in a column,
-   * rather than to the column itself.
+   * Apply the given SQL expression (such as `id = 3`) to the field in a column, rather than to
+   * the column itself.
    *
-   * @param expr  SQL expression, such as `id = 3`
-   * @param colName  Column name, such as `myVertex`
-   * @return  SQL expression applied to the column fields, such as `myVertex.id = 3`
+   * @param expr
+   *   SQL expression, such as `id = 3`
+   * @param colName
+   *   Column name, such as `myVertex`
+   * @return
+   *   SQL expression applied to the column fields, such as `myVertex.id = 3`
    */
   private def applyExprToCol(expr: Column, colName: String) = {
-    new Column(expr.expr.transform {
-      case UnresolvedAttribute(nameParts) => UnresolvedAttribute(colName +: nameParts)
+    new Column(expr.expr.transform { case UnresolvedAttribute(nameParts) =>
+      UnresolvedAttribute(colName +: nameParts)
     })
   }
 }

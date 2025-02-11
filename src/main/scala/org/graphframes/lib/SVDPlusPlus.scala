@@ -23,9 +23,8 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.graphframes.{GraphFrame, Logging}
 
 /**
- * Implement SVD++ based on "Factorization Meets the Neighborhood:
- * a Multifaceted Collaborative Filtering Model",
- * available at [[https://dl.acm.org/citation.cfm?id=1401944]].
+ * Implement SVD++ based on "Factorization Meets the Neighborhood: a Multifaceted Collaborative
+ * Filtering Model", available at [[https://dl.acm.org/citation.cfm?id=1401944]].
  *
  * Note: The status of this algorithm is EXPERIMENTAL. Its API and implementation may be changed
  * in the future.
@@ -35,9 +34,8 @@ import org.graphframes.{GraphFrame, Logging}
  *
  * Configuration parameters: see the description of each parameter in the article.
  *
- * Returns a DataFrame with vertex attributes containing the trained model.  See the object
+ * Returns a DataFrame with vertex attributes containing the trained model. See the object
  * (static) members for the names of the output columns.
- *
  */
 class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends Arguments {
   private var _rank: Int = 10
@@ -120,7 +118,9 @@ object SVDPlusPlus {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
     }
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf)
-    val gf = GraphXConversions.fromGraphX(graph, gx,
+    val gf = GraphXConversions.fromGraphX(
+      graph,
+      gx,
       vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4))
     (gf.vertices, res)
   }
@@ -133,32 +133,32 @@ object SVDPlusPlus {
   val COLUMN_WEIGHT = "weight"
 
   /**
-   * Name for output vertexDataFrame column containing first parameter of learned model,
-   * of type `Array[Double]`.
+   * Name for output vertexDataFrame column containing first parameter of learned model, of type
+   * `Array[Double]`.
    *
    * Note: This column name may change in the future!
    */
   val COLUMN1 = "column1"
 
   /**
-   * Name for output vertexDataFrame column containing second parameter of learned model,
-   * of type `Array[Double]`.
+   * Name for output vertexDataFrame column containing second parameter of learned model, of type
+   * `Array[Double]`.
    *
    * Note: This column name may change in the future!
    */
   val COLUMN2 = "column2"
 
   /**
-   * Name for output vertexDataFrame column containing third parameter of learned model,
-   * of type `Double`.
+   * Name for output vertexDataFrame column containing third parameter of learned model, of type
+   * `Double`.
    *
    * Note: This column name may change in the future!
    */
   val COLUMN3 = "column3"
 
   /**
-   * Name for output vertexDataFrame column containing fourth parameter of learned model,
-   * of type `Double`.
+   * Name for output vertexDataFrame column containing fourth parameter of learned model, of type
+   * `Double`.
    *
    * Note: This column name may change in the future!
    */

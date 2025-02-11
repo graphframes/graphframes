@@ -34,13 +34,13 @@ private[graphframes] object PatternParser extends RegexParsers {
       case src ~ "-" ~ "[" ~ name ~ "]" ~ "->" ~ dst => NamedEdge(name, src, dst)
     }
   val anonymousEdge: Parser[Edge] =
-    vertex ~ "-" ~ "[" ~ "]" ~ "->" ~ vertex ^^ {
-      case src ~ "-" ~ "[" ~ "]" ~ "->" ~ dst => AnonymousEdge(src, dst)
+    vertex ~ "-" ~ "[" ~ "]" ~ "->" ~ vertex ^^ { case src ~ "-" ~ "[" ~ "]" ~ "->" ~ dst =>
+      AnonymousEdge(src, dst)
     }
   private val edge: Parser[Edge] = namedEdge | anonymousEdge
   private val negatedEdge: Parser[Pattern] =
-    "!" ~ edge ^^ {
-      case _ ~ e => Negation(e)
+    "!" ~ edge ^^ { case _ ~ e =>
+      Negation(e)
     }
   private val pattern: Parser[Pattern] = edge | vertex | negatedEdge
   val patterns: Parser[List[Pattern]] = repsep(pattern, ";")
@@ -62,10 +62,11 @@ private[graphframes] object Pattern {
 
   /**
    * Checks all Patterns for validity:
-   *  - Disallow named edges within negated terms
-   *  - Disallow term "()-[]->()" and its negation
-   *  - Disallow name to be shared by a vertex and an edge
-   * @throws InvalidParseException if an negated terms contain named edges
+   *   - Disallow named edges within negated terms
+   *   - Disallow term "()-[]->()" and its negation
+   *   - Disallow name to be shared by a vertex and an edge
+   * @throws InvalidParseException
+   *   if an negated terms contain named edges
    */
   private def assertValidPatterns(patterns: Seq[Pattern]): Unit = {
 
@@ -75,21 +76,24 @@ private[graphframes] object Pattern {
     def addVertex(v: Vertex): Unit = v match {
       case NamedVertex(name) =>
         if (edgeNames.contains(name)) {
-          throw new InvalidParseException(s"Motif reused name '$name' for both a vertex and " +
-            s"an edge, which is not allowed.")
+          throw new InvalidParseException(
+            s"Motif reused name '$name' for both a vertex and " +
+              s"an edge, which is not allowed.")
         }
         vertexNames += name
-      case AnonymousVertex =>  // pass
+      case AnonymousVertex => // pass
     }
     def addEdge(e: Edge): Unit = e match {
       case NamedEdge(name, src, dst) =>
         if (vertexNames.contains(name)) {
-          throw new InvalidParseException(s"Motif reused name '$name' for both a vertex and " +
-            s"an edge, which is not allowed.")
+          throw new InvalidParseException(
+            s"Motif reused name '$name' for both a vertex and " +
+              s"an edge, which is not allowed.")
         }
         if (edgeNames.contains(name)) {
-          throw new InvalidParseException(s"Motif reused name '$name' for multiple edges, " +
-            s"which is not allowed.")
+          throw new InvalidParseException(
+            s"Motif reused name '$name' for multiple edges, " +
+              s"which is not allowed.")
         }
         edgeNames += name
         addVertex(src)
@@ -103,8 +107,9 @@ private[graphframes] object Pattern {
       case Negation(edge) =>
         edge match {
           case NamedEdge(name, src, dst) =>
-            throw new InvalidParseException(s"Motif finding does not support negated named " +
-              s"edges, but the given pattern contained: !($src)-[$name]->($dst)")
+            throw new InvalidParseException(
+              s"Motif finding does not support negated named " +
+                s"edges, but the given pattern contained: !($src)-[$name]->($dst)")
           case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
             throw new InvalidParseException(s"Motif finding does not support completely " +
               s"anonymous negated edges !()-[]->().  Users can check for 0 edges in the graph " +
@@ -113,17 +118,19 @@ private[graphframes] object Pattern {
             addEdge(e)
         }
       case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
-        throw new InvalidParseException(s"Motif finding does not support completely " +
-          s"anonymous edges ()-[]->().  Users can check for the existence of edges in the " +
-          s"graph using the edges DataFrame.")
+        throw new InvalidParseException(
+          s"Motif finding does not support completely " +
+            s"anonymous edges ()-[]->().  Users can check for the existence of edges in the " +
+            s"graph using the edges DataFrame.")
       case e @ AnonymousEdge(_, _) =>
         addEdge(e)
       case e @ NamedEdge(_, _, _) =>
         addEdge(e)
       case AnonymousVertex =>
-        throw new InvalidParseException("Motif finding does not allow a lone anonymous vertex " +
-          "\"()\" in a motif.  Users can check for the existence of vertices in the graph " +
-          "using the vertices DataFrame.")
+        throw new InvalidParseException(
+          "Motif finding does not allow a lone anonymous vertex " +
+            "\"()\" in a motif.  Users can check for the existence of vertices in the graph " +
+            "using the vertices DataFrame.")
       case v @ NamedVertex(_) =>
         addVertex(v)
     }
@@ -132,27 +139,31 @@ private[graphframes] object Pattern {
   /**
    * Return the set of named vertices which only appear in negated terms, in sorted order.
    */
-  private[graphframes]
-  def findNamedVerticesOnlyInNegatedTerms(patterns: Seq[Pattern]): Seq[String] = {
+  private[graphframes] def findNamedVerticesOnlyInNegatedTerms(
+      patterns: Seq[Pattern]): Seq[String] = {
     val vPos = findNamedElementsInOrder(
-      patterns.filter(p => !p.isInstanceOf[Negation]), includeEdges = false).toSet
+      patterns.filter(p => !p.isInstanceOf[Negation]),
+      includeEdges = false).toSet
     val vNeg = findNamedElementsInOrder(
-      patterns.filter(p => p.isInstanceOf[Negation]), includeEdges = false).toSet
+      patterns.filter(p => p.isInstanceOf[Negation]),
+      includeEdges = false).toSet
     vNeg.diff(vPos).toSeq.sorted
   }
 
   /**
-   * Return the set of named vertices (and optionally edges) appearing in the given patterns,
-   * in the order they first appear in the sequence of patterns.
-   * @param includeEdges If true, include named edges in the returned sequence.
+   * Return the set of named vertices (and optionally edges) appearing in the given patterns, in
+   * the order they first appear in the sequence of patterns.
+   * @param includeEdges
+   *   If true, include named edges in the returned sequence.
    */
-  private[graphframes]
-  def findNamedElementsInOrder(patterns: Seq[Pattern], includeEdges: Boolean): Seq[String] = {
+  private[graphframes] def findNamedElementsInOrder(
+      patterns: Seq[Pattern],
+      includeEdges: Boolean): Seq[String] = {
     val elementSet = mutable.LinkedHashSet.empty[String]
     def findNamedElementsHelper(pattern: Pattern): Unit = pattern match {
       case Negation(child) =>
         findNamedElementsHelper(child)
-      case AnonymousVertex =>  // pass
+      case AnonymousVertex => // pass
       case NamedVertex(name) =>
         if (!elementSet.contains(name)) {
           elementSet += name
@@ -187,4 +198,3 @@ private[graphframes] sealed trait Edge extends Pattern
 private[graphframes] case class AnonymousEdge(src: Vertex, dst: Vertex) extends Edge
 
 private[graphframes] case class NamedEdge(name: String, src: Vertex, dst: Vertex) extends Edge
-

@@ -17,6 +17,7 @@ src_managed/
 project/boot/
 project/plugins/project/
 .bsp
+.metals
 
 # intellij
 .idea/

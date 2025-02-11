@@ -30,19 +30,19 @@ import org.graphframes.GraphFrame
  * affiliation of incoming messages.
  *
  * LPA is a standard community detection algorithm for graphs. It is very inexpensive
- * computationally, although (1) convergence is not guaranteed and (2) one can end up with
- * trivial solutions (all nodes are identified into a single community).
+ * computationally, although (1) convergence is not guaranteed and (2) one can end up with trivial
+ * solutions (all nodes are identified into a single community).
  *
  * The resulting DataFrame contains all the original vertex information and one additional column:
- *  - label (`LongType`): label of community affiliation
+ *   - label (`LongType`): label of community affiliation
  */
 class LabelPropagation private[graphframes] (private val graph: GraphFrame) extends Arguments {
 
   private var maxIter: Option[Int] = None
 
   /**
-   * The max number of iterations of LPA to be performed. Because this is a static
-   * implementation, the algorithm will run for exactly this many iterations.
+   * The max number of iterations of LPA to be performed. Because this is a static implementation,
+   * the algorithm will run for exactly this many iterations.
    */
   def maxIter(value: Int): this.type = {
     maxIter = Some(value)
@@ -50,12 +50,9 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame) exte
   }
 
   def run(): DataFrame = {
-    LabelPropagation.run(
-      graph,
-      check(maxIter, "maxIter"))
+    LabelPropagation.run(graph, check(maxIter, "maxIter"))
   }
 }
-
 
 private object LabelPropagation {
   private def run(graph: GraphFrame, maxIter: Int): DataFrame = {
