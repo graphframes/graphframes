@@ -7,8 +7,8 @@ jobs:
       matrix:
         include:
           - spark-version: 3.5.4
-            scala-version: 2.12.18
-            python-version: 3.9.19
+            scala-version: 2.12.20
+            python-version: 3.11.11
     runs-on: ubuntu-22.04
     env:
       # define Java options for both official sbt and sbt-extras
@@ -35,8 +35,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip wheel
         pip install -r ./python/requirements.txt
+        pip install -r ./python/requirements-dev.txt
         pip install pyspark==${{ matrix.spark-version }}
     - name: Test
       run: |
+        python python/setup.py install
+        python python/setup.py bdist_wheel
         export SPARK_HOME=$(python -c "import os; from importlib.util import find_spec; print(os.path.join(os.path.dirname(find_spec('pyspark').origin)))")
         ./python/run-tests.sh
