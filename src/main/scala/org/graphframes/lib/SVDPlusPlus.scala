@@ -52,41 +52,49 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
   private var _loss: Option[Double] = None
 
   def rank(value: Int): this.type = {
+    require(value > 0, "rank should be > 0")
     _rank = value
     this
   }
 
   def maxIter(value: Int): this.type = {
+    require(value > 0, "maxIter should be > 0")
     _maxIter = value
     this
   }
 
   def minValue(value: Double): this.type = {
+    require(!value.isNaN,"minValue should not be NaN")
     _minVal = value
     this
   }
 
   def maxValue(value: Double): this.type = {
+    require(!value.isNaN, "maxValue should not be NaN")
     _maxVal = value
     this
   }
 
   def gamma1(value: Double): this.type = {
+    require(!value.isNaN, "gamma1 should not be NaN")
     _gamma1 = value
     this
   }
 
   def gamma2(value: Double): this.type = {
+    require(!value.isNaN, "gamma2 should not be NaN")
     _gamma2 = value
     this
   }
 
   def gamma6(value: Double): this.type = {
+    require(!value.isNaN, "gamma6 should not be NaN")
     _gamma6 = value
     this
   }
 
   def gamma7(value: Double): this.type = {
+    require(!value.isNaN, "gamma7 should not be NaN")
     _gamma7 = value
     this
   }
