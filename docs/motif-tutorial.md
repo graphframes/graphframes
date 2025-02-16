@@ -81,7 +81,7 @@ For a quick run-through of the script, use the following command:
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
+spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/motif.py
 {% endhighlight %}
 </div>
 
