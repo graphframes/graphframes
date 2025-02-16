@@ -1,9 +1,9 @@
 # Demonstrate GraphFrames network motif finding capabilities
 
 #
-# Interactive Usage: pyspark --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12
+# Interactive Usage: pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 #
-# Batch Usage: spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
+# Batch Usage: spark-submit --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
 #
 
 import pyspark.sql.functions as F
