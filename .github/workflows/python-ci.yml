@@ -31,15 +31,13 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install python dependencies
+    - name: Build Python package and its dependencies
+      working-directory: ./python
       run: |
-        python -m pip install --upgrade pip wheel
-        pip install -r ./python/requirements.txt
-        pip install -r ./python/requirements-dev.txt
-        pip install pyspark==${{ matrix.spark-version }}
+        python -m pip install --upgrade poetry
+        poetry build
+        poetry install
     - name: Test
       run: |
-        python python/setup.py install
-        python python/setup.py bdist_wheel
         export SPARK_HOME=$(python -c "import os; from importlib.util import find_spec; print(os.path.join(os.path.dirname(find_spec('pyspark').origin)))")
         ./python/run-tests.sh
