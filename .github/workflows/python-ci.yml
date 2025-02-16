@@ -7,8 +7,8 @@ jobs:
       matrix:
         include:
           - spark-version: 3.5.4
-            scala-version: 2.12.20
-            python-version: 3.11.11
+            scala-version: 2.12.18
+            python-version: 3.9.19
     runs-on: ubuntu-22.04
     env:
       # define Java options for both official sbt and sbt-extras
