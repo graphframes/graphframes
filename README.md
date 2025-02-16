@@ -144,6 +144,44 @@ If you are in control of one of these packages, please reach out to us to discus
 
 See [Installation and Quick-Start](#installation-and-quick-start) for the best way to install and use GraphFrames.
 
+## GraphFrames and sbt
+
+If you use the sbt-spark-package plugin, in your sbt build file, add the following, pulled from [GraphFrames on Spark Packages](https://spark-packages.org/package/graphframes/graphframes):
+
+```
+spDependencies += "graphframes/graphframes:0.8.4-spark3.5-s_2.12"
+```
+
+Otherwise,
+
+```
+resolvers += "Spark Packages Repo" at "https://repos.spark-packages.org/"
+
+libraryDependencies += "graphframes" % "graphframes" % "0.8.4-spark3.5-s_2.12"
+```
+
+## GraphFrames and Maven
+
+GraphFrames is not on Maven Central Repository but we are going to restore it soon. For now use Spark Packages system to install the package: [https://spark-packages.org/package/graphframes/graphframes](https://spark-packages.org/package/graphframes/graphframes).
+
+```xml
+<dependencies>
+  <!-- list of dependencies -->
+  <dependency>
+    <groupId>graphframes</groupId>
+    <artifactId>graphframes</artifactId>
+    <version>0.8.4-spark3.5-s_2.12</version>
+  </dependency>
+</dependencies>
+<repositories>
+  <!-- list of other repositories -->
+  <repository>
+    <id>SparkPackagesRepo</id>
+    <url>https://repos.spark-packages.org/</url>
+  </repository>
+</repositories>
+```
+
 ## GraphFrames Internals
 
 To learn how GraphFrames works internally to combine graph and relational queries, check out the paper [GraphFrames: An Integrated API for Mixing Graph and
