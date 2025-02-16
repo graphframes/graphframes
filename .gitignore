@@ -27,6 +27,11 @@ project/plugins/project/
 # Mac
 *.DS_Store
 
-# Tutorials data folder
+# Python specific
+python/build
+python/dist
+build/lib
+python/graphframes.egg-info
 python/graphframes/tutorials/data
-
+python/docs/_build
+python/docs/_site
