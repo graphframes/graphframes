@@ -10,6 +10,7 @@ jobs:
             scala-version: 2.12.18
             python-version: 3.9.19
     runs-on: ubuntu-22.04
+    
     env:
       # define Java options for both official sbt and sbt-extras
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -32,7 +33,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Build Python package and its dependencies
-      # working-directory: ./python
+      working-directory: ./python
       run: |
         python -m pip install --upgrade poetry
         poetry build
