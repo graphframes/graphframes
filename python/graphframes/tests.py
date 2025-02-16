@@ -16,18 +16,18 @@
 #
 
 import os
-import tempfile
-import shutil
 import re
+import shutil
+import tempfile
 
 import pytest
 from pyspark import SparkConf, SparkContext
-from pyspark.sql import functions as F, SparkSession
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
-from .graphframe import GraphFrame, Pregel, _java_api, _from_java_gf
+from .examples import BeliefPropagation, Graphs
+from .graphframe import GraphFrame, Pregel, _from_java_gf, _java_api
 from .lib import AggregateMessages as AM
-from .examples import Graphs, BeliefPropagation
-
 
 VERSION = open("version.sbt").read().strip()
 
@@ -419,9 +419,9 @@ class TestGraphFrameLib:
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
         # Create bidirectional edges.
         all_edges = [z for (a, b) in edges for z in [(a, b), (b, a)]]
-        edgesDF = self.spark.createDataFrame(all_edges, ["src", "dst"])
+        edges = self.spark.createDataFrame(all_edges, ["src", "dst"])
         vertices = self.spark.createDataFrame([(i,) for i in range(1, 7)], ["id"])
-        g = GraphFrame(vertices, edgesDF)
+        g = GraphFrame(vertices, edges)
         landmarks = [1, 4]
         v2 = g.shortestPaths(landmarks)
         self._df_hasCols(v2, vcols=["id", "distances"])
