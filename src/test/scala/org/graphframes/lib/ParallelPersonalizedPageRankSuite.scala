@@ -70,8 +70,9 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
 
   // In Spark <2.4, sourceIds must be smaller than Int.MaxValue,
   // which might not be the case for LONG_ID in graph.indexedVertices.
-  if (Version.valueOf(org.apache.spark.SPARK_VERSION)
-    .greaterThanOrEqualTo(Version.valueOf("2.4.0"))) {
+  if (Version
+      .valueOf(org.apache.spark.SPARK_VERSION)
+      .greaterThanOrEqualTo(Version.valueOf("2.4.0"))) {
     test("friends graph with parallel personalized PageRank") {
       val g = Graphs.friends
       val resetProb = 0.15
@@ -89,14 +90,17 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
         .filter { row: Row =>
           vertexIds.size != row.getAs[SparseVector](0).size
         }
-      assert(prInvalid.size === 0,
+      assert(
+        prInvalid.size === 0,
         s"found ${prInvalid.size} entries with invalid number of returned personalized pagerank vector")
 
       val gRank = pr.vertices
         .filter(col("id") === "g")
         .select("pageranks")
-        .first().getAs[SparseVector](0)
-      assert(gRank.numNonzeros === 0,
+        .first()
+        .getAs[SparseVector](0)
+      assert(
+        gRank.numNonzeros === 0,
         s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got ${gRank.numNonzeros}.")
     }
   }

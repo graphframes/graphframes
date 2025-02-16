@@ -25,26 +25,34 @@ import org.graphframes._
 class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("Simple test") {
-    val edgeSeq = Seq((1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)).flatMap {
-      case e => Seq(e, e.swap)
-    } .map { case (src, dst) => (src.toLong, dst.toLong) }
+    val edgeSeq = Seq((1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6))
+      .flatMap { case e =>
+        Seq(e, e.swap)
+      }
+      .map { case (src, dst) => (src.toLong, dst.toLong) }
     val edges = spark.createDataFrame(edgeSeq).toDF("src", "dst")
     val graph = GraphFrame.fromEdges(edges)
 
     // Ground truth
     val shortestPaths = Set(
-      (1, Map(1 -> 0, 4 -> 2)), (2, Map(1 -> 1, 4 -> 2)), (3, Map(1 -> 2, 4 -> 1)),
-      (4, Map(1 -> 2, 4 -> 0)), (5, Map(1 -> 1, 4 -> 1)), (6, Map(1 -> 3, 4 -> 1)))
+      (1, Map(1 -> 0, 4 -> 2)),
+      (2, Map(1 -> 1, 4 -> 2)),
+      (3, Map(1 -> 2, 4 -> 1)),
+      (4, Map(1 -> 2, 4 -> 0)),
+      (5, Map(1 -> 1, 4 -> 1)),
+      (6, Map(1 -> 3, 4 -> 1)))
 
     val landmarks = Seq(1, 4).map(_.toLong)
     val v2 = graph.shortestPaths.landmarks(landmarks).run()
 
     TestUtils.testSchemaInvariants(graph, v2)
-    TestUtils.checkColumnType(v2.schema, "distances",
+    TestUtils.checkColumnType(
+      v2.schema,
+      "distances",
       DataTypes.createMapType(v2.schema("id").dataType, DataTypes.IntegerType, false))
     val newVs = v2.select("id", "distances").collect().toSeq
-    val results = newVs.map {
-      case Row(id: Long, spMap: Map[Long, Int] @unchecked) => (id, spMap)
+    val results = newVs.map { case Row(id: Long, spMap: Map[Long, Int] @unchecked) =>
+      (id, spMap)
     }
     assert(results.toSet === shortestPaths)
   }
@@ -52,13 +60,21 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("friends graph") {
     val friends = examples.Graphs.friends
     val v = friends.shortestPaths.landmarks(Seq("a", "d")).run()
-    val expected = Set[(String, Map[String, Int])](("a", Map("a" -> 0, "d" -> 2)), ("b", Map.empty),
-      ("c", Map.empty), ("d", Map("a" -> 1, "d" -> 0)), ("e", Map("a" -> 2, "d" -> 1)),
-      ("f", Map.empty), ("g", Map.empty))
-    val results = v.select("id", "distances").collect().map {
-      case Row(id: String, spMap: Map[String, Int] @unchecked) =>
+    val expected = Set[(String, Map[String, Int])](
+      ("a", Map("a" -> 0, "d" -> 2)),
+      ("b", Map.empty),
+      ("c", Map.empty),
+      ("d", Map("a" -> 1, "d" -> 0)),
+      ("e", Map("a" -> 2, "d" -> 1)),
+      ("f", Map.empty),
+      ("g", Map.empty))
+    val results = v
+      .select("id", "distances")
+      .collect()
+      .map { case Row(id: String, spMap: Map[String, Int] @unchecked) =>
         (id, spMap)
-    }.toSet
+      }
+      .toSet
     assert(results === expected)
   }
 
