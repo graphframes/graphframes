@@ -19,7 +19,6 @@ package org.graphframes.examples
 
 import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
 
-
 class GraphsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("empty graph") {

@@ -23,11 +23,10 @@ import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
 import org.graphframes.examples.BeliefPropagation._
 import org.graphframes.examples.Graphs.gridIsingModel
 
-
 class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("BP using GraphX and GraphFrame aggregateMessages") {
-    val n = 3  // graph is n x n
+    val n = 3 // graph is n x n
     val numIter = 5 // iterations of BP
 
     // Create graphical model g.
@@ -41,7 +40,8 @@ class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkConte
     // Check beliefs.
     def checkResults(v: DataFrame): Unit = {
       v.select("belief").collect().foreach { case Row(belief: Double) =>
-        assert(belief >= 0.0 && belief <= 1.0,
+        assert(
+          belief >= 0.0 && belief <= 1.0,
           s"Expected belief to be probability in [0,1], but found $belief")
       }
     }
@@ -51,10 +51,12 @@ class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkConte
     // Compare beliefs.
     val gxBeliefs = gxResults.vertices.select("id", "belief")
     val gfBeliefs = gfResults.vertices.select("id", "belief")
-    gxBeliefs.join(gfBeliefs, "id")
+    gxBeliefs
+      .join(gfBeliefs, "id")
       .select(gxBeliefs("belief").as("gxBelief"), gfBeliefs("belief").as("gfBelief"))
-      .collect().foreach { case Row(gxBelief: Double, gfBelief: Double) =>
+      .collect()
+      .foreach { case Row(gxBelief: Double, gfBelief: Double) =>
         assert(math.abs(gxBelief - gfBelief) <= 1e-6)
-    }
+      }
   }
 }

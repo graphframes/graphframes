@@ -1,4 +1,4 @@
-import ReleaseTransformations._
+import ReleaseTransformations.*
 
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.4")
 lazy val sparkBranch = sparkVer.substring(0, 3)
