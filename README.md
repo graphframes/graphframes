@@ -16,13 +16,13 @@ The easiest way to start using GraphFrames is through the [Spark Packages system
 
 ```bash
 # Interactive Scala/Java
-$ spark-shell --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12
+$ spark-shell --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 
 # Interactive Python
-$ pyspark --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12
+$ pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 
 # Submit a script in Scala/Java/Python
-$ spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 script.py
+$ spark-submit --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 script.py
 ```
 
 Now you can create a GraphFrame as follows.
@@ -130,14 +130,15 @@ g.connectedComponents().show()
 ## Learn GraphFrames
 
 To learn more about GraphFrames, check out these resources:
-
+* [GraphFrames Documentation](https://graphframes.github.io/graphframes)
 * [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
+* [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
 * [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
 * [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
 
 ## GraphFrames on PyPI is Unofficial
 
-The project is not in ownership or control of the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.3). We recommend using the Spark Packages system to install the latest version of GraphFrames. The PyPI packages are not maintained by the GraphFrames project.
+The project is not in ownership or control of the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.4). We recommend using the Spark Packages system to install the latest version of GraphFrames. The PyPI packages are not maintained by the GraphFrames project.
 
 If you are in control of one of these packages, please reach out to us to discuss how we can work together to keep them up to date. Hopefully this situation will be addressed in the near future.
 
