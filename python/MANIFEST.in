@@ -7,3 +7,4 @@ recursive-exclude * __pycache__
 recursive-exclude * *.pyc
 include README.md
 include LICENSE
+include graphframes/tutorials/data/.exists

@@ -34,6 +34,11 @@ black = "^25.1.0"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
 
+[tool.poetry.group.tutorials.dependencies]
+py7zr = "^0.22.0"
+requests = "^2.32.3"
+click = "^8.1.8"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
