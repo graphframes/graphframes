@@ -2,4 +2,9 @@
 # https://github.com/pypa/sampleproject/blob/master/MANIFEST.in
 # For more details about the MANIFEST file, you may read the docs at
 # https://docs.python.org/2/distutils/sourcedist.html#the-manifest-in-template
+recursive-include python/graphframes *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+include README.md
+include LICENSE
 include graphframes/tutorials/data/.exists

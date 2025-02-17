@@ -1,6 +1,7 @@
 # graphframes
-[![Build Status](https://travis-ci.org/graphframes/graphframes.svg?branch=master)](https://travis-ci.org/graphframes/graphframes)
-[![codecov.io](http://codecov.io/github/graphframes/graphframes/coverage.svg?branch=master)](http://codecov.io/github/graphframes/graphframes?branch=master)
+[![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
+[![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
+[![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
 
 
 # GraphFrames: DataFrame-based Graphs

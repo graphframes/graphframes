@@ -32,7 +32,6 @@ import org.apache.spark.sql.{DataFrame, Row}
 
 import org.graphframes.examples.Graphs
 
-
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   import GraphFrame._
@@ -47,10 +46,11 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     super.beforeAll()
     tempDir = Files.createTempDir()
     vertices = spark.createDataFrame(localVertices.toSeq).toDF("id", "name")
-    edges = spark.createDataFrame(localEdges.toSeq.map {
-      case ((src, dst), action) =>
+    edges = spark
+      .createDataFrame(localEdges.toSeq.map { case ((src, dst), action) =>
         (src, dst, action)
-    }).toDF("src", "dst", "action")
+      })
+      .toDF("src", "dst", "action")
   }
 
   override def afterAll(): Unit = {
@@ -86,9 +86,14 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val idsFromVertices = g.vertices.select("id").rdd.map(_.getLong(0)).collect()
     val idsFromVerticesSet = idsFromVertices.toSet
     assert(idsFromVertices.length === idsFromVerticesSet.size)
-    val idsFromEdgesSet = g.edges.select("src", "dst").rdd.flatMap { case Row(src: Long, dst: Long) =>
-      Seq(src, dst)
-    }.collect().toSet
+    val idsFromEdgesSet = g.edges
+      .select("src", "dst")
+      .rdd
+      .flatMap { case Row(src: Long, dst: Long) =>
+        Seq(src, dst)
+      }
+      .collect()
+      .toSet
     assert(idsFromVerticesSet === idsFromEdgesSet)
   }
 
@@ -127,8 +132,10 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("convert to GraphX: Int IDs") {
     val vv = vertices.select(col("id").cast(IntegerType).as("id"), col("name"))
-    val ee = edges.select(col("src").cast(IntegerType).as("src"),
-      col("dst").cast(IntegerType).as("dst"), col("action"))
+    val ee = edges.select(
+      col("src").cast(IntegerType).as("src"),
+      col("dst").cast(IntegerType).as("dst"),
+      col("action"))
     val gf = GraphFrame(vv, ee)
     val g = gf.toGraphX
     // Int IDs should be directly cast to Long, so ID values should match.
@@ -140,31 +147,35 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       assert(id0 === id1)
       assert(localVertices(id0) === name)
     }
-    g.edges.collect().foreach {
-      case Edge(src0: Long, dst0: Long, attr: Row) =>
-        val src1 = attr.getInt(eCols("src"))
-        val dst1 = attr.getInt(eCols("dst"))
-        val action = attr.getString(eCols("action"))
-        assert(src0 === src1)
-        assert(dst0 === dst1)
-        assert(localEdges((src0, dst0)) === action)
+    g.edges.collect().foreach { case Edge(src0: Long, dst0: Long, attr: Row) =>
+      val src1 = attr.getInt(eCols("src"))
+      val dst1 = attr.getInt(eCols("dst"))
+      val action = attr.getString(eCols("action"))
+      assert(src0 === src1)
+      assert(dst0 === dst1)
+      assert(localEdges((src0, dst0)) === action)
     }
   }
 
   test("convert to GraphX: String IDs") {
     try {
       val vv = vertices.select(col("id").cast(StringType).as("id"), col("name"))
-      val ee = edges.select(col("src").cast(StringType).as("src"),
-        col("dst").cast(StringType).as("dst"), col("action"))
+      val ee = edges.select(
+        col("src").cast(StringType).as("src"),
+        col("dst").cast(StringType).as("dst"),
+        col("action"))
       val gf = GraphFrame(vv, ee)
       val g = gf.toGraphX
       // String IDs will be re-indexed, so ID values may not match.
       val vCols = gf.vertexColumnMap
       val eCols = gf.edgeColumnMap
       // First, get index.
-      val new2oldID: Map[Long, String] = g.vertices.map { case (id: Long, attr: Row) =>
-        (id, attr.getString(vCols("id")))
-      }.collect().toMap
+      val new2oldID: Map[Long, String] = g.vertices
+        .map { case (id: Long, attr: Row) =>
+          (id, attr.getString(vCols("id")))
+        }
+        .collect()
+        .toMap
       // Same as in test with Int IDs, but with re-indexing
       g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
         val id1 = attr.getString(vCols("id"))
@@ -172,14 +183,13 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         assert(new2oldID(id0) === id1)
         assert(localVertices(new2oldID(id0).toInt) === name)
       }
-      g.edges.collect().foreach {
-        case Edge(src0: Long, dst0: Long, attr: Row) =>
-          val src1 = attr.getString(eCols("src"))
-          val dst1 = attr.getString(eCols("dst"))
-          val action = attr.getString(eCols("action"))
-          assert(new2oldID(src0) === src1)
-          assert(new2oldID(dst0) === dst1)
-          assert(localEdges((new2oldID(src0).toInt, new2oldID(dst0).toInt)) === action)
+      g.edges.collect().foreach { case Edge(src0: Long, dst0: Long, attr: Row) =>
+        val src1 = attr.getString(eCols("src"))
+        val dst1 = attr.getString(eCols("dst"))
+        val action = attr.getString(eCols("action"))
+        assert(new2oldID(src0) === src1)
+        assert(new2oldID(dst0) === dst1)
+        assert(localEdges((new2oldID(src0).toInt, new2oldID(dst0).toInt)) === action)
       }
     } catch {
       case e: Exception =>
@@ -211,21 +221,30 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val g = GraphFrame(vertices, edges)
 
     assert(g.outDegrees.columns === Seq("id", "outDegree"))
-    val outDegrees = g.outDegrees.collect().map { case Row(id: Long, outDeg: Int) =>
-      (id, outDeg)
-    }.toMap
+    val outDegrees = g.outDegrees
+      .collect()
+      .map { case Row(id: Long, outDeg: Int) =>
+        (id, outDeg)
+      }
+      .toMap
     assert(outDegrees === Map(1L -> 1, 2L -> 2))
 
     assert(g.inDegrees.columns === Seq("id", "inDegree"))
-    val inDegrees = g.inDegrees.collect().map { case Row(id: Long, inDeg: Int) =>
-      (id, inDeg)
-    }.toMap
+    val inDegrees = g.inDegrees
+      .collect()
+      .map { case Row(id: Long, inDeg: Int) =>
+        (id, inDeg)
+      }
+      .toMap
     assert(inDegrees === Map(1L -> 1, 2L -> 1, 3L -> 1))
 
     assert(g.degrees.columns === Seq("id", "degree"))
-    val degrees = g.degrees.collect().map { case Row(id: Long, deg: Int) =>
-      (id, deg)
-    }.toMap
+    val degrees = g.degrees
+      .collect()
+      .map { case Row(id: Long, deg: Int) =>
+        (id, deg)
+      }
+      .toMap
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
   }
 
@@ -257,7 +276,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val chain = Graphs.chain(n + 1)
     val vertices = star.vertices.select(col(ID).cast("string").as(ID))
     val edges =
-      star.edges.select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST))
+      star.edges
+        .select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST))
         .unionAll(
           chain.edges.select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST)))
 
@@ -265,7 +285,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val localEdges = edges.select(SRC, DST).as[(String, String)].collect().toSet
 
     val defaultThreshold = GraphFrame.broadcastThreshold
-    assert(defaultThreshold === 1000000,
+    assert(
+      defaultThreshold === 1000000,
       s"Default broadcast threshold should be 1000000 but got $defaultThreshold.")
 
     for (threshold <- Seq(0, 4, 10)) {
@@ -274,18 +295,19 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       val g = GraphFrame(vertices, edges)
       g.persist(StorageLevel.MEMORY_AND_DISK)
 
-      val indexedVertices = g.indexedVertices.select(ID, LONG_ID).as[(String, Long)].collect().toMap
+      val indexedVertices =
+        g.indexedVertices.select(ID, LONG_ID).as[(String, Long)].collect().toMap
       assert(indexedVertices.keySet === localVertices)
       assert(indexedVertices.values.toSeq.distinct.size === localVertices.size)
       val origEdges = g.indexedEdges.select(SRC, DST).as[(String, String)].collect().toSet
       assert(origEdges === localEdges)
       g.indexedEdges
-        .select(SRC, LONG_SRC, DST, LONG_DST).as[(String, Long, String, Long)]
+        .select(SRC, LONG_SRC, DST, LONG_DST)
+        .as[(String, Long, String, Long)]
         .collect()
-        .foreach {
-          case (src, longSrc, dst, longDst) =>
-            assert(indexedVertices(src) === longSrc)
-            assert(indexedVertices(dst) === longDst)
+        .foreach { case (src, longSrc, dst, longDst) =>
+          assert(indexedVertices(src) === longSrc)
+          assert(indexedVertices(dst) === longDst)
         }
     }
 
