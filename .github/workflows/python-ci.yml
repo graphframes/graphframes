@@ -38,9 +38,7 @@ jobs:
         poetry build
         poetry install
     - name: Test
+      working-directory: ./python
       run: |
-        python -m pip install --upgrade poetry
-        poetry build
-        poetry install
         export SPARK_HOME=$(python -c "import os; from importlib.util import find_spec; print(os.path.join(os.path.dirname(find_spec('pyspark').origin)))")
         ./python/run-tests.sh
