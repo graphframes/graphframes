@@ -6,6 +6,16 @@ authors = ["GraphFrames Contributors <graphframes@googlegroups.com>"]
 license = "Apache 2.0"
 readme = "README.md"
 packages = [{include = "graphframes"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
 
 [tool.poetry.urls]
 "Project Homepage" = "https://graphframes.github.io/graphframes"
