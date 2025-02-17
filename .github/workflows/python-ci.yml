@@ -46,4 +46,5 @@ jobs:
     - name: Test
       working-directory: ./python
       run: |
+        export SPARK_HOME=$(poetry run python -c "import os; from importlib.util import find_spec; spec = find_spec('pyspark'); print(os.path.join(os.path.dirname(spec.origin)))")
         ./run-tests.sh
