@@ -5,3 +5,5 @@
 recursive-include python/graphframes *.py
 recursive-exclude * __pycache__
 recursive-exclude * *.pyc
+include README.md
+include LICENSE
