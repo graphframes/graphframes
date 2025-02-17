@@ -41,4 +41,4 @@ jobs:
       working-directory: ./python
       run: |
         export SPARK_HOME=$(python -c "import os; from importlib.util import find_spec; print(os.path.join(os.path.dirname(find_spec('pyspark').origin)))")
-        ./python/run-tests.sh
+        ./run-tests.sh
