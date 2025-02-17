@@ -14,13 +14,13 @@ In this directory you will find textfiles formatted using Markdown, with an ".md
 The markdown code can be compiled to HTML using the [Jekyll tool](http://jekyllrb.com).
 `Jekyll` and a few dependencies must be installed for this to work. We recommend installing via the Ruby Gem dependency manager. Since the exact HTML output varies between versions of Jekyll and its dependencies, we list specific versions here in some cases:
 
-    $ sudo gem install jekyll
-    $ sudo gem install jekyll-redirect-from
+    $ gem install jekyll
+    $ gem install jekyll-redirect-from
 
 On macOS, with the default Ruby, please install Jekyll with Bundler as [instructed on offical website](https://jekyllrb.com/docs/quickstart/). Otherwise the build script might fail to resolve dependencies.
 
-    $ sudo gem install jekyll bundler
-    $ sudo gem install jekyll-redirect-from
+    $ gem install jekyll bundler
+    $ gem install jekyll-redirect-from
 
 Execute `jekyll build` from the `docs/` directory to compile the site. Compiling the site with Jekyll will create a directory called `_site` containing index.html as well as the rest of the compiled files.
 
@@ -40,9 +40,9 @@ To manually point to a specific `Spark` installation,
 
 ## Sphinx
 
-We use Sphinx to generate Python API docs, so you will need to install it by running
+We use Sphinx to generate Python API docs, so you will need to install it by running (once we upgrade to Python 3.10 it will get added to the dev requirements):
 
-    sudo pip install sphinx
+    pip install sphinx
 
 ## API Docs (Scaladoc, Sphinx)
 
