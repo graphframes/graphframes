@@ -1,14 +1,21 @@
 #!/usr/bin/env python
 
+"""Download and decompress the Stack Exchange data dump from the Internet Archive."""
+
 import os
+
 import click
-import requests
 import py7zr
+import requests  # type: ignore
 
 
 @click.command()
 @click.argument("subdomain")
-@click.option("--data-dir", default="python/graphframes/tutorials/data", help="Directory to store downloaded files")
+@click.option(
+    "--data-dir",
+    default="python/graphframes/tutorials/data",
+    help="Directory to store downloaded files",
+)
 @click.option(
     "--extract/--no-extract", default=True, help="Whether to extract the archive after download"
 )
