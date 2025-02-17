@@ -31,12 +31,20 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install python dependencies
+    - name: Install and configure Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: 2.1.1
+        virtualenvs-create: true
+        virtualenvs-in-project: false
+        installer-parallel: true
+    - name: Build Python package and its dependencies
+      working-directory: ./python
       run: |
-        python -m pip install --upgrade pip wheel
-        pip install -r ./python/requirements.txt
-        pip install pyspark==${{ matrix.spark-version }}
+        poetry build
+        poetry install
     - name: Test
+      working-directory: ./python
       run: |
-        export SPARK_HOME=$(python -c "import os; from importlib.util import find_spec; print(os.path.join(os.path.dirname(find_spec('pyspark').origin)))")
-        ./python/run-tests.sh
+        export SPARK_HOME=$(poetry run python -c "import os; from importlib.util import find_spec; spec = find_spec('pyspark'); print(os.path.join(os.path.dirname(spec.origin)))")
+        ./run-tests.sh
