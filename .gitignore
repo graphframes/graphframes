@@ -27,7 +27,6 @@ project/plugins/project/
 
 # Mac
 *.DS_Store
-.vscode
 
 # Python specific
 python/build
