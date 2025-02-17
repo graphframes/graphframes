@@ -83,4 +83,4 @@ test ${PIPESTATUS[0]} -eq 0 || exit 1;
 
 cd "$DIR"
 
-$PYSPARK_PYTHON -u ./graphframes/graphframe.py "$@"
+poetry run python -u ./graphframes/graphframe.py "$@"
