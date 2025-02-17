@@ -1,6 +1,9 @@
+"""Utilities for Network Moitif Finding Tutorial"""
+
 from pyspark.sql import DataFrame
-from graphframes import GraphFrame
 from pyspark.sql import functions as F
+
+from graphframes import GraphFrame
 
 
 def three_edge_count(paths: DataFrame) -> DataFrame:
