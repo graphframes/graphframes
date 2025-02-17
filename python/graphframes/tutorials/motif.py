@@ -1,4 +1,4 @@
-# Demonstrate GraphFrames network motif finding capabilities
+"""Demonstrate GraphFrames network motif finding capabilities. Code from the Network Motif Finding Tutorial."""
 
 #
 # Interactive Usage: pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
@@ -13,12 +13,7 @@ from pyspark.sql import DataFrame, SparkSession
 from graphframes import GraphFrame
 
 # Initialize a SparkSession
-spark: SparkSession = (
-    SparkSession.builder.appName("Stack Overflow Motif Analysis")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
-)
+spark: SparkSession = SparkSession.builder.appName("Stack Overflow Motif Analysis").getOrCreate()
 sc: SparkContext = spark.sparkContext
 sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
@@ -28,7 +23,7 @@ BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 
 
 #
-# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache. 
+# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache.
 #
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
@@ -47,8 +42,7 @@ edges_df = edges_df.repartition(50).checkpoint().cache()
 
 # What kind of nodes we do we have to work with?
 node_counts = (
-    nodes_df
-    .select("id", F.col("Type").alias("Node Type"))
+    nodes_df.select("id", F.col("Type").alias("Node Type"))
     .groupBy("Node Type")
     .count()
     .orderBy(F.col("count").desc())
@@ -59,8 +53,7 @@ node_counts.show()
 
 # What kind of edges do we have to work with?
 edge_counts = (
-    edges_df
-    .select("src", "dst", F.col("relationship").alias("Edge Type"))
+    edges_df.select("src", "dst", F.col("relationship").alias("Edge Type"))
     .groupBy("Edge Type")
     .count()
     .orderBy(F.col("count").desc())
@@ -69,7 +62,7 @@ edge_counts = (
 )
 edge_counts.show()
 
-g = GraphFrame(nodes_df, edges_df)  
+g = GraphFrame(nodes_df, edges_df)
 
 g.vertices.show(10)
 print(f"Node columns: {g.vertices.columns}")
@@ -170,25 +163,28 @@ graphlet_count_df = (
 )
 graphlet_count_df.show()
 
-graphlet_count_df.orderBy([
-    "A_Type",
-    "(a)-[e1]->(b)",
-    "B_Type",
-    "(b)-[e2]->(c)",
-    "C_Type",
-    "(d)-[e3]->(c)",
-    "D_Type",
-], ascending=False).show(104)
+graphlet_count_df.orderBy(
+    [
+        "A_Type",
+        "(a)-[e1]->(b)",
+        "B_Type",
+        "(b)-[e2]->(c)",
+        "C_Type",
+        "(d)-[e3]->(c)",
+        "D_Type",
+    ],
+    ascending=False,
+).show(104)
 
 # A user answers an answer that answers a question that links to an answer.
 linked_vote_paths = paths.filter(
-    (F.col("a.Type") == "Vote") &
-    (F.col("e1.relationship") == "CastFor") &
-    (F.col("b.Type") == "Question") &
-    (F.col("e2.relationship") == "Links") &
-    (F.col("c.Type") == "Question") &
-    (F.col("e3.relationship") == "CastFor") &
-    (F.col("d.Type") == "Vote")
+    (F.col("a.Type") == "Vote")
+    & (F.col("e1.relationship") == "CastFor")
+    & (F.col("b.Type") == "Question")
+    & (F.col("e2.relationship") == "Links")
+    & (F.col("c.Type") == "Question")
+    & (F.col("e3.relationship") == "CastFor")
+    & (F.col("d.Type") == "Vote")
 )
 
 # Sanity check the count - it should match the table above
@@ -198,8 +194,7 @@ b_vote_counts = linked_vote_paths.select("a", "b").distinct().groupBy("b").count
 c_vote_counts = linked_vote_paths.select("c", "d").distinct().groupBy("c").count()
 
 linked_vote_counts = (
-    linked_vote_paths
-    .filter((F.col("a.VoteTypeId") == 2) & (F.col("d.VoteTypeId") == 2))
+    linked_vote_paths.filter((F.col("a.VoteTypeId") == 2) & (F.col("d.VoteTypeId") == 2))
     .select("b", "c")
     .join(b_vote_counts, on="b", how="inner")
     .withColumnRenamed("count", "b_count")
