@@ -5,4 +5,3 @@
 recursive-include python/graphframes *.py
 recursive-exclude * __pycache__
 recursive-exclude * *.pyc
-include graphframes/tutorials/data/.exists
