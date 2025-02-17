@@ -10,6 +10,10 @@ This is a package for DataFrame-based graphs on top of Apache Spark. Users can w
 
 You can find user guide and API docs at https://graphframes.github.io/graphframes
 
+## GraphFrames is Back!
+
+This projects was dormant for some time, but we are happy to announce that it is now back in active development! We are working on a new release with many bug fixes and improvements. We are also working on a new website and documentation.
+
 ## Installation and Quick-Start
 
 The easiest way to start using GraphFrames is through the [Spark Packages system](https://spark-packages.org/package/graphframes/graphframes). Just run the following command:
