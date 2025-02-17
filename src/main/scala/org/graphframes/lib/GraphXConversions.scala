@@ -27,28 +27,28 @@ import org.apache.spark.sql.types.{StructField, StructType}
 import org.graphframes.{NoSuchVertexException, GraphFrame}
 
 /**
- * Convenience functions to map GraphX graphs to GraphFrames,
- * checking for the types expected by GraphX.
+ * Convenience functions to map GraphX graphs to GraphFrames, checking for the types expected by
+ * GraphX.
  */
 private[graphframes] object GraphXConversions {
 
   import GraphFrame._
 
   /** Indicates if T is a Unit type */
-  private def isUnitType[T : TypeTag] : Boolean = {
+  private def isUnitType[T: TypeTag]: Boolean = {
     val t = typeOf[T]
     typeOf[Unit] =:= t
   }
 
   /** Indicates if T is a Product type */
-  private def isProductType[T : TypeTag] : Boolean = {
+  private def isProductType[T: TypeTag]: Boolean = {
     val t = typeOf[T]
     // See http://stackoverflow.com/questions/21209006/how-to-check-if-reflected-type-represents-a-tuple
     t.typeSymbol.fullName.startsWith("scala.Tuple")
   }
 
   /** See [[GraphFrame.fromGraphX()]] for documentation */
-  def fromGraphX[V : TypeTag, E : TypeTag](
+  def fromGraphX[V: TypeTag, E: TypeTag](
       originalGraph: GraphFrame,
       graph: Graph[V, E],
       vertexNames: Seq[String] = Nil,
@@ -64,7 +64,7 @@ private[graphframes] object GraphXConversions {
       renameStructFields(vertexDF0, GX_ATTR, vertexNames)
     } else {
       // Assume it is just one field, and pack it in a tuple to have a structure.
-      val vertexData = graph.vertices.map { case (vid, data) =>  (vid, Tuple1(data)) }
+      val vertexData = graph.vertices.map { case (vid, data) => (vid, Tuple1(data)) }
       val vertexDF0 = spark.createDataFrame(vertexData).toDF(LONG_ID, GX_ATTR)
       renameStructFields(vertexDF0, GX_ATTR, vertexNames)
     }
@@ -85,12 +85,14 @@ private[graphframes] object GraphXConversions {
   }
 
   /**
-   * Given the name of a column (assumed to contain a struct),
-   * renames all the fields of this struct.
+   * Given the name of a column (assumed to contain a struct), renames all the fields of this
+   * struct.
    *
-   * @param structName  Struct name whose fields will be renamed.  This method assumes this field
-   *                    exists and will not check for errors.
-   * @param fieldNames  List of new field names corresponding to all fields in the struct col.
+   * @param structName
+   *   Struct name whose fields will be renamed. This method assumes this field exists and will
+   *   not check for errors.
+   * @param fieldNames
+   *   List of new field names corresponding to all fields in the struct col.
    */
   private[lib] def renameStructFields(
       df: DataFrame,
@@ -127,12 +129,13 @@ private[graphframes] object GraphXConversions {
   }
 
   /**
-   * Joins all the data from the original columns against the new data. Assumes the columns
-   * are not going to conflict.
+   * Joins all the data from the original columns against the new data. Assumes the columns are
+   * not going to conflict.
    *
-   * @param gxVertexData  DataFrame with column [[LONG_ID]] and optionally column [[GX_ATTR]]
-   * @param gxEdgeData  DataFrame with columns [[LONG_DST]], [[LONG_SRC]] and optionally column
-   *                    [[GX_ATTR]]
+   * @param gxVertexData
+   *   DataFrame with column [[LONG_ID]] and optionally column [[GX_ATTR]]
+   * @param gxEdgeData
+   *   DataFrame with columns [[LONG_DST]], [[LONG_SRC]] and optionally column [[GX_ATTR]]
    */
   private def fromGraphX(
       originalGraph: GraphFrame,
@@ -146,16 +149,19 @@ private[graphframes] object GraphXConversions {
       val indexedEdges = originalGraph.indexedEdges
       // Handle 2 cases: GraphX edge has attr, or not.
       val hasGxAttr = gxEdgeData.schema.exists(_.name == GX_ATTR)
-      val gxCol = if (hasGxAttr) { Seq(col(GX_ATTR)) } else { Seq() }
+      val gxCol = if (hasGxAttr) { Seq(col(GX_ATTR)) }
+      else { Seq() }
       val sel1 = Seq(col(LONG_SRC), col(LONG_DST)) ++ gxCol
       val gxe = gxEdgeData.select(sel1: _*)
       val sel3 = Seq(col(ATTR)) ++ gxCol
       // TODO: CHECK IN UNIT TESTS: Drop the src and dst columns from the index, they are already
       // in the attributes and will be unpacked with the rest of the user columns.
       // TODO(tjh) 2-step join?
-      gxe.join(
-        indexedEdges.select(indexedEdges(LONG_SRC), indexedEdges(LONG_DST), indexedEdges(ATTR)),
-        (gxe(LONG_SRC) === indexedEdges(LONG_SRC)) && (gxe(LONG_DST) === indexedEdges(LONG_DST)))
+      gxe
+        .join(
+          indexedEdges.select(indexedEdges(LONG_SRC), indexedEdges(LONG_DST), indexedEdges(ATTR)),
+          (gxe(LONG_SRC) === indexedEdges(LONG_SRC)) && (gxe(LONG_DST) === indexedEdges(
+            LONG_DST)))
         .select(sel3: _*)
     }
     val edgeDF = unpackStructFields(drop(packedEdges, LONG_SRC, LONG_DST))
@@ -164,8 +170,8 @@ private[graphframes] object GraphXConversions {
   }
 
   /**
-   * Given a graph and an object, gets the the corresponding integral id in the
-   * internal representation.
+   * Given a graph and an object, gets the the corresponding integral id in the internal
+   * representation.
    */
   private[graphframes] def integralId(graph: GraphFrame, vertexId: Any): Long = {
     // Check if we can directly convert it
@@ -179,10 +185,12 @@ private[graphframes] object GraphXConversions {
     // If the vertex is a non-integral type such as a String, we need to use the translation table.
     val longIdRow: Array[Row] = graph.indexedVertices
       .filter(col(GraphFrame.ID) === vertexId)
-      .select(GraphFrame.LONG_ID).take(1)
+      .select(GraphFrame.LONG_ID)
+      .take(1)
     if (longIdRow.isEmpty) {
-      throw new NoSuchVertexException(s"GraphFrame algorithm given vertex ID which does not exist" +
-        s" in Graph. Vertex ID $vertexId not contained in $graph")
+      throw new NoSuchVertexException(
+        s"GraphFrame algorithm given vertex ID which does not exist" +
+          s" in Graph. Vertex ID $vertexId not contained in $graph")
     }
     // TODO(tjh): could do more informative message
     longIdRow.head.getLong(0)
