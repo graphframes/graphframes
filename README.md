@@ -1,4 +1,4 @@
-<img src="docs/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="300"/>
+<img src="docs/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="400"/>
 
 [![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
 [![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
