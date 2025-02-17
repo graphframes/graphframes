@@ -1,4 +1,4 @@
-# Build a Graph out of the Stack Exchange Data Dump XML files
+"""Build a Graph out of the Stack Exchange Data Dump XML files."""
 
 #
 # Interactive Usage: pyspark --packages com.databricks:spark-xml_2.12:0.18.0
@@ -47,11 +47,9 @@ def split_tags(tags: str) -> List[str]:
 # Initialize a SparkSession with case sensitivity
 #
 
-spark: SparkSession = (
-    SparkSession.builder.appName("Stack Exchange Graph Builder")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames UUID) coexist
-    .config("spark.sql.caseSensitive", True).getOrCreate()
-)
+spark: SparkSession = SparkSession.builder.appName("Stack Exchange Graph Builder").getOrCreate()
+sc = spark.sparkContext
+sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
 print("Loading data for stats.meta.stackexchange.com ...")
 
@@ -296,11 +294,22 @@ nodes_df: DataFrame = (
 )
 print(f"Total distinct nodes: {nodes_df.count():,}")
 
-# Now add a unique ID field
+# Now add a unique lowercase 'id' field - standard for GraphFrames - moving the original...
+# Stack Exchange Id to StackId
+nodes_df = nodes_df.withColumnRenamed("Id", "StackId").drop("Id")
+
+# Update the column list...
+if "Id" in all_column_names:
+    all_column_names.remove("Id")
+all_column_names += ["StackId"]
+all_column_names = sorted(all_column_names)
+
+# Add the UUID 'id' field for GraphFrames. It will go in edges as 'src' and 'dst'
 nodes_df = nodes_df.withColumn("id", F.expr("uuid()")).select("id", *all_column_names)
 
 # Now create posts - combined questions and answers for things that can apply to them both
 posts_df = questions_df.unionByName(answers_df).cache()
+
 
 #
 # Store the nodes to disk, reload and cache
@@ -361,12 +370,12 @@ badges_df = nodes_df.filter(nodes_df.Type == "Badge").cache()
 
 src_vote_df: DataFrame = votes_df.select(
     F.col("id").alias("src"),
-    F.col("Id").alias("VoteId"),
+    F.col("StackId").alias("VoteId"),
     # Everything has all the fields - should build from base records but need UUIDs
     F.col("PostId").alias("VotePostId"),
 )
 cast_for_edge_df: DataFrame = src_vote_df.join(
-    posts_df, on=src_vote_df.VotePostId == posts_df.Id, how="inner"
+    posts_df, on=src_vote_df.VotePostId == posts_df.StackId, how="inner"
 ).select(
     # 'src' comes from the votes' 'id'
     "src",
@@ -378,6 +387,7 @@ cast_for_edge_df: DataFrame = src_vote_df.join(
 print(f"Total CastFor edges: {cast_for_edge_df.count():,}")
 print(f"Percentage of linked votes: {cast_for_edge_df.count() / votes_df.count():.2%}\n")
 
+
 #
 # Create a [User]--Asks-->[Question] edge
 #
@@ -388,7 +398,7 @@ questions_asked_df: DataFrame = questions_df.select(
     F.lit("Asks").alias("relationship"),
 )
 user_asks_edges_df: DataFrame = questions_asked_df.join(
-    users_df, on=questions_asked_df.QuestionUserId == users_df.Id, how="inner"
+    users_df, on=questions_asked_df.QuestionUserId == users_df.StackId, how="inner"
 ).select(
     # 'src' comes from the users' 'id'
     F.col("id").alias("src"),
@@ -402,6 +412,7 @@ print(
     f"Percentage of asked questions linked to users: {user_asks_edges_df.count() / questions_df.count():.2%}\n"
 )
 
+
 #
 # Create a [User]--Posts-->[Answer] edge.
 #
@@ -412,7 +423,7 @@ user_answers_df: DataFrame = answers_df.select(
     F.lit("Posts").alias("relationship"),
 )
 user_answers_edges_df = user_answers_df.join(
-    users_df, on=user_answers_df.AnswerUserId == users_df.Id, how="inner"
+    users_df, on=user_answers_df.AnswerUserId == users_df.StackId, how="inner"
 ).select(
     # 'src' comes from the users' 'id'
     F.col("id").alias("src"),
@@ -426,17 +437,18 @@ print(
     f"Percentage of answers linked to users: {user_answers_edges_df.count() / answers_df.count():.2%}\n"
 )
 
+
 #
 # Create a [Answer]--Answers-->[Question] edge
 #
 
 src_answers_df: DataFrame = answers_df.select(
     F.col("id").alias("src"),
-    F.col("Id").alias("AnswerId"),
+    F.col("StackId").alias("AnswerId"),
     F.col("ParentId").alias("AnswerParentId"),
 )
 question_answers_edges_df: DataFrame = src_answers_df.join(
-    posts_df, on=src_answers_df.AnswerParentId == questions_df.Id, how="inner"
+    posts_df, on=src_answers_df.AnswerParentId == questions_df.StackId, how="inner"
 ).select(
     # 'src' comes from the answers' 'id'
     "src",
@@ -449,6 +461,7 @@ print(f"Total Posts Answers edges: {question_answers_edges_df.count():,}")
 print(
     f"Percentage of linked answers: {question_answers_edges_df.count() / answers_df.count():.2%}\n"
 )
+
 
 #
 # Create a [Tag]--Tags-->[Post] edge... remember a Post is a Question or Answer
@@ -472,6 +485,7 @@ tags_edge_df: DataFrame = src_tags_df.join(
 print(f"Total Tags edges: {tags_edge_df.count():,}")
 print(f"Percentage of linked tags: {tags_edge_df.count() / posts_df.count():.2%}\n")
 
+
 #
 # Create a [User]--Earns-->[Badge] edge
 #
@@ -482,7 +496,7 @@ earns_edges_df: DataFrame = badges_df.select(
     F.lit("Earns").alias("relationship"),
 )
 earns_edges_df = earns_edges_df.join(
-    users_df, on=earns_edges_df.BadgeUserId == users_df.Id, how="inner"
+    users_df, on=earns_edges_df.BadgeUserId == users_df.StackId, how="inner"
 ).select(
     # 'src' comes from the users' 'id'
     F.col("id").alias("src"),
@@ -493,6 +507,7 @@ earns_edges_df = earns_edges_df.join(
 )
 print(f"Total Earns edges: {earns_edges_df.count():,}")
 print(f"Percentage of earned badges: {earns_edges_df.count() / badges_df.count():.2%}\n")
+
 
 #
 # Create a [Post]--Links-->[Post] edge... remember a Post is a Question or Answer
@@ -505,7 +520,7 @@ trim_links_df: DataFrame = post_links_df.select(
     "LinkType",
 )
 links_src_edge_df: DataFrame = trim_links_df.join(
-    posts_df.drop("LinkType"), on=trim_links_df.SrcPostId == posts_df.Id, how="inner"
+    posts_df.drop("LinkType"), on=trim_links_df.SrcPostId == posts_df.StackId, how="inner"
 ).select(
     # 'dst' comes from the posts' 'id'
     F.col("id").alias("src"),
@@ -513,7 +528,7 @@ links_src_edge_df: DataFrame = trim_links_df.join(
     "LinkType",
 )
 raw_links_edge_df = links_src_edge_df.join(
-    posts_df.drop("LinkType"), on=links_src_edge_df.DstPostId == posts_df.Id, how="inner"
+    posts_df.drop("LinkType"), on=links_src_edge_df.DstPostId == posts_df.StackId, how="inner"
 ).select(
     "src",
     # 'src' comes from the posts' 'id'
@@ -556,6 +571,7 @@ relationships_df: DataFrame = (
 relationships_df.groupBy("relationship").count().orderBy(F.col("count").desc()).withColumn(
     "count", F.format_number(F.col("count"), 0)
 ).show()
+
 
 # +------------+------+
 # |relationship| count|
