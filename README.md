@@ -3,11 +3,11 @@
 [![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
 [![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
 
-<center>
-    <img src="https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/img/graphframes_logo.png" alt="GraphFrames Logo" width="300"/>
-</center>
-
 # GraphFrames: DataFrame-based Graphs
+
+<center>
+    <img src="docs/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="300"/>
+</center>
 
 This is a package for DataFrame-based graphs on top of Apache Spark. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
