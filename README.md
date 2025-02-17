@@ -136,13 +136,15 @@ To learn more about GraphFrames, check out these resources:
 * [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
 * [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
 
-## GraphFrames on PyPI is Unofficial
+## `graphframes-py` is our Official PyPi Package
 
-The project is not in ownership or control of the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.4). We recommend using the Spark Packages system to install the latest version of GraphFrames. The PyPI packages are not maintained by the GraphFrames project.
+We recommend using the Spark Packages system to install the latest version of GraphFrames, but now publish a build of our Python package to PyPi in the [graphframes-py](https://pypi.org/project/graphframes-py/) package. It can be used to provide type hints in IDEs, but does not load the java-side of GraphFrames so will not work without loading the GraphFrames package. See [Installation and Quick-Start](#installation-and-quick-start).
 
-If you are in control of one of these packages, please reach out to us to discuss how we can work together to keep them up to date. Hopefully this situation will be addressed in the near future.
+```bash
+pip install graphframes-py
+```
 
-See [Installation and Quick-Start](#installation-and-quick-start) for the best way to install and use GraphFrames.
+This project does not own or control the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.4). 
 
 ## GraphFrames and sbt
 
