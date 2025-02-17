@@ -3,6 +3,9 @@
 [![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
 [![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
 
+<center>
+    <img src="https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/img/graphframes_logo.png" alt="GraphFrames Logo" width="300"/>
+</center>
 
 # GraphFrames: DataFrame-based Graphs
 
@@ -201,7 +204,7 @@ Please see guide `dev/release_guide.md`.
 
 ## Spark version compatibility
 
-This project is compatible with Spark 2.4+.  However, significant speed improvements have been made to DataFrames in more recent versions of Spark, so you may see speedups from using the latest Spark version.
+This project is compatible with Spark 3.4+.  Significant speed improvements have been made to DataFrames in recent versions of Spark, so you may see speedups from using the latest Spark version.
 
 ## Contributing
 
