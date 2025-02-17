@@ -5,8 +5,7 @@ title: User Guide
 description: GraphFrames GRAPHFRAMES_VERSION user guide
 ---
 
-This page gives examples of how to use GraphFrames for basic queries, motif finding, and
-general graph algorithms. This includes code examples in Scala and Python.
+This page gives examples of how to use GraphFrames for basic queries, motif finding, and general graph algorithms. This includes code examples in Scala and Python.
 
 * Table of contents (This text will be scraped.)
 {:toc}
@@ -174,7 +173,9 @@ from graphframes.examples import Graphs
 g = Graphs(spark).friends()  # Get example graph
 
 # Display the vertex and edge DataFrames
+
 g.vertices.show()
+
 # +--+-------+---+
 # |id|   name|age|
 # +--+-------+---+
@@ -188,6 +189,7 @@ g.vertices.show()
 # +--+-------+---+
 
 g.edges.show()
+
 # +---+---+------------+
 # |src|dst|relationship|
 # +---+---+------------+
@@ -204,12 +206,12 @@ g.edges.show()
 # Get a DataFrame with columns "id" and "inDegree" (in-degree)
 vertexInDegrees = g.inDegrees
 
-# Find the youngest user's age in the graph.
-# This queries the vertex DataFrame.
+# Find the youngest user's age in the graph
+# This queries the vertex DataFrame
 g.vertices.groupBy().min("age").show()
 
-# Count the number of "follows" in the graph.
-# This queries the edge DataFrame.
+# Count the number of "follows" in the graph
+# This queries the edge DataFrame
 numFollows = g.edges.filter("relationship = 'follow'").count()
 {% endhighlight %}
 </div>
@@ -218,13 +220,9 @@ numFollows = g.edges.filter("relationship = 'follow'").count()
 
 # Motif finding
 
-Motif finding refers to searching for structural patterns in a graph.
+Motif finding refers to searching for structural patterns in a graph. For an example of real-world use, check out the [Motif Finding Tutorial](motif-tutorial.html).
 
-GraphFrame motif finding uses a simple Domain-Specific Language (DSL) for expressing structural
-queries. For example, `graph.find("(a)-[e]->(b); (b)-[e2]->(a)")` will search for pairs of vertices
-`a,b` connected by edges in both directions.  It will return a `DataFrame` of all such
-structures in the graph, with columns for each of the named elements (vertices or edges)
-in the motif.  In this case, the returned columns will be "a, b, e, e2."
+GraphFrame motif finding uses a simple Domain-Specific Language (DSL) for expressing structural queries. For example, `graph.find("(a)-[e]->(b); (b)-[e2]->(a)")` will search for pairs of vertices `a,b` connected by edges in both directions.  It will return a `DataFrame` of all such structures in the graph, with columns for each of the named elements (vertices or edges) in the motif.  In this case, the returned columns will be "a, b, e, e2."
 
 DSL for expressing structural patterns:
 
@@ -304,11 +302,11 @@ from graphframes.examples import Graphs
 
 g = Graphs(spark).friends()  # Get example graph
 
-# Search for pairs of vertices with edges in both directions between them.
+# Search for pairs of vertices with edges in both directions between them
 motifs = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
 motifs.show()
 
-# More complex queries can be expressed by applying filters.
+# More complex queries can be expressed by applying filters
 motifs.filter("b.age > 30").show()
 {% endhighlight %}
 </div>
@@ -375,14 +373,16 @@ g = Graphs(spark).friends()  # Get example graph
 chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
 
 # Query on sequence, with state (cnt)
-#  (a) Define method for updating state given the next element of the motif.
+# (a) Define method for updating state given the next element of the motif
 sumFriends =\
   lambda cnt,relationship: when(relationship == "friend", cnt+1).otherwise(cnt)
-#  (b) Use sequence operation to apply method to sequence of elements in motif.
-#      In this case, the elements are the 3 edges.
+
+# (b) Use sequence operation to apply method to sequence of elements in motif
+# In this case, the elements are the 3 edges
 condition =\
   reduce(lambda cnt,e: sumFriends(cnt, col(e).relationship), ["ab", "bc", "cd"], lit(0))
-#  (c) Apply filter to DataFrame.
+
+# (c) Apply filter to DataFrame
 chainWith2Friends2 = chain4.where(condition >= 2)
 chainWith2Friends2.show()
 {% endhighlight %}
@@ -428,8 +428,8 @@ from graphframes.examples import Graphs
 
 g = Graphs(spark).friends()  # Get example graph
 
-# Select subgraph of users older than 30, and relationships of type "friend".
-# Drop isolated vertices (users) which are not contained in any edges (relationships).
+# Select subgraph of users older than 30, and relationships of type "friend"
+# Drop isolated vertices (users) which are not contained in any edges (relationships)
 g1 = g.filterVertices("age > 30").filterEdges("relationship = 'friend'").dropIsolatedVertices()
 
 {% endhighlight %}
@@ -470,15 +470,17 @@ from graphframes.examples import Graphs
 g = Graphs(spark).friends()  # Get example graph
 
 # Select subgraph based on edges "e" of type "follow"
-# pointing from a younger user "a" to an older user "b".
+# pointing from a younger user "a" to an older user "b"
 paths = g.find("(a)-[e]->(b)")\
   .filter("e.relationship = 'follow'")\
   .filter("a.age < b.age")
-# "paths" contains vertex info. Extract the edges.
-e2 = paths.select("e.src", "e.dst", "e.relationship")
-# In Spark 1.5+, the user may simplify this call:
-#  val e2 = paths.select("e.*")
 
+# "paths" contains vertex info. Extract the edges
+
+e2 = paths.select("e.src", "e.dst", "e.relationship")
+
+# In Spark 1.5+, the user may simplify this call
+# val e2 = paths.select("e.*")
 # Construct the subgraph
 g2 = GraphFrame(g.vertices, e2)
 {% endhighlight %}
@@ -539,11 +541,11 @@ from graphframes.examples import Graphs
 
 g = Graphs(spark).friends()  # Get example graph
 
-# Search from "Esther" for users of age < 32.
+# Search from "Esther" for users of age < 32
 paths = g.bfs("name = 'Esther'", "age < 32")
 paths.show()
 
-# Specify edge filters or max path lengths.
+# Specify edge filters or max path lengths
 g.bfs("name = 'Esther'", "age < 32",\
   edgeFilter="relationship != 'friend'", maxPathLength=3)
 {% endhighlight %}
@@ -741,15 +743,16 @@ from graphframes.examples import Graphs
 
 g = Graphs(spark).friends()  # Get example graph
 
-# Run PageRank until convergence to tolerance "tol".
+# Run PageRank until convergence to tolerance "tol"
 results = g.pageRank(resetProbability=0.15, tol=0.01)
+
 # Display resulting pageranks and final edge weights
-# Note that the displayed pagerank may be truncated, e.g., missing the E notation.
-# In Spark 1.5+, you can use show(truncate=False) to avoid truncation.
+# Note that the displayed pagerank may be truncated, e.g., missing the E notation
+# In Spark 1.5+, you can use show(truncate=False) to avoid truncation
 results.vertices.select("id", "pagerank").show()
 results.edges.select("src", "dst", "weight").show()
 
-# Run PageRank for a fixed number of iterations.
+# Run PageRank for a fixed number of iterations
 results2 = g.pageRank(resetProbability=0.15, maxIter=10)
 
 # Run PageRank personalized for vertex "a"
@@ -874,15 +877,15 @@ from graphframes.examples import Graphs
 
 g = Graphs(spark).friends()  # Get example graph
 
-# Save vertices and edges as Parquet to some location.
+# Save vertices and edges as Parquet to some location
 g.vertices.write.parquet("hdfs://myLocation/vertices")
 g.edges.write.parquet("hdfs://myLocation/edges")
 
-# Load the vertices and edges back.
+# Load the vertices and edges back
 sameV = spark.read.parquet("hdfs://myLocation/vertices")
 sameE = spark.read.parquet("hdfs://myLocation/edges")
 
-# Create an identical GraphFrame.
+# Create an identical GraphFrame
 sameG = GraphFrame(sameV, sameE)
 {% endhighlight %}
 </div>
@@ -945,7 +948,7 @@ from pyspark.sql.functions import sum as sqlsum
 
 g = Graphs(spark).friends()  # Get example graph
 
-# For each user, sum the ages of the adjacent users.
+# For each user, sum the ages of the adjacent users
 msgToSrc = AM.dst["age"]
 msgToDst = AM.src["age"]
 agg = g.aggregateMessages(
@@ -1038,3 +1041,8 @@ val g2: GraphFrame = GraphFrame.fromGraphX(gx)
 </div>
 
 These conversions are only supported in Scala since GraphX does not have a Python API.
+
+# GraphFrames Internals
+
+To learn how GraphFrames works internally to combine graph and relational queries, check out the paper [GraphFrames: An Integrated API for Mixing Graph and
+Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
