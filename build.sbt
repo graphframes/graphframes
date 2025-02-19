@@ -1,5 +1,4 @@
 import ReleaseTransformations.*
-import sbtassembly.AssemblyPlugin.autoImport.assembly
 
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.4")
 lazy val sparkBranch = sparkVer.substring(0, 3)
@@ -59,6 +58,7 @@ lazy val root = (project in file("."))
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
     autoAPIMappings := true,
+
     coverageHighlighting := false,
 
     // Release settings
