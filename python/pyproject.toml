@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "graphframes-py"
+version = "0.8.4"
+description = "GraphFrames: Graph Processing Framework for Apache Spark"
+authors = ["GraphFrames Contributors <graphframes@googlegroups.com>"]
+license = "Apache 2.0"
+readme = "README.md"
+packages = [{include = "graphframes"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
+
+[tool.poetry.urls]
+"Project Homepage" = "https://graphframes.github.io/graphframes"
+"PyPi Homepage" = "https://pypi.org/project/graphframes-py"
+"Code Repository" = "https://github.com/graphframes/graphframes"
+"Bug Tracker" = "https://github.com/graphframes/graphframes/issues"
+
+[tool.poetry.dependencies]
+python = ">=3.9 <3.13"
+nose = "1.3.7"
+pyspark = "^3.4"
+numpy = ">= 1.7"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+flake8 = "^7.1.1"
+isort = "^6.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+include = ["graphframes"]
+
+[tool.isort]
+profile = "black"
+src_paths = ["graphframes"]
