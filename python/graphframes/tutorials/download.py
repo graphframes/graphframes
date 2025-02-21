@@ -19,7 +19,7 @@ import requests  # type: ignore
 @click.option(
     "--extract/--no-extract", default=True, help="Whether to extract the archive after download"
 )
-def download_stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
+def stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
     """Download Stack Exchange archive for a given SUBDOMAIN.
 
     Example: python/graphframes/tutorials/download.py stats.meta
@@ -36,13 +36,30 @@ def download_stackexchange(subdomain: str, data_dir: str, extract: bool) -> None
     click.echo(f"Downloading archive from {archive_url}")
 
     try:
-        # Download the file
-        response = requests.get(archive_url, stream=True)
-        response.raise_for_status()  # Raise exception for bad status codes
+        # Download the file with retries
+        max_retries = 3
+        retry_count = 0
+
+        while retry_count < max_retries:
+            try:
+                response = requests.get(archive_url, stream=True)
+                response.raise_for_status()  # Raise exception for bad status codes
+                break
+            except (
+                requests.exceptions.RequestException,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.HTTPError,
+                requests.exceptions.Timeout,
+            ) as e:
+                retry_count += 1
+                if retry_count == max_retries:
+                    click.echo(f"Failed to download after {max_retries} attempts: {e}", err=True)
+                    raise click.Abort()
+                click.echo(f"Download attempt {retry_count} failed, retrying...")
 
         total_size = int(response.headers.get("content-length", 0))
 
-        with click.progressbar(length=total_size, label="Downloading") as bar:
+        with click.progressbar(length=total_size, label="Downloading") as bar:  # type: ignore
             with open(archive_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
@@ -68,4 +85,4 @@ def download_stackexchange(subdomain: str, data_dir: str, extract: bool) -> None
 
 
 if __name__ == "__main__":
-    download_stackexchange()
+    stackexchange()

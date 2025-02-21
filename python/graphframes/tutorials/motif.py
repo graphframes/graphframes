@@ -6,16 +6,15 @@
 # Batch Usage: spark-submit --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
 #
 
+import click
 import pyspark.sql.functions as F
-from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 
 from graphframes import GraphFrame
 
 # Initialize a SparkSession
 spark: SparkSession = SparkSession.builder.appName("Stack Overflow Motif Analysis").getOrCreate()
-sc: SparkContext = spark.sparkContext
-sc.setCheckpointDir("/tmp/graphframes-checkpoints")
+spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/motif")
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
@@ -65,7 +64,7 @@ edge_counts.show()
 g = GraphFrame(nodes_df, edges_df)
 
 g.vertices.show(10)
-print(f"Node columns: {g.vertices.columns}")
+click.echo(f"Node columns: {g.vertices.columns}")
 
 g.edges.sample(0.0001).show(10)
 
@@ -82,7 +81,7 @@ valid_edge_count = (
 assert (
     edge_count == valid_edge_count
 ), f"Edge count {edge_count} != valid edge count {valid_edge_count}"
-print(f"Edge count: {edge_count:,} == Valid edge count: {valid_edge_count:,}")
+click.echo(f"Edge count: {edge_count:,} == Valid edge count: {valid_edge_count:,}")
 
 # G4: Continuous Triangles
 paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")

@@ -6,9 +6,11 @@
 # Batch Usage: spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
 #
 
-import re
-from typing import List, Tuple
+from __future__ import annotations
 
+import re
+
+import click
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
 from pyspark.sql import DataFrame, SparkSession
@@ -36,7 +38,7 @@ def remove_prefix(df: DataFrame) -> DataFrame:
 
 
 @F.udf(returnType=T.ArrayType(T.StringType()))
-def split_tags(tags: str) -> List[str]:
+def split_tags(tags: str) -> list[str]:
     if not tags:
         return []
     # Remove < and > and split into array
@@ -48,10 +50,9 @@ def split_tags(tags: str) -> List[str]:
 #
 
 spark: SparkSession = SparkSession.builder.appName("Stack Exchange Graph Builder").getOrCreate()
-sc = spark.sparkContext
-sc.setCheckpointDir("/tmp/graphframes-checkpoints")
+spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/stackexchange")
 
-print("Loading data for stats.meta.stackexchange.com ...")
+click.echo("Loading data for stats.meta.stackexchange.com ...")
 
 
 #
@@ -63,7 +64,7 @@ posts_df: DataFrame = (
     .options(rootTag="posts")
     .load(f"{BASE_PATH}/Posts.xml")
 )
-print(f"\nTotal Posts:       {posts_df.count():,}")
+click.echo(f"\nTotal Posts:       {posts_df.count():,}")
 
 # Remove the _ prefix from field names
 posts_df = remove_prefix(posts_df)
@@ -85,14 +86,14 @@ posts_df = (
 # Do the questions look ok? Questions have NO parent ID and DO have a Title
 questions_df: DataFrame = posts_df.filter(posts_df.ParentId.isNull())
 questions_df = questions_df.withColumn("Type", F.lit("Question")).cache()
-print(f"\nTotal questions: {questions_df.count():,}\n")
+click.echo(f"\nTotal questions: {questions_df.count():,}\n")
 
 questions_df.select("ParentId", "Title", "Body").show(10)
 
 # Answers DO have a ParentId parent post and no Title
 answers_df: DataFrame = posts_df.filter(posts_df.ParentId.isNotNull())
 answers_df = answers_df.withColumn("Type", F.lit("Answer")).cache()
-print(f"\nTotal answers: {answers_df.count():,}\n")
+click.echo(f"\nTotal answers: {answers_df.count():,}\n")
 
 answers_df.select("ParentId", "Title", "Body").show(10)
 
@@ -107,7 +108,7 @@ post_links_df = (
     .options(rootTag="postlinks")
     .load(f"{BASE_PATH}/PostLinks.xml")
 )
-print(f"Total PostLinks:   {post_links_df.count():,}")
+click.echo(f"Total PostLinks:   {post_links_df.count():,}")
 
 # Remove the _ prefix from field names
 post_links_df = (
@@ -132,7 +133,7 @@ post_history_df = (
     .options(rootTag="posthistory")
     .load(f"{BASE_PATH}/PostHistory.xml")
 )
-print(f"Total PostHistory: {post_history_df.count():,}")
+click.echo(f"Total PostHistory: {post_history_df.count():,}")
 
 # Remove the _ prefix from field names
 post_history_df = remove_prefix(post_history_df).withColumn("Type", F.lit("PostHistory"))
@@ -148,7 +149,7 @@ comments_df = (
     .options(rootTag="comments")
     .load(f"{BASE_PATH}/Comments.xml")
 )
-print(f"Total Comments:    {comments_df.count():,}")
+click.echo(f"Total Comments:    {comments_df.count():,}")
 
 # Remove the _ prefix from field names
 comments_df = remove_prefix(comments_df).withColumn("Type", F.lit("Comment"))
@@ -164,7 +165,7 @@ users_df = (
     .options(rootTag="users")
     .load(f"{BASE_PATH}/Users.xml")
 )
-print(f"Total Users:       {users_df.count():,}")
+click.echo(f"Total Users:       {users_df.count():,}")
 
 # Remove the _ prefix from field names
 users_df = remove_prefix(users_df).withColumn("Type", F.lit("User"))
@@ -180,7 +181,7 @@ votes_df = (
     .options(rootTag="votes")
     .load(f"{BASE_PATH}/Votes.xml")
 )
-print(f"Total Votes:       {votes_df.count():,}")
+click.echo(f"Total Votes:       {votes_df.count():,}")
 
 # Remove the _ prefix from field names
 votes_df = remove_prefix(votes_df).withColumn("Type", F.lit("Vote"))
@@ -213,7 +214,7 @@ tags_df = (
     .options(rootTag="tags")
     .load(f"{BASE_PATH}/Tags.xml")
 )
-print(f"Total Tags:        {tags_df.count():,}")
+click.echo(f"Total Tags:        {tags_df.count():,}")
 
 # Remove the _ prefix from field names
 tags_df = remove_prefix(tags_df).withColumn("Type", F.lit("Tag"))
@@ -229,7 +230,7 @@ badges_df = (
     .options(rootTag="badges")
     .load(f"{BASE_PATH}/Badges.xml")
 )
-print(f"Total Badges:      {badges_df.count():,}\n")
+click.echo(f"Total Badges:      {badges_df.count():,}\n")
 
 # Remove the _ prefix from field names
 badges_df = remove_prefix(badges_df).withColumn("Type", F.lit("Badge"))
@@ -239,7 +240,7 @@ badges_df = remove_prefix(badges_df).withColumn("Type", F.lit("Badge"))
 # Form the nodes from the UNION of posts, users, votes and their combined schemas
 #
 
-all_cols: List[Tuple[str, T.StructField]] = list(
+all_cols: list[tuple[str, T.StructField]] = list(
     set(
         list(zip(answers_df.columns, answers_df.schema))
         + list(zip(questions_df.columns, questions_df.schema))
@@ -251,10 +252,10 @@ all_cols: List[Tuple[str, T.StructField]] = list(
         + list(zip(badges_df.columns, badges_df.schema))
     )
 )
-all_column_names: List[str] = sorted([x[0] for x in all_cols])
+all_column_names: list[str] = sorted([x[0] for x in all_cols])
 
 
-def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]) -> DataFrame:
+def add_missing_columns(df: DataFrame, all_cols: list[tuple[str, T.StructField]]) -> DataFrame:
     """Add any missing columns from any DataFrame among several we want to merge."""
     for col_name, schema_field in all_cols:
         if col_name not in df.columns:
@@ -292,7 +293,7 @@ nodes_df: DataFrame = (
     .unionByName(badges_df)
     .distinct()
 )
-print(f"Total distinct nodes: {nodes_df.count():,}")
+click.echo(f"Total distinct nodes: {nodes_df.count():,}")
 
 # Now add a unique lowercase 'id' field - standard for GraphFrames - moving the original...
 # Stack Exchange Id to StackId
@@ -384,8 +385,8 @@ cast_for_edge_df: DataFrame = src_vote_df.join(
     # All edges have a 'relationship' field
     F.lit("CastFor").alias("relationship"),
 )
-print(f"Total CastFor edges: {cast_for_edge_df.count():,}")
-print(f"Percentage of linked votes: {cast_for_edge_df.count() / votes_df.count():.2%}\n")
+click.echo(f"Total CastFor edges: {cast_for_edge_df.count():,}")
+click.echo(f"Percentage of linked votes: {cast_for_edge_df.count() / votes_df.count():.2%}\n")
 
 
 #
@@ -407,8 +408,8 @@ user_asks_edges_df: DataFrame = questions_asked_df.join(
     # All edges have a 'relationship' field
     "relationship",
 )
-print(f"Total Asks edges: {user_asks_edges_df.count():,}")
-print(
+click.echo(f"Total Asks edges: {user_asks_edges_df.count():,}")
+click.echo(
     f"Percentage of asked questions linked to users: {user_asks_edges_df.count() / questions_df.count():.2%}\n"
 )
 
@@ -432,8 +433,8 @@ user_answers_edges_df = user_answers_df.join(
     # All edges have a 'relationship' field
     "relationship",
 )
-print(f"Total User Answers edges: {user_answers_edges_df.count():,}")
-print(
+click.echo(f"Total User Answers edges: {user_answers_edges_df.count():,}")
+click.echo(
     f"Percentage of answers linked to users: {user_answers_edges_df.count() / answers_df.count():.2%}\n"
 )
 
@@ -457,8 +458,8 @@ question_answers_edges_df: DataFrame = src_answers_df.join(
     # All edges have a 'relationship' field
     F.lit("Answers").alias("relationship"),
 )
-print(f"Total Posts Answers edges: {question_answers_edges_df.count():,}")
-print(
+click.echo(f"Total Posts Answers edges: {question_answers_edges_df.count():,}")
+click.echo(
     f"Percentage of linked answers: {question_answers_edges_df.count() / answers_df.count():.2%}\n"
 )
 
@@ -482,8 +483,8 @@ tags_edge_df: DataFrame = src_tags_df.join(
     # All edges have a 'relationship' field
     F.lit("Tags").alias("relationship"),
 )
-print(f"Total Tags edges: {tags_edge_df.count():,}")
-print(f"Percentage of linked tags: {tags_edge_df.count() / posts_df.count():.2%}\n")
+click.echo(f"Total Tags edges: {tags_edge_df.count():,}")
+click.echo(f"Percentage of linked tags: {tags_edge_df.count() / posts_df.count():.2%}\n")
 
 
 #
@@ -505,8 +506,8 @@ earns_edges_df = earns_edges_df.join(
     # All edges have a 'relationship' field
     "relationship",
 )
-print(f"Total Earns edges: {earns_edges_df.count():,}")
-print(f"Percentage of earned badges: {earns_edges_df.count() / badges_df.count():.2%}\n")
+click.echo(f"Total Earns edges: {earns_edges_df.count():,}")
+click.echo(f"Percentage of earned badges: {earns_edges_df.count() / badges_df.count():.2%}\n")
 
 
 #
@@ -543,16 +544,18 @@ duplicates_edge_df: DataFrame = (
     .withColumn("relationship", F.lit("Duplicates"))
     .select("src", "dst", "relationship")
 )
-print(f"Total Duplicates edges: {duplicates_edge_df.count():,}")
-print(f"Percentage of duplicate posts: {duplicates_edge_df.count() / post_links_df.count():.2%}\n")
+click.echo(f"Total Duplicates edges: {duplicates_edge_df.count():,}")
+click.echo(
+    f"Percentage of duplicate posts: {duplicates_edge_df.count() / post_links_df.count():.2%}\n"
+)
 
 linked_edge_df = (
     raw_links_edge_df.filter(F.col("LinkType") == "Linked")
     .withColumn("relationship", F.lit("Links"))
     .select("src", "dst", "relationship")
 )
-print(f"Total Links edges: {linked_edge_df.count():,}")
-print(f"Percentage of linked posts: {linked_edge_df.count() / post_links_df.count():.2%}\n")
+click.echo(f"Total Links edges: {linked_edge_df.count():,}")
+click.echo(f"Percentage of linked posts: {linked_edge_df.count() / post_links_df.count():.2%}\n")
 
 
 #
@@ -592,4 +595,4 @@ EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
 relationships_df.write.mode("overwrite").parquet(EDGES_PATH)
 
 spark.stop()
-print("Spark stopped.")
+click.echo("Spark stopped.")
