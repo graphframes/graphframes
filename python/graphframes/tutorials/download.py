@@ -19,7 +19,7 @@ import requests  # type: ignore
 @click.option(
     "--extract/--no-extract", default=True, help="Whether to extract the archive after download"
 )
-def download_stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
+def stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
     """Download Stack Exchange archive for a given SUBDOMAIN.
 
     Example: python/graphframes/tutorials/download.py stats.meta
@@ -68,4 +68,4 @@ def download_stackexchange(subdomain: str, data_dir: str, extract: bool) -> None
 
 
 if __name__ == "__main__":
-    download_stackexchange()
+    stackexchange()
