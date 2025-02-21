@@ -1,17 +1,18 @@
-# graphframes
+<img src="docs/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="400"/>
+
 [![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
 [![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
 [![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
-
-<center>
-    <img src="https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/img/graphframes_logo.png" alt="GraphFrames Logo" width="300"/>
-</center>
 
 # GraphFrames: DataFrame-based Graphs
 
 This is a package for DataFrame-based graphs on top of Apache Spark. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
 You can find user guide and API docs at https://graphframes.github.io/graphframes
+
+## GraphFrames is Back!
+
+This projects was dormant for some time, but we are happy to announce that it is now back in active development! We are working on a new release with many bug fixes and improvements. We are also working on a new website and documentation.
 
 ## Installation and Quick-Start
 
@@ -135,9 +136,13 @@ g.connectedComponents().show()
 To learn more about GraphFrames, check out these resources:
 * [GraphFrames Documentation](https://graphframes.github.io/graphframes)
 * [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
-* [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
 * [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
 * [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
+
+## Community Resources
+
+* [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
+* [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
 
 ## `graphframes-py` is our Official PyPi Package
 
