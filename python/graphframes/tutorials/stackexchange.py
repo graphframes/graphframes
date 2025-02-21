@@ -5,8 +5,9 @@
 #
 # Batch Usage: spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
 #
+from __future__ import annotations
+
 import re
-from typing import List, Tuple
 
 import click
 import pyspark.sql.functions as F
@@ -36,7 +37,7 @@ def remove_prefix(df: DataFrame) -> DataFrame:
 
 
 @F.udf(returnType=T.ArrayType(T.StringType()))
-def split_tags(tags: str) -> List[str]:
+def split_tags(tags: str) -> list[str]:
     if not tags:
         return []
     # Remove < and > and split into array
@@ -238,7 +239,7 @@ badges_df = remove_prefix(badges_df).withColumn("Type", F.lit("Badge"))
 # Form the nodes from the UNION of posts, users, votes and their combined schemas
 #
 
-all_cols: List[Tuple[str, T.StructField]] = list(
+all_cols: list[tuple[str, T.StructField]] = list(
     set(
         list(zip(answers_df.columns, answers_df.schema))
         + list(zip(questions_df.columns, questions_df.schema))
@@ -250,10 +251,10 @@ all_cols: List[Tuple[str, T.StructField]] = list(
         + list(zip(badges_df.columns, badges_df.schema))
     )
 )
-all_column_names: List[str] = sorted([x[0] for x in all_cols])
+all_column_names: list[str] = sorted([x[0] for x in all_cols])
 
 
-def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]) -> DataFrame:
+def add_missing_columns(df: DataFrame, all_cols: list[tuple[str, T.StructField]]) -> DataFrame:
     """Add any missing columns from any DataFrame among several we want to merge."""
     for col_name, schema_field in all_cols:
         if col_name not in df.columns:
@@ -543,7 +544,9 @@ duplicates_edge_df: DataFrame = (
     .select("src", "dst", "relationship")
 )
 click.echo(f"Total Duplicates edges: {duplicates_edge_df.count():,}")
-click.echo(f"Percentage of duplicate posts: {duplicates_edge_df.count() / post_links_df.count():.2%}\n")
+click.echo(
+    f"Percentage of duplicate posts: {duplicates_edge_df.count() / post_links_df.count():.2%}\n"
+)
 
 linked_edge_df = (
     raw_links_edge_df.filter(F.col("LinkType") == "Linked")
