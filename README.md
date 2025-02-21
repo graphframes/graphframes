@@ -12,7 +12,7 @@ You can find user guide and API docs at https://graphframes.github.io/graphframe
 
 ## GraphFrames is Back!
 
-This projects was dormant for some time, but we are happy to announce that it is now back in active development! We are working on a new release with many bug fixes and improvements. We are also working on a new website and documentation.
+This projects was in maintenance mode for some time, but we are happy to announce that it is now back in active development! We are working on a new release with many bug fixes and improvements. We are also working on a new website and documentation.
 
 ## Installation and Quick-Start
 
