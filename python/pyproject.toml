@@ -34,6 +34,14 @@ black = "^25.1.0"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
 
+[tool.poetry.group.tutorials.dependencies]
+py7zr = "^0.22.0"
+requests = "^2.32.3"
+click = "^8.1.8"
+
+[tool.poetry.scripts]
+graphframes = "graphframes.console:main"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
@@ -42,6 +50,9 @@ build-backend = "poetry.core.masonry.api"
 line-length = 100
 target-version = ["py39"]
 include = ["graphframes"]
+
+[tool.flake8]
+max-line-length = 100
 
 [tool.isort]
 profile = "black"
