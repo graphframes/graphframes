@@ -26,30 +26,27 @@ We are going to mine motifs using Stack Exchange data. The Stack Exchange networ
 
 # Download the Stack Exchange Dump for [stats.meta](https://stats.meta.stackexchange.com)
 
-The Python tutorials include a CLI utility at [`python/graphframes/tutorials/download.py`](python/graphframes/tutorials/download.py) for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The script takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/tutorials/data` folder.
+The Python tutorials include a CLI utility at `graphframes stackexchange`for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The command takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/tutorials/data` folder.
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-Usage: download.py [OPTIONS] SUBDOMAIN
+Usage: graphframes [OPTIONS] COMMAND [ARGS]...
 
-  Download Stack Exchange archive for a given SUBDOMAIN.
-
-  Example: python/graphframes/tutorials/download.py stats.meta
-
-  Note: This won't work for stackoverflow.com archives due to size.
+  GraphFrames CLI: a collection of commands for graphframes.
 
 Options:
-  --data-dir TEXT           Directory to store downloaded files
-  --extract / --no-extract  Whether to extract the archive after download
-  --help                    Show this message and exit.
+  --help  Show this message and exit.
+
+Commands:
+  stackexchange  Download Stack Exchange archive for a given SUBDOMAIN.
 {% endhighlight %}
 </div>
 
-Use `download.py` to download the Stack Exchange Data Dump for `stats.meta.stackexchange.com`.
+Use `graphframes stackexchange stats.meta` to download the Stack Exchange Data Dump for `stats.meta.stackexchange.com`.
 
 <div data-lang="bash" markdown="1">
 {% highlight bash %}
-$ python python/graphframes/tutorials/download.py stats.meta
+$ graphframes stackexchange stats.meta
 
 Downloading archive from <https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z>
 Downloading  [####################################]  100%
@@ -94,8 +91,8 @@ from graphframes import GraphFrame
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 
-
 # Initialize a SparkSession
+
 spark: SparkSession = (
     SparkSession.builder.appName("Stack Overflow Motif Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
@@ -106,6 +103,7 @@ sc: SparkContext = spark.sparkContext
 sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
 # Change me if you download a different stackexchange site
+
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
 BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 {% endhighlight %}
@@ -116,21 +114,25 @@ Load the nodes and edges of the graph from the `data` folder and count the types
 <div data-lang="python" markdown="1">
 {% highlight python %}
 #
-# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache. 
+# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache.
 #
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
+
 NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
 nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
 
 # Repartition the nodes to give our motif searches parallelism
+
 nodes_df = nodes_df.repartition(50).checkpoint().cache()
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
+
 EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
 edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
 
 # Repartition the edges to give our motif searches parallelism
+
 edges_df = edges_df.repartition(50).checkpoint().cache()
 {% endhighlight %}
 </div>
@@ -233,7 +235,6 @@ all_cols: List[Tuple[str, T.StructField]] = list(
 )
 all_column_names: List[str] = sorted([x[0] for x in all_cols])
 
-
 def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]) -> DataFrame:
     """Add any missing columns from any DataFrame among several we want to merge."""
     for col_name, schema_field in all_cols:
@@ -241,8 +242,8 @@ def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]
             df = df.withColumn(col_name, F.lit(None).cast(schema_field.dataType))
     return df
 
-
 # Now apply this function to each of your DataFrames to get a consistent schema
+
 posts_df = add_missing_columns(posts_df, all_cols).select(all_column_names)
 post_links_df = add_missing_columns(post_links_df, all_cols).select(all_column_names)
 users_df = add_missing_columns(users_df, all_cols).select(all_column_names)
@@ -286,6 +287,7 @@ The `GraphFrame` object is created and the node columns and edges are displayed.
 Node columns: ['id', 'AboutMe', 'AcceptedAnswerId', 'AccountId', 'AnswerCount', 'Body', 'Class', 'ClosedDate', 'CommentCount', 'CommunityOwnedDate', 'ContentLicense', 'Count', 'CreationDate', 'Date', 'DisplayName', 'DownVotes', 'ExcerptPostId', 'FavoriteCount', 'Id', 'IsModeratorOnly', 'IsRequired', 'LastAccessDate', 'LastActivityDate', 'LastEditDate', 'LastEditorDisplayName', 'LastEditorUserId', 'LinkTypeId', 'Location', 'Name', 'OwnerDisplayName', 'OwnerUserId', 'ParentId', 'PostId', 'PostTypeId', 'RelatedPostId', 'Reputation', 'Score', 'TagBased', 'TagName', 'Tags', 'Text', 'Title', 'Type', 'UpVotes', 'UserDisplayName', 'UserId', 'ViewCount', 'Views', 'VoteType', 'VoteTypeId', 'WebsiteUrl', 'WikiPostId', 'degree']
 
 # Edge DataFrame is simpler
+
 +--------------------+--------------------+------------+
 |                 src|                 dst|relationship|
 +--------------------+--------------------+------------+
@@ -320,6 +322,7 @@ valid_edge_count = (
 )
 
 # Just up and die if we have edges that point to non-existent nodes
+
 assert (
     edge_count == valid_edge_count
 ), f"Edge count {edge_count} != valid edge count {valid_edge_count}"
@@ -356,6 +359,7 @@ A complete description of the graph query language is in the [GraphFrames User G
 paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
 
 # Show the first path
+
 paths.show(3)
 {% endhighlight %}
 </div>
@@ -727,6 +731,7 @@ linked_vote_paths = paths.filter(
 )
 
 # Sanity check the count - it should match the table above
+
 linked_vote_paths.count()
 
 300017
@@ -756,7 +761,7 @@ linked_vote_counts = (
     .withColumnRenamed("count", "c_count")
 )
 linked_vote_counts.stat.corr("b_count", "c_count")
-0.4287709940689788 
+0.4287709940689788
 {% endhighlight %}
 
 We conclude there is a moderate correlation in the vote counts of linked questions. This makes sense. Note that this is only the fourth row, there are many more patterns to be examined and considered.
