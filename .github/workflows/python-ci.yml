@@ -39,7 +39,7 @@ jobs:
     - name: Build Python package and its dependencies
       working-directory: ./python
       run: |
-        poetry install
+        poetry install --with=dev
     - name: Test
       working-directory: ./python
       run: |
