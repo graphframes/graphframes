@@ -106,8 +106,8 @@ message ParallelPersonalizedPageRank {
 
 message Pregel {
   ColumnOrExpression agg_msgs = 1;
-  ColumnOrExpression send_msg_to_dst = 2;
-  ColumnOrExpression send_msg_to_src = 3;
+  repeated ColumnOrExpression send_msg_to_dst = 2;
+  repeated ColumnOrExpression send_msg_to_src = 3;
   int32 checkpoint_interval = 4;
   int32 max_iter = 5;
   string additional_col_name = 6;

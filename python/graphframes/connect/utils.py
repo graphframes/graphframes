@@ -20,11 +20,13 @@ def column_to_proto(col: Column, client: SparkConnectClient) -> bytes:
     assert isinstance(expr, Expression)
     return expr.to_plan(client).SerializeToString()
 
+
 def make_column_or_expr(col: Column | str, client: SparkConnectClient) -> ColumnOrExpression:
     if isinstance(col, Column):
         return ColumnOrExpression(col=column_to_proto(col, client))
     else:
         return ColumnOrExpression(expr=col)
+
 
 def make_str_or_long_id(str_or_long: str | int) -> StringOrLongID:
     if isinstance(str_or_long, str):

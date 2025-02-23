@@ -9,71 +9,69 @@ from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
 from google.protobuf import symbol_database as _symbol_database
 from google.protobuf.internal import builder as _builder
+
 _runtime_version.ValidateProtobufRuntimeVersion(
-    _runtime_version.Domain.PUBLIC,
-    5,
-    27,
-    1,
-    '',
-    'graphframes.proto'
+    _runtime_version.Domain.PUBLIC, 5, 27, 1, "", "graphframes.proto"
 )
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
 
-
-
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11graphframes.proto\x12\x1dorg.graphframes.connect.proto\"\xba\r\n\x0eGraphFramesAPI\x12\x1a\n\x08vertices\x18\x01 \x01(\x0cR\x08vertices\x12\x14\n\x05\x65\x64ges\x18\x02 \x01(\x0cR\x05\x65\x64ges\x12\x61\n\x12\x61ggregate_messages\x18\x03 \x01(\x0b\x32\x30.org.graphframes.connect.proto.AggregateMessagesH\x00R\x11\x61ggregateMessages\x12\x36\n\x03\x62\x66s\x18\x04 \x01(\x0b\x32\".org.graphframes.connect.proto.BFSH\x00R\x03\x62\x66s\x12g\n\x14\x63onnected_components\x18\x05 \x01(\x0b\x32\x32.org.graphframes.connect.proto.ConnectedComponentsH\x00R\x13\x63onnectedComponents\x12\x42\n\x07\x64\x65grees\x18\x06 \x01(\x0b\x32&.org.graphframes.connect.proto.DegreesH\x00R\x07\x64\x65grees\x12k\n\x16\x64rop_isolated_vertices\x18\x07 \x01(\x0b\x32\x33.org.graphframes.connect.proto.DropIsolatedVerticesH\x00R\x14\x64ropIsolatedVertices\x12O\n\x0c\x66ilter_edges\x18\x08 \x01(\x0b\x32*.org.graphframes.connect.proto.FilterEdgesH\x00R\x0b\x66ilterEdges\x12X\n\x0f\x66ilter_vertices\x18\t \x01(\x0b\x32-.org.graphframes.connect.proto.FilterVerticesH\x00R\x0e\x66ilterVertices\x12\x39\n\x04\x66ind\x18\n \x01(\x0b\x32#.org.graphframes.connect.proto.FindH\x00R\x04\x66ind\x12I\n\nin_degrees\x18\x0b \x01(\x0b\x32(.org.graphframes.connect.proto.InDegreesH\x00R\tinDegrees\x12^\n\x11label_propagation\x18\x0c \x01(\x0b\x32/.org.graphframes.connect.proto.LabelPropagationH\x00R\x10labelPropagation\x12L\n\x0bout_degrees\x18\r \x01(\x0b\x32).org.graphframes.connect.proto.OutDegreesH\x00R\noutDegrees\x12\x46\n\tpage_rank\x18\x0e \x01(\x0b\x32\'.org.graphframes.connect.proto.PageRankH\x00R\x08pageRank\x12\x84\x01\n\x1fparallel_personalized_page_rank\x18\x0f \x01(\x0b\x32;.org.graphframes.connect.proto.ParallelPersonalizedPageRankH\x00R\x1cparallelPersonalizedPageRank\x12?\n\x06pregel\x18\x10 \x01(\x0b\x32%.org.graphframes.connect.proto.PregelH\x00R\x06pregel\x12U\n\x0eshortest_paths\x18\x11 \x01(\x0b\x32,.org.graphframes.connect.proto.ShortestPathsH\x00R\rshortestPaths\x12\x80\x01\n\x1dstrongly_connected_components\x18\x12 \x01(\x0b\x32:.org.graphframes.connect.proto.StronglyConnectedComponentsH\x00R\x1bstronglyConnectedComponents\x12P\n\rsvd_plus_plus\x18\x13 \x01(\x0b\x32*.org.graphframes.connect.proto.SVDPlusPlusH\x00R\x0bsvdPlusPlus\x12U\n\x0etriangle_count\x18\x14 \x01(\x0b\x32,.org.graphframes.connect.proto.TriangleCountH\x00R\rtriangleCount\x12\x45\n\x08triplets\x18\x15 \x01(\x0b\x32\'.org.graphframes.connect.proto.TripletsH\x00R\x08tripletsB\x08\n\x06method\"M\n\x12\x43olumnOrExpression\x12\x12\n\x03\x63ol\x18\x01 \x01(\x0cH\x00R\x03\x63ol\x12\x14\n\x04\x65xpr\x18\x02 \x01(\tH\x00R\x04\x65xprB\r\n\x0b\x63ol_or_expr\"P\n\x0eStringOrLongID\x12\x19\n\x07long_id\x18\x01 \x01(\x03H\x00R\x06longId\x12\x1d\n\tstring_id\x18\x02 \x01(\tH\x00R\x08stringIdB\x04\n\x02id\"\xaf\x02\n\x11\x41ggregateMessages\x12J\n\x07\x61gg_col\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x06\x61ggCol\x12V\n\x0bsend_to_src\x18\x02 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionH\x00R\tsendToSrc\x88\x01\x01\x12V\n\x0bsend_to_dst\x18\x03 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionH\x01R\tsendToDst\x88\x01\x01\x42\x0e\n\x0c_send_to_srcB\x0e\n\x0c_send_to_dst\"\x9d\x02\n\x03\x42\x46S\x12N\n\tfrom_expr\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x08\x66romExpr\x12J\n\x07to_expr\x18\x02 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x06toExpr\x12R\n\x0b\x65\x64ge_filter\x18\x03 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\nedgeFilter\x12&\n\x0fmax_path_length\x18\x04 \x01(\x05R\rmaxPathLength\"\x95\x01\n\x13\x43onnectedComponents\x12\x1c\n\talgorithm\x18\x01 \x01(\tR\talgorithm\x12/\n\x13\x63heckpoint_interval\x18\x02 \x01(\x05R\x12\x63heckpointInterval\x12/\n\x13\x62roadcast_threshold\x18\x03 \x01(\x05R\x12\x62roadcastThreshold\"\t\n\x07\x44\x65grees\"\x16\n\x14\x44ropIsolatedVertices\"^\n\x0b\x46ilterEdges\x12O\n\tcondition\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\tcondition\"a\n\x0e\x46ilterVertices\x12O\n\tcondition\x18\x02 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\tcondition\" \n\x04\x46ind\x12\x18\n\x07pattern\x18\x01 \x01(\tR\x07pattern\"\x0b\n\tInDegrees\"-\n\x10LabelPropagation\x12\x19\n\x08max_iter\x18\x01 \x01(\x05R\x07maxIter\"\x0c\n\nOutDegrees\"\xc3\x01\n\x08PageRank\x12+\n\x11reset_probability\x18\x01 \x01(\x01R\x10resetProbability\x12O\n\tsource_id\x18\x02 \x01(\x0b\x32-.org.graphframes.connect.proto.StringOrLongIDH\x00R\x08sourceId\x88\x01\x01\x12\x19\n\x08max_iter\x18\x03 \x01(\x05R\x07maxIter\x12\x10\n\x03tol\x18\x04 \x01(\x01R\x03tolB\x0c\n\n_source_id\"\xb4\x01\n\x1cParallelPersonalizedPageRank\x12+\n\x11reset_probability\x18\x01 \x01(\x01R\x10resetProbability\x12L\n\nsource_ids\x18\x02 \x03(\x0b\x32-.org.graphframes.connect.proto.StringOrLongIDR\tsourceIds\x12\x19\n\x08max_iter\x18\x03 \x01(\x05R\x07maxIter\"\xd0\x04\n\x06Pregel\x12L\n\x08\x61gg_msgs\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x07\x61ggMsgs\x12X\n\x0fsend_msg_to_dst\x18\x02 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x0csendMsgToDst\x12X\n\x0fsend_msg_to_src\x18\x03 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x0csendMsgToSrc\x12/\n\x13\x63heckpoint_interval\x18\x04 \x01(\x05R\x12\x63heckpointInterval\x12\x19\n\x08max_iter\x18\x05 \x01(\x05R\x07maxIter\x12.\n\x13\x61\x64\x64itional_col_name\x18\x06 \x01(\tR\x11\x61\x64\x64itionalColName\x12g\n\x16\x61\x64\x64itional_col_initial\x18\x07 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x14\x61\x64\x64itionalColInitial\x12_\n\x12\x61\x64\x64itional_col_upd\x18\x08 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x10\x61\x64\x64itionalColUpd\"\\\n\rShortestPaths\x12K\n\tlandmarks\x18\x01 \x03(\x0b\x32-.org.graphframes.connect.proto.StringOrLongIDR\tlandmarks\"8\n\x1bStronglyConnectedComponents\x12\x19\n\x08max_iter\x18\x01 \x01(\x05R\x07maxIter\"\xd6\x01\n\x0bSVDPlusPlus\x12\x12\n\x04rank\x18\x01 \x01(\x05R\x04rank\x12\x19\n\x08max_iter\x18\x02 \x01(\x05R\x07maxIter\x12\x1b\n\tmin_value\x18\x03 \x01(\x01R\x08minValue\x12\x1b\n\tmax_value\x18\x04 \x01(\x01R\x08maxValue\x12\x16\n\x06gamma1\x18\x05 \x01(\x01R\x06gamma1\x12\x16\n\x06gamma2\x18\x06 \x01(\x01R\x06gamma2\x12\x16\n\x06gamma6\x18\x07 \x01(\x01R\x06gamma6\x12\x16\n\x06gamma7\x18\x08 \x01(\x01R\x06gamma7\"\x0f\n\rTriangleCount\"\n\n\x08TripletsB\xd2\x01\n!com.org.graphframes.connect.protoB\x10GraphframesProtoH\x01P\x01\xa0\x01\x01\xa2\x02\x04OGCP\xaa\x02\x1dOrg.Graphframes.Connect.Proto\xca\x02\x1dOrg\\Graphframes\\Connect\\Proto\xe2\x02)Org\\Graphframes\\Connect\\Proto\\GPBMetadata\xea\x02 Org::Graphframes::Connect::Protob\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
+    b'\n\x11graphframes.proto\x12\x1dorg.graphframes.connect.proto"\xba\r\n\x0eGraphFramesAPI\x12\x1a\n\x08vertices\x18\x01 \x01(\x0cR\x08vertices\x12\x14\n\x05\x65\x64ges\x18\x02 \x01(\x0cR\x05\x65\x64ges\x12\x61\n\x12\x61ggregate_messages\x18\x03 \x01(\x0b\x32\x30.org.graphframes.connect.proto.AggregateMessagesH\x00R\x11\x61ggregateMessages\x12\x36\n\x03\x62\x66s\x18\x04 \x01(\x0b\x32".org.graphframes.connect.proto.BFSH\x00R\x03\x62\x66s\x12g\n\x14\x63onnected_components\x18\x05 \x01(\x0b\x32\x32.org.graphframes.connect.proto.ConnectedComponentsH\x00R\x13\x63onnectedComponents\x12\x42\n\x07\x64\x65grees\x18\x06 \x01(\x0b\x32&.org.graphframes.connect.proto.DegreesH\x00R\x07\x64\x65grees\x12k\n\x16\x64rop_isolated_vertices\x18\x07 \x01(\x0b\x32\x33.org.graphframes.connect.proto.DropIsolatedVerticesH\x00R\x14\x64ropIsolatedVertices\x12O\n\x0c\x66ilter_edges\x18\x08 \x01(\x0b\x32*.org.graphframes.connect.proto.FilterEdgesH\x00R\x0b\x66ilterEdges\x12X\n\x0f\x66ilter_vertices\x18\t \x01(\x0b\x32-.org.graphframes.connect.proto.FilterVerticesH\x00R\x0e\x66ilterVertices\x12\x39\n\x04\x66ind\x18\n \x01(\x0b\x32#.org.graphframes.connect.proto.FindH\x00R\x04\x66ind\x12I\n\nin_degrees\x18\x0b \x01(\x0b\x32(.org.graphframes.connect.proto.InDegreesH\x00R\tinDegrees\x12^\n\x11label_propagation\x18\x0c \x01(\x0b\x32/.org.graphframes.connect.proto.LabelPropagationH\x00R\x10labelPropagation\x12L\n\x0bout_degrees\x18\r \x01(\x0b\x32).org.graphframes.connect.proto.OutDegreesH\x00R\noutDegrees\x12\x46\n\tpage_rank\x18\x0e \x01(\x0b\x32\'.org.graphframes.connect.proto.PageRankH\x00R\x08pageRank\x12\x84\x01\n\x1fparallel_personalized_page_rank\x18\x0f \x01(\x0b\x32;.org.graphframes.connect.proto.ParallelPersonalizedPageRankH\x00R\x1cparallelPersonalizedPageRank\x12?\n\x06pregel\x18\x10 \x01(\x0b\x32%.org.graphframes.connect.proto.PregelH\x00R\x06pregel\x12U\n\x0eshortest_paths\x18\x11 \x01(\x0b\x32,.org.graphframes.connect.proto.ShortestPathsH\x00R\rshortestPaths\x12\x80\x01\n\x1dstrongly_connected_components\x18\x12 \x01(\x0b\x32:.org.graphframes.connect.proto.StronglyConnectedComponentsH\x00R\x1bstronglyConnectedComponents\x12P\n\rsvd_plus_plus\x18\x13 \x01(\x0b\x32*.org.graphframes.connect.proto.SVDPlusPlusH\x00R\x0bsvdPlusPlus\x12U\n\x0etriangle_count\x18\x14 \x01(\x0b\x32,.org.graphframes.connect.proto.TriangleCountH\x00R\rtriangleCount\x12\x45\n\x08triplets\x18\x15 \x01(\x0b\x32\'.org.graphframes.connect.proto.TripletsH\x00R\x08tripletsB\x08\n\x06method"M\n\x12\x43olumnOrExpression\x12\x12\n\x03\x63ol\x18\x01 \x01(\x0cH\x00R\x03\x63ol\x12\x14\n\x04\x65xpr\x18\x02 \x01(\tH\x00R\x04\x65xprB\r\n\x0b\x63ol_or_expr"P\n\x0eStringOrLongID\x12\x19\n\x07long_id\x18\x01 \x01(\x03H\x00R\x06longId\x12\x1d\n\tstring_id\x18\x02 \x01(\tH\x00R\x08stringIdB\x04\n\x02id"\xaf\x02\n\x11\x41ggregateMessages\x12J\n\x07\x61gg_col\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x06\x61ggCol\x12V\n\x0bsend_to_src\x18\x02 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionH\x00R\tsendToSrc\x88\x01\x01\x12V\n\x0bsend_to_dst\x18\x03 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionH\x01R\tsendToDst\x88\x01\x01\x42\x0e\n\x0c_send_to_srcB\x0e\n\x0c_send_to_dst"\x9d\x02\n\x03\x42\x46S\x12N\n\tfrom_expr\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x08\x66romExpr\x12J\n\x07to_expr\x18\x02 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x06toExpr\x12R\n\x0b\x65\x64ge_filter\x18\x03 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\nedgeFilter\x12&\n\x0fmax_path_length\x18\x04 \x01(\x05R\rmaxPathLength"\x95\x01\n\x13\x43onnectedComponents\x12\x1c\n\talgorithm\x18\x01 \x01(\tR\talgorithm\x12/\n\x13\x63heckpoint_interval\x18\x02 \x01(\x05R\x12\x63heckpointInterval\x12/\n\x13\x62roadcast_threshold\x18\x03 \x01(\x05R\x12\x62roadcastThreshold"\t\n\x07\x44\x65grees"\x16\n\x14\x44ropIsolatedVertices"^\n\x0b\x46ilterEdges\x12O\n\tcondition\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\tcondition"a\n\x0e\x46ilterVertices\x12O\n\tcondition\x18\x02 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\tcondition" \n\x04\x46ind\x12\x18\n\x07pattern\x18\x01 \x01(\tR\x07pattern"\x0b\n\tInDegrees"-\n\x10LabelPropagation\x12\x19\n\x08max_iter\x18\x01 \x01(\x05R\x07maxIter"\x0c\n\nOutDegrees"\xe2\x01\n\x08PageRank\x12+\n\x11reset_probability\x18\x01 \x01(\x01R\x10resetProbability\x12O\n\tsource_id\x18\x02 \x01(\x0b\x32-.org.graphframes.connect.proto.StringOrLongIDH\x00R\x08sourceId\x88\x01\x01\x12\x1e\n\x08max_iter\x18\x03 \x01(\x05H\x01R\x07maxIter\x88\x01\x01\x12\x15\n\x03tol\x18\x04 \x01(\x01H\x02R\x03tol\x88\x01\x01\x42\x0c\n\n_source_idB\x0b\n\t_max_iterB\x06\n\x04_tol"\xb4\x01\n\x1cParallelPersonalizedPageRank\x12+\n\x11reset_probability\x18\x01 \x01(\x01R\x10resetProbability\x12L\n\nsource_ids\x18\x02 \x03(\x0b\x32-.org.graphframes.connect.proto.StringOrLongIDR\tsourceIds\x12\x19\n\x08max_iter\x18\x03 \x01(\x05R\x07maxIter"\xd0\x04\n\x06Pregel\x12L\n\x08\x61gg_msgs\x18\x01 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x07\x61ggMsgs\x12X\n\x0fsend_msg_to_dst\x18\x02 \x03(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x0csendMsgToDst\x12X\n\x0fsend_msg_to_src\x18\x03 \x03(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x0csendMsgToSrc\x12/\n\x13\x63heckpoint_interval\x18\x04 \x01(\x05R\x12\x63heckpointInterval\x12\x19\n\x08max_iter\x18\x05 \x01(\x05R\x07maxIter\x12.\n\x13\x61\x64\x64itional_col_name\x18\x06 \x01(\tR\x11\x61\x64\x64itionalColName\x12g\n\x16\x61\x64\x64itional_col_initial\x18\x07 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x14\x61\x64\x64itionalColInitial\x12_\n\x12\x61\x64\x64itional_col_upd\x18\x08 \x01(\x0b\x32\x31.org.graphframes.connect.proto.ColumnOrExpressionR\x10\x61\x64\x64itionalColUpd"\\\n\rShortestPaths\x12K\n\tlandmarks\x18\x01 \x03(\x0b\x32-.org.graphframes.connect.proto.StringOrLongIDR\tlandmarks"8\n\x1bStronglyConnectedComponents\x12\x19\n\x08max_iter\x18\x01 \x01(\x05R\x07maxIter"\xd6\x01\n\x0bSVDPlusPlus\x12\x12\n\x04rank\x18\x01 \x01(\x05R\x04rank\x12\x19\n\x08max_iter\x18\x02 \x01(\x05R\x07maxIter\x12\x1b\n\tmin_value\x18\x03 \x01(\x01R\x08minValue\x12\x1b\n\tmax_value\x18\x04 \x01(\x01R\x08maxValue\x12\x16\n\x06gamma1\x18\x05 \x01(\x01R\x06gamma1\x12\x16\n\x06gamma2\x18\x06 \x01(\x01R\x06gamma2\x12\x16\n\x06gamma6\x18\x07 \x01(\x01R\x06gamma6\x12\x16\n\x06gamma7\x18\x08 \x01(\x01R\x06gamma7"\x0f\n\rTriangleCount"\n\n\x08TripletsB\xd2\x01\n!com.org.graphframes.connect.protoB\x10GraphframesProtoH\x01P\x01\xa0\x01\x01\xa2\x02\x04OGCP\xaa\x02\x1dOrg.Graphframes.Connect.Proto\xca\x02\x1dOrg\\Graphframes\\Connect\\Proto\xe2\x02)Org\\Graphframes\\Connect\\Proto\\GPBMetadata\xea\x02 Org::Graphframes::Connect::Protob\x06proto3'
+)
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'graphframes_pb2', _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "graphframes_pb2", _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-  _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'\n!com.org.graphframes.connect.protoB\020GraphframesProtoH\001P\001\240\001\001\242\002\004OGCP\252\002\035Org.Graphframes.Connect.Proto\312\002\035Org\\Graphframes\\Connect\\Proto\342\002)Org\\Graphframes\\Connect\\Proto\\GPBMetadata\352\002 Org::Graphframes::Connect::Proto'
-  _globals['_GRAPHFRAMESAPI']._serialized_start=53
-  _globals['_GRAPHFRAMESAPI']._serialized_end=1775
-  _globals['_COLUMNOREXPRESSION']._serialized_start=1777
-  _globals['_COLUMNOREXPRESSION']._serialized_end=1854
-  _globals['_STRINGORLONGID']._serialized_start=1856
-  _globals['_STRINGORLONGID']._serialized_end=1936
-  _globals['_AGGREGATEMESSAGES']._serialized_start=1939
-  _globals['_AGGREGATEMESSAGES']._serialized_end=2242
-  _globals['_BFS']._serialized_start=2245
-  _globals['_BFS']._serialized_end=2530
-  _globals['_CONNECTEDCOMPONENTS']._serialized_start=2533
-  _globals['_CONNECTEDCOMPONENTS']._serialized_end=2682
-  _globals['_DEGREES']._serialized_start=2684
-  _globals['_DEGREES']._serialized_end=2693
-  _globals['_DROPISOLATEDVERTICES']._serialized_start=2695
-  _globals['_DROPISOLATEDVERTICES']._serialized_end=2717
-  _globals['_FILTEREDGES']._serialized_start=2719
-  _globals['_FILTEREDGES']._serialized_end=2813
-  _globals['_FILTERVERTICES']._serialized_start=2815
-  _globals['_FILTERVERTICES']._serialized_end=2912
-  _globals['_FIND']._serialized_start=2914
-  _globals['_FIND']._serialized_end=2946
-  _globals['_INDEGREES']._serialized_start=2948
-  _globals['_INDEGREES']._serialized_end=2959
-  _globals['_LABELPROPAGATION']._serialized_start=2961
-  _globals['_LABELPROPAGATION']._serialized_end=3006
-  _globals['_OUTDEGREES']._serialized_start=3008
-  _globals['_OUTDEGREES']._serialized_end=3020
-  _globals['_PAGERANK']._serialized_start=3023
-  _globals['_PAGERANK']._serialized_end=3218
-  _globals['_PARALLELPERSONALIZEDPAGERANK']._serialized_start=3221
-  _globals['_PARALLELPERSONALIZEDPAGERANK']._serialized_end=3401
-  _globals['_PREGEL']._serialized_start=3404
-  _globals['_PREGEL']._serialized_end=3996
-  _globals['_SHORTESTPATHS']._serialized_start=3998
-  _globals['_SHORTESTPATHS']._serialized_end=4090
-  _globals['_STRONGLYCONNECTEDCOMPONENTS']._serialized_start=4092
-  _globals['_STRONGLYCONNECTEDCOMPONENTS']._serialized_end=4148
-  _globals['_SVDPLUSPLUS']._serialized_start=4151
-  _globals['_SVDPLUSPLUS']._serialized_end=4365
-  _globals['_TRIANGLECOUNT']._serialized_start=4367
-  _globals['_TRIANGLECOUNT']._serialized_end=4382
-  _globals['_TRIPLETS']._serialized_start=4384
-  _globals['_TRIPLETS']._serialized_end=4394
+    _globals["DESCRIPTOR"]._loaded_options = None
+    _globals["DESCRIPTOR"]._serialized_options = (
+        b"\n!com.org.graphframes.connect.protoB\020GraphframesProtoH\001P\001\240\001\001\242\002\004OGCP\252\002\035Org.Graphframes.Connect.Proto\312\002\035Org\\Graphframes\\Connect\\Proto\342\002)Org\\Graphframes\\Connect\\Proto\\GPBMetadata\352\002 Org::Graphframes::Connect::Proto"
+    )
+    _globals["_GRAPHFRAMESAPI"]._serialized_start = 53
+    _globals["_GRAPHFRAMESAPI"]._serialized_end = 1775
+    _globals["_COLUMNOREXPRESSION"]._serialized_start = 1777
+    _globals["_COLUMNOREXPRESSION"]._serialized_end = 1854
+    _globals["_STRINGORLONGID"]._serialized_start = 1856
+    _globals["_STRINGORLONGID"]._serialized_end = 1936
+    _globals["_AGGREGATEMESSAGES"]._serialized_start = 1939
+    _globals["_AGGREGATEMESSAGES"]._serialized_end = 2242
+    _globals["_BFS"]._serialized_start = 2245
+    _globals["_BFS"]._serialized_end = 2530
+    _globals["_CONNECTEDCOMPONENTS"]._serialized_start = 2533
+    _globals["_CONNECTEDCOMPONENTS"]._serialized_end = 2682
+    _globals["_DEGREES"]._serialized_start = 2684
+    _globals["_DEGREES"]._serialized_end = 2693
+    _globals["_DROPISOLATEDVERTICES"]._serialized_start = 2695
+    _globals["_DROPISOLATEDVERTICES"]._serialized_end = 2717
+    _globals["_FILTEREDGES"]._serialized_start = 2719
+    _globals["_FILTEREDGES"]._serialized_end = 2813
+    _globals["_FILTERVERTICES"]._serialized_start = 2815
+    _globals["_FILTERVERTICES"]._serialized_end = 2912
+    _globals["_FIND"]._serialized_start = 2914
+    _globals["_FIND"]._serialized_end = 2946
+    _globals["_INDEGREES"]._serialized_start = 2948
+    _globals["_INDEGREES"]._serialized_end = 2959
+    _globals["_LABELPROPAGATION"]._serialized_start = 2961
+    _globals["_LABELPROPAGATION"]._serialized_end = 3006
+    _globals["_OUTDEGREES"]._serialized_start = 3008
+    _globals["_OUTDEGREES"]._serialized_end = 3020
+    _globals["_PAGERANK"]._serialized_start = 3023
+    _globals["_PAGERANK"]._serialized_end = 3249
+    _globals["_PARALLELPERSONALIZEDPAGERANK"]._serialized_start = 3252
+    _globals["_PARALLELPERSONALIZEDPAGERANK"]._serialized_end = 3432
+    _globals["_PREGEL"]._serialized_start = 3435
+    _globals["_PREGEL"]._serialized_end = 4027
+    _globals["_SHORTESTPATHS"]._serialized_start = 4029
+    _globals["_SHORTESTPATHS"]._serialized_end = 4121
+    _globals["_STRONGLYCONNECTEDCOMPONENTS"]._serialized_start = 4123
+    _globals["_STRONGLYCONNECTEDCOMPONENTS"]._serialized_end = 4179
+    _globals["_SVDPLUSPLUS"]._serialized_start = 4182
+    _globals["_SVDPLUSPLUS"]._serialized_end = 4396
+    _globals["_TRIANGLECOUNT"]._serialized_start = 4398
+    _globals["_TRIANGLECOUNT"]._serialized_end = 4413
+    _globals["_TRIPLETS"]._serialized_start = 4415
+    _globals["_TRIPLETS"]._serialized_end = 4425
 # @@protoc_insertion_point(module_scope)

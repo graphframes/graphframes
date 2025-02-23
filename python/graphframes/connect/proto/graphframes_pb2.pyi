@@ -1,12 +1,40 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import (
+    ClassVar as _ClassVar,
+    Iterable as _Iterable,
+    Mapping as _Mapping,
+    Optional as _Optional,
+    Union as _Union,
+)
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class GraphFramesAPI(_message.Message):
-    __slots__ = ("vertices", "edges", "aggregate_messages", "bfs", "connected_components", "degrees", "drop_isolated_vertices", "filter_edges", "filter_vertices", "find", "in_degrees", "label_propagation", "out_degrees", "page_rank", "parallel_personalized_page_rank", "pregel", "shortest_paths", "strongly_connected_components", "svd_plus_plus", "triangle_count", "triplets")
+    __slots__ = (
+        "vertices",
+        "edges",
+        "aggregate_messages",
+        "bfs",
+        "connected_components",
+        "degrees",
+        "drop_isolated_vertices",
+        "filter_edges",
+        "filter_vertices",
+        "find",
+        "in_degrees",
+        "label_propagation",
+        "out_degrees",
+        "page_rank",
+        "parallel_personalized_page_rank",
+        "pregel",
+        "shortest_paths",
+        "strongly_connected_components",
+        "svd_plus_plus",
+        "triangle_count",
+        "triplets",
+    )
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_MESSAGES_FIELD_NUMBER: _ClassVar[int]
@@ -49,7 +77,34 @@ class GraphFramesAPI(_message.Message):
     svd_plus_plus: SVDPlusPlus
     triangle_count: TriangleCount
     triplets: Triplets
-    def __init__(self, vertices: _Optional[bytes] = ..., edges: _Optional[bytes] = ..., aggregate_messages: _Optional[_Union[AggregateMessages, _Mapping]] = ..., bfs: _Optional[_Union[BFS, _Mapping]] = ..., connected_components: _Optional[_Union[ConnectedComponents, _Mapping]] = ..., degrees: _Optional[_Union[Degrees, _Mapping]] = ..., drop_isolated_vertices: _Optional[_Union[DropIsolatedVertices, _Mapping]] = ..., filter_edges: _Optional[_Union[FilterEdges, _Mapping]] = ..., filter_vertices: _Optional[_Union[FilterVertices, _Mapping]] = ..., find: _Optional[_Union[Find, _Mapping]] = ..., in_degrees: _Optional[_Union[InDegrees, _Mapping]] = ..., label_propagation: _Optional[_Union[LabelPropagation, _Mapping]] = ..., out_degrees: _Optional[_Union[OutDegrees, _Mapping]] = ..., page_rank: _Optional[_Union[PageRank, _Mapping]] = ..., parallel_personalized_page_rank: _Optional[_Union[ParallelPersonalizedPageRank, _Mapping]] = ..., pregel: _Optional[_Union[Pregel, _Mapping]] = ..., shortest_paths: _Optional[_Union[ShortestPaths, _Mapping]] = ..., strongly_connected_components: _Optional[_Union[StronglyConnectedComponents, _Mapping]] = ..., svd_plus_plus: _Optional[_Union[SVDPlusPlus, _Mapping]] = ..., triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ..., triplets: _Optional[_Union[Triplets, _Mapping]] = ...) -> None: ...
+    def __init__(
+        self,
+        vertices: _Optional[bytes] = ...,
+        edges: _Optional[bytes] = ...,
+        aggregate_messages: _Optional[_Union[AggregateMessages, _Mapping]] = ...,
+        bfs: _Optional[_Union[BFS, _Mapping]] = ...,
+        connected_components: _Optional[_Union[ConnectedComponents, _Mapping]] = ...,
+        degrees: _Optional[_Union[Degrees, _Mapping]] = ...,
+        drop_isolated_vertices: _Optional[_Union[DropIsolatedVertices, _Mapping]] = ...,
+        filter_edges: _Optional[_Union[FilterEdges, _Mapping]] = ...,
+        filter_vertices: _Optional[_Union[FilterVertices, _Mapping]] = ...,
+        find: _Optional[_Union[Find, _Mapping]] = ...,
+        in_degrees: _Optional[_Union[InDegrees, _Mapping]] = ...,
+        label_propagation: _Optional[_Union[LabelPropagation, _Mapping]] = ...,
+        out_degrees: _Optional[_Union[OutDegrees, _Mapping]] = ...,
+        page_rank: _Optional[_Union[PageRank, _Mapping]] = ...,
+        parallel_personalized_page_rank: _Optional[
+            _Union[ParallelPersonalizedPageRank, _Mapping]
+        ] = ...,
+        pregel: _Optional[_Union[Pregel, _Mapping]] = ...,
+        shortest_paths: _Optional[_Union[ShortestPaths, _Mapping]] = ...,
+        strongly_connected_components: _Optional[
+            _Union[StronglyConnectedComponents, _Mapping]
+        ] = ...,
+        svd_plus_plus: _Optional[_Union[SVDPlusPlus, _Mapping]] = ...,
+        triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ...,
+        triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
+    ) -> None: ...
 
 class ColumnOrExpression(_message.Message):
     __slots__ = ("col", "expr")
@@ -75,7 +130,12 @@ class AggregateMessages(_message.Message):
     agg_col: ColumnOrExpression
     send_to_src: ColumnOrExpression
     send_to_dst: ColumnOrExpression
-    def __init__(self, agg_col: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., send_to_src: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., send_to_dst: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...) -> None: ...
+    def __init__(
+        self,
+        agg_col: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        send_to_src: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        send_to_dst: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+    ) -> None: ...
 
 class BFS(_message.Message):
     __slots__ = ("from_expr", "to_expr", "edge_filter", "max_path_length")
@@ -87,7 +147,13 @@ class BFS(_message.Message):
     to_expr: ColumnOrExpression
     edge_filter: ColumnOrExpression
     max_path_length: int
-    def __init__(self, from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., max_path_length: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        max_path_length: _Optional[int] = ...,
+    ) -> None: ...
 
 class ConnectedComponents(_message.Message):
     __slots__ = ("algorithm", "checkpoint_interval", "broadcast_threshold")
@@ -97,7 +163,12 @@ class ConnectedComponents(_message.Message):
     algorithm: str
     checkpoint_interval: int
     broadcast_threshold: int
-    def __init__(self, algorithm: _Optional[str] = ..., checkpoint_interval: _Optional[int] = ..., broadcast_threshold: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        algorithm: _Optional[str] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        broadcast_threshold: _Optional[int] = ...,
+    ) -> None: ...
 
 class Degrees(_message.Message):
     __slots__ = ()
@@ -111,13 +182,17 @@ class FilterEdges(_message.Message):
     __slots__ = ("condition",)
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     condition: ColumnOrExpression
-    def __init__(self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...) -> None: ...
+    def __init__(
+        self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...
+    ) -> None: ...
 
 class FilterVertices(_message.Message):
     __slots__ = ("condition",)
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     condition: ColumnOrExpression
-    def __init__(self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...) -> None: ...
+    def __init__(
+        self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...
+    ) -> None: ...
 
 class Find(_message.Message):
     __slots__ = ("pattern",)
@@ -149,7 +224,13 @@ class PageRank(_message.Message):
     source_id: StringOrLongID
     max_iter: int
     tol: float
-    def __init__(self, reset_probability: _Optional[float] = ..., source_id: _Optional[_Union[StringOrLongID, _Mapping]] = ..., max_iter: _Optional[int] = ..., tol: _Optional[float] = ...) -> None: ...
+    def __init__(
+        self,
+        reset_probability: _Optional[float] = ...,
+        source_id: _Optional[_Union[StringOrLongID, _Mapping]] = ...,
+        max_iter: _Optional[int] = ...,
+        tol: _Optional[float] = ...,
+    ) -> None: ...
 
 class ParallelPersonalizedPageRank(_message.Message):
     __slots__ = ("reset_probability", "source_ids", "max_iter")
@@ -159,10 +240,24 @@ class ParallelPersonalizedPageRank(_message.Message):
     reset_probability: float
     source_ids: _containers.RepeatedCompositeFieldContainer[StringOrLongID]
     max_iter: int
-    def __init__(self, reset_probability: _Optional[float] = ..., source_ids: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ..., max_iter: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        reset_probability: _Optional[float] = ...,
+        source_ids: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...,
+        max_iter: _Optional[int] = ...,
+    ) -> None: ...
 
 class Pregel(_message.Message):
-    __slots__ = ("agg_msgs", "send_msg_to_dst", "send_msg_to_src", "checkpoint_interval", "max_iter", "additional_col_name", "additional_col_initial", "additional_col_upd")
+    __slots__ = (
+        "agg_msgs",
+        "send_msg_to_dst",
+        "send_msg_to_src",
+        "checkpoint_interval",
+        "max_iter",
+        "additional_col_name",
+        "additional_col_initial",
+        "additional_col_upd",
+    )
     AGG_MSGS_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_DST_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_SRC_FIELD_NUMBER: _ClassVar[int]
@@ -172,20 +267,32 @@ class Pregel(_message.Message):
     ADDITIONAL_COL_INITIAL_FIELD_NUMBER: _ClassVar[int]
     ADDITIONAL_COL_UPD_FIELD_NUMBER: _ClassVar[int]
     agg_msgs: ColumnOrExpression
-    send_msg_to_dst: ColumnOrExpression
-    send_msg_to_src: ColumnOrExpression
+    send_msg_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
+    send_msg_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     checkpoint_interval: int
     max_iter: int
     additional_col_name: str
     additional_col_initial: ColumnOrExpression
     additional_col_upd: ColumnOrExpression
-    def __init__(self, agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., send_msg_to_dst: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., send_msg_to_src: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., checkpoint_interval: _Optional[int] = ..., max_iter: _Optional[int] = ..., additional_col_name: _Optional[str] = ..., additional_col_initial: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., additional_col_upd: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...) -> None: ...
+    def __init__(
+        self,
+        agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        send_msg_to_dst: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        send_msg_to_src: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        max_iter: _Optional[int] = ...,
+        additional_col_name: _Optional[str] = ...,
+        additional_col_initial: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        additional_col_upd: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+    ) -> None: ...
 
 class ShortestPaths(_message.Message):
     __slots__ = ("landmarks",)
     LANDMARKS_FIELD_NUMBER: _ClassVar[int]
     landmarks: _containers.RepeatedCompositeFieldContainer[StringOrLongID]
-    def __init__(self, landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...) -> None: ...
+    def __init__(
+        self, landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...
+    ) -> None: ...
 
 class StronglyConnectedComponents(_message.Message):
     __slots__ = ("max_iter",)
@@ -194,7 +301,16 @@ class StronglyConnectedComponents(_message.Message):
     def __init__(self, max_iter: _Optional[int] = ...) -> None: ...
 
 class SVDPlusPlus(_message.Message):
-    __slots__ = ("rank", "max_iter", "min_value", "max_value", "gamma1", "gamma2", "gamma6", "gamma7")
+    __slots__ = (
+        "rank",
+        "max_iter",
+        "min_value",
+        "max_value",
+        "gamma1",
+        "gamma2",
+        "gamma6",
+        "gamma7",
+    )
     RANK_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -211,7 +327,17 @@ class SVDPlusPlus(_message.Message):
     gamma2: float
     gamma6: float
     gamma7: float
-    def __init__(self, rank: _Optional[int] = ..., max_iter: _Optional[int] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., gamma1: _Optional[float] = ..., gamma2: _Optional[float] = ..., gamma6: _Optional[float] = ..., gamma7: _Optional[float] = ...) -> None: ...
+    def __init__(
+        self,
+        rank: _Optional[int] = ...,
+        max_iter: _Optional[int] = ...,
+        min_value: _Optional[float] = ...,
+        max_value: _Optional[float] = ...,
+        gamma1: _Optional[float] = ...,
+        gamma2: _Optional[float] = ...,
+        gamma6: _Optional[float] = ...,
+        gamma7: _Optional[float] = ...,
+    ) -> None: ...
 
 class TriangleCount(_message.Message):
     __slots__ = ()

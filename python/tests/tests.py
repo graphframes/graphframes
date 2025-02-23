@@ -29,7 +29,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as sqlfunctions
 from pyspark.version import __version__
 
-if __version__[:2] >= "3.4":
+if __version__[:3] >= "3.4":
     from pyspark.sql.utils import is_remote
 else:
 
@@ -43,6 +43,7 @@ class GraphFrameTestCase(unittest.TestCase):
         warnings.filterwarnings("ignore", category=ResourceWarning)
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         cls.checkpointDir = "/tmp/GFTestsCheckpointDir"
+        pathlib.Path(cls.checkpointDir).mkdir(parents=True, exist_ok=True)
 
         if is_remote():
             cls.spark = (
@@ -210,22 +211,24 @@ class PregelTest(GraphFrameTestCase):
         numVertices = vertices.count()
 
         vertices = GraphFrame(vertices, edges).outDegrees
+        vertices.toPandas().head()
         vertices.cache()
         graph = GraphFrame(vertices, edges)
         alpha = 0.15
+        pregel = graph.pregel
         ranks = (
             graph.pregel.setMaxIter(5)
             .withVertexColumn(
                 "rank",
                 lit(1.0 / numVertices),
-                coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha)
+                coalesce(pregel.msg(), lit(0.0)) * lit(1.0 - alpha)
                 + lit(alpha / numVertices),
             )
-            .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-            .aggMsgs(sum(Pregel.msg()))
+            .sendMsgToDst(pregel.src("rank") / pregel.src("outDegree"))
+            .aggMsgs(sum(pregel.msg()))
             .run()
         )
-        resultRows = ranks.sort(ranks.id).collect()
+        resultRows = ranks.sort("id").collect()
         result = map(lambda x: x.rank, resultRows)
         expected = [0.245, 0.224, 0.303, 0.03, 0.197]
         for a, b in zip(result, expected):

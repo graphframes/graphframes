@@ -17,7 +17,8 @@
 
 import sys
 from typing import Any
-if sys.version > '3':
+
+if sys.version > "3":
     basestring = str
 
 from pyspark.sql import DataFrame, SparkSession
@@ -80,6 +81,7 @@ class Pregel(JavaWrapper):
     def __init__(self, graph: "GraphFrame") -> None:
         super(Pregel, self).__init__()
         from graphframes import GraphFrame
+
         self.graph = graph
         self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", graph._jvm_graph)
 
@@ -102,7 +104,9 @@ class Pregel(JavaWrapper):
         self._java_obj.setCheckpointInterval(int(value))
         return self
 
-    def withVertexColumn(self, colName: str, initialExpr: Any, updateAfterAggMsgsExpr: Any) -> "Pregel":
+    def withVertexColumn(
+        self, colName: str, initialExpr: Any, updateAfterAggMsgsExpr: Any
+    ) -> "Pregel":
         """
         Defines an additional vertex column at the start of run and how to update it in each iteration.
 

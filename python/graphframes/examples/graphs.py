@@ -21,7 +21,7 @@ from pyspark.sql import functions as sqlfunctions, SparkSession
 
 from graphframes import GraphFrame
 
-__all__ = ['Graphs']
+__all__ = ["Graphs"]
 
 
 class Graphs:
@@ -37,24 +37,30 @@ class Graphs:
     def friends(self) -> GraphFrame:
         """A GraphFrame of friends in a (fake) social network."""
         # Vertex DataFrame
-        v = self._spark.createDataFrame([
-            ("a", "Alice", 34),
-            ("b", "Bob", 36),
-            ("c", "Charlie", 30),
-            ("d", "David", 29),
-            ("e", "Esther", 32),
-            ("f", "Fanny", 36)
-        ], ["id", "name", "age"])
+        v = self._spark.createDataFrame(
+            [
+                ("a", "Alice", 34),
+                ("b", "Bob", 36),
+                ("c", "Charlie", 30),
+                ("d", "David", 29),
+                ("e", "Esther", 32),
+                ("f", "Fanny", 36),
+            ],
+            ["id", "name", "age"],
+        )
         # Edge DataFrame
-        e = self._spark.createDataFrame([
-            ("a", "b", "friend"),
-            ("b", "c", "follow"),
-            ("c", "b", "follow"),
-            ("f", "c", "follow"),
-            ("e", "f", "follow"),
-            ("e", "d", "friend"),
-            ("d", "a", "friend")
-        ], ["src", "dst", "relationship"])
+        e = self._spark.createDataFrame(
+            [
+                ("a", "b", "friend"),
+                ("b", "c", "follow"),
+                ("c", "b", "follow"),
+                ("f", "c", "follow"),
+                ("e", "f", "follow"),
+                ("e", "d", "friend"),
+                ("d", "a", "friend"),
+            ],
+            ["src", "dst", "relationship"],
+        )
         # Create a GraphFrame
         return GraphFrame(v, e)
 
@@ -87,37 +93,40 @@ class Graphs:
         # check param n
         if n < 1:
             raise ValueError(
-                "Grid graph must have size >= 1, but was given invalid value n = {}"
-                .format(n))
+                "Grid graph must have size >= 1, but was given invalid value n = {}".format(n)
+            )
 
         # create coodinates grid
         coordinates = self._spark.createDataFrame(
-            itertools.product(range(n), range(n)),
-            schema=('i', 'j'))
+            itertools.product(range(n), range(n)), schema=("i", "j")
+        )
 
         # create SQL expression for converting coordinates (i,j) to a string ID "i,j"
         # avoid Cartesian join due to SPARK-15425: use generator since n should be small
-        toIDudf = sqlfunctions.udf(lambda i, j: '{},{}'.format(i,j))
+        toIDudf = sqlfunctions.udf(lambda i, j: "{},{}".format(i, j))
 
         # create the vertex DataFrame
         # create SQL expression for converting coordinates (i,j) to a string ID "i,j"
-        vIDcol = toIDudf(sqlfunctions.col('i'), sqlfunctions.col('j'))
+        vIDcol = toIDudf(sqlfunctions.col("i"), sqlfunctions.col("j"))
         # add random parameters generated from a normal distribution
         seed = 12345
-        vertices = (coordinates.withColumn('id', vIDcol)
-            .withColumn('a', sqlfunctions.randn(seed) * vStd))
+        vertices = coordinates.withColumn("id", vIDcol).withColumn(
+            "a", sqlfunctions.randn(seed) * vStd
+        )
 
         # create the edge DataFrame
         # create SQL expression for converting coordinates (i,j+1) and (i+1,j) to string IDs
-        rightIDcol = toIDudf(sqlfunctions.col('i'), sqlfunctions.col('j') + 1)
-        downIDcol = toIDudf(sqlfunctions.col('i') + 1, sqlfunctions.col('j'))
-        horizontalEdges = (coordinates.filter(sqlfunctions.col('j') != n - 1)
-            .select(vIDcol.alias('src'), rightIDcol.alias('dst')))
-        verticalEdges = (coordinates.filter(sqlfunctions.col('i') != n - 1)
-            .select(vIDcol.alias('src'), downIDcol.alias('dst')))
+        rightIDcol = toIDudf(sqlfunctions.col("i"), sqlfunctions.col("j") + 1)
+        downIDcol = toIDudf(sqlfunctions.col("i") + 1, sqlfunctions.col("j"))
+        horizontalEdges = coordinates.filter(sqlfunctions.col("j") != n - 1).select(
+            vIDcol.alias("src"), rightIDcol.alias("dst")
+        )
+        verticalEdges = coordinates.filter(sqlfunctions.col("i") != n - 1).select(
+            vIDcol.alias("src"), downIDcol.alias("dst")
+        )
         allEdges = horizontalEdges.unionAll(verticalEdges)
         # add random parameters from a normal distribution
-        edges = allEdges.withColumn('b', sqlfunctions.randn(seed + 1) * eStd)
+        edges = allEdges.withColumn("b", sqlfunctions.randn(seed + 1) * eStd)
 
         # create the GraphFrame
         g = GraphFrame(vertices, edges)

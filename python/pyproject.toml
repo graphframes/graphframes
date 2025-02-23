@@ -35,13 +35,14 @@ script = "dev/build_jar.py"
 [tool.poetry.dependencies]
 python = ">=3.9 <3.13"
 nose = "1.3.7"
-pyspark = "^3.4"
+pyspark = ">=3.3"
 numpy = ">= 1.7"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
+pyspark = { version = "3.5.4", extras = ["connect"] }
 
 [build-system]
 requires = ["poetry-core"]

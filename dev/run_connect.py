@@ -90,6 +90,11 @@ if __name__ == "__main__":
         .joinpath(f"graphframes-connect-assembly-{GRAPHFRAMES_VERSION}.jar")
     )
     shutil.copyfile(gf_jar, spark_home.joinpath(gf_jar.name))
+    checkpoint_dir = Path("/tmp/GFTestsCheckpointDir")
+    if checkpoint_dir.exists():
+        shutil.rmtree(checkpoint_dir.absolute().__str__(), ignore_errors=True)
+
+    checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
     run_connect_command = [
         "./sbin/start-connect-server.sh",
@@ -100,6 +105,8 @@ if __name__ == "__main__":
         "spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect",
         "--packages",
         f"org.apache.spark:spark-connect_{SCALA_VERSION}:{SPARK_VERSION}",
+        "--conf",
+        "spark.checkpoint.dir=/tmp/GFTestsCheckpointDir",
     ]
     print("Starting SparkConnect Server...")
     spark_connect = subprocess.run(

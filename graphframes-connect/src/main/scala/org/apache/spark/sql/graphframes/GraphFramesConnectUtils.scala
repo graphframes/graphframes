@@ -162,18 +162,23 @@ object GraphFramesConnectUtils {
       }
       case MethodCase.PREGEL => {
         val pregelProto = apiMessage.getPregel
-        val pregel = graphFrame.pregel
-        pregel
+        var pregel = graphFrame.pregel
           .aggMsgs(parseColumnOrExpression(pregelProto.getAggMsgs, planner))
-          .sendMsgToDst(parseColumnOrExpression(pregelProto.getSendMsgToDst, planner))
-          .sendMsgToDst(parseColumnOrExpression(pregelProto.getSendMsgToDst, planner))
           .setCheckpointInterval(pregelProto.getCheckpointInterval)
-          .setMaxIter(pregelProto.getMaxIter)
           .withVertexColumn(
             pregelProto.getAdditionalColName,
             parseColumnOrExpression(pregelProto.getAdditionalColInitial, planner),
             parseColumnOrExpression(pregelProto.getAdditionalColUpd, planner))
-          .run()
+          .setMaxIter(pregelProto.getMaxIter)
+
+        pregel = pregelProto.getSendMsgToSrcList.asScala
+          .map(parseColumnOrExpression(_, planner))
+          .foldLeft(pregel)((p, col) => p.sendMsgToSrc(col))
+        pregel = pregelProto.getSendMsgToDstList.asScala
+          .map(parseColumnOrExpression(_, planner))
+          .foldLeft(pregel)((p, col) => p.sendMsgToDst(col))
+
+        pregel.run()
       }
       case MethodCase.SHORTEST_PATHS => {
         graphFrame.shortestPaths

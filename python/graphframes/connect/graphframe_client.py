@@ -22,8 +22,8 @@ class PregelConnect:
         self._col_name = None
         self._initial_expr = None
         self._update_after_agg_msgs_expr = None
-        self._send_msg_to_src = None
-        self._send_msg_to_dst = None
+        self._send_msg_to_src = []
+        self._send_msg_to_dst = []
         self._agg_msg = None
 
     def setMaxIter(self, value: int) -> Self:
@@ -46,11 +46,11 @@ class PregelConnect:
         return self
 
     def sendMsgToSrc(self, msgExpr: Column | str) -> Self:
-        self._send_msg_to_src = msgExpr
+        self._send_msg_to_src.append(msgExpr)
         return self
 
     def sendMsgToDst(self, msgExpr: Column | str) -> Self:
-        self._send_msg_to_dst = msgExpr
+        self._send_msg_to_dst.append(msgExpr)
         return self
 
     def aggMsgs(self, aggExpr: Column) -> Self:
@@ -65,13 +65,14 @@ class PregelConnect:
                 checkpoint_interval: int,
                 vertex_col_name: str,
                 agg_msg: Column | str,
-                send2dst: Column | str,
-                send2src: Column | str,
+                send2dst: list[Column | str],
+                send2src: list[Column | str],
                 vertex_col_init: Column | str,
                 vertex_col_upd: Column | str,
                 vertices: DataFrame,
                 edges: DataFrame,
             ) -> None:
+                super().__init__(None)
                 self.max_iter = max_iter
                 self.checkpoint_interval = checkpoint_interval
                 self.vertex_col_name = vertex_col_name
@@ -84,26 +85,26 @@ class PregelConnect:
                 self.edges = edges
 
             def plan(self, session: SparkConnectClient) -> proto.Relation:
-                plan = self._create_proto_relation()
                 pregel = pb.Pregel(
                     agg_msgs=make_column_or_expr(self.agg_msg, session),
-                    send_msg_to_dst=make_column_or_expr(self.send2dst, session),
-                    send_msg_to_src=make_column_or_expr(self.send2src, session),
+                    send_msg_to_dst=[
+                        make_column_or_expr(c_or_e, session) for c_or_e in self.send2dst
+                    ],
+                    send_msg_to_src=[
+                        make_column_or_expr(c_or_e, session) for c_or_e in self.send2src
+                    ],
                     checkpoint_interval=self.checkpoint_interval,
                     max_iter=self.max_iter,
                     additional_col_name=self.vertex_col_name,
-                    additional_col_initial=make_column_or_expr(
-                        self.vertex_col_init, session
-                    ),
-                    additional_col_upd=make_column_or_expr(
-                        self.vertex_col_upd, session
-                    ),
+                    additional_col_initial=make_column_or_expr(self.vertex_col_init, session),
+                    additional_col_upd=make_column_or_expr(self.vertex_col_upd, session),
                 )
                 pb_message = pb.GraphFramesAPI(
                     vertices=dataframe_to_proto(self.vertices, session),
                     edges=dataframe_to_proto(self.edges, session),
                 )
                 pb_message.pregel.CopyFrom(pregel)
+                plan = self._create_proto_relation()
                 plan.extension.Pack(pb_message)
                 return plan
 
@@ -116,12 +117,6 @@ class PregelConnect:
 
         if self._agg_msg is None:
             raise ValueError("AggMsg is not initialized!")
-
-        if self._send_msg_to_src is None:
-            raise ValueError("Send-to-src column is not initialized!")
-
-        if self._send_msg_to_dst is None:
-            raise ValueError("Send-to-dst column is not initialized!")
 
         return DataFrame.withPlan(
             Pregel(
@@ -219,9 +214,7 @@ class GraphFrameConnect:
         new_edges = self._edges.cache()
         return GraphFrameConnect(new_vertices, new_edges)
 
-    def persist(
-        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
-    ) -> "GraphFrameConnect":
+    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrameConnect":
         new_vertices = self._vertices.persist(storageLevel=storageLevel)
         new_edges = self._edges.persist(storageLevel=storageLevel)
         return GraphFrameConnect(new_vertices, new_edges)
@@ -233,60 +226,23 @@ class GraphFrameConnect:
 
     @property
     def outDegrees(self) -> DataFrame:
-        class OutDegrees(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame) -> None:
-                super().__init__(None)
-                self.v = v
-                self.e = e
-
-            def plan(self, session: SparkConnectClient) -> proto.Relation:
-                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
-                    self.v, self.e, session
-                )
-                graphframes_api_call.out_degrees.CopyFrom(pb.OutDegrees())
-                plan = self._create_proto_relation()
-                plan.extension.Pack(graphframes_api_call)
-                return plan
-
-        return DataFrame.withPlan(OutDegrees(self._vertices, self._edges), self._spark)
+        return self._edges.groupBy(F.col(self.SRC).alias(self.ID)).agg(
+            F.count("*").alias("outDegree")
+        )
 
     @property
     def inDegrees(self) -> DataFrame:
-        class InDegrees(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame) -> None:
-                super().__init__(None)
-                self.v = v
-                self.e = e
-
-            def plan(self, session: SparkConnectClient) -> proto.Relation:
-                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
-                    self.v, self.e, session
-                )
-                graphframes_api_call.in_degrees.CopyFrom(pb.InDegrees())
-                plan = self._create_proto_relation()
-                plan.extension.Pack(graphframes_api_call)
-                return plan
-
-        return DataFrame.withPlan(InDegrees(self._vertices, self._edges), self._spark)
+        return self._edges.groupBy(F.col(self.DST).alias(self.ID)).agg(
+            F.count("*").alias("inDegree")
+        )
 
     @property
     def degrees(self) -> DataFrame:
-        class Degrees(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame) -> None:
-                super().__init__(None)
-                self.v = v
-                self.e = e
-
-            def plan(self, session: SparkConnectClient) -> proto.Relation:
-                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
-                    self.v, self.e, session
-                )
-                graphframes_api_call.degrees.CopyFrom(pb.Degrees())
-                plan = self._create_proto_relation()
-                plan.extension.Pack(graphframes_api_call)
-                return plan
-
-        return DataFrame.withPlan(Degrees(self._vertices, self._edges), self._spark)
+        return (
+            self._edges.select(F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID))
+            .groupBy(self.ID)
+            .agg(F.count("*").alias("degree"))
+        )
 
     @property
     def triplets(self) -> DataFrame:
@@ -328,15 +284,11 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
-            Find(self._vertices, self._edges, pattern), self._spark
-        )
+        return DataFrame.withPlan(Find(self._vertices, self._edges, pattern), self._spark)
 
     def filterVertices(self, condition: str | Column) -> "GraphFrameConnect":
         class FilterVertices(LogicalPlan):
-            def __init__(
-                self, v: DataFrame, e: DataFrame, condition: str | Column
-            ) -> None:
+            def __init__(self, v: DataFrame, e: DataFrame, condition: str | Column) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
@@ -371,9 +323,7 @@ class GraphFrameConnect:
 
     def filterEdges(self, condition: str | Column) -> "GraphFrameConnect":
         class FilterEdges(LogicalPlan):
-            def __init__(
-                self, v: DataFrame, e: DataFrame, condition: str | Column
-            ) -> None:
+            def __init__(self, v: DataFrame, e: DataFrame, condition: str | Column) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
@@ -384,9 +334,7 @@ class GraphFrameConnect:
                     self.v, self.e, session
                 )
                 col_or_expr = make_column_or_expr(self.c, session)
-                graphframes_api_call.filter_edges.CopyFrom(
-                    pb.FilterEdges(condition=col_or_expr)
-                )
+                graphframes_api_call.filter_edges.CopyFrom(pb.FilterEdges(condition=col_or_expr))
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -407,9 +355,7 @@ class GraphFrameConnect:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.drop_isolated_vertices.CopyFrom(
-                    pb.DropIsolatedVertices()
-                )
+                graphframes_api_call.drop_isolated_vertices.CopyFrom(pb.DropIsolatedVertices())
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -504,12 +450,16 @@ class GraphFrameConnect:
                 graphframes_api_call.aggregate_messages.CopyFrom(
                     pb.AggregateMessages(
                         agg_col=make_column_or_expr(self.agg_col, session),
-                        send_to_src=None
-                        if self.send2src is None
-                        else make_column_or_expr(self.send2src, session),
-                        send_to_dst=None
-                        if self.send2dst is None
-                        else make_column_or_expr(self.send2dst, session),
+                        send_to_src=(
+                            None
+                            if self.send2src is None
+                            else make_column_or_expr(self.send2src, session)
+                        ),
+                        send_to_dst=(
+                            None
+                            if self.send2dst is None
+                            else make_column_or_expr(self.send2dst, session)
+                        ),
                     )
                 )
                 plan = self._create_proto_relation()
@@ -517,14 +467,10 @@ class GraphFrameConnect:
                 return plan
 
         if sendToSrc is None and sendToDst is None:
-            raise ValueError(
-                "Either `sendToSrc`, `sendToDst`, or both have to be provided"
-            )
+            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
 
         return DataFrame.withPlan(
-            AggregateMessages(
-                self._vertices, self._edges, aggCol, sendToSrc, sendToDst
-            ),
+            AggregateMessages(self._vertices, self._edges, aggCol, sendToSrc, sendToDst),
             self._spark,
         )
 
@@ -599,9 +545,7 @@ class GraphFrameConnect:
             LabelPropagation(self._vertices, self._edges, maxIter), self._spark
         )
 
-    def _update_page_rank_edge_weights(
-        self, new_vertices: DataFrame
-    ) -> "GraphFrameConnect":
+    def _update_page_rank_edge_weights(self, new_vertices: DataFrame) -> "GraphFrameConnect":
         cols2select = self.edges.columns + ["weight"]
         new_edges = (
             self._edges.join(
@@ -651,9 +595,9 @@ class GraphFrameConnect:
                 graphframes_api_call.page_rank.CopyFrom(
                     pb.PageRank(
                         reset_probability=self.reset_prob,
-                        source_id=None
-                        if self.source_id is None
-                        else make_str_or_long_id(self.source_id),
+                        source_id=(
+                            None if self.source_id is None else make_str_or_long_id(self.source_id)
+                        ),
                         max_iter=self.max_iter,
                         tol=self.tol,
                     )
@@ -710,9 +654,7 @@ class GraphFrameConnect:
                 graphframes_api_call.parallel_personalized_page_rank.CopyFrom(
                     pb.ParallelPersonalizedPageRank(
                         reset_probability=self.reset_prob,
-                        source_ids=[
-                            make_str_or_long_id(raw_id) for raw_id in self.source_ids
-                        ],
+                        source_ids=[make_str_or_long_id(raw_id) for raw_id in self.source_ids],
                         max_iter=self.max_iter,
                     )
                 )
@@ -739,9 +681,7 @@ class GraphFrameConnect:
 
     def shortestPaths(self, landmarks: list[str | int]) -> DataFrame:
         class ShortestPaths(LogicalPlan):
-            def __init__(
-                self, v: DataFrame, e: DataFrame, landmarks: list[str | int]
-            ) -> None:
+            def __init__(self, v: DataFrame, e: DataFrame, landmarks: list[str | int]) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
@@ -753,9 +693,7 @@ class GraphFrameConnect:
                 )
                 graphframes_api_call.shortest_paths.CopyFrom(
                     pb.ShortestPaths(
-                        landmarks=[
-                            make_str_or_long_id(raw_id) for raw_id in self.landmarks
-                        ]
+                        landmarks=[make_str_or_long_id(raw_id) for raw_id in self.landmarks]
                     )
                 )
                 plan = self._create_proto_relation()
@@ -886,6 +824,4 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
-            TriangleCount(self._vertices, self._edges), self._spark
-        )
+        return DataFrame.withPlan(TriangleCount(self._vertices, self._edges), self._spark)

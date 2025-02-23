@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 from typing import Any, Optional
+from typing_extensions import TYPE_CHECKING
 
 from pyspark.sql import Column, DataFrame
 from pyspark.storagelevel import StorageLevel
 from pyspark.version import __version__
 
-if __version__[:2] >= "3.4":
+if __version__[:3] >= "3.4":
     from pyspark.sql.utils import is_remote
 else:
     # All the Connect-related utilities are accessible starting from 3.4.x
@@ -33,11 +34,12 @@ else:
 
 from graphframes.lib import Pregel
 
-from .classic.graphframe import GraphFrame as GraphFrameClassic
+from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
 
-if __version__[:2] >= "3.4":
+if __version__[:3] >= "3.4":
     from graphframes.connect.graphframe_client import GraphFrameConnect
 else:
+
     class GraphFrameConnect:
         def __init__(self, *args, **kwargs) -> None:
             raise ValueError("Unreachable error happened!")
@@ -97,9 +99,7 @@ class GraphFrame:
         """
         return GraphFrame._from_impl(self._impl.cache())
 
-    def persist(
-        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
-    ) -> "GraphFrame":
+    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrame":
         """Persist the dataframe representation of vertices and edges of the graph with the given
         storage level.
         """
@@ -254,9 +254,7 @@ class GraphFrame:
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
-        return self._impl.aggregateMessages(
-            aggCol=aggCol, sendToSrc=sendToSrc, sendToDst=sendToDst
-        )
+        return self._impl.aggregateMessages(aggCol=aggCol, sendToSrc=sendToSrc, sendToDst=sendToDst)
 
     # Standard algorithms
 
@@ -418,9 +416,7 @@ def _test():
     from pyspark.sql import SparkSession
 
     globs = graphframe.__dict__.copy()
-    globs["spark"] = (
-        SparkSession.builder.master("local[4]").appName("PythonTest").getOrCreate()
-    )
+    globs["spark"] = SparkSession.builder.master("local[4]").appName("PythonTest").getOrCreate()
     (failure_count, test_count) = doctest.testmod(
         globs=globs, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
     )
