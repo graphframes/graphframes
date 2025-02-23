@@ -118,3 +118,4 @@ if __name__ == "__main__":
 
     if spark_connect.returncode == 0:
         print("Done.")
+        sys.exit(0)
