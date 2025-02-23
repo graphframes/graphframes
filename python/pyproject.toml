@@ -43,6 +43,7 @@ black = "^25.1.0"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
 pyspark = { version = "3.5.4", extras = ["connect"] }
+grpcio = "<=1.67.1"
 
 [tool.poetry.group.tutorials.dependencies]
 py7zr = "^0.22.0"
