@@ -30,7 +30,7 @@ We use the `--packages` argument to download the graphframes package and any dep
 <div data-lang="scala"  markdown="1">
 
 {% highlight bash %}
-$ ./bin/spark-shell --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12
+$ ./bin/spark-shell --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 {% endhighlight %}
 
 </div>
@@ -38,7 +38,7 @@ $ ./bin/spark-shell --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12
 <div data-lang="python"  markdown="1">
 
 {% highlight bash %}
-$ ./bin/pyspark --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12
+$ ./bin/pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 {% endhighlight %}
 
 </div>
