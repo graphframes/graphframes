@@ -15,7 +15,7 @@ GRAPHFRAMES_VERSION = "0.8.4"
 
 
 if __name__ == "__main__":
-    prj_root = Path(__file__).parent.parent
+    prj_root = Path(__file__).parent.parent.parent
     scala_root = prj_root.joinpath("graphframes-connect")
 
     print("Build Graphframes...")
