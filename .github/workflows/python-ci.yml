@@ -49,6 +49,6 @@ jobs:
       working-directory: ./python
       run: |
         export VENV_ROOT=$(poetry env info --path)
-        $VENV_ROOT/bin/python dev/run-connect.sh
+        $VENV_ROOT/bin/python dev/run_connect.sh
         export SPARK_CONNECT_MODE_ENABLED=1
         poetry run python -m unittest discover -s tests/
