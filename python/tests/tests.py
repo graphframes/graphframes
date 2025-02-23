@@ -23,7 +23,7 @@ from importlib import resources
 
 from graphframes.classic.graphframe import _from_java_gf, _java_api
 from graphframes.examples import BeliefPropagation, Graphs
-from graphframes.graphframe import GraphFrame, Pregel
+from graphframes.graphframe import GraphFrame
 from graphframes.lib import AggregateMessages as AM
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as sqlfunctions

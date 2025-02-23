@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pyspark.sql.connect.client import SparkConnectClient
 from pyspark.sql.connect.column import Column
 from pyspark.sql.connect.dataframe import DataFrame
