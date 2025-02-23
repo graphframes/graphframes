@@ -50,6 +50,7 @@ if __name__ == "__main__":
         get_spark = subprocess.run(
             [
                 "wget",
+                "--no-verbose",
                 f"https://archive.apache.org/dist/spark/spark-{SPARK_VERSION}/spark-{SPARK_VERSION}-bin-hadoop3.tgz",
             ],
             stdout=subprocess.PIPE,
