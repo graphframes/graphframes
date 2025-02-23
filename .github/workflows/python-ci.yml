@@ -52,3 +52,4 @@ jobs:
         $VENV_ROOT/bin/python dev/run_connect.py
         export SPARK_CONNECT_MODE_ENABLED=1
         poetry run python -m unittest discover -s tests/
+        poetry run python dev/stop_connect.py
