@@ -15,32 +15,32 @@
 # limitations under the License.
 #
 
-from __future__ import annotations
+import sys
+from typing import Any, Union, Optional
 
-from typing import Any, Optional
-
-from pyspark.sql import Column, DataFrame
-from pyspark.storagelevel import StorageLevel
-from pyspark.version import __version__
-
-if __version__[:2] >= "3.4":
-    from pyspark.sql.utils import is_remote
-else:
-    # All the Connect-related utilities are accessible starting from 3.4.x
-    def is_remote() -> bool:
-        return False
-
+if sys.version > '3':
+    basestring = str
 
 from graphframes.lib import Pregel
+from pyspark import SparkContext
+from pyspark.sql import Column, DataFrame, SparkSession
+from pyspark.storagelevel import StorageLevel
 
-from .classic.graphframe import GraphFrame as GraphFrameClassic
 
-if __version__[:2] >= "3.4":
-    from graphframes.connect.graphframe_client import GraphFrameConnect
-else:
-    class GraphFrameConnect:
-        def __init__(self, *args, **kwargs) -> None:
-            raise ValueError("Unreachable error happened!")
+def _from_java_gf(jgf: Any, spark: SparkSession) -> 'GraphFrame':
+    """
+    (internal) creates a python GraphFrame wrapper from a java GraphFrame.
+
+    :param jgf:
+    """
+    pv = DataFrame(jgf.vertices(), spark)
+    pe = DataFrame(jgf.edges(), spark)
+    return GraphFrame(pv, pe)
+
+def _java_api(jsc: SparkContext) -> Any:
+    javaClassName = "org.graphframes.GraphFramePythonAPI"
+    return jsc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName) \
+            .newInstance()
 
 
 class GraphFrame:
@@ -61,15 +61,33 @@ class GraphFrame:
     >>> g = GraphFrame(v, e)
     """
 
-    @staticmethod
-    def _from_impl(impl: GraphFrameClassic | GraphFrameConnect) -> "GraphFrame":
-        return GraphFrame(impl.vertices, impl.edges)
-
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
-        if is_remote():
-            self._impl = GraphFrameConnect(v, e)
-        else:
-            self._impl = GraphFrameClassic(v, e)
+        self._vertices = v
+        self._edges = e
+        self._spark = v.sparkSession
+        self._sc = self._spark._sc
+        self._jvm_gf_api = _java_api(self._sc)
+
+        self.ID = self._jvm_gf_api.ID()
+        self.SRC = self._jvm_gf_api.SRC()
+        self.DST = self._jvm_gf_api.DST()
+        self._ATTR = self._jvm_gf_api.ATTR()
+
+        # Check that provided DataFrames contain required columns
+        if self.ID not in v.columns:
+            raise ValueError(
+                "Vertex ID column {} missing from vertex DataFrame, which has columns: {}"
+                .format(self.ID, ",".join(v.columns)))
+        if self.SRC not in e.columns:
+            raise ValueError(
+                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}"
+                .format(self.SRC, ",".join(e.columns)))
+        if self.DST not in e.columns:
+            raise ValueError(
+                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}"
+                .format(self.DST, ",".join(e.columns)))
+
+        self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
 
     @property
     def vertices(self) -> DataFrame:
@@ -77,7 +95,7 @@ class GraphFrame:
         :class:`DataFrame` holding vertex information, with unique column "id"
         for vertex IDs.
         """
-        return self._impl.vertices
+        return self._vertices
 
     @property
     def edges(self) -> DataFrame:
@@ -86,30 +104,32 @@ class GraphFrame:
         "dst" storing source vertex IDs and destination vertex IDs of edges,
         respectively.
         """
-        return self._impl.edges
+        return self._edges
 
-    def __repr__(self) -> str:
-        return self._impl.__repr__
+    def __repr__(self):
+        return self._jvm_graph.toString()
 
-    def cache(self) -> "GraphFrame":
-        """Persist the dataframe representation of vertices and edges of the graph with the default
+    def cache(self) -> 'GraphFrame':
+        """ Persist the dataframe representation of vertices and edges of the graph with the default
         storage level.
         """
-        return GraphFrame._from_impl(self._impl.cache())
+        self._jvm_graph.cache()
+        return self
 
-    def persist(
-        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
-    ) -> "GraphFrame":
+    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrame":
         """Persist the dataframe representation of vertices and edges of the graph with the given
         storage level.
         """
-        return GraphFrame._from_impl(self._impl.persist(storageLevel=storageLevel))
+        javaStorageLevel = self._sc._getJavaStorageLevel(storageLevel)
+        self._jvm_graph.persist(javaStorageLevel)
+        return self
 
-    def unpersist(self, blocking: bool = False) -> "GraphFrame":
+    def unpersist(self, blocking: bool = False) -> 'GraphFrame':
         """Mark the dataframe representation of vertices and edges of the graph as non-persistent,
         and remove all blocks for it from memory and disk.
         """
-        return GraphFrame._from_impl(self._impl.unpersist(blocking=blocking))
+        self._jvm_graph.unpersist(blocking)
+        return self
 
     @property
     def outDegrees(self) -> DataFrame:
@@ -122,7 +142,8 @@ class GraphFrame:
 
         :return:  DataFrame with new vertices column "outDegree"
         """
-        return self._impl.outDegrees
+        jdf = self._jvm_graph.outDegrees()
+        return DataFrame(jdf, self._spark)
 
     @property
     def inDegrees(self) -> DataFrame:
@@ -135,7 +156,8 @@ class GraphFrame:
 
         :return:  DataFrame with new vertices column "inDegree"
         """
-        return self._impl.inDegrees
+        jdf = self._jvm_graph.inDegrees()
+        return DataFrame(jdf, self._spark)
 
     @property
     def degrees(self) -> DataFrame:
@@ -148,7 +170,8 @@ class GraphFrame:
 
         :return:  DataFrame with new vertices column "degree"
         """
-        return self._impl.degrees
+        jdf = self._jvm_graph.degrees()
+        return DataFrame(jdf, self._spark)
 
     @property
     def triplets(self) -> DataFrame:
@@ -162,16 +185,17 @@ class GraphFrame:
 
         :return:  DataFrame with columns 'src', 'edge', and 'dst'
         """
-        return self._impl.triplets
+        jdf = self._jvm_graph.triplets()
+        return DataFrame(jdf, self._spark)
 
     @property
-    def pregel(self) -> Pregel:
+    def pregel(self):
         """
         Get the :class:`graphframes.lib.Pregel` object for running pregel.
 
         See :class:`graphframes.lib.Pregel` for more details.
         """
-        return self._impl.pregel
+        return Pregel(self)
 
     def find(self, pattern: str) -> DataFrame:
         """
@@ -182,41 +206,52 @@ class GraphFrame:
         :param pattern:  String describing the motif to search for.
         :return:  DataFrame with one Row for each instance of the motif found
         """
-        return self._impl.find(pattern=pattern)
+        jdf = self._jvm_graph.find(pattern)
+        return DataFrame(jdf, self._spark)
 
-    def filterVertices(self, condition: str | Column) -> "GraphFrame":
+    def filterVertices(self, condition: Union[str, Column]) -> 'GraphFrame':
         """
         Filters the vertices based on expression, remove edges containing any dropped vertices.
-
+        
         :param condition: String or Column describing the condition expression for filtering.
-        :return: GraphFrame with filtered vertices and edges.
+        :return: GraphFrame with filtered vertices and edges. 
         """
-        return GraphFrame._from_impl(self._impl.filterVertices(condition=condition))
 
-    def filterEdges(self, condition: str | Column) -> "GraphFrame":
+        if isinstance(condition, basestring):
+            jdf = self._jvm_graph.filterVertices(condition)
+        elif isinstance(condition, Column):
+            jdf = self._jvm_graph.filterVertices(condition._jc)
+        else:
+            raise TypeError("condition should be string or Column")
+        return _from_java_gf(jdf, self._spark)
+
+    def filterEdges(self, condition: Union[str, Column]) -> 'GraphFrame':
         """
         Filters the edges based on expression, keep all vertices.
-
+        
         :param condition: String or Column describing the condition expression for filtering.
-        :return: GraphFrame with filtered edges.
+        :return: GraphFrame with filtered edges. 
         """
-        return GraphFrame._from_impl(self._impl.filterEdges(condition=condition))
+        if isinstance(condition, basestring):
+            jdf = self._jvm_graph.filterEdges(condition)
+        elif isinstance(condition, Column):
+            jdf = self._jvm_graph.filterEdges(condition._jc)
+        else:
+            raise TypeError("condition should be string or Column")
+        return _from_java_gf(jdf, self._spark)
 
-    def dropIsolatedVertices(self) -> "GraphFrame":
+    def dropIsolatedVertices(self) -> 'GraphFrame':
         """
         Drops isolated vertices, vertices are not contained in any edges.
 
-        :return: GraphFrame with filtered vertices.
+        :return: GraphFrame with filtered vertices. 
         """
-        return GraphFrame._from_impl(self._impl.dropIsolatedVertices())
+        jdf = self._jvm_graph.dropIsolatedVertices()
+        return _from_java_gf(jdf, self._spark)
 
-    def bfs(
-        self,
-        fromExpr: str,
-        toExpr: str,
-        edgeFilter: str | None = None,
-        maxPathLength: int = 10,
-    ) -> DataFrame:
+    def bfs(self, fromExpr: str, toExpr: str,
+            edgeFilter: Optional[str] = None,
+            maxPathLength: int = 10) -> DataFrame:
         """
         Breadth-first search (BFS).
 
@@ -224,19 +259,18 @@ class GraphFrame:
 
         :return: DataFrame with one Row for each shortest path between matching vertices.
         """
-        return self._impl.bfs(
-            fromExpr=fromExpr,
-            toExpr=toExpr,
-            edgeFilter=edgeFilter,
-            maxPathLength=maxPathLength,
-        )
+        builder = self._jvm_graph.bfs()\
+            .fromExpr(fromExpr)\
+            .toExpr(toExpr)\
+            .maxPathLength(maxPathLength)
+        if edgeFilter is not None:
+            builder.edgeFilter(edgeFilter)
+        jdf = builder.run()
+        return DataFrame(jdf, self._spark)
 
-    def aggregateMessages(
-        self,
-        aggCol: Column | str,
-        sendToSrc: Column | str | None = None,
-        sendToDst: Column | str | None = None,
-    ) -> DataFrame:
+    def aggregateMessages(self, aggCol: Union[Column, str],
+                         sendToSrc: Union[Column, str, None] = None,
+                         sendToDst: Union[Column, str, None] = None) -> DataFrame:
         """
         Aggregates messages from the neighbours.
 
@@ -254,18 +288,35 @@ class GraphFrame:
 
         :return: DataFrame with columns for the vertex ID and the resulting aggregated message
         """
-        return self._impl.aggregateMessages(
-            aggCol=aggCol, sendToSrc=sendToSrc, sendToDst=sendToDst
-        )
+        # Check that either sendToSrc, sendToDst, or both are provided
+        if sendToSrc is None and sendToDst is None:
+            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
+        builder = self._jvm_graph.aggregateMessages()
+        if sendToSrc is not None:
+            if isinstance(sendToSrc, Column):
+                builder.sendToSrc(sendToSrc._jc)
+            elif isinstance(sendToSrc, basestring):
+                builder.sendToSrc(sendToSrc)
+            else:
+                raise TypeError("Provide message either as `Column` or `str`")
+        if sendToDst is not None:
+            if isinstance(sendToDst, Column):
+                builder.sendToDst(sendToDst._jc)
+            elif isinstance(sendToDst, basestring):
+                builder.sendToDst(sendToDst)
+            else:
+                raise TypeError("Provide message either as `Column` or `str`")
+        if isinstance(aggCol, Column):
+            jdf = builder.agg(aggCol._jc)
+        else:
+            jdf = builder.agg(aggCol)
+        return DataFrame(jdf, self._spark)
 
     # Standard algorithms
 
-    def connectedComponents(
-        self,
-        algorithm: str = "graphframes",
-        checkpointInterval: int = 2,
-        broadcastThreshold: int = 1000000,
-    ) -> DataFrame:
+    def connectedComponents(self, algorithm: str = 'graphframes',
+                          checkpointInterval: int = 2,
+                          broadcastThreshold: int = 1000000) -> DataFrame:
         """
         Computes the connected components of the graph.
 
@@ -279,11 +330,12 @@ class GraphFrame:
 
         :return: DataFrame with new vertices column "component"
         """
-        return self._impl.connectedComponents(
-            algorithm=algorithm,
-            checkpointInterval=checkpointInterval,
-            broadcastThreshold=broadcastThreshold,
-        )
+        jdf = self._jvm_graph.connectedComponents() \
+            .setAlgorithm(algorithm) \
+            .setCheckpointInterval(checkpointInterval) \
+            .setBroadcastThreshold(broadcastThreshold) \
+            .run()
+        return DataFrame(jdf, self._spark)
 
     def labelPropagation(self, maxIter: int) -> DataFrame:
         """
@@ -294,15 +346,13 @@ class GraphFrame:
         :param maxIter: the number of iterations to be performed
         :return: DataFrame with new vertices column "label"
         """
-        return self._impl.labelPropagation(maxIter=maxIter)
+        jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
+        return DataFrame(jdf, self._spark)
 
-    def pageRank(
-        self,
-        resetProbability: float = 0.15,
-        sourceId: Optional[Any] = None,
-        maxIter: Optional[int] = None,
-        tol: Optional[float] = None,
-    ) -> "GraphFrame":
+    def pageRank(self, resetProbability: float = 0.15,
+                 sourceId: Optional[Any] = None,
+                 maxIter: Optional[int] = None,
+                 tol: Optional[float] = None) -> 'GraphFrame':
         """
         Runs the PageRank algorithm on the graph.
         Note: Exactly one of fixed_num_iter or tolerance must be set.
@@ -317,21 +367,21 @@ class GraphFrame:
                This may not be set if the `numIter` parameter is set.
         :return:  GraphFrame with new vertices column "pagerank" and new edges column "weight"
         """
-        return GraphFrame._from_impl(
-            self._impl.pageRank(
-                resetProbability=resetProbability,
-                sourceId=sourceId,
-                maxIter=maxIter,
-                tol=tol,
-            )
-        )
+        builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
+        if sourceId is not None:
+            builder = builder.sourceId(sourceId)
+        if maxIter is not None:
+            builder = builder.maxIter(maxIter)
+            assert tol is None, "Exactly one of maxIter or tol should be set."
+        else:
+            assert tol is not None, "Exactly one of maxIter or tol should be set."
+            builder = builder.tol(tol)
+        jgf = builder.run()
+        return _from_java_gf(jgf, self._spark)
 
-    def parallelPersonalizedPageRank(
-        self,
-        resetProbability: float = 0.15,
-        sourceIds: Optional[list[Any]] = None,
-        maxIter: Optional[int] = None,
-    ) -> "GraphFrame":
+    def parallelPersonalizedPageRank(self, resetProbability: float = 0.15,
+                                   sourceIds: Optional[list[Any]] = None,
+                                   maxIter: Optional[int] = None) -> 'GraphFrame':
         """
         Run the personalized PageRank algorithm on the graph,
         from the provided list of sources in parallel for a fixed number of iterations.
@@ -343,11 +393,15 @@ class GraphFrame:
         :param maxIter: the fixed number of iterations this algorithm runs
         :return:  GraphFrame with new vertices column "pageranks" and new edges column "weight"
         """
-        return GraphFrame._from_impl(
-            self._impl.parallelPersonalizedPageRank(
-                resetProbability=resetProbability, sourceIds=sourceIds, maxIter=maxIter
-            )
-        )
+        assert sourceIds is not None and len(sourceIds) > 0, "Source vertices Ids sourceIds must be provided"
+        assert maxIter is not None, "Max number of iterations maxIter must be provided"
+        sourceIds = self._sc._jvm.PythonUtils.toArray(sourceIds)
+        builder = self._jvm_graph.parallelPersonalizedPageRank()
+        builder = builder.resetProbability(resetProbability)
+        builder = builder.sourceIds(sourceIds)
+        builder = builder.maxIter(maxIter)
+        jgf = builder.run()
+        return _from_java_gf(jgf, self._spark)
 
     def shortestPaths(self, landmarks: list[Any]) -> DataFrame:
         """
@@ -358,7 +412,8 @@ class GraphFrame:
         :param landmarks: a set of one or more landmarks
         :return: DataFrame with new vertices column "distances"
         """
-        return self._impl.shortestPaths(landmarks=landmarks)
+        jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
+        return DataFrame(jdf, self._spark)
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
         """
@@ -369,19 +424,13 @@ class GraphFrame:
         :param maxIter: the number of iterations to run
         :return: DataFrame with new vertex column "component"
         """
-        return self._impl.stronglyConnectedComponents(maxIter=maxIter)
+        jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
+        return DataFrame(jdf, self._spark)
 
-    def svdPlusPlus(
-        self,
-        rank: int = 10,
-        maxIter: int = 2,
-        minValue: float = 0.0,
-        maxValue: float = 5.0,
-        gamma1: float = 0.007,
-        gamma2: float = 0.007,
-        gamma6: float = 0.005,
-        gamma7: float = 0.015,
-    ) -> tuple[DataFrame, float]:
+    def svdPlusPlus(self, rank: int = 10, maxIter: int = 2,
+                    minValue: float = 0.0, maxValue: float = 5.0,
+                    gamma1: float = 0.007, gamma2: float = 0.007,
+                    gamma6: float = 0.005, gamma7: float = 0.015) -> tuple[DataFrame, float]:
         """
         Runs the SVD++ algorithm.
 
@@ -389,16 +438,14 @@ class GraphFrame:
 
         :return: Tuple of DataFrame with new vertex columns storing learned model, and loss value
         """
-        return self._impl.svdPlusPlus(
-            rank=rank,
-            maxIter=maxIter,
-            minValue=minValue,
-            maxValue=maxValue,
-            gamma1=gamma1,
-            gamma2=gamma2,
-            gamma6=gamma6,
-            gamma7=gamma7,
-        )
+        # This call is actually useless, because one needs to build the configuration first...
+        builder = self._jvm_graph.svdPlusPlus()
+        builder.rank(rank).maxIter(maxIter).minValue(minValue).maxValue(maxValue)
+        builder.gamma1(gamma1).gamma2(gamma2).gamma6(gamma6).gamma7(gamma7)
+        jdf = builder.run()
+        loss = builder.loss()
+        v = DataFrame(jdf, self._spark)
+        return (v, loss)
 
     def triangleCount(self) -> DataFrame:
         """
@@ -408,23 +455,19 @@ class GraphFrame:
 
         :return:  DataFrame with new vertex column "count"
         """
-        return self._impl.triangleCount()
+        jdf = self._jvm_graph.triangleCount().run()
+        return DataFrame(jdf, self._spark)
 
 
 def _test():
     import doctest
-
     import graphframe
-    from pyspark.sql import SparkSession
-
     globs = graphframe.__dict__.copy()
-    globs["spark"] = (
-        SparkSession.builder.master("local[4]").appName("PythonTest").getOrCreate()
-    )
+    globs['sc'] = SparkContext('local[4]', 'PythonTest', batchSize=2)
+    globs['spark'] = SparkSession(globs['sc']).builder.getOrCreate()
     (failure_count, test_count) = doctest.testmod(
-        globs=globs, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
-    )
-    globs["spark"].stop()
+        globs=globs, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE)
+    globs['sc'].stop()
     if failure_count:
         exit(-1)
 

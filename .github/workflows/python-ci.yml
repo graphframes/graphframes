@@ -26,8 +26,6 @@ jobs:
         path: |
           ~/.ivy2/cache
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
-    - name: Assembly
-      run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
@@ -41,10 +39,8 @@ jobs:
     - name: Build Python package and its dependencies
       working-directory: ./python
       run: |
-        poetry build
         poetry install
     - name: Test
       working-directory: ./python
       run: |
-        export SPARK_HOME=$(poetry run python -c "import os; from importlib.util import find_spec; spec = find_spec('pyspark'); print(os.path.join(os.path.dirname(spec.origin)))")
-        ./run-tests.sh
+        poetry run python -m unittest discover -s tests/
