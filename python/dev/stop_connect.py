@@ -4,6 +4,7 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 SPARK_VERSION = "3.5.4"
@@ -30,4 +31,5 @@ if __name__ == "__main__":
     if spark_connect_stop.returncode == 0:
         print("Done.")
 
-    shutil.rmtree(checkpoint_dir.absolute().__str__())
+    shutil.rmtree(checkpoint_dir.absolute().__str__(), ignore_errors=True)
+    sys.exit(0)
