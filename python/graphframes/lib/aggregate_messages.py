@@ -23,8 +23,12 @@ from pyspark.sql import DataFrame, functions as sqlfunctions, SparkSession, Colu
 
 def _java_api(jsc: SparkContext) -> Any:
     javaClassName = "org.graphframes.GraphFramePythonAPI"
-    return jsc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName) \
-            .newInstance()
+    return (
+        jsc._jvm.Thread.currentThread()
+        .getContextClassLoader()
+        .loadClass(javaClassName)
+        .newInstance()
+    )
 
 
 class _ClassProperty:

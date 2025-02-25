@@ -15,100 +15,72 @@
 # limitations under the License.
 #
 
-import sys
-import tempfile
+import pathlib
 import shutil
-import re
+import unittest
+import warnings
+from importlib import resources
 
-if sys.version_info[:2] <= (2, 6):
-    try:
-        import unittest2 as unittest
-    except ImportError:
-        sys.stderr.write('Please install unittest2 to test with Python 2.6 or earlier')
-        sys.exit(1)
+from graphframes.classic.graphframe import _from_java_gf, _java_api
+from graphframes.examples import BeliefPropagation, Graphs
+from graphframes.graphframe import GraphFrame
+from graphframes.lib import AggregateMessages as AM
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as sqlfunctions
+from pyspark.version import __version__
+
+if __version__[:3] >= "3.4":
+    from pyspark.sql.utils import is_remote
 else:
-    import unittest
 
-from pyspark import SparkContext
-from pyspark.sql import functions as sqlfunctions, SparkSession
-
-from .graphframe import GraphFrame, Pregel, _java_api, _from_java_gf
-from .lib import AggregateMessages as AM
-from .examples import Graphs, BeliefPropagation
-
-class GraphFrameTestUtils(object):
-
-    @classmethod
-    def parse_spark_version(cls, version_str):
-        """ take an input version string
-            return version items in a dictionary
-        """
-        _sc_ver_patt = r'(\d+)\.(\d+)(\.(\d+)(-(.+))?)?'
-        m = re.match(_sc_ver_patt, version_str)
-        if not m:
-            raise TypeError("version {} shoud be in <major>.<minor>.<maintenance>".format(version_str))
-        version_info = {}
-        try:
-            version_info['major'] = int(m.group(1))
-        except:
-            raise TypeError("invalid minor version")
-        try:
-            version_info['minor'] = int(m.group(2))
-        except:
-            raise TypeError("invalid major version")
-        try:
-            version_info['maintenance'] = int(m.group(4))
-        except:
-            version_info['maintenance'] = 0
-        try:
-            version_info['special'] = m.group(6)
-        except:
-            pass
-        return version_info
-
-    @classmethod
-    def createSparkContext(cls):
-        cls.sc = sc = SparkContext('local[4]', "GraphFramesTests")
-        cls.checkpointDir = tempfile.mkdtemp()
-        cls.sc.setCheckpointDir(cls.checkpointDir)
-        cls.spark_version = cls.parse_spark_version(sc.version)
-
-    @classmethod
-    def stopSparkContext(cls):
-        cls.sc.stop()
-        cls.sc = None
-        shutil.rmtree(cls.checkpointDir)
-
-    @classmethod
-    def spark_at_least_of_version(cls, version_str):
-        assert hasattr(cls, 'spark_version')
-        required_version = cls.parse_spark_version(version_str)
-        spark_version = cls.spark_version
-        for _name in ['major', 'minor', 'maintenance']:
-            sc_ver = spark_version[_name]
-            req_ver = required_version[_name]
-            if sc_ver != req_ver:
-                return sc_ver > req_ver
-        # All major.minor.maintenance equal
-        return True
-
-def setUpModule():
-    GraphFrameTestUtils.createSparkContext()
-
-def tearDownModule():
-    GraphFrameTestUtils.stopSparkContext()
+    def is_remote() -> bool:
+        return False
 
 
 class GraphFrameTestCase(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
-        # Small tests run much faster with spark.sql.shuffle.partitions = 4
-        cls.spark = SparkSession(GraphFrameTestUtils.sc).builder.config('spark.sql.shuffle.partitions', 4).getOrCreate()
+        warnings.filterwarnings("ignore", category=ResourceWarning)
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        cls.checkpointDir = "/tmp/GFTestsCheckpointDir"
+        pathlib.Path(cls.checkpointDir).mkdir(parents=True, exist_ok=True)
+
+        if is_remote():
+            cls.spark = (
+                SparkSession.builder.remote("sc://localhost:15002")
+                .appName("GraphFramesTest")
+                .config("spark.sql.shuffle.partitions", 4)
+                .config("spark.checkpoint.dir", cls.checkpointDir)
+                .getOrCreate()
+            )
+        else:
+            spark = (
+                SparkSession.builder.master("local[4]")
+                .appName("GraphFramesTest")
+                .config("spark.sql.shuffle.partitions", 4)
+            )
+            resources_root = resources.files("graphframes").joinpath("resources")
+            spark_jars = []
+            for pp in resources_root.iterdir():
+                assert isinstance(pp, pathlib.PosixPath)  # type checking
+                if pp.is_file() and pp.name.endswith(".jar"):
+                    spark_jars.append(pp.absolute().__str__())
+            if spark_jars:
+                jars_str = ",".join(spark_jars)
+                spark = spark.config("spark.jars", jars_str)
+
+            cls.spark = spark.getOrCreate()
+            assert cls.spark is not None
+            cls.spark.sparkContext.setCheckpointDir(cls.checkpointDir)
+
+        assert cls.spark is not None
 
     @classmethod
     def tearDownClass(cls):
+        assert cls.spark is not None
+        cls.spark.stop()
         cls.spark = None
+        shutil.rmtree(cls.checkpointDir)
 
 
 class GraphFrameTest(GraphFrameTestCase):
@@ -120,30 +92,26 @@ class GraphFrameTest(GraphFrameTestCase):
         e = self.spark.createDataFrame(localEdges, ["src", "dst", "action"])
         self.g = GraphFrame(v, e)
 
-    def test_spark_version_check(self):
-        gtu = GraphFrameTestUtils
-        gtu.spark_version = gtu.parse_spark_version("2.0.2")
-        self.assertTrue(gtu.spark_at_least_of_version("1.7"))
-        self.assertTrue(gtu.spark_at_least_of_version("2.0"))
-        self.assertTrue(gtu.spark_at_least_of_version("2.0.1"))
-        self.assertTrue(gtu.spark_at_least_of_version("2.0.2"))
-        self.assertFalse(gtu.spark_at_least_of_version("2.0.3"))
-        self.assertFalse(gtu.spark_at_least_of_version("2.1"))
-
     def test_construction(self):
         g = self.g
         vertexIDs = map(lambda x: x[0], g.vertices.select("id").collect())
         assert sorted(vertexIDs) == [1, 2, 3]
         edgeActions = map(lambda x: x[0], g.edges.select("action").collect())
         assert sorted(edgeActions) == ["follow", "hate", "love"]
-        tripletsFirst = list(map(lambda x: (x[0][1], x[1][1], x[2][2]),
-                            g.triplets.sort("src.id").select("src", "dst", "edge").take(1)))
+        tripletsFirst = list(
+            map(
+                lambda x: (x[0][1], x[1][1], x[2][2]),
+                g.triplets.sort("src.id").select("src", "dst", "edge").take(1),
+            )
+        )
         assert tripletsFirst == [("A", "B", "love")], tripletsFirst
         # Try with invalid vertices and edges DataFrames
         v_invalid = self.spark.createDataFrame(
-            [(1, "A"), (2, "B"), (3, "C")], ["invalid_colname_1", "invalid_colname_2"])
+            [(1, "A"), (2, "B"), (3, "C")], ["invalid_colname_1", "invalid_colname_2"]
+        )
         e_invalid = self.spark.createDataFrame(
-            [(1, 2), (2, 3), (3, 1)], ["invalid_colname_3", "invalid_colname_4"])
+            [(1, 2), (2, 3), (3, 1)], ["invalid_colname_3", "invalid_colname_4"]
+        )
         with self.assertRaises(ValueError):
             GraphFrame(v_invalid, e_invalid)
 
@@ -223,46 +191,63 @@ class PregelTest(GraphFrameTestCase):
         super(PregelTest, self).setUp()
 
     def test_page_rank(self):
-        from pyspark.sql.functions import coalesce, col, lit, sum, when
-        edges = self.spark.createDataFrame([[0, 1],
-                                          [1, 2],
-                                          [2, 4],
-                                          [2, 0],
-                                          [3, 4], # 3 has no in-links
-                                          [4, 0],
-                                          [4, 2]], ["src", "dst"])
+        from pyspark.sql.functions import coalesce, lit, sum
+
+        edges = self.spark.createDataFrame(
+            [
+                [0, 1],
+                [1, 2],
+                [2, 4],
+                [2, 0],
+                [3, 4],  # 3 has no in-links
+                [4, 0],
+                [4, 2],
+            ],
+            ["src", "dst"],
+        )
         edges.cache()
+        assert self.spark is not None
         vertices = self.spark.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
         numVertices = vertices.count()
+
         vertices = GraphFrame(vertices, edges).outDegrees
+        vertices.toPandas().head()
         vertices.cache()
         graph = GraphFrame(vertices, edges)
         alpha = 0.15
-        ranks = graph.pregel \
-            .setMaxIter(5) \
-            .withVertexColumn("rank", lit(1.0 / numVertices),
-                              coalesce(Pregel.msg(),
-                                       lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
-            .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
-            .aggMsgs(sum(Pregel.msg())) \
+        pregel = graph.pregel
+        ranks = (
+            graph.pregel.setMaxIter(5)
+            .withVertexColumn(
+                "rank",
+                lit(1.0 / numVertices),
+                coalesce(pregel.msg(), lit(0.0)) * lit(1.0 - alpha)
+                + lit(alpha / numVertices),
+            )
+            .sendMsgToDst(pregel.src("rank") / pregel.src("outDegree"))
+            .aggMsgs(sum(pregel.msg()))
             .run()
-        resultRows = ranks.sort(ranks.id).collect()
+        )
+        resultRows = ranks.sort("id").collect()
         result = map(lambda x: x.rank, resultRows)
         expected = [0.245, 0.224, 0.303, 0.03, 0.197]
         for a, b in zip(result, expected):
-            self.assertAlmostEqual(a, b, delta = 1e-3)
+            self.assertAlmostEqual(a, b, delta=1e-3)
 
 
 class GraphFrameLibTest(GraphFrameTestCase):
     def setUp(self):
         super(GraphFrameLibTest, self).setUp()
-        self.japi = _java_api(self.spark._sc)
+        if is_remote():
+            self.japi = None
+        else:
+            self.japi = _java_api(self.spark._sc)
 
-    def _hasCols(self, graph, vcols = [], ecols = []):
+    def _hasCols(self, graph, vcols=[], ecols=[]):
         map(lambda c: self.assertIn(c, graph.vertices.columns), vcols)
         map(lambda c: self.assertIn(c, graph.edges.columns), ecols)
 
-    def _df_hasCols(self, vertices, vcols = []):
+    def _df_hasCols(self, vertices, vcols=[]):
         map(lambda c: self.assertIn(c, vertices.columns), vcols)
 
     def _graph(self, name, *args):
@@ -277,34 +262,36 @@ class GraphFrameLibTest(GraphFrameTestCase):
         jgraph = getattr(examples, name)(*args)
         return _from_java_gf(jgraph, self.spark)
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_aggregate_messages(self):
         g = self._graph("friends")
         # For each user, sum the ages of the adjacent users,
         # plus 1 for the src's sum if the edge is "friend".
-        sendToSrc = (
-            AM.dst['age'] +
-            sqlfunctions.when(
-                AM.edge['relationship'] == 'friend',
-                sqlfunctions.lit(1)
-            ).otherwise(0))
-        sendToDst = AM.src['age']
+        sendToSrc = AM.dst["age"] + sqlfunctions.when(
+            AM.edge["relationship"] == "friend", sqlfunctions.lit(1)
+        ).otherwise(0)
+        sendToDst = AM.src["age"]
         agg = g.aggregateMessages(
-            sqlfunctions.sum(AM.msg).alias('summedAges'),
+            sqlfunctions.sum(AM.msg).alias("summedAges"),
             sendToSrc=sendToSrc,
-            sendToDst=sendToDst)
+            sendToDst=sendToDst,
+        )
         # Run the aggregation again providing SQL expressions as String instead.
         agg2 = g.aggregateMessages(
             "sum(MSG) AS `summedAges`",
             sendToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
-            sendToDst="src['age']")
+            sendToDst="src['age']",
+        )
         # Convert agg and agg2 to a mapping from id to the aggregated message.
-        aggMap = {id_: s for id_, s in agg.select('id', 'summedAges').collect()}
-        agg2Map = {id_: s for id_, s in agg2.select('id', 'summedAges').collect()}
+        aggMap = {id_: s for id_, s in agg.select("id", "summedAges").collect()}
+        agg2Map = {id_: s for id_, s in agg2.select("id", "summedAges").collect()}
         # Compute the truth via brute force.
-        user2age = {id_: age for id_, age in g.vertices.select('id', 'age').collect()}
+        user2age = {id_: age for id_, age in g.vertices.select("id", "age").collect()}
         trueAgg = {}
         for src, dst, rel in g.edges.select("src", "dst", "relationship").collect():
-            trueAgg[src] = trueAgg.get(src, 0) + user2age[dst] + (1 if rel == 'friend' else 0)
+            trueAgg[src] = (
+                trueAgg.get(src, 0) + user2age[dst] + (1 if rel == "friend" else 0)
+            )
             trueAgg[dst] = trueAgg.get(dst, 0) + user2age[src]
         # Compare if the agg mappings match the brute force mapping
         self.assertEqual(aggMap, trueAgg)
@@ -312,32 +299,34 @@ class GraphFrameLibTest(GraphFrameTestCase):
         # Check that TypeError is raises with messages of wrong type
         with self.assertRaises(TypeError):
             g.aggregateMessages(
-                "sum(MSG) AS `summedAges`",
-                sendToSrc=object(),
-                sendToDst="src['age']")
+                "sum(MSG) AS `summedAges`", sendToSrc=object(), sendToDst="src['age']"
+            )
         with self.assertRaises(TypeError):
             g.aggregateMessages(
-                "sum(MSG) AS `summedAges`",
-                sendToSrc=dst['age'],
-                sendToDst=object())
+                "sum(MSG) AS `summedAges`", sendToSrc=dst["age"], sendToDst=object()
+            )
 
     def test_connected_components(self):
-        v = self.spark.createDataFrame([
-        (0, "a", "b")], ["id", "vattr", "gender"])
-        e = self.spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
+        v = self.spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
+        e = self.spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter(
+            "src > 10"
+        )
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
-        self._df_hasCols(comps, vcols=['id', 'component', 'vattr', 'gender'])
+        self._df_hasCols(comps, vcols=["id", "component", "vattr", "gender"])
         self.assertEqual(comps.count(), 1)
 
     def test_connected_components2(self):
-        v = self.spark.createDataFrame([(0, "a0", "b0"), (1, "a1", "b1")], ["id", "A", "B"])
+        v = self.spark.createDataFrame(
+            [(0, "a0", "b0"), (1, "a1", "b1")], ["id", "A", "B"]
+        )
         e = self.spark.createDataFrame([(0, 1, "a01", "b01")], ["src", "dst", "A", "B"])
         g = GraphFrame(v, e)
         comps = g.connectedComponents()
-        self._df_hasCols(comps, vcols=['id', 'component', 'A', 'B'])
+        self._df_hasCols(comps, vcols=["id", "component", "A", "B"])
         self.assertEqual(comps.count(), 2)
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_connected_components_friends(self):
         g = self._graph("friends")
         comps_tests = []
@@ -349,6 +338,7 @@ class GraphFrameLibTest(GraphFrameTestCase):
         for c in comps_tests:
             self.assertEqual(c.groupBy("component").count().count(), 2)
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_label_progagation(self):
         n = 5
         g = self._graph("twoBlobs", n)
@@ -361,26 +351,31 @@ class GraphFrameLibTest(GraphFrameTestCase):
         assert len(all2) == 1
         assert all1 != all2
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_page_rank(self):
         n = 100
         g = self._graph("star", n)
         resetProb = 0.15
         errorTol = 1.0e-5
         pr = g.pageRank(resetProb, tol=errorTol)
-        self._hasCols(pr, vcols=['id', 'pagerank'], ecols=['src', 'dst', 'weight'])
+        self._hasCols(pr, vcols=["id", "pagerank"], ecols=["src", "dst", "weight"])
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_parallel_personalized_page_rank(self):
         n = 100
         g = self._graph("star", n)
         resetProb = 0.15
         maxIter = 15
         sourceIds = [1, 2, 3, 4]
-        pr = g.parallelPersonalizedPageRank(resetProb, sourceIds=sourceIds, maxIter=maxIter)
-        self._hasCols(pr, vcols=['id', 'pageranks'], ecols=['src', 'dst', 'weight'])
+        pr = g.parallelPersonalizedPageRank(
+            resetProb, sourceIds=sourceIds, maxIter=maxIter
+        )
+        self._hasCols(pr, vcols=["id", "pageranks"], ecols=["src", "dst", "weight"])
 
     def test_shortest_paths(self):
         edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
         all_edges = [z for (a, b) in edges for z in [(a, b), (b, a)]]
+        assert self.spark is not None
         edges = self.spark.createDataFrame(all_edges, ["src", "dst"])
         vertices = self.spark.createDataFrame([(i,) for i in range(1, 7)], ["id"])
         g = GraphFrame(vertices, edges)
@@ -388,13 +383,15 @@ class GraphFrameLibTest(GraphFrameTestCase):
         v2 = g.shortestPaths(landmarks)
         self._df_hasCols(v2, vcols=["id", "distances"])
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
         (v2, cost) = g.svdPlusPlus()
-        self._df_hasCols(v2, vcols=['id', 'column1', 'column2', 'column3', 'column4'])
+        self._df_hasCols(v2, vcols=["id", "column1", "column2", "column3", "column4"])
 
     def test_strongly_connected_components(self):
         # Simple island test
+        assert self.spark is not None
         vertices = self.spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
         edges = self.spark.createDataFrame([(7, 8)], ["src", "dst"])
         g = GraphFrame(vertices, edges)
@@ -403,30 +400,33 @@ class GraphFrameLibTest(GraphFrameTestCase):
             self.assertEqual(row.id, row.component)
 
     def test_triangle_counts(self):
+        assert self.spark is not None
         edges = self.spark.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
         vertices = self.spark.createDataFrame([(0,), (1,), (2,)], ["id"])
         g = GraphFrame(vertices, edges)
         c = g.triangleCount()
         for row in c.select("id", "count").collect():
-            self.assertEqual(row.asDict()['count'], 1)
-            
+            self.assertEqual(row.asDict()["count"], 1)
+
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_mutithreaded_sparksession_usage(self):
         # Test that we can use the GraphFrame API from multiple threads
         localVertices = [(1, "A"), (2, "B"), (3, "C")]
         localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
         v = self.spark.createDataFrame(localVertices, ["id", "name"])
         e = self.spark.createDataFrame(localEdges, ["src", "dst", "action"])
-        
-        
+
         exc = None
+
         def run_graphframe() -> None:
             try:
                 GraphFrame(v, e)
             except Exception as _e:
                 nonlocal exc
                 exc = _e
-        
+
         import threading
+
         thread = threading.Thread(target=run_graphframe)
         thread.start()
         thread.join()
@@ -438,6 +438,7 @@ class GraphFrameExamplesTest(GraphFrameTestCase):
         super(GraphFrameExamplesTest, self).setUp()
         self.japi = _java_api(self.spark._sc)
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_belief_propagation(self):
         # create graphical model g of size 3 x 3
         g = Graphs(self.spark).gridIsingModel(3)
@@ -445,24 +446,33 @@ class GraphFrameExamplesTest(GraphFrameTestCase):
         numIter = 5
         results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
         # check beliefs are valid
-        for row in results.vertices.select('belief').collect():
-            belief = row['belief']
+        for row in results.vertices.select("belief").collect():
+            belief = row["belief"]
             self.assertTrue(
                 0 <= belief <= 1,
-                msg="Expected belief to be probability in [0,1], but found {}".format(belief))
+                msg="Expected belief to be probability in [0,1], but found {}".format(
+                    belief
+                ),
+            )
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_graph_friends(self):
         # construct graph
         g = Graphs(self.spark).friends()
         # check that a GraphFrame instance was returned
         self.assertIsInstance(g, GraphFrame)
 
+    @unittest.skipIf(is_remote(), "SKIP FOR CONNECT")
     def test_graph_grid_ising_model(self):
         # construct graph
         n = 3
         g = Graphs(self.spark).gridIsingModel(n)
         # check that all the vertices exist
-        ids = [v['id'] for v in g.vertices.collect()]
+        ids = [v["id"] for v in g.vertices.collect()]
         for i in range(n):
             for j in range(n):
-                self.assertIn('{},{}'.format(i, j), ids)
+                self.assertIn("{},{}".format(i, j), ids)
+
+
+if __name__ == "__main__":
+    unittest.main()

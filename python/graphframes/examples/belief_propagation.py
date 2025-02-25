@@ -25,7 +25,7 @@ from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
 from pyspark.sql import SparkSession, functions as sqlfunctions, types
 
-__all__ = ['BeliefPropagation']
+__all__ = ["BeliefPropagation"]
 
 
 class BeliefPropagation:
@@ -61,7 +61,7 @@ class BeliefPropagation:
     * Coloring the graph by assigning a color to each vertex such that no neighboring vertices
       share the same color.
     * In each step of BP, update all vertices of a single color.  Alternate colors.
-     """
+    """
 
     @classmethod
     def runBPwithGraphFrames(cls, g: GraphFrame, numIter: int) -> GraphFrame:
@@ -71,12 +71,12 @@ class BeliefPropagation:
         """
         # choose colors for vertices for BP scheduling
         colorG = cls._colorGraph(g)
-        numColors = colorG.vertices.select('color').distinct().count()
+        numColors = colorG.vertices.select("color").distinct().count()
 
         # TODO: handle vertices without any edges
 
         # initialize vertex beliefs at 0.0
-        gx = GraphFrame(colorG.vertices.withColumn('belief', sqlfunctions.lit(0.0)), colorG.edges)
+        gx = GraphFrame(colorG.vertices.withColumn("belief", sqlfunctions.lit(0.0)), colorG.edges)
 
         # run BP for numIter iterations
         for iter_ in range(numIter):
@@ -85,37 +85,40 @@ class BeliefPropagation:
                 # Send messages to vertices of the current color.
                 # We may send to source or destination since edges are treated as undirected.
                 msgForSrc = sqlfunctions.when(
-                    AM.src['color'] == color,
-                    AM.edge['b'] * AM.dst['belief'])
+                    AM.src["color"] == color, AM.edge["b"] * AM.dst["belief"]
+                )
                 msgForDst = sqlfunctions.when(
-                    AM.dst['color'] == color,
-                    AM.edge['b'] * AM.src['belief'])
+                    AM.dst["color"] == color, AM.edge["b"] * AM.src["belief"]
+                )
                 # numerically stable sigmoid
                 logistic = sqlfunctions.udf(cls._sigmoid, returnType=types.DoubleType())
                 aggregates = gx.aggregateMessages(
                     sqlfunctions.sum(AM.msg).alias("aggMess"),
                     sendToSrc=msgForSrc,
-                    sendToDst=msgForDst)
+                    sendToDst=msgForDst,
+                )
                 v = gx.vertices
                 # receive messages and update beliefs for vertices of the current color
                 newBeliefCol = sqlfunctions.when(
-                    (v['color'] == color) & (aggregates['aggMess'].isNotNull()),
-                    logistic(aggregates['aggMess'] + v['a'])
-                ).otherwise(v['belief'])  # keep old beliefs for other colors
-                newVertices = (v
-                    .join(aggregates, on=(v['id'] == aggregates['id']), how='left_outer')
-                    .drop(aggregates['id'])  # drop duplicate ID column (from outer join)
-                    .withColumn('newBelief', newBeliefCol)  # compute new beliefs
-                    .drop('aggMess')  # drop messages
-                    .drop('belief')  # drop old beliefs
-                    .withColumnRenamed('newBelief', 'belief')
+                    (v["color"] == color) & (aggregates["aggMess"].isNotNull()),
+                    logistic(aggregates["aggMess"] + v["a"]),
+                ).otherwise(
+                    v["belief"]
+                )  # keep old beliefs for other colors
+                newVertices = (
+                    v.join(aggregates, on=(v["id"] == aggregates["id"]), how="left_outer")
+                    .drop(aggregates["id"])  # drop duplicate ID column (from outer join)
+                    .withColumn("newBelief", newBeliefCol)  # compute new beliefs
+                    .drop("aggMess")  # drop messages
+                    .drop("belief")  # drop old beliefs
+                    .withColumnRenamed("newBelief", "belief")
                 )
                 # cache new vertices using workaround for SPARK-1334
                 cachedNewVertices = AM.getCachedDataFrame(newVertices)
                 gx = GraphFrame(cachedNewVertices, gx.edges)
 
         # Drop the "color" column from vertices
-        return GraphFrame(gx.vertices.drop('color'), gx.edges)
+        return GraphFrame(gx.vertices.drop("color"), gx.edges)
 
     @staticmethod
     def _colorGraph(g: GraphFrame) -> GraphFrame:
@@ -132,7 +135,7 @@ class BeliefPropagation:
         """
 
         colorUDF = sqlfunctions.udf(lambda i, j: (i + j) % 2, returnType=types.IntegerType())
-        v = g.vertices.withColumn('color', colorUDF(sqlfunctions.col('i'), sqlfunctions.col('j')))
+        v = g.vertices.withColumn("color", colorUDF(sqlfunctions.col("i"), sqlfunctions.col("j")))
         return GraphFrame(v, g.edges)
 
     @staticmethod
@@ -164,12 +167,12 @@ def main() -> None:
     results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
 
     # display beliefs
-    beliefs = results.vertices.select('id', 'belief')
+    beliefs = results.vertices.select("id", "belief")
     print("Done with BP. Final beliefs after {} iterations:".format(numIter))
     beliefs.show()
 
     spark.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

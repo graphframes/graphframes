@@ -17,8 +17,11 @@
 
 package org.graphframes.lib
 
+import java.io.IOException
+
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
+
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions.{array, col, explode, struct}
 
@@ -248,6 +251,17 @@ class Pregel(val graph: GraphFrame) {
       val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
 
       var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
+
+      if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
+        // Spark Connect workaround
+        graph.spark.conf.getOption("spark.checkpoint.dir") match {
+          case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
+          case None =>
+            throw new IOException(
+              "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
+                "or by specifying the conf 'spark.checkpoint.dir'.")
+        }
+      }
 
       if (shouldCheckpoint && iteration % checkpointInterval == 0) {
         // do checkpoint, use lazy checkpoint because later we will materialize this DF.
