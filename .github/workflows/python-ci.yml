@@ -18,9 +18,10 @@ jobs:
       SCALA_VERSION: ${{ matrix.scala-version }}
     steps:
     - uses: actions/checkout@v4
-    - uses: olafurpg/setup-scala@v13
+    - uses: actions/setup-java@v4
       with:
-        java-version: "openjdk@1.11"
+        distribution: "zulu"
+        java-version: "11"
     - uses: actions/cache@v4
       with:
         path: |
