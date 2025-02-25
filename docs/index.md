@@ -63,14 +63,21 @@ GraphFrames supplied as a package.
 * [Quick Start](quick-start.html): a quick introduction to the GraphFrames API; start here!
 * [GraphFrames User Guide](user-guide.html): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
+* [Motif Finding Tutorial](motif-tutorial.html): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
 
 **API Docs:**
 
 * [GraphFrames Scala API (Scaladoc)](api/scala/index.html#org.graphframes.package)
 * [GraphFrames Python API (Sphinx)](api/python/index.html)
 
+**Community Forums:**
+
+* [GraphFrames Mailing List](https://groups.google.com/g/graphframes/): ask questions about GraphFrames here
+* [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
+
 **External Resources:**
 
 * [Apache Spark Homepage](http://spark.apache.org)
 * [Apache Spark Wiki](https://cwiki.apache.org/confluence/display/SPARK)
-* [Mailing Lists](http://spark.apache.org/mailing-lists.html): Ask questions about Spark here
+* [Apache Spark Mailing Lists](http://spark.apache.org/mailing-lists.html)
+* [GraphFrames on Stack Overflow](https://stackoverflow.com/questions/tagged/graphframes)
