@@ -33,6 +33,7 @@ numpy = ">= 1.7"
 black = "^25.1.0"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
+pytest = "^8.3.4"
 
 [tool.poetry.group.tutorials.dependencies]
 py7zr = "^0.22.0"
