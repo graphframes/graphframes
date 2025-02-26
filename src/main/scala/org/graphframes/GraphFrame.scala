@@ -1031,6 +1031,8 @@ object GraphFrame extends Serializable with Logging {
                     eRen(eSrcId(name)) === srcV(vId(srcName)) &&
                       eRen(eDstId(name)) === srcV(vId(srcName)))),
               prevNames :+ srcName :+ name)
+
+          case _ => throw new GraphFramesUnreachableException()
         }
 
       case AnonymousEdge(src, dst) =>
