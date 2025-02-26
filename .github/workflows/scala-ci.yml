@@ -8,8 +8,16 @@ jobs:
         include:
           - spark-version: 3.5.4
             scala-version: 2.13.8
+            java-version: 11
+          - spark-version: 3.5.4
+            scala-version: 2.13.8
+            java-version: 17
           - spark-version: 3.5.4
             scala-version: 2.12.18
+            java-version: 11
+          - spark-version: 3.5.4
+            scala-version: 2.12.18
+            java-version: 17
     runs-on: ubuntu-22.04
     env:
       # fixing this error after tests success: sbt.ForkMain failed with exit code 134
@@ -21,12 +29,12 @@ jobs:
     - uses: actions/setup-java@v4
       with:
         distribution: "zulu"
-        java-version: "11"
+        java-version: "${{ matrix.java-version }}"
     - uses: actions/cache@v4
       with:
         path: |
           ~/.ivy2/cache
-        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
+        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}-java-${{ matrix.java-version }}
     - name: Check scalafmt
       run: build/sbt root/scalafmtCheckAll
     - name: Build and Test
