@@ -19,8 +19,7 @@ package org.graphframes.pattern
 
 import scala.collection.mutable
 import scala.util.parsing.combinator._
-
-import org.graphframes.InvalidParseException
+import org.graphframes.{GraphFramesUnreachableException, InvalidParseException}
 
 /**
  * Parser for graph patterns for motif finding. Copied from GraphFrames with minor modification.
@@ -32,10 +31,12 @@ private[graphframes] object PatternParser extends RegexParsers {
   private val namedEdge: Parser[Edge] =
     vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]+".r ~ "]" ~ "->" ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ name ~ "]" ~ "->" ~ dst => NamedEdge(name, src, dst)
+      case _ => throw new GraphFramesUnreachableException()
     }
   val anonymousEdge: Parser[Edge] =
-    vertex ~ "-" ~ "[" ~ "]" ~ "->" ~ vertex ^^ { case src ~ "-" ~ "[" ~ "]" ~ "->" ~ dst =>
-      AnonymousEdge(src, dst)
+    vertex ~ "-" ~ "[" ~ "]" ~ "->" ~ vertex ^^ {
+      case src ~ "-" ~ "[" ~ "]" ~ "->" ~ dst => AnonymousEdge(src, dst)
+      case _ => throw new GraphFramesUnreachableException()
     }
   private val edge: Parser[Edge] = namedEdge | anonymousEdge
   private val negatedEdge: Parser[Pattern] =
