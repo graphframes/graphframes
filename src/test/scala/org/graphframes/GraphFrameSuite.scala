@@ -19,18 +19,18 @@ package org.graphframes
 
 import java.io.File
 
-import com.google.common.io.Files
+import org.graphframes.examples.Graphs
+
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-
 import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{IntegerType, StringType}
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.storage.StorageLevel
 
-import org.graphframes.examples.Graphs
+import com.google.common.io.Files
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -312,5 +312,40 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
 
     GraphFrame.setBroadcastThreshold(defaultThreshold)
+  }
+
+  test("power iteration clustering wrapper") {
+    val spark = this.spark
+    import spark.implicits._
+    val edges = spark
+      .createDataFrame(
+        Seq(
+          (1, 0, 0.5),
+          (2, 0, 0.5),
+          (2, 1, 0.7),
+          (3, 0, 0.5),
+          (3, 1, 0.7),
+          (3, 2, 0.9),
+          (4, 0, 0.5),
+          (4, 1, 0.7),
+          (4, 2, 0.9),
+          (4, 3, 1.1),
+          (5, 0, 0.5),
+          (5, 1, 0.7),
+          (5, 2, 0.9),
+          (5, 3, 1.1),
+          (5, 4, 1.3)))
+      .toDF("src", "dst", "weight")
+    val vertices = Seq(0, 1, 2, 3, 4, 5).toDF("id")
+    val gf = GraphFrame(vertices, edges)
+    val clusters = gf
+      .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
+      .sort("id")
+      .collect()
+    assert(
+      clusters
+        .zip(Seq(0, 0, 0, 0, 1))
+        .map { case (r: Row, expected: Int) => r.getInt(1) == expected }
+        .foldLeft(true) { case (r: Boolean, row: Boolean) => r && row })
   }
 }
