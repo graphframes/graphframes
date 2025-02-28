@@ -93,6 +93,19 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     g.pageRank.maxIter(10).run()
   }
 
+  test("construction from DataFrames with backquote in column names") {
+    val g = GraphFrame(
+      vertices.withColumnRenamed("name", "a `name`"),
+      edges.withColumnRenamed("action", "the `action`"))
+    g.vertices.collect().foreach { case Row(id: Long, name: String) =>
+      assert(localVertices(id) === name)
+    }
+    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
+      assert(localEdges((src, dst)) === action)
+    }
+    g.pageRank.maxIter(10).run()
+  }
+
   test("construction from edge DataFrame") {
     val g = GraphFrame.fromEdges(edges)
     assert(g.vertices.columns === Array("id"))
@@ -309,6 +322,20 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
             StructType(Seq(
               StructField("id", LongType, nullable = false),
               StructField("a.name", StringType, nullable = true))),
+            nullable = false))))
+  }
+
+  test("nestAsCol with backquote in column names") {
+    val df = vertices.withColumnRenamed("name", "a `name`")
+    val col = nestAsCol(df, "attr")
+    assert(
+      df.select(col).schema === StructType(
+        Seq(
+          StructField(
+            "attr",
+            StructType(Seq(
+              StructField("id", LongType, nullable = false),
+              StructField("a `name`", StringType, nullable = true))),
             nullable = false))))
   }
 

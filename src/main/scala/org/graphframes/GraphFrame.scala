@@ -882,7 +882,8 @@ object GraphFrame extends Serializable with Logging {
    * Note: This can be replaced with org.apache.spark.sql.catalyst.util.QuotingUtils.quoteIfNeeded
    * once support for Spark 3 has been dropped
    */
-  private[graphframes] def quote(column: String): String = s"`$column`"
+  private[graphframes] def quote(column: String): String =
+    s"`${column.replace("`", "``")}`"
 
   /**
    * Helper for column names containing a dot. Quotes the given column name with backticks to
