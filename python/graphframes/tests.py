@@ -255,13 +255,15 @@ class GraphFrameTest(GraphFrameTestCase):
             v=self.spark.createDataFrame(vertices).toDF("src", "dst", "weight"),
             e=self.spark.createDataFrame(edges).toDF("id"),
         )
+
         clusters = [
             r["cluster"]
             for r in g.powerIterationClustering(k=2, maxIter=40, weightCol="weight")
             .sort("id")
             .collect()
         ]
-        self.assertEqual(clusters, [0, 0, 0, 0, 1])
+
+        self.assertEqual(clusters, [0, 0, 0, 0, 1, 0])
 
 
 class PregelTest(GraphFrameTestCase):

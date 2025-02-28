@@ -340,8 +340,10 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val gf = GraphFrame(vertices, edges)
     val clusters = gf
       .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
-      .sort("id")
       .collect()
-    assert(Seq(0, 0, 0, 0, 1, 0) == clusters.map(_.getAs[Int]("cluster")).toSeq)
+      .sortBy(_.getAs[Int]("id"))
+      .map(_.getAs[Int]("cluster"))
+      .toSeq
+    assert(Seq(0, 0, 0, 0, 1, 0) == clusters)
   }
 }
