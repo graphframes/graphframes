@@ -38,6 +38,7 @@ from .graphframe import GraphFrame, Pregel, _from_java_gf, _java_api
 from .lib import AggregateMessages as AM
 
 
+
 class GraphFrameTestUtils(object):
     @classmethod
     def parse_spark_version(cls, version_str):
@@ -230,6 +231,37 @@ class GraphFrameTest(GraphFrameTestCase):
         self.assertEqual(paths2.count(), 0)
         paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
         self.assertEqual(paths3.count(), 0)
+
+    def test_power_iteration_clustering(self):
+        vertices = [
+            (1, 0, 0.5),
+            (2, 0, 0.5),
+            (2, 1, 0.7),
+            (3, 0, 0.5),
+            (3, 1, 0.7),
+            (3, 2, 0.9),
+            (4, 0, 0.5),
+            (4, 1, 0.7),
+            (4, 2, 0.9),
+            (4, 3, 1.1),
+            (5, 0, 0.5),
+            (5, 1, 0.7),
+            (5, 2, 0.9),
+            (5, 3, 1.1),
+            (5, 4, 1.3),
+        ]
+        edges = [(0,), (1,), (2,), (3,), (4,), (5,)]
+        g = GraphFrame(
+            v=self.spark.createDataFrame(vertices).toDF("src", "dst", "weight"),
+            e=self.spark.createDataFrame(edges).toDF("id"),
+        )
+        clusters = [
+            r["cluster"]
+            for r in g.powerIterationClustering(k=2, maxIter=40, weightCol="weight")
+            .sort("id")
+            .collect()
+        ]
+        self.assertEqual(clusters, [0, 0, 0, 0, 1])
 
 
 class PregelTest(GraphFrameTestCase):
