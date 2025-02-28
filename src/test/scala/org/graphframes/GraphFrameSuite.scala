@@ -342,10 +342,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
       .sort("id")
       .collect()
-    assert(
-      clusters
-        .zip(Seq(0, 0, 0, 0, 1))
-        .map { case (r: Row, expected: Int) => r.getInt(1) == expected }
-        .foldLeft(true) { case (r: Boolean, row: Boolean) => r && row })
+    assert(Seq(0, 0, 0, 0, 1, 0) == clusters.map(_.getAs[Int]("cluster")).toSeq)
   }
 }
