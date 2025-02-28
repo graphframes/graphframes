@@ -106,4 +106,11 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     doTest(Some(vertices))
   }
 
+  test("Test vertices with backquote in column name") {
+    val verticeSeq =
+      Seq((1L, "one"), (2L, "two"), (3L, "three"), (4L, "four"), (5L, "five"), (6L, "six"))
+    val vertices = sqlContext.createDataFrame(verticeSeq).toDF("id", "a `name`")
+    doTest(Some(vertices))
+  }
+
 }

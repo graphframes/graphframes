@@ -99,6 +99,20 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
   }
 
+  test("Count with backquote in column name") {
+    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+    val vertices = sqlContext
+      .createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
+      .toDF("id", "a `column`")
+    val g = GraphFrame(vertices, edges)
+    val v2 = g.triangleCount.run()
+    TestUtils.testSchemaInvariants(g, v2)
+    TestUtils.checkColumnType(v2.schema, "count", DataTypes.LongType)
+    v2.select("id", "count", quote("a `column`"))
+      .collect()
+      .foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
+  }
+
   test("no triangle") {
     val edges = spark.createDataFrame(Array(0L -> 1L, 1L -> 2L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
