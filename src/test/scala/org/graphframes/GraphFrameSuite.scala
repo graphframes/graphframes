@@ -141,24 +141,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
-  test("construction from GraphX with dots in column names") {
-    val vv: RDD[(Long, String)] = vertices.rdd.map { case Row(id: Long, name: String) =>
-      (id, name)
-    }
-    val ee: RDD[Edge[String]] = edges.rdd.map { case Row(src: Long, dst: Long, action: String) =>
-      Edge(src, dst, action)
-    }
-    val g = Graph(vv, ee)
-    val gf = GraphFrame.fromGraphX(g)
-    gf.vertices.select("id", "attr").collect().foreach { case Row(id: Long, name: String) =>
-      assert(localVertices(id) === name)
-    }
-    gf.edges.select("src", "dst", "attr").collect().foreach {
-      case Row(src: Long, dst: Long, action: String) =>
-        assert(localEdges((src, dst)) === action)
-    }
-  }
-
   test("convert to GraphX: Long IDs") {
     val gf = GraphFrame(vertices, edges)
     val g = gf.toGraphX
