@@ -878,6 +878,9 @@ object GraphFrame extends Serializable with Logging {
   /**
    * Helper for column names containing a dot. Quotes the given column name with backticks to
    * avoid further parsing.
+   *
+   * Note: This can be replaced with org.apache.spark.sql.catalyst.util.QuotingUtils.quoteIfNeeded
+   * once support for Spark 3 has been dropped
    */
   private[graphframes] def quote(column: String): String = s"`$column`"
 
@@ -885,6 +888,9 @@ object GraphFrame extends Serializable with Logging {
    * Helper for column names containing a dot. Quotes the given column name with backticks to
    * avoid further parsing. The column name can be given in segments, e.g. quote("col", "field")
    * representing column "col.field", which returns "`col`.`field`".
+   *
+   * Note: This can be replaced with org.apache.spark.sql.catalyst.util.QuotingUtils.quoted once
+   * support for Spark 3 has been dropped
    */
   private[graphframes] def quote(columnSegments: String*): String =
     columnSegments.map(quote).mkString(".")
