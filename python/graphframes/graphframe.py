@@ -262,7 +262,11 @@ class GraphFrame:
         return _from_java_gf(jdf, self._spark)
 
     def bfs(
-        self, fromExpr: str, toExpr: str, edgeFilter: Optional[str] = None, maxPathLength: int = 10
+        self,
+        fromExpr: str,
+        toExpr: str,
+        edgeFilter: Optional[str] = None,
+        maxPathLength: int = 10,
     ) -> DataFrame:
         """
         Breadth-first search (BFS).
