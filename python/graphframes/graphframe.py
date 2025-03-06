@@ -27,7 +27,7 @@ from pyspark.storagelevel import StorageLevel
 
 from graphframes.lib import Pregel
 
-def _from_java_gf(jgf: Any, spark: SparkSession) -> 'GraphFrame':
+
 def _from_java_gf(jgf: Any, spark: SparkSession) -> "GraphFrame":
     """
     (internal) creates a python GraphFrame wrapper from a java GraphFrame.
@@ -509,7 +509,7 @@ class GraphFrame:
         :param weightCol: optional name of weight column, 1.0 is used if not provided
 
         :return: DataFrame with new column "cluster"
-        """
+        """  # noqa: E501
         if weightCol:
             weightCol = self._spark._jvm.scala.Option.apply(weightCol)
         else:

@@ -38,7 +38,6 @@ from .graphframe import GraphFrame, Pregel, _from_java_gf, _java_api
 from .lib import AggregateMessages as AM
 
 
-
 class GraphFrameTestUtils(object):
     @classmethod
     def parse_spark_version(cls, version_str):
