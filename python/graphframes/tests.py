@@ -251,8 +251,8 @@ class GraphFrameTest(GraphFrameTestCase):
         ]
         edges = [(0,), (1,), (2,), (3,), (4,), (5,)]
         g = GraphFrame(
-            v=self.spark.createDataFrame(vertices).toDF("src", "dst", "weight"),
-            e=self.spark.createDataFrame(edges).toDF("id"),
+            v=self.spark.createDataFrame(edges).toDF("id"),
+            e=self.spark.createDataFrame(vertices).toDF("src", "dst", "weight"),
         )
 
         clusters = [
