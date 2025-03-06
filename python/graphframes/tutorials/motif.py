@@ -1,9 +1,11 @@
-"""Demonstrate GraphFrames network motif finding capabilities. Code from the Network Motif Finding Tutorial."""
+"""Demonstrate GraphFrames network motif finding capabilities. Code from the Network Motif Finding Tutorial."""  # noqa: E501
 
 #
 # Interactive Usage: pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 #
-# Batch Usage: spark-submit --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
+# Batch Usage:
+#  spark-submit \
+#  --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
 #
 
 import click
@@ -22,7 +24,7 @@ BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 
 
 #
-# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache.
+# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache. # noqa: E501
 #
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files

@@ -15,15 +15,15 @@
 # limitations under the License.
 #
 
-import os
 import re
 import shutil
+import sys
 import tempfile
 
 import pytest
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkContext
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
+from pyspark.sql import functions as sqlfunctions
 
 from .examples import BeliefPropagation, Graphs
 from .graphframe import GraphFrame, Pregel, _from_java_gf, _java_api
@@ -37,7 +37,6 @@ def set_spark(request, spark_session):
 
 @pytest.mark.usefixtures("set_spark")
 class GraphFrameTestUtils(object):
-
     @classmethod
     def parse_spark_version(cls, version_str):
         """take an input version string
@@ -52,30 +51,25 @@ class GraphFrameTestUtils(object):
         version_info = {}
         try:
             version_info["major"] = int(m.group(1))
-        except:
+        except:  # noqa: E722
             raise TypeError("invalid minor version")
         try:
             version_info["minor"] = int(m.group(2))
-        except:
+        except:  # noqa: E722
             raise TypeError("invalid major version")
         try:
             version_info["maintenance"] = int(m.group(4))
-        except:
+        except:  # noqa: E722
             version_info["maintenance"] = 0
         try:
             version_info["special"] = m.group(6)
-        except:
+        except:  # noqa: E722
             pass
         return version_info
 
     @classmethod
     def createSparkContext(cls):
-        cls.conf = SparkConf().setAppName("GraphFramesTests")
-        cls.conf.set(
-            "spark.submit.pyFiles",
-            os.path.abspath("python/dist/graphframes-0.8.4-py3-none-any.whl"),
-        )
-        cls.sc = SparkContext(master="local[4]", appName="GraphFramesTests", conf=cls.conf)
+        cls.sc = sc = SparkContext("local[4]", "GraphFramesTests")
         cls.checkpointDir = tempfile.mkdtemp()
         cls.sc.setCheckpointDir(cls.checkpointDir)
         cls.spark_version = cls.parse_spark_version(cls.sc.version)
@@ -148,7 +142,6 @@ class GraphFrameTest:
 
         edgeActions = [row[0] for row in g.edges.select("action").collect()]
         assert sorted(edgeActions) == ["follow", "hate", "love"]
-
         tripletsFirst = list(
             map(
                 lambda x: (x[0][1], x[1][1], x[2][2]),
@@ -164,7 +157,9 @@ class GraphFrameTest:
         e_invalid = self.spark.createDataFrame(
             [(1, 2), (2, 3), (3, 1)], ["invalid_colname_3", "invalid_colname_4"]
         )
+
         with pytest.raises(ValueError):
+
             GraphFrame(v_invalid, e_invalid)
 
     def test_cache(self):
@@ -245,9 +240,14 @@ class GraphFrameTest:
 class TestPregel:
 
     def test_page_rank(self):
-        # Create an edge DataFrame; note that vertex 3 has no in-links.
+        from pyspark.sql.functions import (  # Create an edge DataFrame; note that vertex 3 has no in-links.
+            coalesce,
+            lit,
+            sum,
+        )
+
         edges = self.spark.createDataFrame(
-            [[0, 1], [1, 2], [2, 4], [2, 0], [3, 4], [4, 0], [4, 2]],
+            [[0, 1], [1, 2], [2, 4], [2, 0], [3, 4], [4, 0], [4, 2]],  # 3 has no in-links
             ["src", "dst"],
         )
         edges.cache()
@@ -264,17 +264,15 @@ class TestPregel:
         graph = GraphFrame(vertices, edges)
         alpha = 0.15
 
-        # Run PageRank via Pregel.
         ranks = (
             graph.pregel.setMaxIter(5)
             .withVertexColumn(
                 "rank",
-                F.lit(1.0 / numVertices),
-                F.coalesce(Pregel.msg(), F.lit(0.0)) * F.lit(1.0 - alpha)
-                + F.lit(alpha / numVertices),
+                lit(1.0 / numVertices),
+                coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices),
             )
             .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-            .aggMsgs(F.sum(Pregel.msg()))
+            .aggMsgs(sum(Pregel.msg()))
             .run()
         )
 
@@ -312,6 +310,7 @@ class TestGraphFrameLib:
         :param args: all the required arguments (excluding the initial SparkSession).
         :return: a GraphFrame object.
         """
+
         examples = self.japi.examples()
         jgraph = getattr(examples, name)(*args)
         return _from_java_gf(jgraph, self.spark)
@@ -320,17 +319,17 @@ class TestGraphFrameLib:
         g = self._graph("friends")
         # For each user, sum the ages of the adjacent users,
         # plus 1 for the src's sum if the edge is "friend".
-        sendToSrc = AM.dst["age"] + F.when(AM.edge["relationship"] == "friend", F.lit(1)).otherwise(
-            0
-        )
+        sendToSrc = AM.dst["age"] + sqlfunctions.when(
+            AM.edge["relationship"] == "friend", sqlfunctions.lit(1)
+        ).otherwise(0)
         sendToDst = AM.src["age"]
         agg = g.aggregateMessages(
-            F.sum(AM.msg).alias("summedAges"), sendToSrc=sendToSrc, sendToDst=sendToDst
+            sqlfunctions.sum(AM.msg).alias("summedAges"), sendToSrc=sendToSrc, sendToDst=sendToDst
         )
         # Run the aggregation again using SQL expressions as Strings.
         agg2 = g.aggregateMessages(
             "sum(MSG) AS `summedAges`",
-            sendToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",
+            sendToSrc="(dst['age'] + CASE WHEN (edge['relationship'] = 'friend') THEN 1 ELSE 0 END)",  # noqa: E501
             sendToDst="src['age']",
         )
         # Build mappings from id to the aggregated message.
@@ -339,8 +338,7 @@ class TestGraphFrameLib:
         # Compute the expected aggregation via brute force.
         user2age = {row.id: row.age for row in g.vertices.select("id", "age").collect()}
         trueAgg = {}
-        for row in g.edges.select("src", "dst", "relationship").collect():
-            src, dst, rel = row.src, row.dst, row.relationship
+        for src, dst, rel in g.edges.select("src", "dst", "relationship").collect():
             trueAgg[src] = trueAgg.get(src, 0) + user2age[dst] + (1 if rel == "friend" else 0)
             trueAgg[dst] = trueAgg.get(dst, 0) + user2age[src]
         # Verify both aggregations match the expected results.
@@ -353,7 +351,7 @@ class TestGraphFrameLib:
             )
         with pytest.raises(TypeError):
             g.aggregateMessages(
-                "sum(MSG) AS `summedAges`", sendToSrc=F.col("dst")["age"], sendToDst=object()
+                "sum(MSG) AS `summedAges`", sendToSrc=dst["age"], sendToDst=object()
             )
 
     def test_connected_components(self):
@@ -371,6 +369,7 @@ class TestGraphFrameLib:
         comps = g.connectedComponents()
         self._df_hasCols(comps, vcols=["id", "component", "A", "B"])
         assert comps.count() == 2
+        self.assertEqual(comps.count(), 2)
 
     def test_connected_components_friends(self):
         g = self._graph("friends")
@@ -426,7 +425,7 @@ class TestGraphFrameLib:
 
     def test_svd_plus_plus(self):
         g = self._graph("ALSSyntheticData")
-        v2, cost = g.svdPlusPlus()
+        (v2, cost) = g.svdPlusPlus()
         self._df_hasCols(v2, vcols=["id", "column1", "column2", "column3", "column4"])
 
     def test_strongly_connected_components(self):
@@ -485,6 +484,7 @@ class TestGraphFrameExamples:
         # Run Belief Propagation (BP) for 5 iterations.
         numIter = 5
         results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
+
         # Check that each belief is a valid probability in [0, 1].
         for row in results.vertices.select("belief").collect():
             belief = row["belief"]
@@ -502,7 +502,7 @@ class TestGraphFrameExamples:
         # Construct a grid Ising model graph.
         n = 3
         g = Graphs(self.spark).gridIsingModel(n)
-        # Collect the vertex ids.
+        # Collect the vertex ids
         ids = [v["id"] for v in g.vertices.collect()]
         # Verify that every expected vertex id appears.
         for i in range(n):
