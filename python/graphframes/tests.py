@@ -17,7 +17,6 @@
 
 import re
 import shutil
-import sys
 import tempfile
 
 import pytest
@@ -69,7 +68,7 @@ class GraphFrameTestUtils(object):
 
     @classmethod
     def createSparkContext(cls):
-        cls.sc = sc = SparkContext("local[4]", "GraphFramesTests")
+        cls.sc = SparkContext("local[4]", "GraphFramesTests")
         cls.checkpointDir = tempfile.mkdtemp()
         cls.sc.setCheckpointDir(cls.checkpointDir)
         cls.spark_version = cls.parse_spark_version(cls.sc.version)
@@ -237,11 +236,8 @@ class GraphFrameTest:
 @pytest.mark.usefixtures("set_spark")
 class TestPregel:
     def test_page_rank(self):
-        from pyspark.sql.functions import (  # Create an edge DataFrame; note that vertex 3 has no in-links.
-            coalesce,
-            lit,
-            sum,
-        )
+        # Create an edge DataFrame; note that vertex 3 has no in-links.
+        from pyspark.sql.functions import coalesce, lit, sum
 
         edges = self.spark.createDataFrame(
             [[0, 1], [1, 2], [2, 4], [2, 0], [3, 4], [4, 0], [4, 2]],  # 3 has no in-links
@@ -301,7 +297,8 @@ class TestGraphFrameLib:
 
     def _graph(self, name, *args):
         """
-        Convenience to call one of the example graphs, passing the arguments and wrapping the result as a Python object.
+        Convenience to call one of the example graphs, passing the arguments and wrapping the result
+        as a Python object.
         :param name: the name of the example graph.
         :param args: all the required arguments (excluding the initial SparkSession).
         :return: a GraphFrame object.
