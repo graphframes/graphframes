@@ -115,7 +115,6 @@ def spark_session():
 
 @pytest.mark.usefixtures("set_spark")
 class GraphFrameTest:
-
     def setup_method(self, method):
         # Mimic setUp: create a simple GraphFrame instance for each test.
         localVertices = [(1, "A"), (2, "B"), (3, "C")]
@@ -159,7 +158,6 @@ class GraphFrameTest:
         )
 
         with pytest.raises(ValueError):
-
             GraphFrame(v_invalid, e_invalid)
 
     def test_cache(self):
@@ -238,7 +236,6 @@ class GraphFrameTest:
 
 @pytest.mark.usefixtures("set_spark")
 class TestPregel:
-
     def test_page_rank(self):
         from pyspark.sql.functions import (  # Create an edge DataFrame; note that vertex 3 has no in-links.
             coalesce,
@@ -288,7 +285,6 @@ class TestPregel:
 
 @pytest.mark.usefixtures("set_spark")
 class TestGraphFrameLib:
-
     def setup_method(self, method):
         # Set up the Java API instance for each test.
         self.japi = _java_api(self.spark._sc)
@@ -473,7 +469,6 @@ class TestGraphFrameLib:
 
 @pytest.mark.usefixtures("set_spark")
 class TestGraphFrameExamples:
-
     def setup_method(self, method):
         # Set up the Java API instance for use in the tests.
         self.japi = _java_api(self.spark._sc)
