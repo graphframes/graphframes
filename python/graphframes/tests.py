@@ -362,7 +362,6 @@ class TestGraphFrameLib:
         comps = g.connectedComponents()
         self._df_hasCols(comps, vcols=["id", "component", "A", "B"])
         assert comps.count() == 2
-        self.assertEqual(comps.count(), 2)
 
     def test_connected_components_friends(self):
         g = self._graph("friends")
