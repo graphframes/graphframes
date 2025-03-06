@@ -30,7 +30,12 @@ def three_edge_count(paths: DataFrame) -> DataFrame:
     )
     graphlet_count_df = (
         graphlet_type_df.groupby(
-            "A_Type", "E_relationship", "B_Type", "E2_relationship", "C_Type", "E3_relationship"
+            "A_Type",
+            "E_relationship",
+            "B_Type",
+            "E2_relationship",
+            "C_Type",
+            "E3_relationship",
         )
         .count()
         .orderBy(F.col("count").desc())

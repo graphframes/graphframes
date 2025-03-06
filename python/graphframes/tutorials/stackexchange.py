@@ -524,7 +524,9 @@ trim_links_df: DataFrame = post_links_df.select(
     "LinkType",
 )
 links_src_edge_df: DataFrame = trim_links_df.join(
-    posts_df.drop("LinkType"), on=trim_links_df.SrcPostId == posts_df.StackId, how="inner"
+    posts_df.drop("LinkType"),
+    on=trim_links_df.SrcPostId == posts_df.StackId,
+    how="inner",
 ).select(
     # 'dst' comes from the posts' 'id'
     F.col("id").alias("src"),
@@ -532,7 +534,9 @@ links_src_edge_df: DataFrame = trim_links_df.join(
     "LinkType",
 )
 raw_links_edge_df = links_src_edge_df.join(
-    posts_df.drop("LinkType"), on=links_src_edge_df.DstPostId == posts_df.StackId, how="inner"
+    posts_df.drop("LinkType"),
+    on=links_src_edge_df.DstPostId == posts_df.StackId,
+    how="inner",
 ).select(
     "src",
     # 'src' comes from the posts' 'id'

@@ -240,7 +240,15 @@ class TestPregel:
         from pyspark.sql.functions import coalesce, lit, sum
 
         edges = self.spark.createDataFrame(
-            [[0, 1], [1, 2], [2, 4], [2, 0], [3, 4], [4, 0], [4, 2]],  # 3 has no in-links
+            [
+                [0, 1],
+                [1, 2],
+                [2, 4],
+                [2, 0],
+                [3, 4],
+                [4, 0],
+                [4, 2],
+            ],  # 3 has no in-links
             ["src", "dst"],
         )
         edges.cache()
@@ -317,7 +325,9 @@ class TestGraphFrameLib:
         ).otherwise(0)
         sendToDst = AM.src["age"]
         agg = g.aggregateMessages(
-            sqlfunctions.sum(AM.msg).alias("summedAges"), sendToSrc=sendToSrc, sendToDst=sendToDst
+            sqlfunctions.sum(AM.msg).alias("summedAges"),
+            sendToSrc=sendToSrc,
+            sendToDst=sendToDst,
         )
         # Run the aggregation again using SQL expressions as Strings.
         agg2 = g.aggregateMessages(
