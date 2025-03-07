@@ -271,8 +271,7 @@ class TestPregel:
             .withVertexColumn(
                 "rank",
                 lit(1.0 / numVertices),
-                coalesce(pregel.msg(), lit(0.0)) * lit(1.0 - alpha)
-                + lit(alpha / numVertices),
+                coalesce(pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices),
             )
             .sendMsgToDst(pregel.src("rank") / pregel.src("outDegree"))
             .aggMsgs(sum(pregel.msg()))
