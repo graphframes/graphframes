@@ -20,7 +20,7 @@ import shutil
 import tempfile
 
 import pytest
-from pyspark import SparkContext
+from pyspark import __version__ as pyspark_version
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as sqlfunctions
 
@@ -67,11 +67,11 @@ class GraphFrameTestUtils(object):
         return version_info
 
     @classmethod
-    def createSparkContext(cls):
-        cls.sc = SparkContext("local[4]", "GraphFramesTests")
+    def createSparkSession(cls):
+        cls.spark = SparkSession.builder.appName("GraphFramesTests").getOrCreate()
         cls.checkpointDir = tempfile.mkdtemp()
-        cls.sc.setCheckpointDir(cls.checkpointDir)
-        cls.spark_version = cls.parse_spark_version(cls.sc.version)
+        cls.spark._jsc.setCheckpointDir(cls.checkpointDir)
+        cls.spark_version = cls.parse_spark_version(pyspark_version)
 
     @classmethod
     def stopSparkContext(cls):
@@ -93,18 +93,11 @@ class GraphFrameTestUtils(object):
         return True
 
 
-@pytest.fixture(scope="module", autouse=True)
-def spark_context():
-    GraphFrameTestUtils.createSparkContext()
-    yield
-    GraphFrameTestUtils.stopSparkContext()
-
-
 @pytest.fixture(scope="class")
 def spark_session():
     # Create a SparkSession with a smaller number of shuffle partitions.
     spark = (
-        SparkSession(GraphFrameTestUtils.sc)
+        SparkSession
         .builder.config("spark.sql.shuffle.partitions", 4)
         .getOrCreate()
     )
@@ -265,15 +258,17 @@ class TestPregel:
         graph = GraphFrame(vertices, edges)
         alpha = 0.15
 
+        pregel = graph.pregel
         ranks = (
-            graph.pregel.setMaxIter(5)
+            pregel.setMaxIter(5)
             .withVertexColumn(
                 "rank",
                 lit(1.0 / numVertices),
-                coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices),
+                coalesce(pregel.msg(), lit(0.0)) * lit(1.0 - alpha)
+                + lit(alpha / numVertices),
             )
-            .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-            .aggMsgs(sum(Pregel.msg()))
+            .sendMsgToDst(pregel.src("rank") / pregel.src("outDegree"))
+            .aggMsgs(sum(pregel.msg()))
             .run()
         )
 
