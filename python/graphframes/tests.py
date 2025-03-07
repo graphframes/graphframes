@@ -265,15 +265,17 @@ class TestPregel:
         graph = GraphFrame(vertices, edges)
         alpha = 0.15
 
+        pregel = graph.pregel
         ranks = (
-            graph.pregel.setMaxIter(5)
+            pregel.setMaxIter(5)
             .withVertexColumn(
                 "rank",
                 lit(1.0 / numVertices),
-                coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices),
+                coalesce(pregel.msg(), lit(0.0)) * lit(1.0 - alpha)
+                + lit(alpha / numVertices),
             )
-            .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-            .aggMsgs(sum(Pregel.msg()))
+            .sendMsgToDst(pregel.src("rank") / pregel.src("outDegree"))
+            .aggMsgs(sum(pregel.msg()))
             .run()
         )
 
