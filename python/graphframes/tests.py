@@ -111,14 +111,14 @@ class GraphFrameTest:
 
     def test_spark_version_check(self):
         gtu = GraphFrameTestUtils
-        gtu.spark_version = gtu.parse_spark_version("3.5.4")
+        gtu.spark_version = gtu.parse_spark_version("2.0.2")
 
         assert gtu.spark_at_least_of_version("1.7")
         assert gtu.spark_at_least_of_version("2.0")
         assert gtu.spark_at_least_of_version("2.0.1")
-        assert gtu.spark_at_least_of_version("3.5.2")
-        assert not gtu.spark_at_least_of_version("3.5.5")
-        assert not gtu.spark_at_least_of_version("4.0")
+        assert gtu.spark_at_least_of_version("2.0.2")
+        assert not gtu.spark_at_least_of_version("2.0.3")
+        assert not gtu.spark_at_least_of_version("2.1")
 
     def test_construction(self):
         g = self.g
