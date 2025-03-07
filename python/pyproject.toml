@@ -30,7 +30,7 @@ pyspark = "^3.4"
 numpy = ">= 1.7"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.12.1"
+black = "^24.3.0"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
 pytest = "^8.3.4"
