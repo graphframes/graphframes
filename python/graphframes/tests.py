@@ -25,7 +25,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as sqlfunctions
 
 from .examples import BeliefPropagation, Graphs
-from .graphframe import GraphFrame, Pregel, _from_java_gf, _java_api
+from .graphframe import GraphFrame, _from_java_gf, _java_api
 from .lib import AggregateMessages as AM
 
 
