@@ -74,6 +74,12 @@ class GraphFrameTestUtils(object):
         cls.spark_version = cls.parse_spark_version(pyspark_version)
 
     @classmethod
+    def stopSparkContext(cls):
+        cls.sc.stop()
+        cls.sc = None
+        shutil.rmtree(cls.checkpointDir)
+
+    @classmethod
     def spark_at_least_of_version(cls, version_str):
         assert hasattr(cls, "spark_version")
         required_version = cls.parse_spark_version(version_str)
