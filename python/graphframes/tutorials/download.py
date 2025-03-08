@@ -17,7 +17,9 @@ import requests  # type: ignore
     help="Directory to store downloaded files",
 )
 @click.option(
-    "--extract/--no-extract", default=True, help="Whether to extract the archive after download"
+    "--extract/--no-extract",
+    default=True,
+    help="Whether to extract the archive after download",
 )
 def stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
     """Download Stack Exchange archive for a given SUBDOMAIN.
@@ -53,7 +55,10 @@ def stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
             ) as e:
                 retry_count += 1
                 if retry_count == max_retries:
-                    click.echo(f"Failed to download after {max_retries} attempts: {e}", err=True)
+                    click.echo(
+                        f"Failed to download after {max_retries} attempts: {e}",
+                        err=True,
+                    )
                     raise click.Abort()
                 click.echo(f"Download attempt {retry_count} failed, retrying...")
 

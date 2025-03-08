@@ -16,13 +16,17 @@
 #
 
 import sys
-from typing import Any
-if sys.version > '3':
+from typing import TYPE_CHECKING, Any
+
+if sys.version > "3":
     basestring = str
 
+from pyspark.ml.wrapper import JavaWrapper
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col
-from pyspark.ml.wrapper import JavaWrapper
+
+if TYPE_CHECKING:
+    from graphframes import GraphFrame
 
 
 class Pregel(JavaWrapper):
@@ -75,11 +79,11 @@ class Pregel(JavaWrapper):
     ...     .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
     ...     .aggMsgs(sum(Pregel.msg())) \
     ...     .run()
-    """
+    """  # noqa: E501
 
     def __init__(self, graph: "GraphFrame") -> None:
         super(Pregel, self).__init__()
-        from graphframes import GraphFrame
+
         self.graph = graph
         self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", graph._jvm_graph)
 
@@ -102,7 +106,9 @@ class Pregel(JavaWrapper):
         self._java_obj.setCheckpointInterval(int(value))
         return self
 
-    def withVertexColumn(self, colName: str, initialExpr: Any, updateAfterAggMsgsExpr: Any) -> "Pregel":
+    def withVertexColumn(
+        self, colName: str, initialExpr: Any, updateAfterAggMsgsExpr: Any
+    ) -> "Pregel":
         """
         Defines an additional vertex column at the start of run and how to update it in each iteration.
 
@@ -116,7 +122,7 @@ class Pregel(JavaWrapper):
                                        You can reference all original vertex columns, additional vertex columns, and the
                                        aggregated message column using :func:`msg`.
                                        If the vertex received no messages, the message column would be null.
-        """
+        """  # noqa: E501
         self._java_obj.withVertexColumn(colName, initialExpr._jc, updateAfterAggMsgsExpr._jc)
         return self
 
@@ -133,7 +139,7 @@ class Pregel(JavaWrapper):
                         and `edge`, respectively.
                         You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
                         Null messages are not included in message aggregation.
-        """
+        """  # noqa: E501
         self._java_obj.sendMsgToSrc(msgExpr._jc)
         return self
 
@@ -150,7 +156,7 @@ class Pregel(JavaWrapper):
                         and `edge`, respectively.
                         You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
                         Null messages are not included in message aggregation.
-        """
+        """  # noqa: E501
         self._java_obj.sendMsgToDst(msgExpr._jc)
         return self
 
@@ -161,7 +167,7 @@ class Pregel(JavaWrapper):
         :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg())`.
                         You can reference the message column by :func:`msg` and the vertex ID by `col("id")`,
                         while the latter is usually not used.
-        """
+        """  # noqa: E501
         self._java_obj.aggMsgs(aggExpr._jc)
         return self
 
@@ -170,7 +176,7 @@ class Pregel(JavaWrapper):
         Runs the defined Pregel algorithm.
 
         :return: the result vertex DataFrame from the final iteration including both original and additional columns.
-        """
+        """  # noqa: E501
         return DataFrame(self._java_obj.run(), SparkSession.getActiveSession())
 
     @staticmethod
@@ -179,7 +185,7 @@ class Pregel(JavaWrapper):
         References the message column in aggregating messages and updating additional vertex columns.
 
         See :func:`aggMsgs` and :func:`withVertexColumn`
-        """
+        """  # noqa: E501
         return col("_pregel_msg_")
 
     @staticmethod

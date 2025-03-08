@@ -3,7 +3,9 @@
 #
 # Interactive Usage: pyspark --packages com.databricks:spark-xml_2.12:0.18.0
 #
-# Batch Usage: spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
+# Batch Usage:
+#   spark-submit \
+#   --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
 #
 
 from __future__ import annotations
@@ -362,7 +364,8 @@ badges_df = nodes_df.filter(nodes_df.Type == "Badge").cache()
 # * [Post]--Links-->[Post]
 #
 # Remember: 'src', 'dst' and 'relationship' are standard edge fields in GraphFrames
-# Remember: we must produce src/dst based on lowercase 'id' UUID, not 'Id' which is Stack Overflow's integer.
+# Remember: we must produce src/dst based on lowercase 'id' UUID,
+# not 'Id' which is Stack Overflow's integer.
 #
 
 #
@@ -410,7 +413,7 @@ user_asks_edges_df: DataFrame = questions_asked_df.join(
 )
 click.echo(f"Total Asks edges: {user_asks_edges_df.count():,}")
 click.echo(
-    f"Percentage of asked questions linked to users: {user_asks_edges_df.count() / questions_df.count():.2%}\n"
+    f"Percentage of asked questions linked to users: {user_asks_edges_df.count() / questions_df.count():.2%}\n"  # noqa: E501
 )
 
 
@@ -435,7 +438,7 @@ user_answers_edges_df = user_answers_df.join(
 )
 click.echo(f"Total User Answers edges: {user_answers_edges_df.count():,}")
 click.echo(
-    f"Percentage of answers linked to users: {user_answers_edges_df.count() / answers_df.count():.2%}\n"
+    f"Percentage of answers linked to users: {user_answers_edges_df.count() / answers_df.count():.2%}\n"  # noqa: E501
 )
 
 
@@ -521,7 +524,9 @@ trim_links_df: DataFrame = post_links_df.select(
     "LinkType",
 )
 links_src_edge_df: DataFrame = trim_links_df.join(
-    posts_df.drop("LinkType"), on=trim_links_df.SrcPostId == posts_df.StackId, how="inner"
+    posts_df.drop("LinkType"),
+    on=trim_links_df.SrcPostId == posts_df.StackId,
+    how="inner",
 ).select(
     # 'dst' comes from the posts' 'id'
     F.col("id").alias("src"),
@@ -529,7 +534,9 @@ links_src_edge_df: DataFrame = trim_links_df.join(
     "LinkType",
 )
 raw_links_edge_df = links_src_edge_df.join(
-    posts_df.drop("LinkType"), on=links_src_edge_df.DstPostId == posts_df.StackId, how="inner"
+    posts_df.drop("LinkType"),
+    on=links_src_edge_df.DstPostId == posts_df.StackId,
+    how="inner",
 ).select(
     "src",
     # 'src' comes from the posts' 'id'
