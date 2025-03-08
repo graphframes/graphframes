@@ -496,6 +496,27 @@ class GraphFrame:
         jdf = self._jvm_graph.triangleCount().run()
         return DataFrame(jdf, self._spark)
 
+    def powerIterationClustering(
+        self, k: int, maxIter: int, weightCol: Optional[str] = None
+    ) -> DataFrame:
+        """
+        Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen.
+        From the abstract: PIC finds a very low-dimensional embedding of a dataset using truncated power iteration
+        on a normalized pair-wise similarity matrix of the data.
+
+        :param k: the numbers of clusters to create
+        :param maxIter: param for maximum number of iterations (>= 0)
+        :param weightCol: optional name of weight column, 1.0 is used if not provided
+
+        :return: DataFrame with new column "cluster"
+        """  # noqa: E501
+        if weightCol:
+            weightCol = self._spark._jvm.scala.Option.apply(weightCol)
+        else:
+            weightCol = self._spark._jvm.scala.Option.empty()
+        jdf = self._jvm_graph.powerIterationClustering(k, maxIter, weightCol)
+        return DataFrame(jdf, self._spark)
+
 
 def _test():
     import doctest

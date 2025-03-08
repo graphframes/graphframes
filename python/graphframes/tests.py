@@ -232,6 +232,39 @@ class GraphFrameTest:
         paths3 = g.bfs("name='A'", "name='C'", maxPathLength=1)
         assert paths3.count() == 0
 
+    def test_power_iteration_clustering(self):
+        vertices = [
+            (1, 0, 0.5),
+            (2, 0, 0.5),
+            (2, 1, 0.7),
+            (3, 0, 0.5),
+            (3, 1, 0.7),
+            (3, 2, 0.9),
+            (4, 0, 0.5),
+            (4, 1, 0.7),
+            (4, 2, 0.9),
+            (4, 3, 1.1),
+            (5, 0, 0.5),
+            (5, 1, 0.7),
+            (5, 2, 0.9),
+            (5, 3, 1.1),
+            (5, 4, 1.3),
+        ]
+        edges = [(0,), (1,), (2,), (3,), (4,), (5,)]
+        g = GraphFrame(
+            v=self.spark.createDataFrame(edges).toDF("id"),
+            e=self.spark.createDataFrame(vertices).toDF("src", "dst", "weight"),
+        )
+
+        clusters = [
+            r["cluster"]
+            for r in g.powerIterationClustering(k=2, maxIter=40, weightCol="weight")
+            .sort("id")
+            .collect()
+        ]
+
+        self.assertEqual(clusters, [0, 0, 0, 0, 1, 0])
+
 
 @pytest.mark.usefixtures("set_spark")
 class TestPregel:
