@@ -6,7 +6,7 @@
 
 # GraphFrames: DataFrame-based Graphs
 
-This is a package for graphs processing and analytics on scale. It is build on top of Apache Spark and relying on DataFrame abstraction. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
+This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
 You can find user guide and API docs at https://graphframes.github.io/graphframes
 

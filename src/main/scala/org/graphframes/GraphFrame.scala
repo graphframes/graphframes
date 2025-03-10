@@ -21,14 +21,15 @@ import java.util.Random
 
 import scala.reflect.runtime.universe.TypeTag
 
-import org.apache.spark.graphx.{Edge, Graph}
-import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, struct, udf, monotonically_increasing_id, expr}
-import org.apache.spark.sql.types._
-import org.apache.spark.storage.StorageLevel
-
 import org.graphframes.lib._
 import org.graphframes.pattern._
+
+import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.ml.clustering.PowerIterationClustering
+import org.apache.spark.sql._
+import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, expr, lit, max, monotonically_increasing_id, struct, udf}
+import org.apache.spark.sql.types._
+import org.apache.spark.storage.StorageLevel
 
 /**
  * A representation of a graph using `DataFrame`s.
@@ -246,8 +247,8 @@ class GraphFrame private (
   /**
    * The out-degree of each vertex in the graph, returned as a DataFrame with two columns:
    *   - [[GraphFrame.ID]] the ID of the vertex
-   *   - "outDegree" (integer) storing the out-degree of the vertex
-   * Note that vertices with 0 out-edges are not returned in the result.
+   *   - "outDegree" (integer) storing the out-degree of the vertex Note that vertices with 0
+   *     out-edges are not returned in the result.
    *
    * @group degree
    */
@@ -257,9 +258,8 @@ class GraphFrame private (
 
   /**
    * The in-degree of each vertex in the graph, returned as a DataFame with two columns:
-   *   - [[GraphFrame.ID]] the ID of the vertex
-   * "- "inDegree" (int) storing the in-degree of the vertex Note that vertices with 0 in-edges
-   * are not returned in the result.
+   *   - [[GraphFrame.ID]] the ID of the vertex "- "inDegree" (int) storing the in-degree of the
+   *     vertex Note that vertices with 0 in-edges are not returned in the result.
    *
    * @group degree
    */
@@ -270,8 +270,8 @@ class GraphFrame private (
   /**
    * The degree of each vertex in the graph, returned as a DataFrame with two columns:
    *   - [[GraphFrame.ID]] the ID of the vertex
-   *   - 'degree' (integer) the degree of the vertex
-   * Note that vertices with 0 edges are not returned in the result.
+   *   - 'degree' (integer) the degree of the vertex Note that vertices with 0 edges are not
+   *     returned in the result.
    *
    * @group degree
    */
@@ -302,9 +302,9 @@ class GraphFrame private (
    *   - Within a pattern, names can be assigned to vertices and edges. For example,
    *     `"(a)-[e]->(b)"` has three named elements: vertices `a,b` and edge `e`. These names serve
    *     two purposes:
-   *     - The names can identify common elements among edges. For example,
-   *       `"(a)-[e]->(b); (b)-[e2]->(c)"` specifies that the same vertex `b` is the destination
-   *       of edge `e` and source of edge `e2`.
+   *     - The names can identify common elements among edges. For example, `"(a)-[e]->(b);
+   *       (b)-[e2]->(c)"` specifies that the same vertex `b` is the destination of edge `e` and
+   *       source of edge `e2`.
    *     - The names are used as column names in the result `DataFrame`. If a motif contains named
    *       vertex `a`, then the result `DataFrame` will contain a column "a" which is a
    *       `StructType` with sub-fields equivalent to the schema (columns) of
@@ -312,10 +312,10 @@ class GraphFrame private (
    *       the result `DataFrame` with sub-fields equivalent to the schema (columns) of
    *       [[GraphFrame.edges]].
    *     - Be aware that names do *not* identify *distinct* elements: two elements with different
-   *       names may refer to the same graph element. For example, in the motif
-   *       `"(a)-[e]->(b); (b)-[e2]->(c)"`, the names `a` and `c` could refer to the same vertex.
-   *       To restrict named elements to be distinct vertices or edges, use post-hoc filters such
-   *       as `resultDataframe.filter("a.id != c.id")`.
+   *       names may refer to the same graph element. For example, in the motif `"(a)-[e]->(b);
+   *       (b)-[e2]->(c)"`, the names `a` and `c` could refer to the same vertex. To restrict
+   *       named elements to be distinct vertices or edges, use post-hoc filters such as
+   *       `resultDataframe.filter("a.id != c.id")`.
    *   - It is acceptable to omit names for vertices or edges in motifs when not needed. E.g.,
    *     `"(a)-[]->(b)"` expresses an edge between vertices `a,b` but does not assign a name to
    *     the edge. There will be no column for the anonymous edge in the result `DataFrame`.
@@ -508,6 +508,32 @@ class GraphFrame private (
    * @group stdlib
    */
   def triangleCount: TriangleCount = new TriangleCount(this)
+
+  /**
+   * Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and
+   * Cohen. From the abstract: PIC finds a very low-dimensional embedding of a dataset using
+   * truncated power iteration on a normalized pair-wise similarity matrix of the data.
+   *
+   * PowerIterationClustering algorithm.
+   * @param k
+   *   The number of clusters to create (k).
+   * @param maxIter
+   *   Param for maximum number of iterations (>= 0).
+   * @param weightCol
+   *   Param for weight column name.
+   * @return
+   */
+  def powerIterationClustering(k: Int, maxIter: Int, weightCol: Option[String]): DataFrame = {
+    val powerIterationClustering =
+      new PowerIterationClustering().setK(k).setMaxIter(maxIter).setDstCol(DST).setSrcCol(SRC)
+    weightCol match {
+      case Some(col) => powerIterationClustering.setWeightCol(col).assignClusters(edges)
+      case None =>
+        powerIterationClustering
+          .setWeightCol("_weight")
+          .assignClusters(edges.withColumn("_weight", lit(1.0)))
+    }
+  }
 
   // ========= Motif finding (private) =========
 
@@ -784,17 +810,18 @@ object GraphFrame extends Serializable with Logging {
   /**
    * Given:
    *   - a GraphFrame `originalGraph`
-   *   - a GraphX graph derived from the GraphFrame using [[GraphFrame.toGraphX]]
-   * this method merges attributes from the GraphX graph into the original GraphFrame.
+   *   - a GraphX graph derived from the GraphFrame using [[GraphFrame.toGraphX]] this method
+   *     merges attributes from the GraphX graph into the original GraphFrame.
    *
    * This method is useful for doing computations using the GraphX API and then merging the
    * results with a GraphFrame. For example, given:
    *   - GraphFrame `originalGraph`
    *   - GraphX Graph[String, Int] `graph` with a String vertex attribute we want to call
-   *     "category" and an Int edge attribute we want to call "count"
-   * We can call `fromGraphX(originalGraph, graph, Seq("category"), Seq("count"))` to produce a
-   * new GraphFrame. The new GraphFrame will be an augmented version of `originalGraph`, with new
-   * [[GraphFrame.vertices]] column "category" and new [[GraphFrame.edges]] column "count" added.
+   *     "category" and an Int edge attribute we want to call "count" We can call
+   *     `fromGraphX(originalGraph, graph, Seq("category"), Seq("count"))` to produce a new
+   *     GraphFrame. The new GraphFrame will be an augmented version of `originalGraph`, with new
+   *     [[GraphFrame.vertices]] column "category" and new [[GraphFrame.edges]] column "count"
+   *     added.
    *
    * See [[org.graphframes.examples.BeliefPropagation]] for example usage.
    *
@@ -1031,6 +1058,8 @@ object GraphFrame extends Serializable with Logging {
                     eRen(eSrcId(name)) === srcV(vId(srcName)) &&
                       eRen(eDstId(name)) === srcV(vId(srcName)))),
               prevNames :+ srcName :+ name)
+
+          case _ => throw new GraphFramesUnreachableException()
         }
 
       case AnonymousEdge(src, dst) =>

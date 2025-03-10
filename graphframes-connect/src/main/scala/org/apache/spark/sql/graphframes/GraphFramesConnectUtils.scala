@@ -3,17 +3,14 @@
 package org.apache.spark.sql.graphframes
 
 import scala.jdk.CollectionConverters._
-
-import org.graphframes.GraphFrame
+import org.graphframes.{GraphFrame, GraphFramesUnreachableException}
 import org.graphframes.connect.proto.{ColumnOrExpression, GraphFramesAPI, StringOrLongID}
 import org.graphframes.connect.proto.ColumnOrExpression.ColOrExprCase
 import org.graphframes.connect.proto.GraphFramesAPI.MethodCase
 import org.graphframes.connect.proto.StringOrLongID.IdCase
-
 import org.apache.spark.sql.{Column, DataFrame, Dataset}
 import org.apache.spark.sql.connect.planner.SparkConnectPlanner
-import org.apache.spark.sql.functions.{expr, lit}
-
+import org.apache.spark.sql.functions.{col, expr, lit}
 import com.google.protobuf.ByteString
 
 object GraphFramesConnectUtils {
@@ -101,9 +98,6 @@ object GraphFramesConnectUtils {
           .setBroadcastThreshold(cc.getBroadcastThreshold)
           .run()
       }
-      case MethodCase.DEGREES => {
-        graphFrame.degrees
-      }
       case MethodCase.DROP_ISOLATED_VERTICES => {
         graphFrame.dropIsolatedVertices().vertices
       }
@@ -119,14 +113,8 @@ object GraphFramesConnectUtils {
       case MethodCase.FIND => {
         graphFrame.find(apiMessage.getFind.getPattern)
       }
-      case MethodCase.IN_DEGREES => {
-        graphFrame.inDegrees
-      }
       case MethodCase.LABEL_PROPAGATION => {
         graphFrame.labelPropagation.maxIter(apiMessage.getLabelPropagation.getMaxIter).run()
-      }
-      case MethodCase.OUT_DEGREES => {
-        graphFrame.outDegrees
       }
       case MethodCase.PAGE_RANK => {
         val pageRankProto = apiMessage.getPageRank
@@ -159,6 +147,14 @@ object GraphFramesConnectUtils {
           .sourceIds(sourceIds)
           .run()
           .vertices // See comment in the PageRank
+      }
+      case MethodCase.POWER_ITERATION_CLUSTERING => {
+        val pic = apiMessage.getPowerIterationClustering
+        if (pic.hasWeightCol) {
+          graphFrame.powerIterationClustering(pic.getK, pic.getMaxIter, Some(pic.getWeightCol))
+        } else {
+          graphFrame.powerIterationClustering(pic.getK, pic.getMaxIter, None)
+        }
       }
       case MethodCase.PREGEL => {
         val pregelProto = apiMessage.getPregel
@@ -211,6 +207,7 @@ object GraphFramesConnectUtils {
       case MethodCase.TRIPLETS => {
         graphFrame.triplets
       }
+      case _ => throw new GraphFramesUnreachableException() // Unreachable
     }
   }
 }

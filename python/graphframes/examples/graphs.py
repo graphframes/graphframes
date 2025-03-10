@@ -17,7 +17,8 @@
 
 import itertools
 
-from pyspark.sql import functions as sqlfunctions, SparkSession
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as sqlfunctions
 
 from graphframes import GraphFrame
 
@@ -89,7 +90,7 @@ class Graphs:
             and "b".  Edges are directed, but they should be treated as undirected in any algorithms
             run on this model. Vertex IDs are of the form "i,j".  E.g., vertex "1,3" is in the
             second row and fourth column of the grid.
-        """
+        """  # noqa: W605
         # check param n
         if n < 1:
             raise ValueError(

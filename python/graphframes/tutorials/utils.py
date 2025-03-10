@@ -18,7 +18,7 @@ def three_edge_count(paths: DataFrame) -> DataFrame:
     -------
     DataFrame
         A DataFrame of the counts of the different types of 3-node graphlets in the graph.
-    """
+    """  # noqa: E501
     graphlet_type_df = paths.select(
         F.col("a.Type").alias("A_Type"),
         F.col("e1.relationship").alias("E_relationship"),
@@ -30,7 +30,12 @@ def three_edge_count(paths: DataFrame) -> DataFrame:
     )
     graphlet_count_df = (
         graphlet_type_df.groupby(
-            "A_Type", "E_relationship", "B_Type", "E2_relationship", "C_Type", "E3_relationship"
+            "A_Type",
+            "E_relationship",
+            "B_Type",
+            "E2_relationship",
+            "C_Type",
+            "E3_relationship",
         )
         .count()
         .orderBy(F.col("count").desc())
@@ -113,7 +118,7 @@ def add_type_degree(g: GraphFrame) -> DataFrame:
     -------
     DataFrame - I am broke, next line is wrong
         A GraphFrame with a map[type:degree] 'type_degree' field added to the vertices
-    """
+    """  # noqa: E501
     type_degree: DataFrame = (
         g.edges.select(F.col("src").alias("id"), "relationship")
         .filter(F.col("id").isNotNull())

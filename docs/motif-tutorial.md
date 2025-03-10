@@ -92,7 +92,6 @@ from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 
 # Initialize a SparkSession
-
 spark: SparkSession = (
     SparkSession.builder.appName("Stack Overflow Motif Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
@@ -103,7 +102,6 @@ sc: SparkContext = spark.sparkContext
 sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
 # Change me if you download a different stackexchange site
-
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
 BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 {% endhighlight %}
@@ -118,21 +116,17 @@ Load the nodes and edges of the graph from the `data` folder and count the types
 #
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
-
 NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
 nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
 
 # Repartition the nodes to give our motif searches parallelism
-
 nodes_df = nodes_df.repartition(50).checkpoint().cache()
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
-
 EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
 edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
 
 # Repartition the edges to give our motif searches parallelism
-
 edges_df = edges_df.repartition(50).checkpoint().cache()
 {% endhighlight %}
 </div>
@@ -243,7 +237,6 @@ def add_missing_columns(df: DataFrame, all_cols: List[Tuple[str, T.StructField]]
     return df
 
 # Now apply this function to each of your DataFrames to get a consistent schema
-
 posts_df = add_missing_columns(posts_df, all_cols).select(all_column_names)
 post_links_df = add_missing_columns(post_links_df, all_cols).select(all_column_names)
 users_df = add_missing_columns(users_df, all_cols).select(all_column_names)
@@ -322,7 +315,6 @@ valid_edge_count = (
 )
 
 # Just up and die if we have edges that point to non-existent nodes
-
 assert (
     edge_count == valid_edge_count
 ), f"Edge count {edge_count} != valid edge count {valid_edge_count}"
@@ -359,7 +351,6 @@ A complete description of the graph query language is in the [GraphFrames User G
 paths = g.find("(a)-[e1]->(b); (b)-[e2]->(c); (c)-[e3]->(a)")
 
 # Show the first path
-
 paths.show(3)
 {% endhighlight %}
 </div>

@@ -18,12 +18,15 @@
 import math
 from typing import Union
 
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as sqlfunctions
+from pyspark.sql import types
+
 # Import subpackage examples here explicitly so that
 # this module can be run directly with spark-submit.
 import graphframes.examples
 from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
-from pyspark.sql import SparkSession, functions as sqlfunctions, types
 
 __all__ = ["BeliefPropagation"]
 
@@ -61,7 +64,7 @@ class BeliefPropagation:
     * Coloring the graph by assigning a color to each vertex such that no neighboring vertices
       share the same color.
     * In each step of BP, update all vertices of a single color.  Alternate colors.
-    """
+    """  # noqa: W605
 
     @classmethod
     def runBPwithGraphFrames(cls, g: GraphFrame, numIter: int) -> GraphFrame:

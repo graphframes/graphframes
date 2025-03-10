@@ -1,4 +1,6 @@
 import ReleaseTransformations.*
+import sbt.Credentials
+import sbt.Keys.credentials
 
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.4")
 lazy val sparkBranch = sparkVer.substring(0, 3)
@@ -49,7 +51,8 @@ lazy val commonSetting = Seq(
     "-XX:ReservedCodeCacheSize=384m",
     "-XX:MaxMetaspaceSize=384m",
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-    "--add-opens=java.base/java.lang=ALL-UNNAMED"))
+    "--add-opens=java.base/java.lang=ALL-UNNAMED"),
+  credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"))
 
 lazy val root = (project in file("."))
   .settings(
@@ -60,7 +63,6 @@ lazy val root = (project in file("."))
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
     autoAPIMappings := true,
-
     coverageHighlighting := false,
 
     // Release settings
@@ -91,16 +93,4 @@ lazy val connect = (project in file("graphframes-connect"))
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
     PB.protocVersion := "3.23.4", // Spark 3.5 branch
     libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
-
-    // Assembly and shading
-    assembly / test := {},
-    assembly / assemblyShadeRules := Seq(
-      ShadeRule.rename("com.google.protobuf.**" -> "org.sparkproject.connect.protobuf.@1").inAll),
-    assembly / assemblyMergeStrategy := {
-      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-      case x if x.endsWith("module-info.class") => MergeStrategy.discard
-      case x =>
-        val oldStrategy = (assembly / assemblyMergeStrategy).value
-        oldStrategy(x)
-    })
+      "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13))

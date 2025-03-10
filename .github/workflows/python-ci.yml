@@ -18,9 +18,10 @@ jobs:
       SCALA_VERSION: ${{ matrix.scala-version }}
     steps:
     - uses: actions/checkout@v4
-    - uses: olafurpg/setup-scala@v13
+    - uses: actions/setup-java@v4
       with:
-        java-version: "openjdk@1.11"
+        distribution: "zulu"
+        java-version: "11"
     - uses: actions/cache@v4
       with:
         path: |
@@ -43,7 +44,7 @@ jobs:
     - name: Test
       working-directory: ./python
       run: |
-        poetry run python -m unittest discover -s tests/ -v
+        poetry run python -m pytets
 
     - name: Test SparkConnect
       env:
@@ -51,5 +52,5 @@ jobs:
       working-directory: ./python
       run: |
         poetry run python dev/run_connect.py
-        poetry run python -m unittest discover -s tests/ -v
+        poetry run python -m pytest
         poetry run python dev/stop_connect.py

@@ -17,10 +17,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
-from typing_extensions import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
-from pyspark.sql import Column, DataFrame
 from pyspark.storagelevel import StorageLevel
 from pyspark.version import __version__
 
@@ -32,9 +30,10 @@ else:
         return False
 
 
-from graphframes.lib import Pregel
+from pyspark.sql import SparkSession
 
 from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
+from graphframes.lib import Pregel
 
 if __version__[:3] >= "3.4":
     from graphframes.connect.graphframe_client import GraphFrameConnect
@@ -43,6 +42,10 @@ else:
     class GraphFrameConnect:
         def __init__(self, *args, **kwargs) -> None:
             raise ValueError("Unreachable error happened!")
+
+
+if TYPE_CHECKING:
+    from pyspark.sql import Column, DataFrame
 
 
 class GraphFrame:
@@ -91,7 +94,7 @@ class GraphFrame:
         return self._impl.edges
 
     def __repr__(self) -> str:
-        return self._impl.__repr__
+        return self._impl.__repr__()
 
     def cache(self) -> "GraphFrame":
         """Persist the dataframe representation of vertices and edges of the graph with the default
@@ -200,6 +203,7 @@ class GraphFrame:
         :param condition: String or Column describing the condition expression for filtering.
         :return: GraphFrame with filtered edges.
         """
+
         return GraphFrame._from_impl(self._impl.filterEdges(condition=condition))
 
     def dropIsolatedVertices(self) -> "GraphFrame":
@@ -408,12 +412,27 @@ class GraphFrame:
         """
         return self._impl.triangleCount()
 
+    def powerIterationClustering(
+        self, k: int, maxIter: int, weightCol: Optional[str] = None
+    ) -> DataFrame:
+        """
+        Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen.
+        From the abstract: PIC finds a very low-dimensional embedding of a dataset using truncated power iteration
+        on a normalized pair-wise similarity matrix of the data.
+
+        :param k: the numbers of clusters to create
+        :param maxIter: param for maximum number of iterations (>= 0)
+        :param weightCol: optional name of weight column, 1.0 is used if not provided
+
+        :return: DataFrame with new column "cluster"
+        """  # noqa: E501
+        return self._impl.powerIterationClustering(k, maxIter, weightCol)
+
 
 def _test():
     import doctest
 
     import graphframe
-    from pyspark.sql import SparkSession
 
     globs = graphframe.__dict__.copy()
     globs["spark"] = SparkSession.builder.master("local[4]").appName("PythonTest").getOrCreate()

@@ -15,22 +15,20 @@ message GraphFramesAPI {
     AggregateMessages aggregate_messages = 3;
     BFS bfs = 4;
     ConnectedComponents connected_components = 5;
-    Degrees degrees = 6;
-    DropIsolatedVertices drop_isolated_vertices = 7;
-    FilterEdges filter_edges = 8;
-    FilterVertices filter_vertices = 9;
-    Find find = 10;
-    InDegrees in_degrees = 11;
-    LabelPropagation label_propagation = 12;
-    OutDegrees out_degrees = 13;
-    PageRank page_rank = 14;
-    ParallelPersonalizedPageRank parallel_personalized_page_rank = 15;
-    Pregel pregel = 16;
-    ShortestPaths shortest_paths = 17;
-    StronglyConnectedComponents strongly_connected_components = 18;
-    SVDPlusPlus svd_plus_plus = 19;
-    TriangleCount triangle_count = 20;
-    Triplets triplets = 21;
+    DropIsolatedVertices drop_isolated_vertices = 6;
+    FilterEdges filter_edges = 7;
+    FilterVertices filter_vertices = 8;
+    Find find = 9;
+    LabelPropagation label_propagation = 10;
+    PageRank page_rank = 11;
+    ParallelPersonalizedPageRank parallel_personalized_page_rank = 12;
+    PowerIterationClustering power_iteration_clustering = 13;
+    Pregel pregel = 14;
+    ShortestPaths shortest_paths = 15;
+    StronglyConnectedComponents strongly_connected_components = 16;
+    SVDPlusPlus svd_plus_plus = 17;
+    TriangleCount triangle_count = 18;
+    Triplets triplets = 19;
   }
 }
 
@@ -67,8 +65,6 @@ message ConnectedComponents {
   int32 broadcast_threshold = 3;
 }
 
-message Degrees {}
-
 message DropIsolatedVertices {}
 
 message FilterEdges {
@@ -83,13 +79,9 @@ message Find {
   string pattern = 1;
 }
 
-message InDegrees {}
-
 message LabelPropagation {
   int32 max_iter = 1;
 }
-
-message OutDegrees {}
 
 message PageRank {
   double reset_probability = 1;
@@ -102,6 +94,12 @@ message ParallelPersonalizedPageRank {
   double reset_probability = 1;
   repeated StringOrLongID source_ids = 2;
   int32 max_iter = 3;
+}
+
+message PowerIterationClustering {
+  int32 k = 1;
+  int32 max_iter = 2;
+  optional string weight_col = 3;
 }
 
 message Pregel {

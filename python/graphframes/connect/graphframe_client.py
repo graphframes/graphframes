@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing_extensions import Self
-
 from pyspark.sql.connect import functions as F
 from pyspark.sql.connect import proto
 from pyspark.sql.connect.client import SparkConnectClient
@@ -9,6 +7,7 @@ from pyspark.sql.connect.column import Column
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.storagelevel import StorageLevel
+from typing_extensions import Self
 
 from .proto import graphframes_pb2 as pb
 from .utils import dataframe_to_proto, make_column_or_expr, make_str_or_long_id
@@ -170,13 +169,13 @@ class GraphFrameConnect:
             )
         if self.SRC not in e.columns:
             raise ValueError(
-                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}".format(
+                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
                     self.SRC, ",".join(e.columns)
                 )
             )
         if self.DST not in e.columns:
             raise ValueError(
-                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}".format(
+                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
                     self.DST, ",".join(e.columns)
                 )
             )
