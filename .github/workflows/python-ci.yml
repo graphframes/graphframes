@@ -44,7 +44,7 @@ jobs:
     - name: Test
       working-directory: ./python
       run: |
-        poetry run python -m pytets
+        poetry run python -m pytest
 
     - name: Test SparkConnect
       env:
