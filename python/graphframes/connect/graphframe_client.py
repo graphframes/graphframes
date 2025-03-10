@@ -678,6 +678,45 @@ class GraphFrameConnect:
         )
         return self._update_page_rank_edge_weights(new_vertices)
 
+    def powerIterationClustering(
+        self, k: int, maxIter: int, weightCol: str | None = None
+    ) -> DataFrame:
+        class PowerIterationClustering(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                k: int,
+                max_iter: int,
+                weight_col: str | None,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.k = k
+                self.max_iter = max_iter
+                self.weight_col = weight_col
+
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.power_iteration_clustering.CopyFrom(
+                    pb.PowerIterationClustering(
+                        k=self.k,
+                        max_iter=self.max_iter,
+                        weight_col=self.weight_col,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return DataFrame.withPlan(
+            PowerIterationClustering(self._vertices, self._edges, k, maxIter, weightCol),
+            self._spark,
+        )
+
     def shortestPaths(self, landmarks: list[str | int]) -> DataFrame:
         class ShortestPaths(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, landmarks: list[str | int]) -> None:
