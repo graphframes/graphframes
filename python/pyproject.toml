@@ -51,7 +51,7 @@ build-backend = "poetry.core.masonry.api"
 line-length = 100
 target-version = ["py39"]
 include = ["graphframes"]
-required-version = "23.12.1"
+required-version = "24.10.0"
 
 [tool.isort]
 profile = "black"
