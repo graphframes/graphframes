@@ -51,7 +51,10 @@ lazy val commonSetting = Seq(
     "-XX:ReservedCodeCacheSize=384m",
     "-XX:MaxMetaspaceSize=384m",
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-    "--add-opens=java.base/java.lang=ALL-UNNAMED"),
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.nio=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED"),
   credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"))
 
 lazy val root = (project in file("."))
