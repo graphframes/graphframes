@@ -172,8 +172,7 @@ from graphframes.examples import Graphs
 
 g = Graphs(spark).friends()  # Get example graph
 
-# Display the vertex and edge DataFrames
-
+# Display the vertex DataFrame
 g.vertices.show()
 
 # +--+-------+---+
@@ -188,6 +187,7 @@ g.vertices.show()
 # | g|  Gabby| 60|
 # +--+-------+---+
 
+# Display the edge DataFrame
 g.edges.show()
 
 # +---+---+------------+
@@ -368,6 +368,7 @@ from pyspark.sql.functions import col, lit, when
 from pyspark.sql.types import IntegerType
 from graphframes.examples import Graphs
 
+
 g = Graphs(spark).friends()  # Get example graph
 
 chain4 = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
@@ -476,7 +477,6 @@ paths = g.find("(a)-[e]->(b)")\
   .filter("a.age < b.age")
 
 # "paths" contains vertex info. Extract the edges
-
 e2 = paths.select("e.src", "e.dst", "e.relationship")
 
 # In Spark 1.5+, the user may simplify this call
@@ -538,6 +538,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 
 {% highlight python %}
 from graphframes.examples import Graphs
+
 
 g = Graphs(spark).friends()  # Get example graph
 
@@ -630,6 +631,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 {% highlight python %}
 from graphframes.examples import Graphs
 
+
 sc.setCheckpointDir("/tmp/spark-checkpoints")
 
 g = Graphs(spark).friends()  # Get example graph
@@ -677,6 +679,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 
 {% highlight python %}
 from graphframes.examples import Graphs
+
 
 g = Graphs(spark).friends()  # Get example graph
 
@@ -741,6 +744,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 {% highlight python %}
 from graphframes.examples import Graphs
 
+
 g = Graphs(spark).friends()  # Get example graph
 
 # Run PageRank until convergence to tolerance "tol"
@@ -796,6 +800,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 {% highlight python %}
 from graphframes.examples import Graphs
 
+
 g = Graphs(spark).friends()  # Get example graph
 
 results = g.shortestPaths(landmarks=["a", "d"])
@@ -831,6 +836,7 @@ For API details, refer to the [API docs](api/python/graphframes.html#graphframes
 
 {% highlight python %}
 from graphframes.examples import Graphs
+
 
 g = Graphs(spark).friends()  # Get example graph
 
@@ -874,6 +880,7 @@ val sameG = GraphFrame(sameV, sameE)
 <div data-lang="python"  markdown="1">
 {% highlight python %}
 from graphframes.examples import Graphs
+
 
 g = Graphs(spark).friends()  # Get example graph
 
@@ -945,6 +952,7 @@ For API details, refer to the
 from graphframes.lib import AggregateMessages as AM
 from graphframes.examples import Graphs
 from pyspark.sql.functions import sum as sqlsum
+
 
 g = Graphs(spark).friends()  # Get example graph
 
