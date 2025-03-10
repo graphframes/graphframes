@@ -1,6 +1,6 @@
+from collections.abc import Iterable as _Iterable
+from collections.abc import Mapping as _Mapping
 from typing import ClassVar as _ClassVar
-from typing import Iterable as _Iterable
-from typing import Mapping as _Mapping
 from typing import Optional as _Optional
 from typing import Union as _Union
 
@@ -17,16 +17,14 @@ class GraphFramesAPI(_message.Message):
         "aggregate_messages",
         "bfs",
         "connected_components",
-        "degrees",
         "drop_isolated_vertices",
         "filter_edges",
         "filter_vertices",
         "find",
-        "in_degrees",
         "label_propagation",
-        "out_degrees",
         "page_rank",
         "parallel_personalized_page_rank",
+        "power_iteration_clustering",
         "pregel",
         "shortest_paths",
         "strongly_connected_components",
@@ -39,16 +37,14 @@ class GraphFramesAPI(_message.Message):
     AGGREGATE_MESSAGES_FIELD_NUMBER: _ClassVar[int]
     BFS_FIELD_NUMBER: _ClassVar[int]
     CONNECTED_COMPONENTS_FIELD_NUMBER: _ClassVar[int]
-    DEGREES_FIELD_NUMBER: _ClassVar[int]
     DROP_ISOLATED_VERTICES_FIELD_NUMBER: _ClassVar[int]
     FILTER_EDGES_FIELD_NUMBER: _ClassVar[int]
     FILTER_VERTICES_FIELD_NUMBER: _ClassVar[int]
     FIND_FIELD_NUMBER: _ClassVar[int]
-    IN_DEGREES_FIELD_NUMBER: _ClassVar[int]
     LABEL_PROPAGATION_FIELD_NUMBER: _ClassVar[int]
-    OUT_DEGREES_FIELD_NUMBER: _ClassVar[int]
     PAGE_RANK_FIELD_NUMBER: _ClassVar[int]
     PARALLEL_PERSONALIZED_PAGE_RANK_FIELD_NUMBER: _ClassVar[int]
+    POWER_ITERATION_CLUSTERING_FIELD_NUMBER: _ClassVar[int]
     PREGEL_FIELD_NUMBER: _ClassVar[int]
     SHORTEST_PATHS_FIELD_NUMBER: _ClassVar[int]
     STRONGLY_CONNECTED_COMPONENTS_FIELD_NUMBER: _ClassVar[int]
@@ -60,16 +56,14 @@ class GraphFramesAPI(_message.Message):
     aggregate_messages: AggregateMessages
     bfs: BFS
     connected_components: ConnectedComponents
-    degrees: Degrees
     drop_isolated_vertices: DropIsolatedVertices
     filter_edges: FilterEdges
     filter_vertices: FilterVertices
     find: Find
-    in_degrees: InDegrees
     label_propagation: LabelPropagation
-    out_degrees: OutDegrees
     page_rank: PageRank
     parallel_personalized_page_rank: ParallelPersonalizedPageRank
+    power_iteration_clustering: PowerIterationClustering
     pregel: Pregel
     shortest_paths: ShortestPaths
     strongly_connected_components: StronglyConnectedComponents
@@ -83,18 +77,16 @@ class GraphFramesAPI(_message.Message):
         aggregate_messages: _Optional[_Union[AggregateMessages, _Mapping]] = ...,
         bfs: _Optional[_Union[BFS, _Mapping]] = ...,
         connected_components: _Optional[_Union[ConnectedComponents, _Mapping]] = ...,
-        degrees: _Optional[_Union[Degrees, _Mapping]] = ...,
         drop_isolated_vertices: _Optional[_Union[DropIsolatedVertices, _Mapping]] = ...,
         filter_edges: _Optional[_Union[FilterEdges, _Mapping]] = ...,
         filter_vertices: _Optional[_Union[FilterVertices, _Mapping]] = ...,
         find: _Optional[_Union[Find, _Mapping]] = ...,
-        in_degrees: _Optional[_Union[InDegrees, _Mapping]] = ...,
         label_propagation: _Optional[_Union[LabelPropagation, _Mapping]] = ...,
-        out_degrees: _Optional[_Union[OutDegrees, _Mapping]] = ...,
         page_rank: _Optional[_Union[PageRank, _Mapping]] = ...,
         parallel_personalized_page_rank: _Optional[
             _Union[ParallelPersonalizedPageRank, _Mapping]
         ] = ...,
+        power_iteration_clustering: _Optional[_Union[PowerIterationClustering, _Mapping]] = ...,
         pregel: _Optional[_Union[Pregel, _Mapping]] = ...,
         shortest_paths: _Optional[_Union[ShortestPaths, _Mapping]] = ...,
         strongly_connected_components: _Optional[
@@ -169,10 +161,6 @@ class ConnectedComponents(_message.Message):
         broadcast_threshold: _Optional[int] = ...,
     ) -> None: ...
 
-class Degrees(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
 class DropIsolatedVertices(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
@@ -199,19 +187,11 @@ class Find(_message.Message):
     pattern: str
     def __init__(self, pattern: _Optional[str] = ...) -> None: ...
 
-class InDegrees(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
 class LabelPropagation(_message.Message):
     __slots__ = ("max_iter",)
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     max_iter: int
     def __init__(self, max_iter: _Optional[int] = ...) -> None: ...
-
-class OutDegrees(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
 
 class PageRank(_message.Message):
     __slots__ = ("reset_probability", "source_id", "max_iter", "tol")
@@ -244,6 +224,21 @@ class ParallelPersonalizedPageRank(_message.Message):
         reset_probability: _Optional[float] = ...,
         source_ids: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...,
         max_iter: _Optional[int] = ...,
+    ) -> None: ...
+
+class PowerIterationClustering(_message.Message):
+    __slots__ = ("k", "max_iter", "weight_col")
+    K_FIELD_NUMBER: _ClassVar[int]
+    MAX_ITER_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_COL_FIELD_NUMBER: _ClassVar[int]
+    k: int
+    max_iter: int
+    weight_col: str
+    def __init__(
+        self,
+        k: _Optional[int] = ...,
+        max_iter: _Optional[int] = ...,
+        weight_col: _Optional[str] = ...,
     ) -> None: ...
 
 class Pregel(_message.Message):
