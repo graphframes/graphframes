@@ -42,7 +42,7 @@ jobs:
       run: |
         poetry install --with=dev
     - name: Code style
-      workign-directory: ./python
+      working-directory: ./python
       run: |
         poetry run python -m black --check graphframes
         poetry run python -m flake8 graphframes
