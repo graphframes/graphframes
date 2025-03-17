@@ -25,7 +25,7 @@ def build(spark_version: str = "3.5.4"):
     if sbt_build.returncode != 0:
         print("Error during the build of GraphFrames JAR!")
         print("stdout: ", sbt_build.stdout)
-        print("stdeerr: ", sbt_build.stderr)
+        print("stderr: ", sbt_build.stderr)
         sys.exit(1)
     else:
         print("Building DONE successfully!")
