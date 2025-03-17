@@ -8,3 +8,4 @@ recursive-exclude * *.pyc
 include README.md
 include LICENSE
 include graphframes/tutorials/data/.exists
+recursive-include graphframes/resources *.jar
