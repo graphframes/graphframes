@@ -66,6 +66,7 @@ val v = spark.createDataFrame(List(
   ("b", "Bob", 36),
   ("c", "Charlie", 30)
 )).toDF("id", "name", "age")
+
 // Create an Edge DataFrame with "src" and "dst" columns
 val e = spark.createDataFrame(List(
   ("a", "b", "friend"),
@@ -96,6 +97,7 @@ v = spark.createDataFrame([
   ("b", "Bob", 36),
   ("c", "Charlie", 30),
 ], ["id", "name", "age"])
+
 # Create an Edge DataFrame with "src" and "dst" columns
 e = spark.createDataFrame([
   ("a", "b", "friend"),
