@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>Quick-Start Guide - GraphFrames 0.8.4 Documentation</title>
+        
+          <meta name="description" content="GraphFrames 0.8.4 guide for getting started quickly">
+        
+
+        
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <style>
+            body {
+                padding-top: 60px;
+                padding-bottom: 40px;
+            }
+        </style>
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" href="css/bootstrap-responsive.min.css">
+        <link rel="stylesheet" href="css/main.css">
+
+        <script src="js/vendor/modernizr-2.6.1-respond-1.1.0.min.js"></script>
+
+        <link rel="stylesheet" href="css/pygments-default.css">
+
+        
+        <!-- Google analytics script -->
+        <script type="text/javascript">
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-32518208-2']);
+          _gaq.push(['_trackPageview']);
+
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+        </script>
+        
+
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an outdated browser. <a href="http://browsehappy.com/">Upgrade your browser today</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to better experience this site.</p>
+        <![endif]-->
+
+        <!-- This code is taken from http://twitter.github.com/bootstrap/examples/hero.html -->
+
+        <div class="navbar navbar-fixed-top" id="topbar">
+            <div class="navbar-inner">
+                <div class="container">
+                    <div class="brand">
+                        <a href="index.html"><img src="img/graphframes_logo.png" alt="GraphFrames" width="200" height="50"/></a>
+                        <span class="version">0.8.4</span>
+                    </div>
+                    <ul class="nav">
+                        <li><a href="index.html">Overview</a></li>
+
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">User Guides<b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="quick-start.html">Quick Start</a></li>
+                                <li><a href="user-guide.html">GraphFrames User Guide</a></li>
+                                <li><a href="motif-tutorial.html">Network Motif Finding Tutorial</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">API Docs<b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="api/scala/index.html#org.graphframes.package">Scala</a></li>
+                                <li><a href="api/python/index.html">Python</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <!--<p class="navbar-text pull-right"><span class="version-text">v0.8.4</span></p>-->
+                </div>
+            </div>
+        </div>
+
+        <div class="container" id="content">
+          
+            <h1 class="title">GraphFrames Quick-Start Guide</h1>
+          
+
+          <p>This quick-start guide shows how to get started using GraphFrames.
+After you work through this guide, move on to the <a href="user-guide.html">User Guide</a>
+to learn more about the many queries and algorithms supported by GraphFrames.</p>
+
+<ul id="markdown-toc">
+  <li><a href="#getting-started-with-apache-spark-and-spark-packages" id="markdown-toc-getting-started-with-apache-spark-and-spark-packages">Getting started with Apache Spark and Spark packages</a></li>
+  <li><a href="#start-using-graphframes" id="markdown-toc-start-using-graphframes">Start using GraphFrames</a></li>
+</ul>
+
+<h1 id="getting-started-with-apache-spark-and-spark-packages">Getting started with Apache Spark and Spark packages</h1>
+
+<p>If you are new to using Apache Spark, refer to the
+<a href="http://spark.apache.org/docs/latest/index.html">Apache Spark Documentation</a> and its
+<a href="http://spark.apache.org/docs/latest/quick-start.html">Quick-Start Guide</a> for more information.</p>
+
+<p>If you are new to using <a href="http://spark-packages.org/package/graphframes/graphframes">Spark packages</a>, you can find more information
+in the <a href="http://spark.apache.org/docs/latest/programming-guide.html#using-the-shell">Spark User Guide on using the interactive shell</a>.
+You just need to make sure your Spark shell session has the package as a dependency.</p>
+
+<p>The following example shows how to run the Spark shell with the GraphFrames package.
+We use the <code class="language-plaintext highlighter-rouge">--packages</code> argument to download the graphframes package and any dependencies automatically.</p>
+
+<div class="codetabs">
+
+<div data-lang="scala">
+
+    <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>./bin/spark-shell <span class="nt">--packages</span> graphframes:graphframes:0.8.4-spark3.5-s_2.12</code></pre></figure>
+
+  </div>
+
+<div data-lang="python">
+
+    <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>./bin/pyspark <span class="nt">--packages</span> graphframes:graphframes:0.8.4-spark3.5-s_2.12</code></pre></figure>
+
+  </div>
+
+</div>
+
+<p>The above examples of running the Spark shell with GraphFrames use a specific version of the GraphFrames
+package.  To use a different version, just change the last part of the <code class="language-plaintext highlighter-rouge">--packages</code> argument;
+for example, to run with version <code class="language-plaintext highlighter-rouge">0.1.0-spark1.6</code>, pass the argument
+<code class="language-plaintext highlighter-rouge">--packages graphframes:graphframes:0.1.0-spark1.6</code>.</p>
+
+<h1 id="start-using-graphframes">Start using GraphFrames</h1>
+
+<p>The following example shows how to create a GraphFrame, query it, and run the PageRank algorithm.</p>
+
+<div class="codetabs">
+
+<div data-lang="scala">
+
+    <figure class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="c1">// import graphframes package</span>
+<span class="k">import</span> <span class="nn">org.graphframes._</span>
+<span class="c1">// Create a Vertex DataFrame with unique ID column "id"</span>
+<span class="k">val</span> <span class="nv">v</span> <span class="k">=</span> <span class="nv">spark</span><span class="o">.</span><span class="py">createDataFrame</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span>
+  <span class="o">(</span><span class="s">"a"</span><span class="o">,</span> <span class="s">"Alice"</span><span class="o">,</span> <span class="mi">34</span><span class="o">),</span>
+  <span class="o">(</span><span class="s">"b"</span><span class="o">,</span> <span class="s">"Bob"</span><span class="o">,</span> <span class="mi">36</span><span class="o">),</span>
+  <span class="o">(</span><span class="s">"c"</span><span class="o">,</span> <span class="s">"Charlie"</span><span class="o">,</span> <span class="mi">30</span><span class="o">)</span>
+<span class="o">)).</span><span class="py">toDF</span><span class="o">(</span><span class="s">"id"</span><span class="o">,</span> <span class="s">"name"</span><span class="o">,</span> <span class="s">"age"</span><span class="o">)</span>
+
+<span class="c1">// Create an Edge DataFrame with "src" and "dst" columns</span>
+<span class="k">val</span> <span class="nv">e</span> <span class="k">=</span> <span class="nv">spark</span><span class="o">.</span><span class="py">createDataFrame</span><span class="o">(</span><span class="nc">List</span><span class="o">(</span>
+  <span class="o">(</span><span class="s">"a"</span><span class="o">,</span> <span class="s">"b"</span><span class="o">,</span> <span class="s">"friend"</span><span class="o">),</span>
+  <span class="o">(</span><span class="s">"b"</span><span class="o">,</span> <span class="s">"c"</span><span class="o">,</span> <span class="s">"follow"</span><span class="o">),</span>
+  <span class="o">(</span><span class="s">"c"</span><span class="o">,</span> <span class="s">"b"</span><span class="o">,</span> <span class="s">"follow"</span><span class="o">)</span>
+<span class="o">)).</span><span class="py">toDF</span><span class="o">(</span><span class="s">"src"</span><span class="o">,</span> <span class="s">"dst"</span><span class="o">,</span> <span class="s">"relationship"</span><span class="o">)</span>
+<span class="c1">// Create a GraphFrame</span>
+<span class="k">import</span> <span class="nn">org.graphframes.GraphFrame</span>
+<span class="k">val</span> <span class="nv">g</span> <span class="k">=</span> <span class="nc">GraphFrame</span><span class="o">(</span><span class="n">v</span><span class="o">,</span> <span class="n">e</span><span class="o">)</span>
+
+<span class="c1">// Query: Get in-degree of each vertex.</span>
+<span class="nv">g</span><span class="o">.</span><span class="py">inDegrees</span><span class="o">.</span><span class="py">show</span><span class="o">()</span>
+
+<span class="c1">// Query: Count the number of "follow" connections in the graph.</span>
+<span class="nv">g</span><span class="o">.</span><span class="py">edges</span><span class="o">.</span><span class="py">filter</span><span class="o">(</span><span class="s">"relationship = 'follow'"</span><span class="o">).</span><span class="py">count</span><span class="o">()</span>
+
+<span class="c1">// Run PageRank algorithm, and show results.</span>
+<span class="k">val</span> <span class="nv">results</span> <span class="k">=</span> <span class="nv">g</span><span class="o">.</span><span class="py">pageRank</span><span class="o">.</span><span class="py">resetProbability</span><span class="o">(</span><span class="mf">0.01</span><span class="o">).</span><span class="py">maxIter</span><span class="o">(</span><span class="mi">20</span><span class="o">).</span><span class="py">run</span><span class="o">()</span>
+<span class="nv">results</span><span class="o">.</span><span class="py">vertices</span><span class="o">.</span><span class="py">select</span><span class="o">(</span><span class="s">"id"</span><span class="o">,</span> <span class="s">"pagerank"</span><span class="o">).</span><span class="py">show</span><span class="o">()</span></code></pre></figure>
+
+  </div>
+
+<div data-lang="python">
+
+    <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># Create a Vertex DataFrame with unique ID column "id"
+</span><span class="n">v</span> <span class="o">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">createDataFrame</span><span class="p">([</span>
+  <span class="p">(</span><span class="s">"a"</span><span class="p">,</span> <span class="s">"Alice"</span><span class="p">,</span> <span class="mi">34</span><span class="p">),</span>
+  <span class="p">(</span><span class="s">"b"</span><span class="p">,</span> <span class="s">"Bob"</span><span class="p">,</span> <span class="mi">36</span><span class="p">),</span>
+  <span class="p">(</span><span class="s">"c"</span><span class="p">,</span> <span class="s">"Charlie"</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>
+<span class="p">],</span> <span class="p">[</span><span class="s">"id"</span><span class="p">,</span> <span class="s">"name"</span><span class="p">,</span> <span class="s">"age"</span><span class="p">])</span>
+
+<span class="c1"># Create an Edge DataFrame with "src" and "dst" columns
+</span><span class="n">e</span> <span class="o">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">createDataFrame</span><span class="p">([</span>
+  <span class="p">(</span><span class="s">"a"</span><span class="p">,</span> <span class="s">"b"</span><span class="p">,</span> <span class="s">"friend"</span><span class="p">),</span>
+  <span class="p">(</span><span class="s">"b"</span><span class="p">,</span> <span class="s">"c"</span><span class="p">,</span> <span class="s">"follow"</span><span class="p">),</span>
+  <span class="p">(</span><span class="s">"c"</span><span class="p">,</span> <span class="s">"b"</span><span class="p">,</span> <span class="s">"follow"</span><span class="p">),</span>
+<span class="p">],</span> <span class="p">[</span><span class="s">"src"</span><span class="p">,</span> <span class="s">"dst"</span><span class="p">,</span> <span class="s">"relationship"</span><span class="p">])</span>
+<span class="c1"># Create a GraphFrame
+</span><span class="kn">from</span> <span class="nn">graphframes</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="n">g</span> <span class="o">=</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+<span class="c1"># Query: Get in-degree of each vertex.
+</span><span class="n">g</span><span class="p">.</span><span class="n">inDegrees</span><span class="p">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># Query: Count the number of "follow" connections in the graph.
+</span><span class="n">g</span><span class="p">.</span><span class="n">edges</span><span class="p">.</span><span class="nb">filter</span><span class="p">(</span><span class="s">"relationship = 'follow'"</span><span class="p">).</span><span class="n">count</span><span class="p">()</span>
+
+<span class="c1"># Run PageRank algorithm, and show results.
+</span><span class="n">results</span> <span class="o">=</span> <span class="n">g</span><span class="p">.</span><span class="n">pageRank</span><span class="p">(</span><span class="n">resetProbability</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">maxIter</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+<span class="n">results</span><span class="p">.</span><span class="n">vertices</span><span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s">"id"</span><span class="p">,</span> <span class="s">"pagerank"</span><span class="p">).</span><span class="n">show</span><span class="p">()</span></code></pre></figure>
+
+  </div>
+
+</div>
+
+
+        </div> <!-- /container -->
+
+        <script src="js/vendor/jquery-1.8.0.min.js"></script>
+        <script src="js/vendor/bootstrap.min.js"></script>
+        <script src="js/vendor/anchor.min.js"></script>
+        <script src="js/main.js"></script>
+
+        <!-- MathJax Section -->
+        <script type="text/x-mathjax-config">
+            MathJax.Hub.Config({
+                TeX: { equationNumbers: { autoNumber: "AMS" } }
+            });
+        </script>
+        <script>
+            // Note that we load MathJax this way to work with local file (file://), HTTP and HTTPS.
+            // We could use "//cdn.mathjax...", but that won't support "file://".
+            (function(d, script) {
+                script = d.createElement('script');
+                script.type = 'text/javascript';
+                script.async = true;
+                script.onload = function(){
+                    MathJax.Hub.Config({
+                        tex2jax: {
+                            inlineMath: [ ["$", "$"], ["\\\\(","\\\\)"] ],
+                            displayMath: [ ["$$","$$"], ["\\[", "\\]"] ],
+                            processEscapes: true,
+                            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+                        }
+                    });
+                };
+                script.src = ('https:' == document.location.protocol ? 'https://' : 'http://') +
+                    'cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+                d.getElementsByTagName('head')[0].appendChild(script);
+            }(document));
+        </script>
+    </body>
+</html>
