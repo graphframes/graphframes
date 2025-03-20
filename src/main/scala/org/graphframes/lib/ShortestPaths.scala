@@ -17,17 +17,16 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.annotation.Experimental
+
 import java.util
-
 import scala.jdk.CollectionConverters._
-
+import org.graphframes.GraphFrame
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.api.java.UDF1
-import org.apache.spark.sql.functions.{col, udf}
-import org.apache.spark.sql.types.{IntegerType, MapType}
-
-import org.graphframes.GraphFrame
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.{IntegerType, LongType, MapType}
 
 /**
  * Computes shortest paths from every vertex to the given set of landmark vertices. Note that this
@@ -59,6 +58,18 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
 
   def run(): DataFrame = {
     ShortestPaths.run(graph, check(lmarks, "landmarks"))
+  }
+
+  /**
+   * Experimental implementation without GraphX and with support of undirected graphs
+   * @param isDirected
+   *   should graph be considered as undirected?
+   * @return
+   */
+  @Experimental
+  def runInGraphFrames(isDirected: Boolean = true): DataFrame = {
+    // At the moment it is about five times slower compared to GraphX
+    ShortestPaths.runWithGraphFrames(graph, check(lmarks, "landmarks"), isDirected)
   }
 }
 
@@ -92,6 +103,82 @@ private object ShortestPaths {
     }
     val cols = graph.vertices.columns.map(col) :+ distanceCol.as(DISTANCE_ID)
     g.vertices.select(cols.toSeq: _*)
+  }
+
+  private def runWithGraphFrames(
+      graph: GraphFrame,
+      landmarks: Seq[Any],
+      isDirected: Boolean = true): DataFrame = {
+
+    def initMap(id: Column): Column = {
+      map(landmarks.flatMap(l =>
+        Seq(lit(l), when(id === lit(l), lit(0L)).otherwise(lit(null).cast(LongType)))): _*)
+    }
+
+    def emptyMap: Column = {
+      map(landmarks.flatMap(l => Seq(lit(l), lit(null).cast(LongType))): _*)
+    }
+
+    def addMaps(colLeft: Column, colRight: Column) = {
+      when(colRight.isNull, colLeft)
+        .when(colLeft.isNull, colRight)
+        .otherwise(
+          map_zip_with(
+            colLeft,
+            colRight,
+            (_, leftDistance, rightDistance) => {
+              when(leftDistance.isNull || (leftDistance > rightDistance), rightDistance)
+                .otherwise(leftDistance)
+            }))
+    }
+
+    def incrementMap(mapCol: Column) = {
+      transform_values(mapCol, (_, distance) => distance + lit(1L))
+    }
+
+    def concatArrayOfMaps(arrayCol: Column) = {
+      reduce(arrayCol, emptyMap, addMaps)
+    }
+
+    def isDistanceImproved(mapLeft: Column, mapRight: Column) = {
+      reduce(
+        map_values(
+          map_zip_with(
+            mapLeft,
+            mapRight,
+            (_, leftDistance, rightDistance) =>
+              (leftDistance.isNotNull && rightDistance.isNull) || ((leftDistance.isNotNull && rightDistance.isNotNull) && (leftDistance <= rightDistance)))),
+        lit(false),
+        (left, right) => left || right)
+    }
+
+    // Cache edges before the run and enforce materialization
+    val persistedEdges = graph.edges.persist()
+    persistedEdges.count()
+
+    val pregel = GraphFrame(graph.vertices, persistedEdges).pregel
+      .withVertexColumn(
+        DISTANCE_ID,
+        when(col(GraphFrame.ID).isin(landmarks: _*), initMap(col(GraphFrame.ID)))
+          .otherwise(emptyMap),
+        addMaps(col(DISTANCE_ID), Pregel.msg))
+      .sendMsgToDst(when(
+        isDistanceImproved(incrementMap(Pregel.src(DISTANCE_ID)), Pregel.dst(DISTANCE_ID)),
+        incrementMap(Pregel.src(DISTANCE_ID))))
+      .aggMsgs(concatArrayOfMaps(collect_list(Pregel.msg)))
+
+    val outputDF = if (isDirected) {
+      pregel.run()
+    } else {
+      pregel
+        .sendMsgToSrc(
+          when(
+            isDistanceImproved(incrementMap(Pregel.dst(DISTANCE_ID)), Pregel.src(DISTANCE_ID)),
+            incrementMap(Pregel.dst(DISTANCE_ID))))
+        .run()
+    }
+    persistedEdges.unpersist()
+    outputDF
   }
 
   private val DISTANCE_ID = "distances"

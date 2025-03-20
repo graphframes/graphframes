@@ -1,14 +1,16 @@
 package org.graphframes.examples
 
-import org.apache.spark.sql.functions.{col, split}
-import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.graphframes.GraphFrame
-
 import java.net.URL
 import java.nio.file._
 import java.util.Properties
+
 import scala.sys.process._
+
+import org.graphframes.GraphFrame
+
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions.{col, split}
+import org.apache.spark.sql.types.LongType
 
 object LDBCUtils {
   // TODO: This object can be actually a class, parametrized by the id of LDBC graph (kgs, etc.)
@@ -71,7 +73,7 @@ object LDBCUtils {
     properties
   }
 
-  def getLDBCGraph(spark: SparkSession): GraphFrame = {
+  def getLDBCGraph(spark: SparkSession, makeUndirected: Boolean = true): GraphFrame = {
     val properties = getProps
     val vertices = spark.read
       .text(
@@ -85,7 +87,16 @@ object LDBCUtils {
         col("split").getItem(0).cast(LongType).alias(GraphFrame.SRC),
         col("split").getItem(1).cast(LongType).alias(GraphFrame.DST))
 
-    GraphFrame(vertices, edges)
+    if (makeUndirected) {
+      GraphFrame(
+        vertices,
+        edges.union(
+          edges.select(
+            col(GraphFrame.DST).alias(GraphFrame.SRC),
+            col(GraphFrame.SRC).alias(GraphFrame.DST))))
+    } else {
+      GraphFrame(vertices, edges)
+    }
   }
 
   def getBFSExpectedResults(spark: SparkSession): DataFrame = {

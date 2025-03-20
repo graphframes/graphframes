@@ -9,10 +9,7 @@ class LDBCSuiteCDLP extends SparkFunSuite with GraphFrameTestSparkContext {
   test("LDBC CDLP") {
     assume(sys.env.contains("LDBC_TEST_ROOT"))
     LDBCUtils.downloadLDBCIfNotExists()
-    val g = LDBCUtils.getLDBCGraph(spark).persist(StorageLevel.MEMORY_ONLY_SER)
-    // Force the materialization
-    g.edges.count()
-    g.vertices.count()
+    val g = LDBCUtils.getLDBCGraph(spark)
     val expectedCDLPResults = LDBCUtils.getCDLPExpectedResults(spark)
     val cdlpMaxIter = LDBCUtils.getCDLPMaxIter
 
