@@ -110,6 +110,8 @@ private object ShortestPaths {
       landmarks: Seq[Any],
       isDirected: Boolean = true): DataFrame = {
 
+    val idType = graph.vertices.schema(GraphFrame.ID).dataType
+
     def initMap(id: Column): Column = {
       map(landmarks.flatMap(l =>
         Seq(lit(l), when(id === lit(l), lit(0L)).otherwise(lit(null).cast(LongType)))): _*)
@@ -137,7 +139,7 @@ private object ShortestPaths {
     }
 
     def concatArrayOfMaps(arrayCol: Column) = {
-      reduce(arrayCol, emptyMap, addMaps)
+      reduce(arrayCol, lit(null).cast(MapType(idType, LongType)), addMaps)
     }
 
     def isDistanceImproved(mapLeft: Column, mapRight: Column) = {

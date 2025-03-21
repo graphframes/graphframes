@@ -85,6 +85,8 @@ class Pregel(val graph: GraphFrame) extends Logging {
   private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
 
+  private var earlyStopping: Boolean = false
+
   private val CHECKPOINT_NAME_PREFIX = "pregel"
 
   /** Sets the max number of iterations (default: 10). */
@@ -193,6 +195,11 @@ class Pregel(val graph: GraphFrame) extends Logging {
     this
   }
 
+  def setEarlyStopping(value: Boolean): this.type  = {
+    earlyStopping = value
+    this
+  }
+
   /**
    * Runs the defined Pregel algorithm.
    *
@@ -250,7 +257,7 @@ class Pregel(val graph: GraphFrame) extends Logging {
           .select(explode(array(sendMsgsColList: _*)).as("msg"))
           .select(col("msg.id"), col("msg.msg").as(Pregel.MSG_COL_NAME))
 
-        if (msgDF.filter(Pregel.msg.isNotNull).isEmpty) {
+        if (earlyStopping && msgDF.filter(Pregel.msg.isNotNull).isEmpty) {
           // Early stopping in case there are no messages
           logInfo(
             s"GraphFrame.pregel converges at iteration $iteration, there is no more messages to send")
@@ -301,7 +308,7 @@ class Pregel(val graph: GraphFrame) extends Logging {
       }
     }
 
-    currentVertices
+    currentVertices.drop(Pregel.IS_ACTIVE_COL_NAME)
   }
 
 }
@@ -317,7 +324,12 @@ object Pregel extends Serializable {
    * The vertices DataFrame must not contain this column.
    */
   val MSG_COL_NAME = "_pregel_msg_"
-  val IS_ACTIVE_COL_NAME = "_is_active"
+  private val IS_ACTIVE_COL_NAME = "_is_active"
+
+  /**
+   * Reference the flag did the vertex got a non-null aggregate message or not
+   */
+  val isActive: Column = col(IS_ACTIVE_COL_NAME)
 
   /**
    * References the message column in aggregating messages and updating additional vertex columns.
