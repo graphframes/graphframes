@@ -81,6 +81,7 @@ class Pregel(val graph: GraphFrame) {
 
   private var maxIter: Int = 10
   private var checkpointInterval = 2
+  private var doEarlyStopping = false
 
   private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
@@ -103,6 +104,30 @@ class Pregel(val graph: GraphFrame) {
    */
   def setCheckpointInterval(value: Int): this.type = {
     checkpointInterval = value
+    this
+  }
+
+  /**
+   * Should Pregel stop earlier in case of no new messages to send?
+   *
+   * Early stopping allows to terminate Pregel before reaching maxIter by checking is there any
+   * non-null message or not. While in some cases it may gain significant performance boost, it
+   * other cases it can tend to performance degradation, because checking is messages DataFrame is
+   * empty or not is an action and requires materialization of the Spark Plan with some additional
+   * computations.
+   *
+   * In the case when user can assume a good value of maxIter it is recommended to leave this
+   * value to the default "false". In the case when it is hard to estimate an amount of iterations
+   * required for convergence, it is recommended to set this value to "false" to avoid iterating
+   * over convergence until reaching maxIter. When this value is "true", maxIter can be set to a
+   * bigger value without risks.
+   *
+   * @param value
+   *   should Pregel checks for the termination condition on each step
+   * @return
+   */
+  def setEarlyStopping(value: Boolean): this.type = {
+    doEarlyStopping = value
     this
   }
 

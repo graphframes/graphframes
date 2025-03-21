@@ -251,6 +251,7 @@ class Pregel(_message.Message):
         "additional_col_name",
         "additional_col_initial",
         "additional_col_upd",
+        "early_stopping",
     )
     AGG_MSGS_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_DST_FIELD_NUMBER: _ClassVar[int]
@@ -260,6 +261,7 @@ class Pregel(_message.Message):
     ADDITIONAL_COL_NAME_FIELD_NUMBER: _ClassVar[int]
     ADDITIONAL_COL_INITIAL_FIELD_NUMBER: _ClassVar[int]
     ADDITIONAL_COL_UPD_FIELD_NUMBER: _ClassVar[int]
+    EARLY_STOPPING_FIELD_NUMBER: _ClassVar[int]
     agg_msgs: ColumnOrExpression
     send_msg_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     send_msg_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
@@ -268,6 +270,7 @@ class Pregel(_message.Message):
     additional_col_name: str
     additional_col_initial: ColumnOrExpression
     additional_col_upd: ColumnOrExpression
+    early_stopping: bool
     def __init__(
         self,
         agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
@@ -278,6 +281,7 @@ class Pregel(_message.Message):
         additional_col_name: _Optional[str] = ...,
         additional_col_initial: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         additional_col_upd: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        early_stopping: bool = ...,
     ) -> None: ...
 
 class ShortestPaths(_message.Message):

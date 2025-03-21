@@ -111,6 +111,7 @@ message Pregel {
   string additional_col_name = 6;
   ColumnOrExpression additional_col_initial = 7;
   ColumnOrExpression additional_col_upd = 8;
+  optional bool early_stopping = 9;
 }
 
 message ShortestPaths {
