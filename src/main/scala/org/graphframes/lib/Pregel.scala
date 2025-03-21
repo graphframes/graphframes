@@ -18,11 +18,14 @@
 package org.graphframes.lib
 
 import java.io.IOException
+
 import scala.util.control.Breaks.{break, breakable}
+
 import org.graphframes.{GraphFrame, Logging}
 import org.graphframes.GraphFrame._
+
 import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{array, col, explode, struct}
+import org.apache.spark.sql.functions.{array, col, explode, lit, struct}
 
 /**
  * Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
@@ -221,7 +224,8 @@ class Pregel(val graph: GraphFrame) extends Logging {
       updateExpr.as(colName)
     }
 
-    var currentVertices = graph.vertices.select((col("*") :: initVertexCols): _*)
+    var currentVertices = graph.vertices.select(
+      (col("*") :: initVertexCols) :+ lit(true).alias(Pregel.IS_ACTIVE_COL_NAME): _*)
     var vertexUpdateColDF: DataFrame = null
 
     val edges = graph.edges
@@ -237,8 +241,10 @@ class Pregel(val graph: GraphFrame) extends Logging {
           .select(struct(col("*")).as(SRC))
           .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
           .join(
-            currentVertices.select(struct(col("*")).as(DST)),
+            currentVertices
+              .select(struct(col("*")).as(DST)),
             Pregel.edge(DST) === Pregel.dst(ID))
+          .filter(Pregel.src(Pregel.IS_ACTIVE_COL_NAME) || Pregel.dst(Pregel.IS_ACTIVE_COL_NAME))
 
         var msgDF: DataFrame = tripletsDF
           .select(explode(array(sendMsgsColList: _*)).as("msg"))
@@ -246,7 +252,8 @@ class Pregel(val graph: GraphFrame) extends Logging {
 
         if (msgDF.filter(Pregel.msg.isNotNull).isEmpty) {
           // Early stopping in case there are no messages
-          logInfo(s"GraphFrame.pregel converges at iteration $iteration, there is no more messages to send")
+          logInfo(
+            s"GraphFrame.pregel converges at iteration $iteration, there is no more messages to send")
           if (vertexUpdateColDF != null) {
             vertexUpdateColDF.unpersist()
           }
@@ -258,9 +265,11 @@ class Pregel(val graph: GraphFrame) extends Logging {
           .groupBy(ID)
           .agg(aggMsgsCol.as(Pregel.MSG_COL_NAME))
 
-        val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
+        val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left")
 
-        var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
+        var newVertexUpdateColDF = verticesWithMsg.select(
+          (col(ID) :: updateVertexCols) :+ Pregel.msg.isNotNull.alias(
+            Pregel.IS_ACTIVE_COL_NAME): _*)
 
         if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
           // Spark Connect workaround
@@ -286,7 +295,7 @@ class Pregel(val graph: GraphFrame) extends Logging {
         }
         vertexUpdateColDF = newVertexUpdateColDF
 
-        currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
+        currentVertices = graph.vertices.join(vertexUpdateColDF, ID, "left")
 
         iteration += 1
       }
@@ -308,6 +317,7 @@ object Pregel extends Serializable {
    * The vertices DataFrame must not contain this column.
    */
   val MSG_COL_NAME = "_pregel_msg_"
+  val IS_ACTIVE_COL_NAME = "_is_active"
 
   /**
    * References the message column in aggregating messages and updating additional vertex columns.
