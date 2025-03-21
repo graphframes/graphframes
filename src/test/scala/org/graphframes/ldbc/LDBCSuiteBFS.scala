@@ -45,7 +45,7 @@ class LDBCSuiteBFS extends SparkFunSuite with GraphFrameTestSparkContext {
     assume(sys.env.contains("LDBC_TEST_ROOT"))
     LDBCUtils.downloadLDBCIfNotExists()
 
-    val g = LDBCUtils.getLDBCGraph(spark, makeUndirected = true)
+    val g = LDBCUtils.getLDBCGraph(spark)
     val expectedBFSResults = LDBCUtils.getBFSExpectedResults(spark)
     val bfsTargetVertex = LDBCUtils.getBFSTarget
 

@@ -3,7 +3,6 @@ package org.graphframes.ldbc
 import org.graphframes.{GraphFrame, GraphFrameTestSparkContext, SparkFunSuite}
 import org.graphframes.examples.LDBCUtils
 import org.apache.spark.sql.functions.col
-import org.apache.spark.storage.StorageLevel
 
 class LDBCSuiteCDLP extends SparkFunSuite with GraphFrameTestSparkContext {
   test("LDBC CDLP") {

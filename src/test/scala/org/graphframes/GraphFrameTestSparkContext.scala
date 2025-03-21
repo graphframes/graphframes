@@ -58,7 +58,7 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
 
     spark = SparkSession
       .builder()
-      .master("local[2]")
+      .master("local[*]")
       .appName("GraphFramesUnitTest")
       .config("spark.sql.shuffle.partitions", 4)
       .getOrCreate()

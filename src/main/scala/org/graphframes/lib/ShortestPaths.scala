@@ -147,16 +147,12 @@ private object ShortestPaths {
             mapLeft,
             mapRight,
             (_, leftDistance, rightDistance) =>
-              (leftDistance.isNotNull && rightDistance.isNull) || ((leftDistance.isNotNull && rightDistance.isNotNull) && (leftDistance <= rightDistance)))),
+              (leftDistance.isNotNull && rightDistance.isNull) || (leftDistance < rightDistance))),
         lit(false),
         (left, right) => left || right)
     }
 
-    // Cache edges before the run and enforce materialization
-    val persistedEdges = graph.edges.persist()
-    persistedEdges.count()
-
-    val pregel = GraphFrame(graph.vertices, persistedEdges).pregel
+    val pregel = graph.pregel
       .withVertexColumn(
         DISTANCE_ID,
         when(col(GraphFrame.ID).isin(landmarks: _*), initMap(col(GraphFrame.ID)))
@@ -167,7 +163,7 @@ private object ShortestPaths {
         incrementMap(Pregel.src(DISTANCE_ID))))
       .aggMsgs(concatArrayOfMaps(collect_list(Pregel.msg)))
 
-    val outputDF = if (isDirected) {
+    if (isDirected) {
       pregel.run()
     } else {
       pregel
@@ -177,8 +173,6 @@ private object ShortestPaths {
             incrementMap(Pregel.dst(DISTANCE_ID))))
         .run()
     }
-    persistedEdges.unpersist()
-    outputDF
   }
 
   private val DISTANCE_ID = "distances"

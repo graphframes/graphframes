@@ -15,7 +15,7 @@ class LDBCBenchmarkSuite {
       case None =>
         val spark = SparkSession
           .builder()
-          .master("local[2]")
+          .master("local[4]")
           .appName("GraphFramesBenchmarks")
           .config("spark.sql.shuffle.partitions", 4)
           .getOrCreate()

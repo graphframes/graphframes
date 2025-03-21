@@ -18,10 +18,9 @@
 package org.graphframes.lib
 
 import java.io.IOException
-
-import org.graphframes.GraphFrame
+import scala.util.control.Breaks.{break, breakable}
+import org.graphframes.{GraphFrame, Logging}
 import org.graphframes.GraphFrame._
-
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions.{array, col, explode, struct}
 
@@ -73,7 +72,7 @@ import org.apache.spark.sql.functions.{array, col, explode, struct}
  *   <a href="https://doi.org/10.1145/1807167.1807184"> Malewicz et al., Pregel: a system for
  *   large-scale graph processing. </a>
  */
-class Pregel(val graph: GraphFrame) {
+class Pregel(val graph: GraphFrame) extends Logging {
 
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
@@ -231,54 +230,66 @@ class Pregel(val graph: GraphFrame) {
 
     val shouldCheckpoint = checkpointInterval > 0
 
-    while (iteration <= maxIter) {
-      val tripletsDF = currentVertices
-        .select(struct(col("*")).as(SRC))
-        .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
-        .join(
-          currentVertices.select(struct(col("*")).as(DST)),
-          Pregel.edge(DST) === Pregel.dst(ID))
+    breakable {
+      while (iteration <= maxIter) {
+        logInfo(s"GraphFrame.pregel starts iteration $iteration of $maxIter")
+        val tripletsDF = currentVertices
+          .select(struct(col("*")).as(SRC))
+          .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
+          .join(
+            currentVertices.select(struct(col("*")).as(DST)),
+            Pregel.edge(DST) === Pregel.dst(ID))
 
-      var msgDF: DataFrame = tripletsDF
-        .select(explode(array(sendMsgsColList: _*)).as("msg"))
-        .select(col("msg.id"), col("msg.msg").as(Pregel.MSG_COL_NAME))
+        var msgDF: DataFrame = tripletsDF
+          .select(explode(array(sendMsgsColList: _*)).as("msg"))
+          .select(col("msg.id"), col("msg.msg").as(Pregel.MSG_COL_NAME))
 
-      val newAggMsgDF = msgDF
-        .filter(Pregel.msg.isNotNull)
-        .groupBy(ID)
-        .agg(aggMsgsCol.as(Pregel.MSG_COL_NAME))
-
-      val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
-
-      var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
-
-      if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
-        // Spark Connect workaround
-        graph.spark.conf.getOption("spark.checkpoint.dir") match {
-          case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
-          case None =>
-            throw new IOException(
-              "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
-                "or by specifying the conf 'spark.checkpoint.dir'.")
+        if (msgDF.filter(Pregel.msg.isNotNull).isEmpty) {
+          // Early stopping in case there are no messages
+          logInfo(s"GraphFrame.pregel converges at iteration $iteration, there is no more messages to send")
+          if (vertexUpdateColDF != null) {
+            vertexUpdateColDF.unpersist()
+          }
+          break
         }
+
+        val newAggMsgDF = msgDF
+          .filter(Pregel.msg.isNotNull)
+          .groupBy(ID)
+          .agg(aggMsgsCol.as(Pregel.MSG_COL_NAME))
+
+        val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
+
+        var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
+
+        if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
+          // Spark Connect workaround
+          graph.spark.conf.getOption("spark.checkpoint.dir") match {
+            case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
+            case None =>
+              throw new IOException(
+                "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
+                  "or by specifying the conf 'spark.checkpoint.dir'.")
+          }
+        }
+
+        if (shouldCheckpoint && iteration % checkpointInterval == 0) {
+          // do checkpoint, use lazy checkpoint because later we will materialize this DF.
+          newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
+          // TODO: remove last checkpoint file.
+        }
+        newVertexUpdateColDF.cache()
+        newVertexUpdateColDF.count() // materialize it
+
+        if (vertexUpdateColDF != null) {
+          vertexUpdateColDF.unpersist()
+        }
+        vertexUpdateColDF = newVertexUpdateColDF
+
+        currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
+
+        iteration += 1
       }
-
-      if (shouldCheckpoint && iteration % checkpointInterval == 0) {
-        // do checkpoint, use lazy checkpoint because later we will materialize this DF.
-        newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
-        // TODO: remove last checkpoint file.
-      }
-      newVertexUpdateColDF.cache()
-      newVertexUpdateColDF.count() // materialize it
-
-      if (vertexUpdateColDF != null) {
-        vertexUpdateColDF.unpersist()
-      }
-      vertexUpdateColDF = newVertexUpdateColDF
-
-      currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
-
-      iteration += 1
     }
 
     currentVertices
