@@ -271,7 +271,7 @@ class Pregel(val graph: GraphFrame) {
           .select(explode(array(sendMsgsColList: _*)).as("msg"))
           .select(col("msg.id"), col("msg.msg").as(Pregel.MSG_COL_NAME))
 
-        if (msgDF.filter(Pregel.msg.isNotNull).isEmpty) {
+        if (doEarlyStopping && msgDF.filter(Pregel.msg.isNotNull).isEmpty) {
           if (vertexUpdateColDF != null) {
             vertexUpdateColDF.unpersist()
           }
