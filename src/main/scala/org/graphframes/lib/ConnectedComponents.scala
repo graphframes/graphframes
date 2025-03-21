@@ -421,11 +421,7 @@ object ConnectedComponents extends Logging {
           prevSum = currSum
         }
 
-        // materialize all persisted DataFrames in current round,
-        // then we can unpersist last round persisted DataFrames.
-        for (persisted_df <- currRoundPersistedDFs) {
-          persisted_df.count() // materialize it.
-        }
+        // clean up persisted DFs
         for (persisted_df <- lastRoundPersistedDFs) {
           persisted_df.unpersist()
         }
@@ -439,9 +435,6 @@ object ConnectedComponents extends Logging {
     val output = vv.join(ee, vv(ID) === ee(DST), "left_outer")
       .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
       .select(col(s"$ATTR.*"), col(COMPONENT)).persist(intermediateStorageLevel)
-
-    // materialize the output DataFrame
-    output.count()
 
     // clean up persisted DFs
     for (persisted_df <- lastRoundPersistedDFs) {
