@@ -22,12 +22,12 @@ import java.math.BigDecimal
 import java.util.UUID
 
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.DecimalType
-import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.storage.StorageLevel
 
 import org.graphframes.{GraphFrame, Logging}
+import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.storage.StorageLevel
 
 /**
  * Connected Components algorithm.
@@ -200,14 +200,13 @@ object ConnectedComponents extends Logging {
    * Prepares the input graph for computing connected components by:
    *   - de-duplicating vertices and assigning unique long IDs to each,
    *   - changing edge directions to have increasing long IDs from src to dst,
-   *   - de-duplicating edges and removing self-loops.
-   * In the returned GraphFrame, the vertex DataFrame has two columns:
+   *   - de-duplicating edges and removing self-loops. In the returned GraphFrame, the vertex
+   *     DataFrame has two columns:
    *   - column `id` stores a long ID assigned to the vertex,
-   *   - column `attr` stores the original vertex attributes.
-   * The edge DataFrame has two columns:
+   *   - column `attr` stores the original vertex attributes. The edge DataFrame has two columns:
    *   - column `src` stores the long ID of the source vertex,
-   *   - column `dst` stores the long ID of the destination vertex,
-   * where we always have `src` < `dst`.
+   *   - column `dst` stores the long ID of the destination vertex, where we always have `src` <
+   *     `dst`.
    */
   private def prepare(graph: GraphFrame): GraphFrame = {
     // TODO: This assignment job might fail if the graph is skewed.
@@ -310,8 +309,14 @@ object ConnectedComponents extends Logging {
             new Path(d, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
           }
           .getOrElse {
-            throw new IOException(
-              "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir().")
+            // Spark-Connect workaround
+            spark.conf.getOption("spark.checkpoint.dir") match {
+              case Some(d) => new Path(d, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
+              case None =>
+                throw new IOException(
+                  "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
+                    "or by specifying the conf 'spark.checkpoint.dir'.")
+            }
           }
         logInfo(s"$logPrefix Using $dir for checkpointing with interval $checkpointInterval.")
         Some(dir)

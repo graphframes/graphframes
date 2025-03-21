@@ -8,7 +8,7 @@ jobs:
         include:
           - spark-version: 3.5.4
             scala-version: 2.12.18
-            python-version: 3.9.19
+            python-version: 3.10.6
     runs-on: ubuntu-22.04
     env:
       # define Java options for both official sbt and sbt-extras
@@ -18,16 +18,15 @@ jobs:
       SCALA_VERSION: ${{ matrix.scala-version }}
     steps:
     - uses: actions/checkout@v4
-    - uses: olafurpg/setup-scala@v13
+    - uses: actions/setup-java@v4
       with:
-        java-version: "openjdk@1.11"
+        distribution: "zulu"
+        java-version: "11"
     - uses: actions/cache@v4
       with:
         path: |
           ~/.ivy2/cache
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
-    - name: Assembly
-      run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} "set test in assembly := {}" assembly
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
@@ -41,10 +40,24 @@ jobs:
     - name: Build Python package and its dependencies
       working-directory: ./python
       run: |
-        poetry build
-        poetry install
+        poetry install --with=dev
+    - name: Code style
+      working-directory: ./python
+      run: |
+        poetry run python -m black --check graphframes
+        poetry run python -m flake8 graphframes
+        poetry run python -m isort --check graphframes
+
     - name: Test
       working-directory: ./python
       run: |
-        export SPARK_HOME=$(poetry run python -c "import os; from importlib.util import find_spec; spec = find_spec('pyspark'); print(os.path.join(os.path.dirname(spec.origin)))")
-        ./run-tests.sh
+        poetry run python -m pytest
+
+    - name: Test SparkConnect
+      env:
+        SPARK_CONNECT_MODE_ENABLED: 1
+      working-directory: ./python
+      run: |
+        poetry run python dev/run_connect.py
+        poetry run python -m pytest
+        poetry run python dev/stop_connect.py

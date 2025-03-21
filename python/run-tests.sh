@@ -62,17 +62,7 @@ export PYTHONPATH=$PYTHONPATH:graphframes
 
 
 # Run test suites
-
-if [[ "$python_major" == "2" ]]; then
-    
-    # Horrible hack for spark 1.x: we manually remove some log lines to stay below the 4MB log limit on Travis.
-    poetry run python `which nosetests` -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
-    
-else
-    
-    poetry run python -m "nose" -v --all-modules -w $DIR 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
-    
-fi
+poetry run python -m "pytest" -v $DIR/graphframes/tests.py 2>&1 | grep -vE "INFO (ParquetOutputFormat|SparkContext|ContextCleaner|ShuffleBlockFetcherIterator|MapOutputTrackerMaster|TaskSetManager|Executor|MemoryStore|CacheManager|BlockManager|DAGScheduler|PythonRDD|TaskSchedulerImpl|ZippedPartitionsRDD2)";
 
 # Exit immediately if the tests fail.
 # Since we pipe to remove the output, we need to use some horrible BASH features:
@@ -80,7 +70,6 @@ fi
 test ${PIPESTATUS[0]} -eq 0 || exit 1;
 
 # Run doc tests
-
 cd "$DIR"
 
 poetry run python -u ./graphframes/graphframe.py "$@"

@@ -17,3 +17,9 @@ class NoSuchVertexException(message: String) extends Exception(message)
  * query.
  */
 class InvalidPatternException() extends Exception()
+
+/**
+ * Exception that should not be reachable
+ */
+class GraphFramesUnreachableException()
+    extends Exception("This exception should not be reachable")
