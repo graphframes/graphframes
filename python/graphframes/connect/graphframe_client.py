@@ -24,6 +24,7 @@ class PregelConnect:
         self._send_msg_to_src = []
         self._send_msg_to_dst = []
         self._agg_msg = None
+        self._early_stopping = False
 
     def setMaxIter(self, value: int) -> Self:
         self._max_iter = value
@@ -31,6 +32,10 @@ class PregelConnect:
 
     def setCheckpointInterval(self, value: int) -> Self:
         self._checkpoint_interval = value
+        return self
+
+    def setEarlyStopping(self, value: bool) -> Self:
+        self._early_stopping = value
         return self
 
     def withVertexColumn(
@@ -62,6 +67,7 @@ class PregelConnect:
                 self,
                 max_iter: int,
                 checkpoint_interval: int,
+                early_stopping: bool,
                 vertex_col_name: str,
                 agg_msg: Column | str,
                 send2dst: list[Column | str],
@@ -74,6 +80,7 @@ class PregelConnect:
                 super().__init__(None)
                 self.max_iter = max_iter
                 self.checkpoint_interval = checkpoint_interval
+                self.early_stopping = early_stopping
                 self.vertex_col_name = vertex_col_name
                 self.agg_msg = agg_msg
                 self.send2dst = send2dst
@@ -97,6 +104,7 @@ class PregelConnect:
                     additional_col_name=self.vertex_col_name,
                     additional_col_initial=make_column_or_expr(self.vertex_col_init, session),
                     additional_col_upd=make_column_or_expr(self.vertex_col_upd, session),
+                    early_stopping=self.early_stopping,
                 )
                 pb_message = pb.GraphFramesAPI(
                     vertices=dataframe_to_proto(self.vertices, session),
@@ -129,6 +137,7 @@ class PregelConnect:
                 send2src=self._send_msg_to_src,
                 vertices=self.graph._vertices,
                 edges=self.graph._edges,
+                early_stopping=self._early_stopping,
             ),
             session=self.graph._spark,
         )
