@@ -60,7 +60,7 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
    * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
    */
   def landmarks(value: util.ArrayList[Any]): this.type = {
-    landmarks(value.asScala)
+    landmarks(value.asScala.toSeq)
   }
 
   def run(): DataFrame = {
@@ -124,7 +124,8 @@ private object ShortestPaths extends Logging {
     //   .when(id == "c", Map(c -> 0)) --> this one is the only true
     //   .when(id == "d", Map(d -> 0))
     def initDistancesMap(vertexId: Column): Column = {
-      var initCol = when(vertexId === lit(landmarks.head), map(lit(landmarks.head), lit(0)))
+      val firstLmarkCol = lit(landmarks.head)
+      var initCol = when(vertexId === firstLmarkCol, map(firstLmarkCol, lit(0)))
       for (lmark <- landmarks.tail) {
         initCol = initCol.when(vertexId === lit(lmark), map(lit(lmark), lit(0)))
       }
