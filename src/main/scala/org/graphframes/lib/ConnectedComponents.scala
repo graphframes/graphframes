@@ -47,6 +47,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   import org.graphframes.lib.ConnectedComponents._
 
   private var broadcastThreshold: Int = 1000000
+  setAlgorithm(ALGO_GRAPHFRAMES)
 
   /**
    * Sets broadcast threshold in propagating component assignments (default: 1000000). If a node

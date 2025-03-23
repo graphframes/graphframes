@@ -186,6 +186,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(checkpointDir.nonEmpty)
 
     sc.setCheckpointDir(null)
+    val oldCheckpointDir = spark.conf.get("spark.checkpoint.dir")
+    spark.conf.unset("spark.checkpoint.dir")
     withClue(
       "Should throw an IOException if sc.getCheckpointDir is empty " +
         "and checkpointInterval is positive.") {
@@ -193,6 +195,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         cc.run()
       }
     }
+    spark.conf.set("spark.checkpoint.dir", oldCheckpointDir)
 
     // Checks whether the input DataFrame is from some checkpoint data.
     // TODO: The implemetnation is a little hacky.
