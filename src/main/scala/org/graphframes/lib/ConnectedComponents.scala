@@ -17,17 +17,16 @@
 
 package org.graphframes.lib
 
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.storage.StorageLevel
+import org.graphframes.{GraphFrame, Logging}
+
 import java.io.IOException
 import java.math.BigDecimal
 import java.util.UUID
-
-import org.graphframes.{GraphFrame, Logging}
-
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.DecimalType
-import org.apache.spark.storage.StorageLevel
 
 /**
  * Connected components algorithm.
@@ -440,20 +439,22 @@ object ConnectedComponents extends Logging {
 
       logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
 
-    logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
-    val output = vv.join(ee, vv(ID) === ee(DST), "left_outer")
-      .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
-      .select(col(s"$ATTR.*"), col(COMPONENT)).persist(intermediateStorageLevel)
+      logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
+      val output = vv
+        .join(ee, vv(ID) === ee(DST), "left_outer")
+        .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
+        .select(col(s"$ATTR.*"), col(COMPONENT))
+        .persist(intermediateStorageLevel)
 
-    // materialize the output DataFrame
-    output.count()
+      // materialize the output DataFrame
+      output.count()
 
-    // clean up persisted DFs
-    for (persisted_df <- lastRoundPersistedDFs) {
-      persisted_df.unpersist()
-    }
+      // clean up persisted DFs
+      for (persisted_df <- lastRoundPersistedDFs) {
+        persisted_df.unpersist()
+      }
 
-    output
+      output
     } finally {
       // Restore original AQE setting
       spark.conf.set("spark.sql.adaptive.enabled", originalAQE)

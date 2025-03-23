@@ -17,19 +17,19 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-
-import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
-
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.storage.StorageLevel
-
-import org.graphframes._
 import org.graphframes.GraphFrame._
+import org.graphframes._
 import org.graphframes.examples.Graphs
+
+import java.io.IOException
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -253,6 +253,20 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  test("uses intermediate caches") {
+    val cc = Graphs.friends.connectedComponents
+    val components = cc.run()
+
+    val count = components.queryExecution.executedPlan
+      .toString()
+      .sliding("InMemoryRelation".length)
+      .count(window => window == "InMemoryRelation")
+
+    // 17 number derived from when output.count() call is present in the run method
+    assert(count == 17)
+    components.unpersist(blocking = true)
+  }
+
   test("not leaking cached data") {
     val priorCachedDFsSize = spark.sparkContext.getPersistentRDDs.size
 
@@ -260,7 +274,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val components = cc.run()
 
     components.unpersist(blocking = true)
-
     assert(spark.sparkContext.getPersistentRDDs.size === priorCachedDFsSize)
   }
 
