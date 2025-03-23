@@ -28,8 +28,8 @@ import org.apache.spark.sql.functions.{col, udf, map, lit, when, map_zip_with, r
 import org.apache.spark.sql.types.{IntegerType, MapType}
 
 import org.graphframes.GraphFrame
-import org.apache.spark.annotation.Experimental
 import org.graphframes.Logging
+import org.graphframes.WithAlgorithmChoice
 
 /**
  * Computes shortest paths from every vertex to the given set of landmark vertices. Note that this
@@ -40,11 +40,12 @@ import org.graphframes.Logging
  *   - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing the
  *     shortest-path distance to each reachable landmark vertex.
  */
-class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
+class ShortestPaths private[graphframes] (private val graph: GraphFrame)
+    extends Arguments
+    with WithAlgorithmChoice {
   import org.graphframes.lib.ShortestPaths._
 
   private var lmarks: Option[Seq[Any]] = None
-  private var algorithm: String = ALGO_GRAPHX
 
   /**
    * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
@@ -59,21 +60,14 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
    * The list of landmark vertex ids. Shortest paths will be computed to each landmark.
    */
   def landmarks(value: util.ArrayList[Any]): this.type = {
-    landmarks(value.asScala.toSeq)
-  }
-
-  def setAlgorithm(value: String): this.type = {
-    require(
-      supportedAlgorithms.contains(value),
-      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $value.)")
-    algorithm = value
-    this
+    landmarks(value.asScala)
   }
 
   def run(): DataFrame = {
+    val lmarksChecked = check(lmarks, "landmarks")
     algorithm match {
-      case ALGO_GRAPHX => runInGraphX(graph, check(lmarks, "landmarks"))
-      case ALGO_GRAPHFRAMES => runInGraphFrames(graph, check(lmarks, "landmarks"))
+      case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked)
+      case ALGO_GRAPHFRAMES => runInGraphFrames(graph, lmarksChecked)
     }
   }
 }
@@ -110,7 +104,6 @@ private object ShortestPaths extends Logging {
     g.vertices.select(cols.toSeq: _*)
   }
 
-  @Experimental
   private def runInGraphFrames(
       graph: GraphFrame,
       landmarks: Seq[Any],
@@ -119,6 +112,17 @@ private object ShortestPaths extends Logging {
     val vertexType = graph.vertices.schema(GraphFrame.ID).dataType
 
     // For landmark vertices the initial distance to itself is set to 0
+    // Example: graph with vertices a, b, c, d; landmarks = (c, d)
+    // we shoudl init the following:
+    // (a, Map()), (b, Map()), (c, Map(c -> 0)), (d, Map(d -> 0))
+    //
+    // Inside the following function it is done by applying multiple case-when
+    // because we know exactly that only one landmark could be equal to the nodeId.
+    // For example, for vertex c it will be:
+    // when(id == "a", Map(a -> 0))
+    //   .when(id == "b", Map(b -> 0))
+    //   .when(id == "c", Map(c -> 0)) --> this one is the only true
+    //   .when(id == "d", Map(d -> 0))
     def initDistancesMap(vertexId: Column): Column = {
       var initCol = when(vertexId === lit(landmarks.head), map(lit(landmarks.head), lit(0)))
       for (lmark <- landmarks.tail) {
@@ -152,9 +156,9 @@ private object ShortestPaths extends Logging {
     def aggregateArrayOfDistanceMaps(arrayCol: Column): Column =
       reduce(arrayCol, lit(null).cast(MapType(vertexType, IntegerType)), concatMaps)
 
-    // Checks that a sended distances map can change the destination distances.
+    // Checks that a sent distances map can change the destination distances.
     // Evaluation would be "true" in case in the new distances map
-    // for one of keys present a non null value but in the old distances map it is null
+    // for one of keys present a non-null value but in the old distances map it is null
     // or new distance is less than old one.
     def isDistanceImprovedWithMessage(newMap: Column, oldMap: Column): Column = reduce(
       map_values(
@@ -165,6 +169,9 @@ private object ShortestPaths extends Logging {
             (newDistance.isNotNull && rightDistance.isNull) || (newDistance < rightDistance))),
       lit(false),
       (left, right) => left || right)
+
+    val srcDistanceCol = Pregel.src(DISTANCE_ID)
+    val dstDistanceCol = Pregel.dst(DISTANCE_ID)
 
     // Overall:
     // 1. Initialize distances
@@ -178,35 +185,26 @@ private object ShortestPaths extends Logging {
         when(col(GraphFrame.ID).isInCollection(landmarks), initDistancesMap(col(GraphFrame.ID)))
           .otherwise(map().cast(MapType(vertexType, IntegerType))),
         concatMaps(col(DISTANCE_ID), Pregel.msg))
-      .sendMsgToSrc(
-        when(
-          isDistanceImprovedWithMessage(
-            incrementDistances(Pregel.dst(DISTANCE_ID)),
-            Pregel.src(DISTANCE_ID)),
-          incrementDistances(Pregel.dst(DISTANCE_ID))))
+      .sendMsgToSrc(when(
+        isDistanceImprovedWithMessage(incrementDistances(dstDistanceCol), srcDistanceCol),
+        incrementDistances(dstDistanceCol)))
       .aggMsgs(aggregateArrayOfDistanceMaps(collect_list(Pregel.msg)))
 
     // Experimental feature
     if (isDirected) {
       pregel.run()
     } else {
-      // For consider edges as undireceted,
+      // For consider edges as undirected,
       // it is enough to send messages in both directions
       pregel
         .sendMsgToDst(
           when(
-            isDistanceImprovedWithMessage(
-              incrementDistances(Pregel.src(DISTANCE_ID)),
-              Pregel.dst(DISTANCE_ID)),
-            incrementDistances(Pregel.src(DISTANCE_ID))))
+            isDistanceImprovedWithMessage(incrementDistances(srcDistanceCol), dstDistanceCol),
+            incrementDistances(srcDistanceCol)))
         .run()
     }
 
   }
 
   private val DISTANCE_ID = "distances"
-  private val ALGO_GRAPHX = "graphx"
-  private val ALGO_GRAPHFRAMES = "graphframes"
-
-  val supportedAlgorithms: Array[String] = Array(ALGO_GRAPHX, ALGO_GRAPHFRAMES)
 }

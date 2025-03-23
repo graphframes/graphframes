@@ -28,6 +28,7 @@ import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
+import org.graphframes.WithAlgorithmChoice
 
 /**
  * Connected components algorithm.
@@ -40,7 +41,8 @@ import org.apache.spark.storage.StorageLevel
  */
 class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with Logging {
+    with Logging
+    with WithAlgorithmChoice {
 
   import org.graphframes.lib.ConnectedComponents._
 
@@ -70,34 +72,6 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    *   [[org.graphframes.lib.ConnectedComponents.setBroadcastThreshold]]
    */
   def getBroadcastThreshold: Int = broadcastThreshold
-
-  private var algorithm: String = ALGO_GRAPHFRAMES
-
-  /**
-   * Sets the connected components algorithm to use (default: "graphframes"). Supported algorithms
-   * are:
-   *   - "graphframes": Uses alternating large star and small star iterations proposed in
-   *     [[http://dx.doi.org/10.1145/2670979.2670997 Connected Components in MapReduce and Beyond]]
-   *     with skewed join optimization.
-   *   - "graphx": Converts the graph to a GraphX graph and then uses the connected components
-   *     implementation in GraphX.
-   * @see
-   *   [[org.graphframes.lib.ConnectedComponents.supportedAlgorithms]]
-   */
-  def setAlgorithm(value: String): this.type = {
-    require(
-      supportedAlgorithms.contains(value),
-      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $value.")
-    algorithm = value
-    this
-  }
-
-  /**
-   * Gets the connected component algorithm to use.
-   * @see
-   *   [[org.graphframes.lib.ConnectedComponents.setAlgorithm]].
-   */
-  def getAlgorithm: String = algorithm
 
   private var checkpointInterval: Int = 2
 
@@ -159,7 +133,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   def run(): DataFrame = {
     ConnectedComponents.run(
       graph,
-      algorithm = algorithm,
+      runInGraphX = algorithm == ALGO_GRAPHX,
       broadcastThreshold = broadcastThreshold,
       checkpointInterval = checkpointInterval,
       intermediateStorageLevel = intermediateStorageLevel)
@@ -175,15 +149,6 @@ object ConnectedComponents extends Logging {
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
-
-  private val ALGO_GRAPHX = "graphx"
-  private val ALGO_GRAPHFRAMES = "graphframes"
-
-  /**
-   * Supported algorithms in [[org.graphframes.lib.ConnectedComponents.setAlgorithm]]:
-   * "graphframes" and "graphx".
-   */
-  val supportedAlgorithms: Array[String] = Array(ALGO_GRAPHX, ALGO_GRAPHFRAMES)
 
   /**
    * Returns the symmetric directed graph of the graph specified by input edges.
@@ -279,15 +244,11 @@ object ConnectedComponents extends Logging {
 
   private def run(
       graph: GraphFrame,
-      algorithm: String,
+      runInGraphX: Boolean,
       broadcastThreshold: Int,
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel): DataFrame = {
-    require(
-      supportedAlgorithms.contains(algorithm),
-      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
-
-    if (algorithm == ALGO_GRAPHX) {
+    if (runInGraphX) {
       return runGraphX(graph)
     }
 
