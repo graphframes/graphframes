@@ -25,7 +25,6 @@ include = [
 [tool.poetry.build]
 script = "dev/build_jar.py"
 
-
 [tool.poetry.urls]
 "Project Homepage" = "https://graphframes.github.io/graphframes"
 "PyPi Homepage" = "https://pypi.org/project/graphframes-py"
@@ -33,8 +32,7 @@ script = "dev/build_jar.py"
 "Bug Tracker" = "https://github.com/graphframes/graphframes/issues"
 
 [tool.poetry.dependencies]
-python = ">=3.9 <3.13"
-nose = "1.3.7"
+python = ">=3.11,<3.13"
 pyspark = ">=3.4 <4.0"
 numpy = ">= 1.7"
 
@@ -45,6 +43,7 @@ isort = "^6.0.0"
 pyspark = { version = "3.5.4", extras = ["connect"] }
 grpcio = "<=1.67.1"
 pytest = "^8.3.4"
+ipython = "^9.0.2"
 
 [tool.poetry.group.tutorials.dependencies]
 py7zr = "^0.22.0"
