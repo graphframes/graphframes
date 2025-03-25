@@ -330,8 +330,7 @@ object ConnectedComponents extends Logging {
       val g = prepare(graph)
       val vv = g.vertices
       var ee = g.edges.persist(intermediateStorageLevel) // src < dst
-      val numEdges = ee.count()
-      logInfo(s"$logPrefix Found $numEdges edges after preparation.")
+      logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
 
       var converged = false
       var iteration = 1
@@ -442,10 +441,15 @@ object ConnectedComponents extends Logging {
         .select(col(s"$ATTR.*"), col(COMPONENT))
         .persist(intermediateStorageLevel)
 
+      // An action must be performed on the DataFrame for the cache to load
+      output.count()
+
       // clean up persisted DFs
       for (persisted_df <- lastRoundPersistedDFs) {
         persisted_df.unpersist()
       }
+
+      logWarn("The DataFrame returned by ConnectedComponents is persisted and loaded.")
 
       output
     } finally {
