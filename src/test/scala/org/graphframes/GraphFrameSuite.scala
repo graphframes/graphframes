@@ -27,7 +27,7 @@ import org.apache.spark.graphx.{Edge, Graph}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{IntegerType, StringType}
+import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType}
 import org.apache.spark.storage.StorageLevel
 
 import com.google.common.io.Files
@@ -78,6 +78,32 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       val badEdges = edges.select(col("src"), col("dst").as("dstId"), col("action"))
       GraphFrame(vertices, badEdges)
     }
+  }
+
+  test("construction from DataFrames with dots in column names") {
+    val g = GraphFrame(
+      vertices.withColumnRenamed("name", "a.name"),
+      edges.withColumnRenamed("action", "the.action"))
+    g.vertices.collect().foreach { case Row(id: Long, name: String) =>
+      assert(localVertices(id) === name)
+    }
+    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
+      assert(localEdges((src, dst)) === action)
+    }
+    g.pageRank.maxIter(10).run()
+  }
+
+  test("construction from DataFrames with backquote in column names") {
+    val g = GraphFrame(
+      vertices.withColumnRenamed("name", "a `name`"),
+      edges.withColumnRenamed("action", "the `action`"))
+    g.vertices.collect().foreach { case Row(id: Long, name: String) =>
+      assert(localVertices(id) === name)
+    }
+    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
+      assert(localEdges((src, dst)) === action)
+    }
+    g.pageRank.maxIter(10).run()
   }
 
   test("construction from edge DataFrame") {
@@ -265,6 +291,34 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       assert(empty.degrees.count() === 0L)
       assert(empty.triplets.count() === 0L)
     }
+  }
+
+  test("nestAsCol with dots in column names") {
+    val df = vertices.withColumnRenamed("name", "a.name")
+    val col = nestAsCol(df, "attr")
+    assert(
+      df.select(col).schema === StructType(
+        Seq(
+          StructField(
+            "attr",
+            StructType(Seq(
+              StructField("id", LongType, nullable = false),
+              StructField("a.name", StringType, nullable = true))),
+            nullable = false))))
+  }
+
+  test("nestAsCol with backquote in column names") {
+    val df = vertices.withColumnRenamed("name", "a `name`")
+    val col = nestAsCol(df, "attr")
+    assert(
+      df.select(col).schema === StructType(
+        Seq(
+          StructField(
+            "attr",
+            StructType(Seq(
+              StructField("id", LongType, nullable = false),
+              StructField("a `name`", StringType, nullable = true))),
+            nullable = false))))
   }
 
   test("skewed long ID assignments") {
