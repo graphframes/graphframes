@@ -110,4 +110,27 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
   }
 
+  test("chain propagation with termination") {
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x, x + 1))
+      .toDF("src", "dst")
+      .repartition(3)
+
+    val graph = GraphFrame(verDF, edgeDF)
+
+    val resultDF = graph.pregel
+      .setMaxIter(1000)
+      .setEarlyStopping(true)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
+      .aggMsgs(max(Pregel.msg))
+      .run()
+
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
 }
