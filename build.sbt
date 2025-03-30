@@ -14,6 +14,7 @@ lazy val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
 lazy val defaultScalaTestVer = scalaVer match {
   case s if s.startsWith("2.12") || s.startsWith("2.13") => "3.0.8"
 }
+lazy val jmhVersion = "1.37"
 
 ThisBuild / version := {
   val baseVersion = (ThisBuild / version).value
@@ -23,6 +24,17 @@ ThisBuild / version := {
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
 ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
+
+lazy val jvmOptions = Seq(
+  "-XX:+IgnoreUnrecognizedVMOptions",
+  "-Xmx10G",
+  "-XX:ReservedCodeCacheSize=384m",
+  "-XX:MaxMetaspaceSize=384m",
+  "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+  "--add-opens=java.base/java.lang=ALL-UNNAMED",
+  "--add-opens=java.base/java.nio=ALL-UNNAMED",
+  "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+  "--add-opens=java.base/java.util=ALL-UNNAMED")
 
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
@@ -45,16 +57,7 @@ lazy val commonSetting = Seq(
   // Test settings
   Test / fork := true,
   Test / parallelExecution := false,
-  Test / javaOptions ++= Seq(
-    "-XX:+IgnoreUnrecognizedVMOptions",
-    "-Xmx2048m",
-    "-XX:ReservedCodeCacheSize=384m",
-    "-XX:MaxMetaspaceSize=384m",
-    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
-    "--add-opens=java.base/java.lang=ALL-UNNAMED",
-    "--add-opens=java.base/java.nio=ALL-UNNAMED",
-    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
-    "--add-opens=java.base/java.util=ALL-UNNAMED"),
+  Test / javaOptions ++= jvmOptions,
   credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"))
 
 lazy val root = (project in file("."))
@@ -108,5 +111,21 @@ lazy val connect = (project in file("graphframes-connect"))
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
-    }
+    })
+
+lazy val ldbcBenchmarks = (project in file("graphframes-benchmarks"))
+  .dependsOn(root)
+  .settings(
+    commonSetting,
+    name := "graphframes-benchmarks",
+    libraryDependencies ++= Seq(
+      // required for jmh IDEA plugin. Make sure this version matches sbt-jmh version!
+      "org.openjdk.jmh" % "jmh-generator-annprocess" % jmhVersion,
+      // for benchmarks the scope should be runtime
+      "org.apache.spark" %% "spark-graphx" % sparkVer % "runtime" cross CrossVersion.for3Use2_13,
+      "org.apache.spark" %% "spark-sql" % sparkVer % "runtime" cross CrossVersion.for3Use2_13,
+      "org.apache.spark" %% "spark-mllib" % sparkVer % "runtime" cross CrossVersion.for3Use2_13),
+    publish / skip := true,
+    publishArtifact := false,
   )
+  .enablePlugins(JmhPlugin)
