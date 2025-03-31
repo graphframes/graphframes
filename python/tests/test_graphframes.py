@@ -207,6 +207,51 @@ def test_page_rank(spark):
     for a, b in zip(result, expected):
         assert a == pytest.approx(b, abs=1e-3)
 
+def test_pregel_early_stopping(spark):
+    edges = spark.createDataFrame(
+        [
+            [0, 1],
+            [1, 2],
+            [2, 4],
+            [2, 0],
+            [3, 4],  # 3 has no in-links
+            [4, 0],
+            [4, 2],
+        ],
+        ["src", "dst"],
+    )
+    edges.cache()
+    vertices = spark.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
+    numVertices = vertices.count()
+
+    vertices = GraphFrame(vertices, edges).outDegrees
+    vertices.toPandas().head()
+    vertices.cache()
+
+    # Construct a new GraphFrame with the updated vertices DataFrame.
+    graph = GraphFrame(vertices, edges)
+    alpha = 0.15
+    pregel = graph.pregel
+    ranks = (
+        graph.pregel.setMaxIter(5).setEarlyStopping(True)
+        .withVertexColumn(
+            "rank",
+            sqlfunctions.lit(1.0 / numVertices),
+            sqlfunctions.coalesce(pregel.msg(), sqlfunctions.lit(0.0))
+            * sqlfunctions.lit(1.0 - alpha)
+            + sqlfunctions.lit(alpha / numVertices),
+        )
+        .sendMsgToDst(pregel.src("rank") / pregel.src("outDegree"))
+        .aggMsgs(sqlfunctions.sum(pregel.msg()))
+        .run()
+    )
+    resultRows = ranks.sort("id").collect()
+    result = map(lambda x: x.rank, resultRows)
+    expected = [0.245, 0.224, 0.303, 0.03, 0.197]
+
+    # Compare each result with its expected value using a tolerance of 1e-3.
+    for a, b in zip(result, expected):
+        assert a == pytest.approx(b, abs=1e-3)
 
 def _hasCols(graph, vcols=[], ecols=[]):
     for c in vcols:

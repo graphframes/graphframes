@@ -174,6 +174,10 @@ object GraphFramesConnectUtils {
           .map(parseColumnOrExpression(_, planner))
           .foldLeft(pregel)((p, col) => p.sendMsgToDst(col))
 
+        if (pregelProto.hasEarlyStopping) {
+          pregel = pregel.setEarlyStopping(pregelProto.getEarlyStopping)
+        }
+
         pregel.run()
       }
       case MethodCase.SHORTEST_PATHS => {
