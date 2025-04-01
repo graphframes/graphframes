@@ -2,18 +2,17 @@ import ReleaseTransformations.*
 import sbt.Credentials
 import sbt.Keys.credentials
 
-lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.4")
+lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val defaultScalaVer = sparkBranch match {
+  case "4.0" => "2.13.16"
   case "3.5" => "2.12.18"
   case "3.4" => "2.12.17"
   case "3.3" => "2.12.15"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 lazy val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
-lazy val defaultScalaTestVer = scalaVer match {
-  case s if s.startsWith("2.12") || s.startsWith("2.13") => "3.0.8"
-}
+lazy val defaultScalaTestVer = "3.0.8"
 
 ThisBuild / version := {
   val baseVersion = (ThisBuild / version).value
@@ -23,6 +22,21 @@ ThisBuild / version := {
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
 ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
+
+def sparkVersionSettings(): Seq[Setting[_]] = {
+  if (sparkVer.startsWith("4")) {
+    Seq(
+      resolvers += "Spark 4.0.0 RC3" at "https://repository.apache.org/content/repositories/orgapachespark-1479/",
+      Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / "scala-spark-4",
+      Test / unmanagedSourceDirectories += (Test / baseDirectory).value / "src" / "test" / "scala-spark-4",
+    )
+  } else {
+    Seq(
+      Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / "scala-spark-3",
+      Test / unmanagedSourceDirectories += (Test / baseDirectory).value / "src" / "test" / "scala-spark-3",
+    )
+  }
+}
 
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
@@ -60,6 +74,7 @@ lazy val commonSetting = Seq(
 lazy val root = (project in file("."))
   .settings(
     commonSetting,
+    sparkVersionSettings(),
     name := "graphframes",
     Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
 
@@ -91,6 +106,7 @@ lazy val connect = (project in file("graphframes-connect"))
   .dependsOn(root)
   .settings(
     commonSetting,
+    sparkVersionSettings(),
     name := "graphframes-connect",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),

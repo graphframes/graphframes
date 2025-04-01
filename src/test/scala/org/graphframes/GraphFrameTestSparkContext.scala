@@ -24,24 +24,14 @@ import org.apache.commons.io.FileUtils
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{SparkSession, SQLContext, SQLImplicits}
+import org.apache.spark.sql.graphframes.SparkTestShims
 
-trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
+trait GraphFrameTestSparkContext extends BeforeAndAfterAll with SparkTestShims { self: Suite =>
   @transient var spark: SparkSession = _
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
   @transient var sparkMajorVersion: Int = _
   @transient var sparkMinorVersion: Int = _
-
-  /**
-   * A helper object for importing SQL implicits.
-   *
-   * Note that the alternative of importing `spark.implicits._` is not possible here. This is
-   * because we create the `SQLContext` immediately before the first test is run, but the
-   * implicits import is needed in the constructor.
-   */
-  protected object testImplicits extends SQLImplicits {
-    protected override def _sqlContext: SQLContext = self.sqlContext
-  }
 
   /** Check if current spark version is at least of the provided minimum version */
   def isLaterVersion(minVersion: String): Boolean = {

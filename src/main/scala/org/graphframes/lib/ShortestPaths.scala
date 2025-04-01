@@ -24,7 +24,7 @@ import scala.jdk.CollectionConverters._
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.api.java.UDF1
-import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.functions.{col, map_from_entries, udf}
 import org.apache.spark.sql.types.{IntegerType, MapType}
 
 import org.graphframes.GraphFrame
@@ -72,13 +72,7 @@ private object ShortestPaths {
       .mapVertices { case (_, m) => m.toSeq }
     val g = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
     val distanceCol: Column = if (graph.hasIntegralIdType) {
-      // It seems there are no easy way to convert a sequence of pairs into a map
-      val mapToLandmark = udf { distances: Seq[Row] =>
-        distances.map { case Row(k: Long, v: Int) =>
-          k -> v
-        }.toMap
-      }
-      mapToLandmark(g.vertices(DISTANCE_ID))
+      map_from_entries(g.vertices(DISTANCE_ID))
     } else {
       val func = new UDF1[Seq[Row], Map[Any, Int]] {
         override def call(t1: Seq[Row]): Map[Any, Int] = {

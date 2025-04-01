@@ -25,6 +25,12 @@ project/plugins/project/
 # VSCode
 .vscode
 
+# metals
+.ammonite/
+.bloop/
+.metals/
+metals.sbt
+
 # Mac
 *.DS_Store
 
