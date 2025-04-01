@@ -21,9 +21,9 @@ import java.io.IOException
 import java.math.BigDecimal
 import java.util.UUID
 
-import org.graphframes.{GraphFrame, Logging}
+import org.apache.hadoop.fs.Path
 
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.graphframes.{GraphFrame, Logging}
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DecimalType
@@ -31,7 +31,7 @@ import org.apache.spark.storage.StorageLevel
 import org.graphframes.WithAlgorithmChoice
 
 /**
- * Connected components algorithm.
+ * Connected Components algorithm.
  *
  * Computes the connected component membership of each vertex and returns a DataFrame of vertex
  * information with each vertex assigned a component ID.
@@ -80,7 +80,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    * Sets checkpoint interval in terms of number of iterations (default: 2). Checkpointing
    * regularly helps recover from failures, clean shuffle files, shorten the lineage of the
    * computation graph, and reduce the complexity of plan optimization. As of Spark 2.0, the
-   * complexity of plan optimization would grow exponentially without checkpointing. Hence
+   * complexity of plan optimization would grow exponentially without checkpointing. Hence,
    * disabling or setting longer-than-default checkpoint intervals are not recommended. Checkpoint
    * data is saved under `org.apache.spark.SparkContext.getCheckpointDir` with prefix
    * "connected-components". If the checkpoint directory is not set, this throws a
@@ -146,7 +146,6 @@ object ConnectedComponents extends Logging {
   import org.graphframes.GraphFrame._
 
   private val COMPONENT = "component"
-  private val ORIG_ID = "orig_id"
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
@@ -293,8 +292,7 @@ object ConnectedComponents extends Logging {
       val g = prepare(graph)
       val vv = g.vertices
       var ee = g.edges.persist(intermediateStorageLevel) // src < dst
-      val numEdges = ee.count()
-      logInfo(s"$logPrefix Found $numEdges edges after preparation.")
+      logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
 
       var converged = false
       var iteration = 1
@@ -388,11 +386,7 @@ object ConnectedComponents extends Logging {
           prevSum = currSum
         }
 
-        // materialize all persisted DataFrames in current round,
-        // then we can unpersist last round persisted DataFrames.
-        for (persisted_df <- currRoundPersistedDFs) {
-          persisted_df.count() // materialize it.
-        }
+        // clean up persisted DFs
         for (persisted_df <- lastRoundPersistedDFs) {
           persisted_df.unpersist()
         }
@@ -403,9 +397,23 @@ object ConnectedComponents extends Logging {
       logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
 
       logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
-      vv.join(ee, vv(ID) === ee(DST), "left_outer")
+      val output = vv
+        .join(ee, vv(ID) === ee(DST), "left_outer")
         .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
         .select(col(s"$ATTR.*"), col(COMPONENT))
+        .persist(intermediateStorageLevel)
+
+      // An action must be performed on the DataFrame for the cache to load
+      output.count()
+
+      // clean up persisted DFs
+      for (persisted_df <- lastRoundPersistedDFs) {
+        persisted_df.unpersist()
+      }
+
+      logWarn("The DataFrame returned by ConnectedComponents is persisted and loaded.")
+
+      output
     } finally {
       // Restore original AQE setting
       spark.conf.set("spark.sql.adaptive.enabled", originalAQE)
