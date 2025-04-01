@@ -33,7 +33,8 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val errorTol = 1.0e-5
     val pr = g.pageRank
       .resetProbability(resetProb)
-      .tol(errorTol).run()
+      .tol(errorTol)
+      .run()
     TestUtils.testSchemaInvariants(g, pr)
     TestUtils.checkColumnType(pr.vertices.schema, "pagerank", DataTypes.DoubleType)
     TestUtils.checkColumnType(pr.edges.schema, "weight", DataTypes.DoubleType)
@@ -43,7 +44,8 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val results = Graphs.friends.pageRank.resetProbability(0.15).maxIter(10).sourceId("a").run()
 
     val gRank = results.vertices.filter(col("id") === "g").select("pagerank").first().getDouble(0)
-    assert(gRank === 0.0,
+    assert(
+      gRank === 0.0,
       s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got $gRank.")
   }
 }

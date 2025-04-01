@@ -23,9 +23,10 @@ import java.nio.file.Files
 import org.apache.commons.io.FileUtils
 import org.scalatest.{BeforeAndAfterAll, Suite}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.{SQLContext, SQLImplicits}
+import org.apache.spark.sql.{SparkSession, SQLContext, SQLImplicits}
 
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
+  @transient var spark: SparkSession = _
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
   @transient var sparkMajorVersion: Int = _
@@ -34,9 +35,9 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   /**
    * A helper object for importing SQL implicits.
    *
-   * Note that the alternative of importing `spark.implicits._` is not possible here.
-   * This is because we create the `SQLContext` immediately before the first test is run,
-   * but the implicits import is needed in the constructor.
+   * Note that the alternative of importing `spark.implicits._` is not possible here. This is
+   * because we create the `SQLContext` immediately before the first test is run, but the
+   * implicits import is needed in the constructor.
    */
   protected object testImplicits extends SQLImplicits {
     protected override def _sqlContext: SQLContext = self.sqlContext
@@ -54,14 +55,19 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
 
   override def beforeAll() {
     super.beforeAll()
-    val conf = new SparkConf()
-      .setMaster("local[2]")
-      .setAppName("GraphFramesUnitTest")
-      .set("spark.sql.shuffle.partitions", "4")  // makes small tests much faster
-    sc = new SparkContext(conf)
+
+    spark = SparkSession
+      .builder()
+      .master("local[2]")
+      .appName("GraphFramesUnitTest")
+      .config("spark.sql.shuffle.partitions", 4)
+      .getOrCreate()
+
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
-    sc.setCheckpointDir(checkpointDir)
-    sqlContext = new SQLContext(sc)
+    spark.sparkContext.setCheckpointDir(checkpointDir)
+    sc = spark.sparkContext
+    sqlContext = spark.sqlContext
+
     val (verMajor, verMinor) = TestUtils.majorMinorVersion(sc.version)
     sparkMajorVersion = verMajor
     sparkMinorVersion = verMinor
@@ -69,11 +75,12 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
 
   override def afterAll() {
     val checkpointDir = sc.getCheckpointDir
-    sqlContext = null
-    if (sc != null) {
-      sc.stop()
+    if (spark != null) {
+      spark.stop()
     }
+    spark = null
     sc = null
+
     checkpointDir.foreach { dir =>
       FileUtils.deleteQuietly(new File(dir))
     }

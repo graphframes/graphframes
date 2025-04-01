@@ -2,7 +2,6 @@ package org.graphframes
 
 // All the public exceptions thrown by GraphFrame methods
 
-
 /**
  * Exception thrown when a pattern String for motif finding cannot be parsed.
  */
@@ -18,3 +17,9 @@ class NoSuchVertexException(message: String) extends Exception(message)
  * query.
  */
 class InvalidPatternException() extends Exception()
+
+/**
+ * Exception that should not be reachable
+ */
+class GraphFramesUnreachableException()
+    extends Exception("This exception should not be reachable")

@@ -24,27 +24,32 @@ class PatternSuite extends SparkFunSuite {
   test("good parses") {
     assert(Pattern.parse("(abc)") === Seq(NamedVertex("abc")))
 
-    assert(Pattern.parse("(u)-[e]->(v)") ===
-      Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("v"))))
+    assert(
+      Pattern.parse("(u)-[e]->(v)") ===
+        Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("v"))))
 
-    assert(Pattern.parse("()-[]->(v)") ===
-      Seq(AnonymousEdge(AnonymousVertex, NamedVertex("v"))))
+    assert(
+      Pattern.parse("()-[]->(v)") ===
+        Seq(AnonymousEdge(AnonymousVertex, NamedVertex("v"))))
 
-    assert(Pattern.parse("()-[e]->()") ===
-      Seq(NamedEdge("e", AnonymousVertex, AnonymousVertex)))
+    assert(
+      Pattern.parse("()-[e]->()") ===
+        Seq(NamedEdge("e", AnonymousVertex, AnonymousVertex)))
 
-    assert(Pattern.parse("(u)-[e]->(u)") ===
-      Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("u"))))
+    assert(
+      Pattern.parse("(u)-[e]->(u)") ===
+        Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("u"))))
 
-    assert(Pattern.parse("(u); ()-[]->(v)") ===
-      Seq(NamedVertex("u"), AnonymousEdge(AnonymousVertex, NamedVertex("v"))))
+    assert(
+      Pattern.parse("(u); ()-[]->(v)") ===
+        Seq(NamedVertex("u"), AnonymousEdge(AnonymousVertex, NamedVertex("v"))))
 
-    assert(Pattern.parse("(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)") ===
-      Seq(
-        AnonymousEdge(NamedVertex("u"), NamedVertex("v")),
-        AnonymousEdge(NamedVertex("v"), NamedVertex("w")),
-        Negation(
-          AnonymousEdge(NamedVertex("u"), NamedVertex("w")))))
+    assert(
+      Pattern.parse("(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)") ===
+        Seq(
+          AnonymousEdge(NamedVertex("u"), NamedVertex("v")),
+          AnonymousEdge(NamedVertex("v"), NamedVertex("w")),
+          Negation(AnonymousEdge(NamedVertex("u"), NamedVertex("w")))))
   }
 
   test("bad parses") {
@@ -133,13 +138,9 @@ class PatternSuite extends SparkFunSuite {
     "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)",
     Seq.empty[String])
 
-  testFindNamedVerticesOnlyInNegatedTerms(
-    "(u)-[]->(v); (v)-[]->(w)",
-    Seq.empty[String])
+  testFindNamedVerticesOnlyInNegatedTerms("(u)-[]->(v); (v)-[]->(w)", Seq.empty[String])
 
-  testFindNamedVerticesOnlyInNegatedTerms(
-    "!(u)-[]->(v)",
-    Seq("u", "v"))
+  testFindNamedVerticesOnlyInNegatedTerms("!(u)-[]->(v)", Seq("u", "v"))
 
   testFindNamedVerticesOnlyInNegatedTerms(
     "(u)-[]->(v); (v)-[]->(w); !(a)-[]->(b); !(v)-[]->(c)",
@@ -153,13 +154,9 @@ class PatternSuite extends SparkFunSuite {
     }
   }
 
-  testFindNamedElementsInOrder(
-    "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)",
-    Seq("u", "v", "w"))
+  testFindNamedElementsInOrder("(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)", Seq("u", "v", "w"))
 
-  testFindNamedElementsInOrder(
-    "(u)-[]->(v); ()-[vw]->()",
-    Seq("u", "v", "vw"))
+  testFindNamedElementsInOrder("(u)-[]->(v); ()-[vw]->()", Seq("u", "v", "vw"))
 
   testFindNamedElementsInOrder(
     "(u)-[uv]->(v); (v)-[vw]->(w); !(u)-[]->(w); (x)",

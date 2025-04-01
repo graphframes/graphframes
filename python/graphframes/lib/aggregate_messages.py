@@ -15,59 +15,66 @@
 # limitations under the License.
 #
 
+from typing import Any
+
 from pyspark import SparkContext
-from pyspark.sql import DataFrame, functions as sqlfunctions
+from pyspark.sql import Column, DataFrame, SparkSession
+from pyspark.sql import functions as sqlfunctions
 
 
-def _java_api(jsc):
+def _java_api(jsc: SparkContext) -> Any:
     javaClassName = "org.graphframes.GraphFramePythonAPI"
-    return jsc._jvm.Thread.currentThread().getContextClassLoader().loadClass(javaClassName) \
-            .newInstance()
+    return (
+        jsc._jvm.Thread.currentThread()
+        .getContextClassLoader()
+        .loadClass(javaClassName)
+        .newInstance()
+    )
 
 
-class _ClassProperty(object):
+class _ClassProperty:
     """Custom read-only class property descriptor.
 
     The underlying method should take the class as the sole argument.
     """
 
-    def __init__(self, f):
+    def __init__(self, f: callable) -> None:
         self.f = f
         self.__doc__ = f.__doc__
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Any, owner: type) -> Any:
         return self.f(owner)
 
 
-class AggregateMessages(object):
+class AggregateMessages:
     """Collection of utilities usable with :meth:`graphframes.GraphFrame.aggregateMessages()`."""
 
     @_ClassProperty
-    def src(cls):
+    def src(cls) -> Column:
         """Reference for source column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.SRC())
 
     @_ClassProperty
-    def dst(cls):
+    def dst(cls) -> Column:
         """Reference for destination column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.DST())
 
     @_ClassProperty
-    def edge(cls):
+    def edge(cls) -> Column:
         """Reference for edge column, used for specifying messages."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.EDGE())
 
     @_ClassProperty
-    def msg(cls):
+    def msg(cls) -> Column:
         """Reference for message column, used for specifying aggregation function."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
 
     @staticmethod
-    def getCachedDataFrame(df):
+    def getCachedDataFrame(df: DataFrame) -> DataFrame:
         """
         Create a new cached copy of a DataFrame.
 
@@ -77,7 +84,7 @@ class AggregateMessages(object):
         WARNING: This is NOT the same as `DataFrame.cache()`.
                  The original DataFrame will NOT be cached.
         """
-        sqlContext = df.sql_ctx
-        jvm_gf_api = _java_api(sqlContext._sc)
+        spark = SparkSession.getActiveSession()
+        jvm_gf_api = _java_api(spark._sc)
         jdf = jvm_gf_api.aggregateMessages().getCachedDataFrame(df._jdf)
-        return DataFrame(jdf, sqlContext)
+        return DataFrame(jdf, spark)

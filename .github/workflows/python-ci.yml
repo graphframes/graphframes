@@ -1,0 +1,63 @@
+name: Python CI
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spark-version: 3.5.4
+            scala-version: 2.12.18
+            python-version: 3.10.6
+    runs-on: ubuntu-22.04
+    env:
+      # define Java options for both official sbt and sbt-extras
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      SPARK_VERSION: ${{ matrix.spark-version }}
+      SCALA_VERSION: ${{ matrix.scala-version }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        distribution: "zulu"
+        java-version: "11"
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.ivy2/cache
+        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install and configure Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: 2.1.1
+        virtualenvs-create: true
+        virtualenvs-in-project: false
+        installer-parallel: true
+    - name: Build Python package and its dependencies
+      working-directory: ./python
+      run: |
+        poetry install --with=dev
+    - name: Code style
+      working-directory: ./python
+      run: |
+        poetry run python -m black --check graphframes
+        poetry run python -m flake8 graphframes
+        poetry run python -m isort --check graphframes
+
+    - name: Test
+      working-directory: ./python
+      run: |
+        poetry run python -m pytest
+
+    - name: Test SparkConnect
+      env:
+        SPARK_CONNECT_MODE_ENABLED: 1
+      working-directory: ./python
+      run: |
+        poetry run python dev/run_connect.py
+        poetry run python -m pytest
+        poetry run python dev/stop_connect.py

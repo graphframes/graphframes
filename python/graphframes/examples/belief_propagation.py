@@ -16,21 +16,22 @@
 #
 
 import math
+from typing import Union
 
-from pyspark import SparkConf, SparkContext
-from pyspark.sql import SQLContext, functions as sqlfunctions, types
-from pyspark.tests import QuietTest as SuppressSparkLogs
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as sqlfunctions
+from pyspark.sql import types
 
+# Import subpackage examples here explicitly so that
+# this module can be run directly with spark-submit.
+import graphframes.examples
 from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
-# Import subpackage examples here explicitly so that this module can be
-# run directly with spark-submit.
-import graphframes.examples
 
-__all__ = ['BeliefPropagation']
+__all__ = ["BeliefPropagation"]
 
 
-class BeliefPropagation(object):
+class BeliefPropagation:
     """Example code for Belief Propagation (BP)
 
     This provides a template for building customized BP algorithms for different types of graphical
@@ -63,22 +64,22 @@ class BeliefPropagation(object):
     * Coloring the graph by assigning a color to each vertex such that no neighboring vertices
       share the same color.
     * In each step of BP, update all vertices of a single color.  Alternate colors.
-     """
+    """  # noqa: W605
 
     @classmethod
-    def runBPwithGraphFrames(cls, g, numIter):
+    def runBPwithGraphFrames(cls, g: GraphFrame, numIter: int) -> GraphFrame:
         """Run Belief Propagation using GraphFrame.
 
         This implementation of BP shows how to use GraphFrame's aggregateMessages method.
         """
         # choose colors for vertices for BP scheduling
         colorG = cls._colorGraph(g)
-        numColors = colorG.vertices.select('color').distinct().count()
+        numColors = colorG.vertices.select("color").distinct().count()
 
         # TODO: handle vertices without any edges
 
         # initialize vertex beliefs at 0.0
-        gx = GraphFrame(colorG.vertices.withColumn('belief', sqlfunctions.lit(0.0)), colorG.edges)
+        gx = GraphFrame(colorG.vertices.withColumn("belief", sqlfunctions.lit(0.0)), colorG.edges)
 
         # run BP for numIter iterations
         for iter_ in range(numIter):
@@ -87,40 +88,43 @@ class BeliefPropagation(object):
                 # Send messages to vertices of the current color.
                 # We may send to source or destination since edges are treated as undirected.
                 msgForSrc = sqlfunctions.when(
-                    AM.src['color'] == color,
-                    AM.edge['b'] * AM.dst['belief'])
+                    AM.src["color"] == color, AM.edge["b"] * AM.dst["belief"]
+                )
                 msgForDst = sqlfunctions.when(
-                    AM.dst['color'] == color,
-                    AM.edge['b'] * AM.src['belief'])
+                    AM.dst["color"] == color, AM.edge["b"] * AM.src["belief"]
+                )
                 # numerically stable sigmoid
                 logistic = sqlfunctions.udf(cls._sigmoid, returnType=types.DoubleType())
                 aggregates = gx.aggregateMessages(
                     sqlfunctions.sum(AM.msg).alias("aggMess"),
                     sendToSrc=msgForSrc,
-                    sendToDst=msgForDst)
+                    sendToDst=msgForDst,
+                )
                 v = gx.vertices
                 # receive messages and update beliefs for vertices of the current color
                 newBeliefCol = sqlfunctions.when(
-                    (v['color'] == color) & (aggregates['aggMess'].isNotNull()),
-                    logistic(aggregates['aggMess'] + v['a'])
-                ).otherwise(v['belief'])  # keep old beliefs for other colors
-                newVertices = (v
-                    .join(aggregates, on=(v['id'] == aggregates['id']), how='left_outer')
-                    .drop(aggregates['id'])  # drop duplicate ID column (from outer join)
-                    .withColumn('newBelief', newBeliefCol)  # compute new beliefs
-                    .drop('aggMess')  # drop messages
-                    .drop('belief')  # drop old beliefs
-                    .withColumnRenamed('newBelief', 'belief')
+                    (v["color"] == color) & (aggregates["aggMess"].isNotNull()),
+                    logistic(aggregates["aggMess"] + v["a"]),
+                ).otherwise(
+                    v["belief"]
+                )  # keep old beliefs for other colors
+                newVertices = (
+                    v.join(aggregates, on=(v["id"] == aggregates["id"]), how="left_outer")
+                    .drop(aggregates["id"])  # drop duplicate ID column (from outer join)
+                    .withColumn("newBelief", newBeliefCol)  # compute new beliefs
+                    .drop("aggMess")  # drop messages
+                    .drop("belief")  # drop old beliefs
+                    .withColumnRenamed("newBelief", "belief")
                 )
                 # cache new vertices using workaround for SPARK-1334
                 cachedNewVertices = AM.getCachedDataFrame(newVertices)
                 gx = GraphFrame(cachedNewVertices, gx.edges)
 
         # Drop the "color" column from vertices
-        return GraphFrame(gx.vertices.drop('color'), gx.edges)
+        return GraphFrame(gx.vertices.drop("color"), gx.edges)
 
     @staticmethod
-    def _colorGraph(g):
+    def _colorGraph(g: GraphFrame) -> GraphFrame:
         """Given a GraphFrame, choose colors for each vertex.
 
         No neighboring vertices will share the same color. The number of colors is minimized.
@@ -134,11 +138,11 @@ class BeliefPropagation(object):
         """
 
         colorUDF = sqlfunctions.udf(lambda i, j: (i + j) % 2, returnType=types.IntegerType())
-        v = g.vertices.withColumn('color', colorUDF(sqlfunctions.col('i'), sqlfunctions.col('j')))
+        v = g.vertices.withColumn("color", colorUDF(sqlfunctions.col("i"), sqlfunctions.col("j")))
         return GraphFrame(v, g.edges)
 
     @staticmethod
-    def _sigmoid(x):
+    def _sigmoid(x: Union[int, float, None]) -> Union[float, None]:
         """Numerically stable sigmoid function 1 / (1 + exp(-x))"""
         if not x:
             return None
@@ -150,31 +154,28 @@ class BeliefPropagation(object):
             return z / (1 + z)
 
 
-def main():
+def main() -> None:
     """Run the belief propagation algorithm for an example problem."""
-    # setup context
-    conf = SparkConf().setAppName("BeliefPropagation example")
-    sc = SparkContext.getOrCreate(conf)
-    sql = SQLContext.getOrCreate(sc)
+    # setup spark session
+    spark = SparkSession.builder.appName("BeliefPropagation example").getOrCreate()
 
-    with SuppressSparkLogs(sc):
+    # create graphical model g of size 3 x 3
+    g = graphframes.examples.Graphs(spark).gridIsingModel(3)
+    print("Original Ising model:")
+    g.vertices.show()
+    g.edges.show()
 
-        # create graphical model g of size 3 x 3
-        g = graphframes.examples.Graphs(sql).gridIsingModel(3)
-        print("Original Ising model:")
-        g.vertices.show()
-        g.edges.show()
+    # run BP for 5 iterations
+    numIter = 5
+    results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
 
-        # run BP for 5 iterations
-        numIter = 5
-        results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
+    # display beliefs
+    beliefs = results.vertices.select("id", "belief")
+    print("Done with BP. Final beliefs after {} iterations:".format(numIter))
+    beliefs.show()
 
-        # display beliefs
-        beliefs = results.vertices.select('id', 'belief')
-        print("Done with BP. Final beliefs after {} iterations:".format(numIter))
-        beliefs.show()
+    spark.stop()
 
-    sc.stop()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

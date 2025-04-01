@@ -17,49 +17,55 @@
 
 import itertools
 
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as sqlfunctions
 
 from graphframes import GraphFrame
 
-__all__ = ['Graphs']
+__all__ = ["Graphs"]
 
 
-class Graphs(object):
+class Graphs:
     """Example GraphFrames for testing the API
 
-    :param sqlContext: SQLContext
+    :param spark: SparkSession
     """
 
-    def __init__(self, sqlContext):
-        self._sql = sqlContext
-        self._sc = sqlContext._sc
+    def __init__(self, spark: SparkSession) -> None:
+        self._spark = spark
+        self._sc = spark._sc
 
-    def friends(self):
+    def friends(self) -> GraphFrame:
         """A GraphFrame of friends in a (fake) social network."""
-        sqlContext = self._sql
         # Vertex DataFrame
-        v = sqlContext.createDataFrame([
-            ("a", "Alice", 34),
-            ("b", "Bob", 36),
-            ("c", "Charlie", 30),
-            ("d", "David", 29),
-            ("e", "Esther", 32),
-            ("f", "Fanny", 36)
-        ], ["id", "name", "age"])
+        v = self._spark.createDataFrame(
+            [
+                ("a", "Alice", 34),
+                ("b", "Bob", 36),
+                ("c", "Charlie", 30),
+                ("d", "David", 29),
+                ("e", "Esther", 32),
+                ("f", "Fanny", 36),
+            ],
+            ["id", "name", "age"],
+        )
         # Edge DataFrame
-        e = sqlContext.createDataFrame([
-            ("a", "b", "friend"),
-            ("b", "c", "follow"),
-            ("c", "b", "follow"),
-            ("f", "c", "follow"),
-            ("e", "f", "follow"),
-            ("e", "d", "friend"),
-            ("d", "a", "friend")
-        ], ["src", "dst", "relationship"])
+        e = self._spark.createDataFrame(
+            [
+                ("a", "b", "friend"),
+                ("b", "c", "follow"),
+                ("c", "b", "follow"),
+                ("f", "c", "follow"),
+                ("e", "f", "follow"),
+                ("e", "d", "friend"),
+                ("d", "a", "friend"),
+            ],
+            ["src", "dst", "relationship"],
+        )
         # Create a GraphFrame
         return GraphFrame(v, e)
 
-    def gridIsingModel(self, n, vStd=1.0, eStd=1.0):
+    def gridIsingModel(self, n: int, vStd: float = 1.0, eStd: float = 1.0) -> GraphFrame:
         """Grid Ising model with random parameters.
 
         Ising models are probabilistic graphical models over binary variables x\ :sub:`i`.
@@ -84,41 +90,44 @@ class Graphs(object):
             and "b".  Edges are directed, but they should be treated as undirected in any algorithms
             run on this model. Vertex IDs are of the form "i,j".  E.g., vertex "1,3" is in the
             second row and fourth column of the grid.
-        """
+        """  # noqa: W605
         # check param n
         if n < 1:
             raise ValueError(
-                "Grid graph must have size >= 1, but was given invalid value n = {}"
-                .format(n))
+                "Grid graph must have size >= 1, but was given invalid value n = {}".format(n)
+            )
 
         # create coodinates grid
-        coordinates = self._sql.createDataFrame(
-            itertools.product(range(n), range(n)),
-            schema=('i', 'j'))
+        coordinates = self._spark.createDataFrame(
+            itertools.product(range(n), range(n)), schema=("i", "j")
+        )
 
         # create SQL expression for converting coordinates (i,j) to a string ID "i,j"
         # avoid Cartesian join due to SPARK-15425: use generator since n should be small
-        toIDudf = sqlfunctions.udf(lambda i, j: '{},{}'.format(i,j))
+        toIDudf = sqlfunctions.udf(lambda i, j: "{},{}".format(i, j))
 
         # create the vertex DataFrame
         # create SQL expression for converting coordinates (i,j) to a string ID "i,j"
-        vIDcol = toIDudf(sqlfunctions.col('i'), sqlfunctions.col('j'))
+        vIDcol = toIDudf(sqlfunctions.col("i"), sqlfunctions.col("j"))
         # add random parameters generated from a normal distribution
         seed = 12345
-        vertices = (coordinates.withColumn('id', vIDcol)
-            .withColumn('a', sqlfunctions.randn(seed) * vStd))
+        vertices = coordinates.withColumn("id", vIDcol).withColumn(
+            "a", sqlfunctions.randn(seed) * vStd
+        )
 
         # create the edge DataFrame
         # create SQL expression for converting coordinates (i,j+1) and (i+1,j) to string IDs
-        rightIDcol = toIDudf(sqlfunctions.col('i'), sqlfunctions.col('j') + 1)
-        downIDcol = toIDudf(sqlfunctions.col('i') + 1, sqlfunctions.col('j'))
-        horizontalEdges = (coordinates.filter(sqlfunctions.col('j') != n - 1)
-            .select(vIDcol.alias('src'), rightIDcol.alias('dst')))
-        verticalEdges = (coordinates.filter(sqlfunctions.col('i') != n - 1)
-            .select(vIDcol.alias('src'), downIDcol.alias('dst')))
+        rightIDcol = toIDudf(sqlfunctions.col("i"), sqlfunctions.col("j") + 1)
+        downIDcol = toIDudf(sqlfunctions.col("i") + 1, sqlfunctions.col("j"))
+        horizontalEdges = coordinates.filter(sqlfunctions.col("j") != n - 1).select(
+            vIDcol.alias("src"), rightIDcol.alias("dst")
+        )
+        verticalEdges = coordinates.filter(sqlfunctions.col("i") != n - 1).select(
+            vIDcol.alias("src"), downIDcol.alias("dst")
+        )
         allEdges = horizontalEdges.unionAll(verticalEdges)
         # add random parameters from a normal distribution
-        edges = allEdges.withColumn('b', sqlfunctions.randn(seed + 1) * eStd)
+        edges = allEdges.withColumn("b", sqlfunctions.randn(seed + 1) * eStd)
 
         # create the GraphFrame
         g = GraphFrame(vertices, edges)

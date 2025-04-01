@@ -25,20 +25,25 @@ import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, T
 class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("Count a single triangle") {
-    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
-    val vertices = sqlContext.createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
+    val edges = spark.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+    val vertices = spark
+      .createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
       .toDF("id", "a")
     val g = GraphFrame(vertices, edges)
     val v2 = g.triangleCount.run()
     TestUtils.testSchemaInvariants(g, v2)
     TestUtils.checkColumnType(v2.schema, "count", DataTypes.LongType)
     v2.select("id", "count", "a")
-      .collect().foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
+      .collect()
+      .foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
   }
 
   test("Count two triangles") {
-    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
-      Array(0L -> -1L, -1L -> -2L, -2L -> 0L)).toDF("src", "dst")
+    val edges = spark
+      .createDataFrame(
+        Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
+          Array(0L -> -1L, -1L -> -2L, -2L -> 0L))
+      .toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
     v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
@@ -54,7 +59,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     // Note: This is different from GraphX, which double-counts triangles with bidirected edges.
     val triangles = Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++ Array(0L -> -1L, -1L -> -2L, -2L -> 0L)
     val revTriangles = triangles.map { case (a, b) => (b, a) }
-    val edges = sqlContext.createDataFrame(triangles ++ revTriangles).toDF("src", "dst")
+    val edges = spark.createDataFrame(triangles ++ revTriangles).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
     v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
@@ -67,8 +72,11 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("Count a single triangle with duplicate edges") {
-    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
-        Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+    val edges = spark
+      .createDataFrame(
+        Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
+          Array(0L -> 1L, 1L -> 2L, 2L -> 0L))
+      .toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
     v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
@@ -77,7 +85,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("no triangle") {
-    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L)).toDF("src", "dst")
+    val edges = spark.createDataFrame(Array(0L -> 1L, 1L -> 2L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
     v2.select("count").collect().foreach { case Row(count: Long) =>

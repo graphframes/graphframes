@@ -1,0 +1,138 @@
+syntax = 'proto3';
+
+package org.graphframes.connect.proto;
+
+option java_multiple_files = true;
+option java_package = "org.graphframes.connect.proto";
+option java_generate_equals_and_hash = true;
+option optimize_for=SPEED;
+
+
+message GraphFramesAPI {
+  bytes vertices = 1;
+  bytes edges = 2;
+  oneof method {
+    AggregateMessages aggregate_messages = 3;
+    BFS bfs = 4;
+    ConnectedComponents connected_components = 5;
+    DropIsolatedVertices drop_isolated_vertices = 6;
+    FilterEdges filter_edges = 7;
+    FilterVertices filter_vertices = 8;
+    Find find = 9;
+    LabelPropagation label_propagation = 10;
+    PageRank page_rank = 11;
+    ParallelPersonalizedPageRank parallel_personalized_page_rank = 12;
+    PowerIterationClustering power_iteration_clustering = 13;
+    Pregel pregel = 14;
+    ShortestPaths shortest_paths = 15;
+    StronglyConnectedComponents strongly_connected_components = 16;
+    SVDPlusPlus svd_plus_plus = 17;
+    TriangleCount triangle_count = 18;
+    Triplets triplets = 19;
+  }
+}
+
+message ColumnOrExpression {
+  oneof col_or_expr {
+    bytes col = 1;
+    string expr = 2;
+  }
+}
+
+message StringOrLongID {
+  oneof id {
+    int64 long_id = 1;
+    string string_id = 2;
+  }
+}
+
+message AggregateMessages {
+  ColumnOrExpression agg_col = 1;
+  optional ColumnOrExpression send_to_src = 2;
+  optional ColumnOrExpression send_to_dst = 3;
+}
+
+message BFS {
+  ColumnOrExpression from_expr = 1;
+  ColumnOrExpression to_expr = 2;
+  ColumnOrExpression edge_filter = 3;
+  int32 max_path_length = 4;
+}
+
+message ConnectedComponents {
+  string algorithm = 1;
+  int32 checkpoint_interval = 2;
+  int32 broadcast_threshold = 3;
+}
+
+message DropIsolatedVertices {}
+
+message FilterEdges {
+  ColumnOrExpression condition = 1;
+}
+
+message FilterVertices {
+  ColumnOrExpression condition = 2;
+}
+
+message Find {
+  string pattern = 1;
+}
+
+message LabelPropagation {
+  int32 max_iter = 1;
+}
+
+message PageRank {
+  double reset_probability = 1;
+  optional StringOrLongID source_id = 2;
+  optional int32 max_iter = 3;
+  optional double tol = 4;
+}
+
+message ParallelPersonalizedPageRank {
+  double reset_probability = 1;
+  repeated StringOrLongID source_ids = 2;
+  int32 max_iter = 3;
+}
+
+message PowerIterationClustering {
+  int32 k = 1;
+  int32 max_iter = 2;
+  optional string weight_col = 3;
+}
+
+message Pregel {
+  ColumnOrExpression agg_msgs = 1;
+  repeated ColumnOrExpression send_msg_to_dst = 2;
+  repeated ColumnOrExpression send_msg_to_src = 3;
+  int32 checkpoint_interval = 4;
+  int32 max_iter = 5;
+  string additional_col_name = 6;
+  ColumnOrExpression additional_col_initial = 7;
+  ColumnOrExpression additional_col_upd = 8;
+  optional bool early_stopping = 9;
+}
+
+message ShortestPaths {
+  repeated StringOrLongID landmarks = 1;
+}
+
+message StronglyConnectedComponents {
+  int32 max_iter = 1;
+}
+
+message SVDPlusPlus {
+  int32 rank = 1;
+  int32 max_iter = 2;
+  double min_value = 3;
+  double max_value = 4;
+  double gamma1 = 5;
+  double gamma2 = 6;
+  double gamma6 = 7;
+  double gamma7 = 8;
+}
+
+message TriangleCount {}
+
+message Triplets {}

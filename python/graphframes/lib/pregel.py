@@ -16,12 +16,17 @@
 #
 
 import sys
-if sys.version > '3':
+from typing import TYPE_CHECKING, Any
+
+if sys.version > "3":
     basestring = str
 
-from pyspark.sql import DataFrame
+from pyspark.ml.wrapper import JavaWrapper
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col
-from pyspark.ml.wrapper import JavaWrapper, _jvm
+
+if TYPE_CHECKING:
+    from graphframes import GraphFrame
 
 
 class Pregel(JavaWrapper):
@@ -74,21 +79,22 @@ class Pregel(JavaWrapper):
     ...     .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
     ...     .aggMsgs(sum(Pregel.msg())) \
     ...     .run()
-    """
+    """  # noqa: E501
 
-    def __init__(self, graph):
+    def __init__(self, graph: "GraphFrame") -> None:
         super(Pregel, self).__init__()
+
         self.graph = graph
         self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", graph._jvm_graph)
 
-    def setMaxIter(self, value):
+    def setMaxIter(self, value: int) -> "Pregel":
         """
         Sets the max number of iterations (default: 10).
         """
         self._java_obj.setMaxIter(int(value))
         return self
 
-    def setCheckpointInterval(self, value):
+    def setCheckpointInterval(self, value: int) -> "Pregel":
         """
         Sets the number of iterations between two checkpoints (default: 2).
 
@@ -100,7 +106,26 @@ class Pregel(JavaWrapper):
         self._java_obj.setCheckpointInterval(int(value))
         return self
 
-    def withVertexColumn(self, colName, initialExpr, updateAfterAggMsgsExpr):
+    def setEarlyStopping(self, value: bool) -> "Pregel":
+        """
+        Set should Pregel stop earlier in case of no new messages to send or not.
+
+        Early stopping allows to terminate Pregel before reaching maxIter by checking if there are any non-null messages.
+        While in some cases it may gain significant performance boost, in other cases it can lead to performance degradation,
+        because checking if the messages DataFrame is empty or not is an action and requires materialization of the Spark Plan
+        with some additional computations.
+
+        In the case when the user can assume a good value of maxIter, it is recommended to leave this value to the default "false".
+        In the case when it is hard to estimate the number of iterations required for convergence,
+        it is recommended to set this value to "false" to avoid iterating over convergence until reaching maxIter.
+        When this value is "true", maxIter can be set to a bigger value without risks.
+        """  # noqa: E501
+        self._java_obj.setEarlyStopping(bool(value))
+        return self
+
+    def withVertexColumn(
+        self, colName: str, initialExpr: Any, updateAfterAggMsgsExpr: Any
+    ) -> "Pregel":
         """
         Defines an additional vertex column at the start of run and how to update it in each iteration.
 
@@ -114,11 +139,11 @@ class Pregel(JavaWrapper):
                                        You can reference all original vertex columns, additional vertex columns, and the
                                        aggregated message column using :func:`msg`.
                                        If the vertex received no messages, the message column would be null.
-        """
+        """  # noqa: E501
         self._java_obj.withVertexColumn(colName, initialExpr._jc, updateAfterAggMsgsExpr._jc)
         return self
 
-    def sendMsgToSrc(self, msgExpr):
+    def sendMsgToSrc(self, msgExpr: Any) -> "Pregel":
         """
         Defines a message to send to the source vertex of each edge triplet.
 
@@ -131,11 +156,11 @@ class Pregel(JavaWrapper):
                         and `edge`, respectively.
                         You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
                         Null messages are not included in message aggregation.
-        """
+        """  # noqa: E501
         self._java_obj.sendMsgToSrc(msgExpr._jc)
         return self
 
-    def sendMsgToDst(self, msgExpr):
+    def sendMsgToDst(self, msgExpr: Any) -> "Pregel":
         """
         Defines a message to send to the destination vertex of each edge triplet.
 
@@ -148,40 +173,40 @@ class Pregel(JavaWrapper):
                         and `edge`, respectively.
                         You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
                         Null messages are not included in message aggregation.
-        """
+        """  # noqa: E501
         self._java_obj.sendMsgToDst(msgExpr._jc)
         return self
 
-    def aggMsgs(self, aggExpr):
+    def aggMsgs(self, aggExpr: Any) -> "Pregel":
         """
         Defines how messages are aggregated after grouped by target vertex IDs.
 
         :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg())`.
                         You can reference the message column by :func:`msg` and the vertex ID by `col("id")`,
                         while the latter is usually not used.
-        """
+        """  # noqa: E501
         self._java_obj.aggMsgs(aggExpr._jc)
         return self
 
-    def run(self):
+    def run(self) -> DataFrame:
         """
         Runs the defined Pregel algorithm.
 
         :return: the result vertex DataFrame from the final iteration including both original and additional columns.
-        """
-        return DataFrame(self._java_obj.run(), self.graph.vertices.sql_ctx)
+        """  # noqa: E501
+        return DataFrame(self._java_obj.run(), SparkSession.getActiveSession())
 
     @staticmethod
-    def msg():
+    def msg() -> Any:
         """
         References the message column in aggregating messages and updating additional vertex columns.
 
         See :func:`aggMsgs` and :func:`withVertexColumn`
-        """
+        """  # noqa: E501
         return col("_pregel_msg_")
 
     @staticmethod
-    def src(colName):
+    def src(colName: str) -> Any:
         """
         References a source vertex column in generating messages to send.
 
@@ -192,7 +217,7 @@ class Pregel(JavaWrapper):
         return col("src." + colName)
 
     @staticmethod
-    def dst(colName):
+    def dst(colName: str) -> Any:
         """
         References a destination vertex column in generating messages to send.
 
@@ -203,7 +228,7 @@ class Pregel(JavaWrapper):
         return col("dst." + colName)
 
     @staticmethod
-    def edge(colName):
+    def edge(colName: str) -> Any:
         """
         References an edge column in generating messages to send.
 

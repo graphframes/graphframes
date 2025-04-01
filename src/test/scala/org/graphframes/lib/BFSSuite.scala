@@ -22,7 +22,6 @@ import org.apache.spark.sql.{DataFrame, Row}
 
 import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
 
-
 class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   // First graph uses String IDs
@@ -44,36 +43,27 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       |          |
       d <- e --> f  Also, self-edge for f
      */
-    v = sqlContext.createDataFrame(List(
-      ("a", "f"),
-      ("b", "f"),
-      ("c", "m"),
-      ("d", "f"),
-      ("e", "m"),
-      ("f", "m")
-    )).toDF("id", "gender")
-    e = sqlContext.createDataFrame(List(
-      ("a", "b", "friend"),
-      ("b", "c", "follow"),
-      ("c", "b", "follow"),
-      ("f", "c", "follow"),
-      ("e", "f", "follow"),
-      ("e", "d", "friend"),
-      ("d", "a", "friend"),
-      ("f", "f", "self")
-    )).toDF("src", "dst", "relationship")
+    v = spark
+      .createDataFrame(
+        List(("a", "f"), ("b", "f"), ("c", "m"), ("d", "f"), ("e", "m"), ("f", "m")))
+      .toDF("id", "gender")
+    e = spark
+      .createDataFrame(
+        List(
+          ("a", "b", "friend"),
+          ("b", "c", "follow"),
+          ("c", "b", "follow"),
+          ("f", "c", "follow"),
+          ("e", "f", "follow"),
+          ("e", "d", "friend"),
+          ("d", "a", "friend"),
+          ("f", "f", "self")))
+      .toDF("src", "dst", "relationship")
     g = GraphFrame(v, e)
 
-    v2 = sqlContext.createDataFrame(List(
-      (0L, "f"),
-      (1L, "m"),
-      (2L, "m"),
-      (3L, "f"))).toDF("id", "gender")
-    e2 = sqlContext.createDataFrame(List(
-      (0L, 1L),
-      (1L, 2L),
-      (2L, 3L),
-      (2L, 0L))).toDF("src", "dst")
+    v2 =
+      spark.createDataFrame(List((0L, "f"), (1L, "m"), (2L, "m"), (3L, "f"))).toDF("id", "gender")
+    e2 = spark.createDataFrame(List((0L, 1L), (1L, 2L), (2L, 3L), (2L, 0L))).toDF("src", "dst")
     g2 = GraphFrame(v2, e2)
   }
 
@@ -121,26 +111,32 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("maxPathLength: length 1") {
     val paths = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "f").maxPathLength(1).run()
     assert(paths.count() === 1)
-    val paths0 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "f").maxPathLength(0).run()
+    val paths0 =
+      g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "f").maxPathLength(0).run()
     assert(paths0.count() === 0)
   }
 
   test("maxPathLength: length > 1") {
     val paths = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b").maxPathLength(3).run()
     assert(paths.count() === 2)
-    val paths0 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b").maxPathLength(2).run()
+    val paths0 =
+      g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b").maxPathLength(2).run()
     assert(paths0.count() === 0)
   }
 
   test("edge filter") {
-    val paths1 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b")
-      .edgeFilter(col("src") !== "d")
+    val paths1 = g.bfs
+      .fromExpr(col("id") === "e")
+      .toExpr(col("id") === "b")
+      .edgeFilter(col("src") =!= "d")
       .run()
     assert(paths1.count() === 1)
     paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
       assert(id === "f")
     }
-    val paths2 = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b")
+    val paths2 = g.bfs
+      .fromExpr(col("id") === "e")
+      .toExpr(col("id") === "b")
       .edgeFilter(col("relationship") === "friend")
       .run()
     assert(paths2.count() === 1)
@@ -150,7 +146,9 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("string expressions") {
-    val paths1 = g.bfs.fromExpr("id = 'e'").toExpr("id = 'b'")
+    val paths1 = g.bfs
+      .fromExpr("id = 'e'")
+      .toExpr("id = 'b'")
       .edgeFilter("src != 'd'")
       .run()
     assert(paths1.count() === 1)

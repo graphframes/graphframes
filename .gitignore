@@ -16,9 +16,29 @@ lib_managed/
 src_managed/
 project/boot/
 project/plugins/project/
+.bsp
+.metals
 
 # intellij
 .idea/
 
+# VSCode
+.vscode
+
 # Mac
 *.DS_Store
+
+# Python specific
+python/build
+python/dist
+build/lib
+python/graphframes.egg-info
+python/graphframes/tutorials/data
+python/docs/_build
+python/docs/_site
+
+# JAR that is build during the installation
+python/graphframes/resources/*
+
+# tmp data for spark connect
+tmp/*
