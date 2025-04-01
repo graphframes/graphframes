@@ -179,8 +179,7 @@ private object ShortestPaths extends Logging {
     // 2. If new message can improve distances send it
     // 3. Collect and aggregate messages
     val pregel = graph.pregel
-      // TODO: set maxIter to Int.MaxValue and earlyStopping = true after merging #550
-      .setMaxIter(15)
+      .setMaxIter(Int.MaxValue) // That is how the GraphX implementation works
       .withVertexColumn(
         DISTANCE_ID,
         when(col(GraphFrame.ID).isInCollection(landmarks), initDistancesMap(col(GraphFrame.ID)))
@@ -190,6 +189,7 @@ private object ShortestPaths extends Logging {
         isDistanceImprovedWithMessage(incrementDistances(dstDistanceCol), srcDistanceCol),
         incrementDistances(dstDistanceCol)))
       .aggMsgs(aggregateArrayOfDistanceMaps(collect_list(Pregel.msg)))
+      .setEarlyStopping(true)
 
     // Experimental feature
     if (isDirected) {
