@@ -20,11 +20,9 @@ package org.graphframes.lib
 import java.io.IOException
 import java.math.BigDecimal
 import java.util.UUID
-
 import org.apache.hadoop.fs.Path
-
 import org.graphframes.{GraphFrame, Logging}
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
@@ -44,7 +42,9 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
 
   import org.graphframes.lib.ConnectedComponents._
 
-  private var broadcastThreshold: Int = 1000000
+  private var broadcastThreshold: Int = SparkSession.getActiveSession.get.conf
+    .get("spark.graphframes.connectedComponents.broadcastthreshold", "1000000")
+    .toInt
 
   /**
    * Sets broadcast threshold in propagating component assignments (default: 1000000). If a node
@@ -71,7 +71,9 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    */
   def getBroadcastThreshold: Int = broadcastThreshold
 
-  private var algorithm: String = ALGO_GRAPHFRAMES
+  private var algorithm: String = SparkSession.getActiveSession.get.conf
+    .get("spark.graphframes.connectedComponents.algorithm", ALGO_GRAPHFRAMES)
+    .toLowerCase
 
   /**
    * Sets the connected components algorithm to use (default: "graphframes"). Supported algorithms
@@ -99,7 +101,9 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    */
   def getAlgorithm: String = algorithm
 
-  private var checkpointInterval: Int = 2
+  private var checkpointInterval: Int = SparkSession.getActiveSession.get.conf
+    .get("spark.graphframes.connectedComponents.checkpointinterval", "2")
+    .toInt
 
   /**
    * Sets checkpoint interval in terms of number of iterations (default: 2). Checkpointing
@@ -137,7 +141,10 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    */
   def getCheckpointInterval: Int = checkpointInterval
 
-  private var intermediateStorageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
+  private var intermediateStorageLevel: StorageLevel = StorageLevel.fromString(
+    SparkSession.getActiveSession.get.conf
+      .get("spark.graphframes.connectedComponents.storagelevel", "MEMORY_AND_DISK")
+      .toUpperCase)
 
   /**
    * Sets storage level for intermediate datasets that require multiple passes (default:
