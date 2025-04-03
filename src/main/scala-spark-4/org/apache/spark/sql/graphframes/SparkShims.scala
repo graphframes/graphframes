@@ -19,7 +19,10 @@ package org.apache.spark.sql.graphframes
 
 import org.apache.spark.sql.{Column, DataFrame, Row, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.classic.{ExpressionUtils, SparkSession => ClassicSparkSession}
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.classic.{DataFrame => ClassicDataFrame, Dataset, ExpressionUtils, SparkSession => ClassicSparkSession}
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.functions.{col, expr}
 
 import org.graphframes.{GraphFrame, Logging}
@@ -43,5 +46,17 @@ object SparkShims {
     ExpressionUtils.column(converted.transform { case UnresolvedAttribute(nameParts) =>
       UnresolvedAttribute(colName +: nameParts)
     })
+  }
+
+  def createDataFrame(spark: SparkSession, plan: LogicalPlan): DataFrame = {
+    Dataset.ofRows(spark.asInstanceOf[ClassicSparkSession], plan)
+  }
+
+  def planFromDataFrame(df: DataFrame): LogicalPlan = {
+    df.asInstanceOf[ClassicDataFrame].logicalPlan
+  }
+
+  def createColumn(expr: Expression): Column = {
+    Column(expr)
   }
 }

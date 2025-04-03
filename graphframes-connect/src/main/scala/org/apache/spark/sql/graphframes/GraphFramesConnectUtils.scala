@@ -19,7 +19,7 @@ object GraphFramesConnectUtils {
       planner: SparkConnectPlanner): Column = {
     colOrExpr.getColOrExprCase match {
       case ColOrExprCase.COL =>
-        Column(
+        SparkShims.createColumn(
           planner.transformExpression(
             org.apache.spark.connect.proto.Expression.parseFrom(colOrExpr.getCol.toByteArray)))
       case ColOrExprCase.EXPR => expr(colOrExpr.getExpr)
@@ -46,7 +46,7 @@ object GraphFramesConnectUtils {
       throw new IllegalArgumentException(
         "Expected a serialized DataFrame but got an empty ByteString.")
     }
-    Dataset.ofRows(
+    SparkShims.createDataFrame(
       planner.sessionHolder.session,
       planner.transformRelation(
         org.apache.spark.connect.proto.Plan.parseFrom(data.toByteArray).getRoot))
@@ -183,7 +183,7 @@ object GraphFramesConnectUtils {
       case MethodCase.SHORTEST_PATHS => {
         graphFrame.shortestPaths
           .landmarks(
-            apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID))
+            apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID).toSeq)
           .run()
       }
       case MethodCase.STRONGLY_CONNECTED_COMPONENTS => {
