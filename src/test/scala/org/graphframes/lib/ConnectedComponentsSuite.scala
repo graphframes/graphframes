@@ -274,8 +274,11 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", "5")
     assert(Graphs.friends.connectedComponents.getCheckpointInterval == 5)
 
-    spark.conf.set("spark.graphframes.connectedComponents.intermediatestoragelevel", "memory_only")
-    assert(Graphs.friends.connectedComponents.getIntermediateStorageLevel == StorageLevel.MEMORY_AND_DISK)
+    spark.conf.set(
+      "spark.graphframes.connectedComponents.intermediatestoragelevel",
+      "memory_only")
+    assert(
+      Graphs.friends.connectedComponents.getIntermediateStorageLevel == StorageLevel.MEMORY_AND_DISK)
   }
 
   private def assertComponents[T: ClassTag: TypeTag](
