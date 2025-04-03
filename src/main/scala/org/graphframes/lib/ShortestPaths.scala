@@ -24,10 +24,12 @@ import scala.jdk.CollectionConverters._
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.api.java.UDF1
-import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.functions.{col, udf, map, lit, when, map_zip_with, reduce, map_values, transform_values, collect_list}
 import org.apache.spark.sql.types.{IntegerType, MapType}
 
 import org.graphframes.GraphFrame
+import org.graphframes.Logging
+import org.graphframes.WithAlgorithmChoice
 import org.graphframes.GraphFrame.quote
 
 /**
@@ -39,7 +41,11 @@ import org.graphframes.GraphFrame.quote
  *   - distances (`MapType[vertex ID type, IntegerType]`): For each vertex v, a map containing the
  *     shortest-path distance to each reachable landmark vertex.
  */
-class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends Arguments {
+class ShortestPaths private[graphframes] (private val graph: GraphFrame)
+    extends Arguments
+    with WithAlgorithmChoice {
+  import org.graphframes.lib.ShortestPaths._
+
   private var lmarks: Option[Seq[Any]] = None
 
   /**
@@ -59,13 +65,17 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame) extends
   }
 
   def run(): DataFrame = {
-    ShortestPaths.run(graph, check(lmarks, "landmarks"))
+    val lmarksChecked = check(lmarks, "landmarks")
+    algorithm match {
+      case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked)
+      case ALGO_GRAPHFRAMES => runInGraphFrames(graph, lmarksChecked)
+    }
   }
 }
 
-private object ShortestPaths {
+private object ShortestPaths extends Logging {
 
-  private def run(graph: GraphFrame, landmarks: Seq[Any]): DataFrame = {
+  private def runInGraphX(graph: GraphFrame, landmarks: Seq[Any]): DataFrame = {
     val idType = graph.vertices.schema(GraphFrame.ID).dataType
     val longIdToLandmark = landmarks.map(l => GraphXConversions.integralId(graph, l) -> l).toMap
     val gx = graphxlib.ShortestPaths
@@ -95,6 +105,108 @@ private object ShortestPaths {
     g.vertices.select(cols.toSeq: _*)
   }
 
-  private val DISTANCE_ID = "distances"
+  private def runInGraphFrames(
+      graph: GraphFrame,
+      landmarks: Seq[Any],
+      isDirected: Boolean = true): DataFrame = {
+    logWarn("The GraphFrames based implementation is slow and considered experimental!")
+    val vertexType = graph.vertices.schema(GraphFrame.ID).dataType
 
+    // For landmark vertices the initial distance to itself is set to 0
+    // Example: graph with vertices a, b, c, d; landmarks = (c, d)
+    // we shoudl init the following:
+    // (a, Map()), (b, Map()), (c, Map(c -> 0)), (d, Map(d -> 0))
+    //
+    // Inside the following function it is done by applying multiple case-when
+    // because we know exactly that only one landmark could be equal to the nodeId.
+    // For example, for vertex c it will be:
+    // when(id == "a", Map(a -> 0))
+    //   .when(id == "b", Map(b -> 0))
+    //   .when(id == "c", Map(c -> 0)) --> this one is the only true
+    //   .when(id == "d", Map(d -> 0))
+    def initDistancesMap(vertexId: Column): Column = {
+      val firstLmarkCol = lit(landmarks.head)
+      var initCol = when(vertexId === firstLmarkCol, map(firstLmarkCol, lit(0)))
+      for (lmark <- landmarks.tail) {
+        initCol = initCol.when(vertexId === lit(lmark), map(lit(lmark), lit(0)))
+      }
+      initCol
+    }
+
+    // Concatenations of two distance maps:
+    // If one map is null just take another.
+    // In case both maps are not null:
+    // - iterate over keys
+    // - if value in the left map is null or greater than value from the right map take right one
+    //   else take left one
+    def concatMaps(distancesLeft: Column, distancesRight: Column): Column =
+      when(distancesLeft.isNull, distancesRight)
+        .when(distancesRight.isNull, distancesLeft)
+        .otherwise(map_zip_with(
+          distancesLeft,
+          distancesRight,
+          (_, leftDistance, rightDistance) => {
+            when(leftDistance.isNull || (leftDistance > rightDistance), rightDistance)
+              .otherwise(leftDistance)
+          }))
+
+    // If distance is null, result of d + 1 will be null too
+    def incrementDistances(distancesMap: Column): Column =
+      transform_values(distancesMap, (_, distance) => distance + lit(1))
+
+    // Takes an array of distance maps and reduce them with concatMaps
+    def aggregateArrayOfDistanceMaps(arrayCol: Column): Column =
+      reduce(arrayCol, lit(null).cast(MapType(vertexType, IntegerType)), concatMaps)
+
+    // Checks that a sent distances map can change the destination distances.
+    // Evaluation would be "true" in case in the new distances map
+    // for one of keys present a non-null value but in the old distances map it is null
+    // or new distance is less than old one.
+    def isDistanceImprovedWithMessage(newMap: Column, oldMap: Column): Column = reduce(
+      map_values(
+        map_zip_with(
+          newMap,
+          oldMap,
+          (_, newDistance, rightDistance) =>
+            (newDistance.isNotNull && rightDistance.isNull) || (newDistance < rightDistance))),
+      lit(false),
+      (left, right) => left || right)
+
+    val srcDistanceCol = Pregel.src(DISTANCE_ID)
+    val dstDistanceCol = Pregel.dst(DISTANCE_ID)
+
+    // Overall:
+    // 1. Initialize distances
+    // 2. If new message can improve distances send it
+    // 3. Collect and aggregate messages
+    val pregel = graph.pregel
+      .setMaxIter(Int.MaxValue) // That is how the GraphX implementation works
+      .withVertexColumn(
+        DISTANCE_ID,
+        when(col(GraphFrame.ID).isInCollection(landmarks), initDistancesMap(col(GraphFrame.ID)))
+          .otherwise(map().cast(MapType(vertexType, IntegerType))),
+        concatMaps(col(DISTANCE_ID), Pregel.msg))
+      .sendMsgToSrc(when(
+        isDistanceImprovedWithMessage(incrementDistances(dstDistanceCol), srcDistanceCol),
+        incrementDistances(dstDistanceCol)))
+      .aggMsgs(aggregateArrayOfDistanceMaps(collect_list(Pregel.msg)))
+      .setEarlyStopping(true)
+
+    // Experimental feature
+    if (isDirected) {
+      pregel.run()
+    } else {
+      // For consider edges as undirected,
+      // it is enough to send messages in both directions
+      pregel
+        .sendMsgToDst(
+          when(
+            isDistanceImprovedWithMessage(incrementDistances(srcDistanceCol), dstDistanceCol),
+            incrementDistances(srcDistanceCol)))
+        .run()
+    }
+
+  }
+
+  private val DISTANCE_ID = "distances"
 }

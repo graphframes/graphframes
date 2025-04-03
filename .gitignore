@@ -18,12 +18,17 @@ project/boot/
 project/plugins/project/
 .bsp
 .metals
+metals.sbt
+.bloop
 
 # intellij
 .idea/
 
 # VSCode
 .vscode
+
+# Helix
+.helix
 
 # Mac
 *.DS_Store
