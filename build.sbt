@@ -3,6 +3,7 @@ import sbt.Credentials
 import sbt.Keys.credentials
 
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
+lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val defaultScalaVer = sparkBranch match {
   case "4.0" => "2.13.16"
@@ -24,7 +25,7 @@ ThisBuild / organization := "org.graphframes"
 ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
 
 def sparkVersionSettings(): Seq[Setting[_]] = {
-  if (sparkVer.startsWith("4")) {
+  if (sparkMajorVer == "4") {
     Seq(
       resolvers += "Spark 4.0.0 RC3" at "https://repository.apache.org/content/repositories/orgapachespark-1479/",
       Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / "scala-spark-4",
@@ -75,7 +76,7 @@ lazy val root = (project in file("."))
   .settings(
     commonSetting,
     sparkVersionSettings(),
-    name := "graphframes",
+    name := s"graphframes-spark-$sparkMajorVer",
     Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
 
     // Global settings
@@ -107,7 +108,7 @@ lazy val connect = (project in file("graphframes-connect"))
   .settings(
     commonSetting,
     sparkVersionSettings(),
-    name := "graphframes-connect",
+    name := s"graphframes-connect-spark-$sparkMajorVer",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
     PB.protocVersion := "3.23.4", // Spark 3.5 branch
