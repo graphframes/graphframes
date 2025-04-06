@@ -59,7 +59,12 @@ if not (ENV['SKIP_API'] == '1')
   end
 
   if not (ENV['SKIP_PYTHONDOC'] == '1')
-    # It should be done with poetry as a seprate step!
+    puts "Moving back into home dir."
+    cd("..")
+
+    puts "Making directory api/python"
+    mkdir_p "docs/api/python"
+
     puts "cp -r python/docs/_build/html/. docs/api/python"
     cp_r("python/docs/_build/html/.", "docs/api/python")
   end
