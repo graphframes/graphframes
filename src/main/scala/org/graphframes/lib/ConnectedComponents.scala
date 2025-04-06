@@ -355,22 +355,9 @@ object ConnectedComponents extends Logging {
 
         // checkpointing
         if (shouldCheckpoint && (iteration % checkpointInterval == 0)) {
-          // TODO: remove this after DataFrame.checkpoint is implemented
-          val out = s"${checkpointDir.get}/$iteration"
-          ee.write.parquet(out)
-          // may hit S3 eventually consistent issue
-          ee = spark.read.parquet(out)
-
-          // remove previous checkpoint
-          if (iteration > checkpointInterval) {
-            val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
-            path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
-          }
-
-          System.gc() // hint Spark to clean shuffle directories
+          ee = ee.checkpoint(eager = true)
         }
 
-        ee.persist(intermediateStorageLevel)
         currRoundPersistedDFs = currRoundPersistedDFs :+ ee
 
         minNbrs1 = minNbrs(ee) // src >= min_nbr
