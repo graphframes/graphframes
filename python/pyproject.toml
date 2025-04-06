@@ -51,6 +51,9 @@ py7zr = "^0.22.0"
 requests = "^2.32.3"
 click = "^8.1.8"
 
+[tool.poetry.group.docs.dependencies]
+sphinx = "^1.8"
+
 [tool.poetry.scripts]
 graphframes = "graphframes.console:main"
 

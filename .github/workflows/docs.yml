@@ -1,4 +1,4 @@
-# This file was mostly copied from the following URL:
+# This file is inspired by:
 # https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml
 # MIT License
 #
@@ -47,10 +47,24 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
 
-      - name: Setup Sphinx
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.1
+          virtualenvs-create: true
+          virtualenvs-in-project: false
+          installer-parallel: true
+
+      - name: Configure poetry shell and deps
         run: |
-          pip install sphinx==1.8 numpy
-        
+          poetry self add poetry-plugin-shell
+          poetry install --with=dev,docs
+
+      - name: Build Python API docs
+        working-directory: ./python
+        run: |
+          poetry run bash -c "cd docs && make clean && make html"
+
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
