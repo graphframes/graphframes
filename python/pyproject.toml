@@ -33,7 +33,7 @@ script = "dev/build_jar.py"
 "Bug Tracker" = "https://github.com/graphframes/graphframes/issues"
 
 [tool.poetry.dependencies]
-python = ">=3.9 <3.13"
+python = ">=3.10 <3.13"
 nose = "1.3.7"
 pyspark = ">=3.4 <4.0"
 numpy = ">= 1.7"
@@ -52,7 +52,7 @@ requests = "^2.32.3"
 click = "^8.1.8"
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "^1.8"
+sphinx = "^8.1"
 
 [tool.poetry.scripts]
 graphframes = "graphframes.console:main"
