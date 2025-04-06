@@ -53,6 +53,7 @@ click = "^8.1.8"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1"
+setuptools = "*"
 
 [tool.poetry.scripts]
 graphframes = "graphframes.console:main"
