@@ -56,6 +56,7 @@ jobs:
           installer-parallel: true
 
       - name: Configure poetry shell and deps
+        working-directory: ./python
         run: |
           poetry self add poetry-plugin-shell
           poetry install --with=dev,docs
