@@ -59,22 +59,8 @@ if not (ENV['SKIP_API'] == '1')
   end
 
   if not (ENV['SKIP_PYTHONDOC'] == '1')
-    # Build Sphinx docs for Python
-
-    # Get and set release version
-    version = File.foreach('_config.yml').grep(/^GRAPHFRAMES_VERSION: (.+)$/){$1}.first
-    version ||= 'Unknown'
-
-    puts "Moving to python/docs directory and building sphinx."
-    cd("../python/docs")
-    if not (ENV['SPARK_HOME'])
-      raise("Python API docs cannot be generated if SPARK_HOME is not set.")
-    end
-    system({"PACKAGE_VERSION"=>version}, "make clean") || raise("Python doc clean failed")
-    system({"PACKAGE_VERSION"=>version}, "make html") || raise("Python doc generation failed")
-
     puts "Moving back into home dir."
-    cd("../../")
+    cd("..")
 
     puts "Making directory api/python"
     mkdir_p "docs/api/python"
