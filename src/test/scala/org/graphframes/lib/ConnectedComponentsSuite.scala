@@ -194,16 +194,10 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       }
     }
 
-    // Checks whether the input DataFrame is from some checkpoint data.
-    // TODO: The implemetnation is a little hacky.
-    def isFromCheckpoint(df: DataFrame): Boolean = {
-      df.queryExecution.logical.toString().toLowerCase.contains("parquet")
-    }
-
     val components0 = cc.setCheckpointInterval(0).run()
     assertComponents(components0, expected)
     assert(
-      !isFromCheckpoint(components0),
+      !components0.rdd.isCheckpointed,
       "The result shouldn't depend on checkpoint data if checkpointing is disabled.")
 
     sc.setCheckpointDir(checkpointDir.get)
@@ -211,13 +205,13 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val components1 = cc.setCheckpointInterval(1).run()
     assertComponents(components1, expected)
     assert(
-      isFromCheckpoint(components1),
+      components1.rdd.isCheckpointed,
       "The result should depend on checkpoint data if checkpoint interval is 1.")
 
     val components10 = cc.setCheckpointInterval(10).run()
     assertComponents(components10, expected)
     assert(
-      !isFromCheckpoint(components10),
+      !components10.rdd.isCheckpointed,
       "The result shouldn't depend on checkpoint data if converged before first checkpoint.")
   }
 
