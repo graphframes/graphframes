@@ -26,23 +26,46 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.1'
           bundler-cache: true
           cache-version: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "11"
+
+      - name: Setup Jekyll
+        run: |
+          gem install jekyll jekyll-redirect-from bundler
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+
+      - name: Setup Sphinx
+        run: |
+          pip install sphinx==1.8 numpy
+        
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
+
       - name: Build with Jekyll
-        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        working-directory: ./docs
+        run: jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
-          JEKYLL_ENV: production
           SKIP_SCALADOC: 0
           PRODUCTION: 1
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs/_site
 
   deploy:
     environment:
