@@ -36,7 +36,9 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
 
   private def readProperties(path: Path): Properties = {
     val props = new Properties()
-    props.load(Files.newInputStream(path))
+    val stream = Files.newInputStream(path)
+    props.load(stream)
+    stream.close()
     props
   }
 
@@ -84,7 +86,7 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
-  lazy val ldbcTestCDLPUndirected: (GraphFrame, DataFrame, Int) = {
+  private lazy val ldbcTestCDLPUndirected: (GraphFrame, DataFrame, Int) = {
     LDBCUtils.downloadLDBCIfNotExists(resourcesPath, LDBCUtils.TEST_CDLP_UNDIRECTED)
     val caseRoot = resourcesPath.resolve(LDBCUtils.TEST_CDLP_UNDIRECTED)
 
@@ -121,7 +123,7 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
-  lazy val ldbcTestPageRankUndirected: (GraphFrame, DataFrame, Double, Int) = {
+  private lazy val ldbcTestPageRankUndirected: (GraphFrame, DataFrame, Double, Int) = {
     LDBCUtils.downloadLDBCIfNotExists(resourcesPath, LDBCUtils.TEST_PR_UNDIRECTED)
     val caseRoot = resourcesPath.resolve(LDBCUtils.TEST_PR_UNDIRECTED)
 
@@ -164,7 +166,7 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
-  lazy val ldbcTestWCCUndirected: (GraphFrame, DataFrame) = {
+  private lazy val ldbcTestWCCUndirected: (GraphFrame, DataFrame) = {
     LDBCUtils.downloadLDBCIfNotExists(resourcesPath, LDBCUtils.TEST_WCC_UNDIRECTED)
     val caseRoot = resourcesPath.resolve(LDBCUtils.TEST_WCC_UNDIRECTED)
 

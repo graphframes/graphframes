@@ -20,7 +20,7 @@ object LDBCUtils {
   val TEST_PR_UNDIRECTED = "test-pr-undirected"
   val TEST_WCC_DIRECTED = "test-wcc-directed"
   val TEST_WCC_UNDIRECTED = "test-wcc-undirected"
-  val KGS = "gps"
+  val KGS = "kgs"
 
   private val possibleCaseNames = Set(
     TEST_BFS_DIRECTED,
@@ -33,7 +33,7 @@ object LDBCUtils {
     TEST_WCC_UNDIRECTED,
     KGS)
 
-  def ldbcURL(caseName: String): URL = new URL(s"${LDBC_URL_PREFIX}${caseName}.tar.zst")
+  private def ldbcURL(caseName: String): URL = new URL(s"${LDBC_URL_PREFIX}${caseName}.tar.zst")
 
   private def checkZSTD(): Unit = {
     try {
@@ -80,15 +80,5 @@ object LDBCUtils {
       Files.delete(archivePath)
       Files.delete(Paths.get(archivePath.toString.replace(".zst", "")))
     }
-  }
-
-  private def getProps(name: String, resourcesDir: Path): Properties = {
-    checkName(name)
-    val propsFile = resourcesDir.resolve(s"${name}.properties")
-    val inputStream = Files.newInputStream(propsFile)
-    val properties = new Properties()
-    properties.load(inputStream)
-    inputStream.close()
-    properties
   }
 }
