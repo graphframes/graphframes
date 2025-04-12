@@ -18,8 +18,9 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.types.DataTypes
-
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
+import org.graphframes.TestUtils
 import org.graphframes.examples.Graphs
 
 class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {

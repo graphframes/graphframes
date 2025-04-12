@@ -17,7 +17,8 @@
 
 package org.graphframes.pattern
 
-import org.graphframes.{InvalidParseException, SparkFunSuite}
+import org.graphframes.InvalidParseException
+import org.graphframes.SparkFunSuite
 
 class PatternSuite extends SparkFunSuite {
 

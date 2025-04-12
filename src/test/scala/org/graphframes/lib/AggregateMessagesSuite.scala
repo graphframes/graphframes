@@ -17,12 +17,12 @@
 
 package org.graphframes.lib
 
-import scala.collection.mutable
-
 import org.apache.spark.sql.functions._
-
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
 import org.graphframes.examples.Graphs
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
+
+import scala.collection.mutable
 
 class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 

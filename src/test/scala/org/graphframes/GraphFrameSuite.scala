@@ -17,28 +17,33 @@
 
 package org.graphframes
 
-import java.io.File
-
-import org.graphframes.examples.Graphs
-
+import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.Graph
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
+import org.graphframes.examples.Graphs
 
-import com.google.common.io.Files
+import java.io.File
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   import GraphFrame._
 
   var vertices: DataFrame = _
-  val localVertices = Map(1L -> "A", 2L -> "B", 3L -> "C")
-  val localEdges = Map((1L, 2L) -> "love", (2L, 1L) -> "hate", (2L, 3L) -> "follow")
+  val localVertices: Map[Long, String] = Map(1L -> "A", 2L -> "B", 3L -> "C")
+  val localEdges: Map[(Long, Long), String] =
+    Map((1L, 2L) -> "love", (2L, 1L) -> "hate", (2L, 3L) -> "follow")
   var edges: DataFrame = _
   var tempDir: File = _
 

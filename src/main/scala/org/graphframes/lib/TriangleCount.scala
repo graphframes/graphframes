@@ -18,10 +18,17 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions.{array, col, explode, when}
-
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.explode
+import org.apache.spark.sql.functions.when
 import org.graphframes.GraphFrame
-import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC, quote}
+import org.graphframes.GraphFrame.DST
+import org.graphframes.GraphFrame.ID
+import org.graphframes.GraphFrame.LONG_DST
+import org.graphframes.GraphFrame.LONG_SRC
+import org.graphframes.GraphFrame.SRC
+import org.graphframes.GraphFrame.quote
 
 /**
  * Computes the number of triangles passing through each vertex.

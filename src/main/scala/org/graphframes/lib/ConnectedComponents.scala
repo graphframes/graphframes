@@ -17,18 +17,19 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-import java.math.BigDecimal
-import java.util.UUID
-
 import org.apache.hadoop.fs.Path
-
-import org.graphframes.{GraphFrame, Logging}
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
+import org.graphframes.GraphFrame
+import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
+
+import java.io.IOException
+import java.math.BigDecimal
+import java.util.UUID
 
 /**
  * Connected Components algorithm.
@@ -43,8 +44,6 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Logging
     with WithAlgorithmChoice {
-
-  import org.graphframes.lib.ConnectedComponents._
 
   private var broadcastThreshold: Int = 1000000
   setAlgorithm(ALGO_GRAPHFRAMES)

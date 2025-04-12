@@ -2,11 +2,7 @@ package org.graphframes.examples
 
 import java.net.URL
 import java.nio.file._
-import java.util.Properties
-
 import scala.sys.process._
-
-import org.graphframes.GraphFrame
 
 object LDBCUtils {
   private val LDBC_URL_PREFIX = "https://datasets.ldbcouncil.org/graphalytics/"
@@ -37,7 +33,7 @@ object LDBCUtils {
 
   private def checkZSTD(): Unit = {
     try {
-      s"zstd --version".!
+      "zstd --version".!
     } catch {
       case e: Exception =>
         throw new RuntimeException(

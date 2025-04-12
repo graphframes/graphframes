@@ -17,9 +17,10 @@
 
 package org.graphframes.examples
 
-import org.apache.spark.sql.{DataFrame, Row}
-
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
 import org.graphframes.examples.BeliefPropagation._
 import org.graphframes.examples.Graphs.gridIsingModel
 

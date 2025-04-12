@@ -17,7 +17,8 @@
 
 package org.graphframes
 
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 // This needs to be accessible to org.apache.spark.graphx.lib.backport
 private[org] trait Logging {

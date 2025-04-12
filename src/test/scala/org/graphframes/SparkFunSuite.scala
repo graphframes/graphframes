@@ -17,7 +17,8 @@
 
 package org.graphframes
 
-import org.scalatest.{FunSuite, Outcome}
+import org.scalatest.FunSuite
+import org.scalatest.Outcome
 
 /**
  * Base abstract class for all unit tests in Spark for handling common functionality.

@@ -17,20 +17,30 @@
 
 package org.graphframes.lib
 
-import java.util
-
-import scala.jdk.CollectionConverters._
-
 import org.apache.spark.graphx.{lib => graphxlib}
-import org.apache.spark.sql.{Column, DataFrame, Row}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.api.java.UDF1
-import org.apache.spark.sql.functions.{col, udf, map, lit, when, map_zip_with, reduce, map_values, transform_values, collect_list}
-import org.apache.spark.sql.types.{IntegerType, MapType}
-
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.collect_list
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.map
+import org.apache.spark.sql.functions.map_values
+import org.apache.spark.sql.functions.map_zip_with
+import org.apache.spark.sql.functions.reduce
+import org.apache.spark.sql.functions.transform_values
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.when
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.MapType
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFrame.quote
 import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
-import org.graphframes.GraphFrame.quote
+
+import java.util
+import scala.jdk.CollectionConverters._
 
 /**
  * Computes shortest paths from every vertex to the given set of landmark vertices. Note that this

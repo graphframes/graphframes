@@ -17,10 +17,11 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{Edge, lib => graphxlib}
-import org.apache.spark.sql.{DataFrame, Row}
-
-import org.graphframes.{GraphFrame, Logging}
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.graphframes.GraphFrame
 
 /**
  * Implement SVD++ based on "Factorization Meets the Neighborhood: a Multifaceted Collaborative

@@ -19,8 +19,10 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
-
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite, TestUtils}
+import org.graphframes.GraphFrame
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
+import org.graphframes.TestUtils
 
 class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("Island Strongly Connected Components") {

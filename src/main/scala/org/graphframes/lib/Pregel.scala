@@ -17,15 +17,18 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.explode
+import org.apache.spark.sql.functions.struct
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 
-import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{array, col, explode, struct}
-
-import scala.util.control.Breaks.{breakable, break}
+import java.io.IOException
+import scala.util.control.Breaks.break
+import scala.util.control.Breaks.breakable
 
 /**
  * Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
@@ -83,10 +86,8 @@ class Pregel(val graph: GraphFrame) {
   private var checkpointInterval = 2
   private var earlyStopping = false
 
-  private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
+  private val sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
-
-  private val CHECKPOINT_NAME_PREFIX = "pregel"
 
   /** Sets the max number of iterations (default: 10). */
   def setMaxIter(value: Int): this.type = {

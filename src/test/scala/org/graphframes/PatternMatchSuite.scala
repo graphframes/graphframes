@@ -17,9 +17,12 @@
 
 package org.graphframes
 
-import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.{col, lit, when}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.when
 
 /**
  * Cases to go through:

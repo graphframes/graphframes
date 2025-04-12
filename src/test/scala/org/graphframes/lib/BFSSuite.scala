@@ -17,10 +17,12 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.{DataFrame, Row}
-
-import org.graphframes.{GraphFrameTestSparkContext, GraphFrame, SparkFunSuite}
+import org.graphframes.GraphFrame
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
 
 class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
