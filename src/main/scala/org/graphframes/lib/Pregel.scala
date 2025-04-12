@@ -23,9 +23,10 @@ import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 
 import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{array, col, explode, struct}
+import org.apache.spark.sql.functions.{array, col, explode, struct, lit}
 
 import scala.util.control.Breaks.{breakable, break}
+import spire.std.boolean
 
 /**
  * Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
@@ -82,6 +83,10 @@ class Pregel(val graph: GraphFrame) {
   private var maxIter: Int = 10
   private var checkpointInterval = 2
   private var earlyStopping = false
+  private var stopIfAllNonActiveVertices = false
+  private var skipMessagesFromNonActiveVertices = false
+  private var initialActiveVertexExpression = lit(true)
+  private var updateActiveVertexExpression = lit(true)
 
   private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
@@ -128,6 +133,80 @@ class Pregel(val graph: GraphFrame) {
    */
   def setEarlyStopping(value: Boolean): this.type = {
     earlyStopping = value
+    this
+  }
+
+  /**
+   * Should Pregel stop earlier in case all the vertices are marked as non active.
+   *
+   * This feature allows to terminate Pregel before reaching maxIter by checking are there active
+   * vertex left. A good example of activity check is PageRank: (see Malewicz, Grzegorz, et al.
+   * "Pregel: a system for large-scale graph processing." Proceedings of the 2010 ACM SIGMOD
+   * International Conference on Management of data. 2010., a part about voting to halt)
+   *   - after each iteration we are checking is the change in rank less than tolerance and if so,
+   *     we can mark vertex as non active
+   *   - if all the vertices are non active, we stop iterations
+   * @param value
+   *   should Pregel stop earlier by vertices voting
+   * @return
+   */
+  def setStopIfAllNonActiveVertices(value: Boolean): this.type = {
+    stopIfAllNonActiveVertices = value
+    this
+  }
+
+  /**
+   * Set the initial expression for the active/non-active flag per vertex.
+   *
+   * In most of the cases the default expression (true for all the vertices) should works fine.
+   * For some cases it makes sense to set a custom expression. A good example is
+   * multiple-landmarks shortest-paths algorithm:
+   *   - the only initially active vertices in that case should be landmarkds, because only this
+   *     vertices initially have non-null distances but all the other vertices have null distances
+   *     and there is no reason to mark them active initially.
+   * @param expression
+   *   an initial expression that will be used to create an active-flag vertex column
+   * @return
+   */
+  def setInitialActiveVertexExpression(expression: Column): this.type = {
+    initialActiveVertexExpression = expression
+    this
+  }
+
+  /**
+   * Set an expression that will be used after each superstep to update the active-flag vertex
+   * column.
+   *
+   * An example is PageRank algorithm: in that case such an expression may looks like abs(old_rank -
+   * new_rank) >= tolerance
+   *
+   * @param expression
+   *   an expression, that will be used after each superstep to update the active-flag vertex
+   *   column
+   * @return
+   */
+  def setUpdateActiveVertexExpression(expression: Column): this.type = {
+    updateActiveVertexExpression = expression
+    this
+  }
+
+  /**
+   * With a true value, Pregel will not generate messages from vertices, marked as non active.
+   *
+   * For example, for Shortest Paths, there is no reason to pass distances from vertices, for that
+   * these distances did not change at the latest iteration. It allows significantly reduce an
+   * amount of generated messages.
+   *
+   * Be careful, for algorithms like Label Propagation or Pregel, even if the vertex is not
+   * active, we still need to generate messages, otherwise algorithm will return an incorrect
+   * result!
+   *
+   * @param value
+   *   should Pregel skip generation of messages for non active vertices.
+   * @return
+   */
+  def setSkipMessagesFromNonActiveVertices(value: Boolean): this.type = {
+    skipMessagesFromNonActiveVertices = value
     this
   }
 
@@ -249,7 +328,10 @@ class Pregel(val graph: GraphFrame) {
       updateExpr.as(colName)
     }
 
-    var currentVertices = graph.vertices.select((col("*") :: initVertexCols): _*)
+    var currentVertices = graph.vertices.select(
+      (Seq(
+        col("*"),
+        initialActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ initVertexCols): _*)
     var vertexUpdateColDF: DataFrame = null
 
     val edges = graph.edges
@@ -271,12 +353,17 @@ class Pregel(val graph: GraphFrame) {
 
     breakable {
       while (iteration <= maxIter) {
-        val tripletsDF = currentVertices
+        var tripletsDF = currentVertices
           .select(struct(col("*")).as(SRC))
           .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
           .join(
             currentVertices.select(struct(col("*")).as(DST)),
             Pregel.edge(DST) === Pregel.dst(ID))
+
+        if (skipMessagesFromNonActiveVertices) {
+          tripletsDF = tripletsDF.filter(
+            Pregel.src(Pregel.ACTIVE_FLAG_COL) || Pregel.dst(Pregel.ACTIVE_FLAG_COL))
+        }
 
         val msgDF: DataFrame = tripletsDF
           .select(explode(array(sendMsgsColList: _*)).as("msg"))
@@ -296,7 +383,10 @@ class Pregel(val graph: GraphFrame) {
 
         val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
 
-        var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
+        var newVertexUpdateColDF = verticesWithMsg.select(
+          (Seq(
+            col(ID),
+            updateActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ updateVertexCols): _*)
 
         if (shouldCheckpoint && iteration % checkpointInterval == 0) {
           // do checkpoint, use lazy checkpoint because later we will materialize this DF.
@@ -312,6 +402,12 @@ class Pregel(val graph: GraphFrame) {
         vertexUpdateColDF = newVertexUpdateColDF
 
         currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
+
+        if (stopIfAllNonActiveVertices) {
+          if (currentVertices.filter(col(Pregel.ACTIVE_FLAG_COL)).isEmpty) {
+            break
+          }
+        }
 
         iteration += 1
       }
@@ -333,6 +429,11 @@ object Pregel extends Serializable {
    * The vertices DataFrame must not contain this column.
    */
   val MSG_COL_NAME = "_pregel_msg_"
+
+  /**
+   * A constant column name for active vertex flag.
+   */
+  val ACTIVE_FLAG_COL = "_pregel_is_active"
 
   /**
    * References the message column in aggregating messages and updating additional vertex columns.
