@@ -38,7 +38,7 @@ jobs:
     - name: Check scalafmt
       run: build/sbt scalafmtCheckAll
     - name: Check scalastyle
-      run: build/sbt scalafixAll --check
+      run: build/sbt scalafixAll
     - name: Build and Test
       run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} coverage test coverageReport
     - uses: codecov/codecov-action@v3
