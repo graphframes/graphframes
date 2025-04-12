@@ -26,7 +26,7 @@ ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
 
 // Scalafix configuration
 ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports both 2.13.8 and 2.12.18
 
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
