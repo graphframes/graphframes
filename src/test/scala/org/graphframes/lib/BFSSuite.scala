@@ -22,6 +22,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.SparkFunSuite
 
 class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
@@ -105,8 +106,10 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val paths = g.bfs.fromExpr(col("id") === "e").toExpr(col("id") === "b").run()
     assert(paths.count() === 2)
     assert(paths.columns === Seq("from", "e0", "v1", "e1", "v2", "e2", "to"))
-    paths.select("to.id").collect().foreach { case Row(id: String) =>
-      assert(id === "b")
+    paths.select("to.id").collect().foreach {
+      case Row(id: String) =>
+        assert(id === "b")
+      case _ => throw new GraphFramesUnreachableException()
     }
   }
 
@@ -133,8 +136,10 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .edgeFilter(col("src") =!= "d")
       .run()
     assert(paths1.count() === 1)
-    paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
-      assert(id === "f")
+    paths1.select("e0.dst").collect().foreach {
+      case Row(id: String) =>
+        assert(id === "f")
+      case _: Row => throw new GraphFramesUnreachableException()
     }
     val paths2 = g.bfs
       .fromExpr(col("id") === "e")
@@ -142,8 +147,10 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .edgeFilter(col("relationship") === "friend")
       .run()
     assert(paths2.count() === 1)
-    paths2.select("e0.dst").collect().foreach { case Row(id: String) =>
-      assert(id === "d")
+    paths2.select("e0.dst").collect().foreach {
+      case Row(id: String) =>
+        assert(id === "d")
+      case _: Row => throw new GraphFramesUnreachableException()
     }
   }
 
@@ -154,8 +161,10 @@ class BFSSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .edgeFilter("src != 'd'")
       .run()
     assert(paths1.count() === 1)
-    paths1.select("e0.dst").collect().foreach { case Row(id: String) =>
-      assert(id === "f")
+    paths1.select("e0.dst").collect().foreach {
+      case Row(id: String) =>
+        assert(id === "f")
+      case _: Row => throw new GraphFramesUnreachableException()
     }
   }
 

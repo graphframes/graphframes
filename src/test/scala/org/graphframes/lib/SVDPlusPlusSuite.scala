@@ -21,6 +21,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.DataTypes
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.SparkFunSuite
 import org.graphframes.TestUtils
 import org.graphframes.examples.Graphs
@@ -45,8 +46,10 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val err = v2
       .select(GraphFrame.ID, SVDPlusPlus.COLUMN4)
       .rdd
-      .map { case Row(vid: Long, vd: Double) =>
-        if (vid % 2 == 1) vd else 0.0
+      .map {
+        case Row(vid: Long, vd: Double) =>
+          if (vid % 2 == 1) vd else 0.0
+        case _ => throw new GraphFramesUnreachableException()
       }
       .reduce(_ + _) / g.edges.count()
     assert(err <= svdppErr)

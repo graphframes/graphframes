@@ -65,11 +65,15 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("construction from DataFrames") {
     val g = GraphFrame(vertices, edges)
-    g.vertices.collect().foreach { case Row(id: Long, name: String) =>
-      assert(localVertices(id) === name)
+    g.vertices.collect().foreach {
+      case Row(id: Long, name: String) =>
+        assert(localVertices(id) === name)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
-    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
-      assert(localEdges((src, dst)) === action)
+    g.edges.collect().foreach {
+      case Row(src: Long, dst: Long, action: String) =>
+        assert(localEdges((src, dst)) === action)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
     intercept[IllegalArgumentException] {
       val badVertices = vertices.select(col("id").as("uid"), col("name"))
@@ -89,11 +93,15 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val g = GraphFrame(
       vertices.withColumnRenamed("name", "a.name"),
       edges.withColumnRenamed("action", "the.action"))
-    g.vertices.collect().foreach { case Row(id: Long, name: String) =>
-      assert(localVertices(id) === name)
+    g.vertices.collect().foreach {
+      case Row(id: Long, name: String) =>
+        assert(localVertices(id) === name)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
-    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
-      assert(localEdges((src, dst)) === action)
+    g.edges.collect().foreach {
+      case Row(src: Long, dst: Long, action: String) =>
+        assert(localEdges((src, dst)) === action)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
     g.pageRank.maxIter(10).run()
   }
@@ -102,11 +110,15 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val g = GraphFrame(
       vertices.withColumnRenamed("name", "a `name`"),
       edges.withColumnRenamed("action", "the `action`"))
-    g.vertices.collect().foreach { case Row(id: Long, name: String) =>
-      assert(localVertices(id) === name)
+    g.vertices.collect().foreach {
+      case Row(id: Long, name: String) =>
+        assert(localVertices(id) === name)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
-    g.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
-      assert(localEdges((src, dst)) === action)
+    g.edges.collect().foreach {
+      case Row(src: Long, dst: Long, action: String) =>
+        assert(localEdges((src, dst)) === action)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
     g.pageRank.maxIter(10).run()
   }
@@ -120,8 +132,10 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val idsFromEdgesSet = g.edges
       .select("src", "dst")
       .rdd
-      .flatMap { case Row(src: Long, dst: Long) =>
-        Seq(src, dst)
+      .flatMap {
+        case Row(src: Long, dst: Long) =>
+          Seq(src, dst)
+        case _: Row => throw new GraphFramesUnreachableException()
       }
       .collect()
       .toSet
@@ -129,35 +143,45 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("construction from GraphX") {
-    val vv: RDD[(Long, String)] = vertices.rdd.map { case Row(id: Long, name: String) =>
-      (id, name)
+    val vv: RDD[(Long, String)] = vertices.rdd.map {
+      case Row(id: Long, name: String) =>
+        (id, name)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
-    val ee: RDD[Edge[String]] = edges.rdd.map { case Row(src: Long, dst: Long, action: String) =>
-      Edge(src, dst, action)
+    val ee: RDD[Edge[String]] = edges.rdd.map {
+      case Row(src: Long, dst: Long, action: String) =>
+        Edge(src, dst, action)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
     val g = Graph(vv, ee)
     val gf = GraphFrame.fromGraphX(g)
-    gf.vertices.select("id", "attr").collect().foreach { case Row(id: Long, name: String) =>
-      assert(localVertices(id) === name)
+    gf.vertices.select("id", "attr").collect().foreach {
+      case Row(id: Long, name: String) =>
+        assert(localVertices(id) === name)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
     gf.edges.select("src", "dst", "attr").collect().foreach {
       case Row(src: Long, dst: Long, action: String) =>
         assert(localEdges((src, dst)) === action)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
   }
 
   test("convert to GraphX: Long IDs") {
     val gf = GraphFrame(vertices, edges)
     val g = gf.toGraphX
-    g.vertices.collect().foreach { case (id0, Row(id1: Long, name: String)) =>
-      assert(id0 === id1)
-      assert(localVertices(id0) === name)
+    g.vertices.collect().foreach {
+      case (id0, Row(id1: Long, name: String)) =>
+        assert(id0 === id1)
+        assert(localVertices(id0) === name)
+      case _ => throw new GraphFramesUnreachableException()
     }
     g.edges.collect().foreach {
       case Edge(src0, dst0, Row(src1: Long, dst1: Long, action: String)) =>
         assert(src0 === src1)
         assert(dst0 === dst1)
         assert(localEdges((src0, dst0)) === action)
+      case _ => throw new GraphFramesUnreachableException()
     }
   }
 
@@ -172,19 +196,23 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     // Int IDs should be directly cast to Long, so ID values should match.
     val vCols = gf.vertexColumnMap
     val eCols = gf.edgeColumnMap
-    g.vertices.collect().foreach { case (id0: Long, attr: Row) =>
-      val id1 = attr.getInt(vCols("id"))
-      val name = attr.getString(vCols("name"))
-      assert(id0 === id1)
-      assert(localVertices(id0) === name)
+    g.vertices.collect().foreach {
+      case (id0: Long, attr: Row) =>
+        val id1 = attr.getInt(vCols("id"))
+        val name = attr.getString(vCols("name"))
+        assert(id0 === id1)
+        assert(localVertices(id0) === name)
+      case _ => throw new GraphFramesUnreachableException()
     }
-    g.edges.collect().foreach { case Edge(src0: Long, dst0: Long, attr: Row) =>
-      val src1 = attr.getInt(eCols("src"))
-      val dst1 = attr.getInt(eCols("dst"))
-      val action = attr.getString(eCols("action"))
-      assert(src0 === src1)
-      assert(dst0 === dst1)
-      assert(localEdges((src0, dst0)) === action)
+    g.edges.collect().foreach {
+      case Edge(src0: Long, dst0: Long, attr: Row) =>
+        val src1 = attr.getInt(eCols("src"))
+        val dst1 = attr.getInt(eCols("dst"))
+        val action = attr.getString(eCols("action"))
+        assert(src0 === src1)
+        assert(dst0 === dst1)
+        assert(localEdges((src0, dst0)) === action)
+      case _ => throw new GraphFramesUnreachableException()
     }
   }
 
@@ -240,11 +268,15 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val e1 = spark.read.parquet(ePath)
     val g1 = GraphFrame(v1, e1)
 
-    g1.vertices.collect().foreach { case Row(id: Long, name: String) =>
-      assert(localVertices(id) === name)
+    g1.vertices.collect().foreach {
+      case Row(id: Long, name: String) =>
+        assert(localVertices(id) === name)
+      case _ => throw new GraphFramesUnreachableException()
     }
-    g1.edges.collect().foreach { case Row(src: Long, dst: Long, action: String) =>
-      assert(localEdges((src, dst)) === action)
+    g1.edges.collect().foreach {
+      case Row(src: Long, dst: Long, action: String) =>
+        assert(localEdges((src, dst)) === action)
+      case _ => throw new GraphFramesUnreachableException()
     }
   }
 
@@ -254,8 +286,10 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(g.outDegrees.columns === Seq("id", "outDegree"))
     val outDegrees = g.outDegrees
       .collect()
-      .map { case Row(id: Long, outDeg: Int) =>
-        (id, outDeg)
+      .map {
+        case Row(id: Long, outDeg: Int) =>
+          (id, outDeg)
+        case _ => throw new GraphFramesUnreachableException()
       }
       .toMap
     assert(outDegrees === Map(1L -> 1, 2L -> 2))
@@ -263,8 +297,10 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(g.inDegrees.columns === Seq("id", "inDegree"))
     val inDegrees = g.inDegrees
       .collect()
-      .map { case Row(id: Long, inDeg: Int) =>
-        (id, inDeg)
+      .map {
+        case Row(id: Long, inDeg: Int) =>
+          (id, inDeg)
+        case _ => throw new GraphFramesUnreachableException()
       }
       .toMap
     assert(inDegrees === Map(1L -> 1, 2L -> 1, 3L -> 1))
@@ -272,8 +308,10 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(g.degrees.columns === Seq("id", "degree"))
     val degrees = g.degrees
       .collect()
-      .map { case Row(id: Long, deg: Int) =>
-        (id, deg)
+      .map {
+        case Row(id: Long, deg: Int) =>
+          (id, deg)
+        case _ => throw new GraphFramesUnreachableException()
       }
       .toMap
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))

@@ -197,20 +197,26 @@ class GraphFrame private (
     if (hasIntegralIdType) {
       val vv = vertices.select(col(ID).cast(LongType), nestAsCol(vertices, ATTR)).rdd.map {
         case Row(id: Long, attr: Row) => (id, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       val ee = edges
         .select(col(SRC).cast(LongType), col(DST).cast(LongType), nestAsCol(edges, ATTR))
         .rdd
-        .map { case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr) }
+        .map {
+          case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr)
+          case _ => throw new GraphFramesUnreachableException()
+        }
       Graph(vv, ee)
     } else {
       // Compute Long vertex IDs
       val vv = indexedVertices.select(LONG_ID, ATTR).rdd.map {
         case Row(long_id: Long, attr: Row) => (long_id, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       val ee = indexedEdges.select(LONG_SRC, LONG_DST, ATTR).rdd.map {
         case Row(long_src: Long, long_dst: Long, attr: Row) =>
           Edge(long_src, long_dst, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       Graph(vv, ee)
     }

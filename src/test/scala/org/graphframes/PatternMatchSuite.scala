@@ -562,9 +562,11 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     chainWith2Friends
       .select("ab.relationship", "bc.relationship", "cd.relationship")
       .collect()
-      .foreach { case Row(ab: String, bc: String, cd: String) =>
-        val numFriends = Seq(ab, bc, cd).map(r => if (r == "friend") 1 else 0).sum
-        assert(numFriends >= 2)
+      .foreach {
+        case Row(ab: String, bc: String, cd: String) =>
+          val numFriends = Seq(ab, bc, cd).map(r => if (r == "friend") 1 else 0).sum
+          assert(numFriends >= 2)
+        case _ => throw new GraphFramesUnreachableException()
       }
 
     // Operating in a stateful manner, where cnt is the state.

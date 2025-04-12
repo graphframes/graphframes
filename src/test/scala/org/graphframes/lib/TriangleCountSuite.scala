@@ -22,13 +22,14 @@ import org.apache.spark.sql.types.DataTypes
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.quote
 import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.SparkFunSuite
 import org.graphframes.TestUtils
 
 class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("Count a single triangle") {
-    val edges = spark.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+    val edges = spark.createDataFrame(Seq(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
     val vertices = spark
       .createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
       .toDF("id", "a")
@@ -38,57 +39,66 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     TestUtils.checkColumnType(v2.schema, "count", DataTypes.LongType)
     v2.select("id", "count", "a")
       .collect()
-      .foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
+      .foreach {
+        case Row(vid: Long, count: Long, _) => assert(count === 1)
+        case _: Row => throw new GraphFramesUnreachableException()
+      }
   }
 
   test("Count two triangles") {
     val edges = spark
       .createDataFrame(
-        Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
-          Array(0L -> -1L, -1L -> -2L, -2L -> 0L))
+        Seq(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
+          Seq(0L -> -1L, -1L -> -2L, -2L -> 0L))
       .toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
-    v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
-      if (id == 0) {
-        assert(count === 2)
-      } else {
-        assert(count === 1)
-      }
+    v2.select("id", "count").collect().foreach {
+      case Row(id: Long, count: Long) =>
+        if (id == 0) {
+          assert(count === 2)
+        } else {
+          assert(count === 1)
+        }
+      case _: Row => throw new GraphFramesUnreachableException()
     }
   }
 
   test("Count one triangles with bi-directed edges") {
     // Note: This is different from GraphX, which double-counts triangles with bidirected edges.
-    val triangles = Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++ Array(0L -> -1L, -1L -> -2L, -2L -> 0L)
+    val triangles = Seq(0L -> 1L, 1L -> 2L, 2L -> 0L) ++ Seq(0L -> -1L, -1L -> -2L, -2L -> 0L)
     val revTriangles = triangles.map { case (a, b) => (b, a) }
     val edges = spark.createDataFrame(triangles ++ revTriangles).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
-    v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
-      if (id == 0) {
-        assert(count === 2)
-      } else {
-        assert(count === 1)
-      }
+    v2.select("id", "count").collect().foreach {
+      case Row(id: Long, count: Long) =>
+        if (id == 0) {
+          assert(count === 2)
+        } else {
+          assert(count === 1)
+        }
+      case _: Row => throw new GraphFramesUnreachableException()
     }
   }
 
   test("Count a single triangle with duplicate edges") {
     val edges = spark
       .createDataFrame(
-        Array(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
-          Array(0L -> 1L, 1L -> 2L, 2L -> 0L))
+        Seq(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
+          Seq(0L -> 1L, 1L -> 2L, 2L -> 0L))
       .toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
-    v2.select("id", "count").collect().foreach { case Row(id: Long, count: Long) =>
-      assert(count === 1)
+    v2.select("id", "count").collect().foreach {
+      case Row(id: Long, count: Long) =>
+        assert(count === 1)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
   }
 
   test("Count with dot column name") {
-    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+    val edges = sqlContext.createDataFrame(Seq(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
     val vertices = sqlContext
       .createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
       .toDF("id", "a.column")
@@ -98,11 +108,14 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     TestUtils.checkColumnType(v2.schema, "count", DataTypes.LongType)
     v2.select("id", "count", quote("a.column"))
       .collect()
-      .foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
+      .foreach {
+        case Row(vid: Long, count: Long, _) => assert(count === 1)
+        case _: Row => throw new GraphFramesUnreachableException()
+      }
   }
 
   test("Count with backquote in column name") {
-    val edges = sqlContext.createDataFrame(Array(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+    val edges = sqlContext.createDataFrame(Seq(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
     val vertices = sqlContext
       .createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c")))
       .toDF("id", "a `column`")
@@ -112,15 +125,20 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     TestUtils.checkColumnType(v2.schema, "count", DataTypes.LongType)
     v2.select("id", "count", quote("a `column`"))
       .collect()
-      .foreach { case Row(vid: Long, count: Long, _) => assert(count === 1) }
+      .foreach {
+        case Row(vid: Long, count: Long, _) => assert(count === 1)
+        case _: Row => throw new GraphFramesUnreachableException()
+      }
   }
 
   test("no triangle") {
-    val edges = spark.createDataFrame(Array(0L -> 1L, 1L -> 2L)).toDF("src", "dst")
+    val edges = spark.createDataFrame(Seq(0L -> 1L, 1L -> 2L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
-    v2.select("count").collect().foreach { case Row(count: Long) =>
-      assert(count === 0)
+    v2.select("count").collect().foreach {
+      case Row(count: Long) =>
+        assert(count === 0)
+      case _: Row => throw new GraphFramesUnreachableException()
     }
   }
 }

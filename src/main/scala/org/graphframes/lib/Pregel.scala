@@ -288,7 +288,7 @@ class Pregel(val graph: GraphFrame) {
           if (vertexUpdateColDF != null) {
             vertexUpdateColDF.unpersist()
           }
-          break
+          break()
         }
 
         val newAggMsgDF = msgDF

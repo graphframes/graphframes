@@ -36,6 +36,7 @@ import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.MapType
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.quote
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
 
@@ -79,6 +80,7 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
     algorithm match {
       case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked)
       case ALGO_GRAPHFRAMES => runInGraphFrames(graph, lmarksChecked)
+      case _ => throw new GraphFramesUnreachableException()
     }
   }
 }
@@ -95,16 +97,21 @@ private object ShortestPaths extends Logging {
     val distanceCol: Column = if (graph.hasIntegralIdType) {
       // It seems there are no easy way to convert a sequence of pairs into a map
       val mapToLandmark = udf { distances: Seq[Row] =>
-        distances.map { case Row(k: Long, v: Int) =>
-          k -> v
+        distances.map {
+          case Row(k: Long, v: Int) =>
+            k -> v
+          case _: Row => throw new GraphFramesUnreachableException()
         }.toMap
       }
       mapToLandmark(g.vertices(DISTANCE_ID))
     } else {
       val func = new UDF1[Seq[Row], Map[Any, Int]] {
         override def call(t1: Seq[Row]): Map[Any, Int] = {
-          t1.map { case Row(k: Long, v: Int) =>
-            longIdToLandmark(k) -> v
+          t1.map {
+            case Row(k: Long, v: Int) =>
+              longIdToLandmark(k) -> v
+
+            case _: Row => throw new GraphFramesUnreachableException()
           }.toMap
         }
       }
