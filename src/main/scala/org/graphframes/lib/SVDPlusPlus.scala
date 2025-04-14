@@ -17,10 +17,12 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{Edge, lib => graphxlib}
-import org.apache.spark.sql.{DataFrame, Row}
-
-import org.graphframes.{GraphFrame, Logging}
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesUnreachableException
 
 /**
  * Implement SVD++ based on "Factorization Meets the Neighborhood: a Multifaceted Collaborative
@@ -116,6 +118,7 @@ object SVDPlusPlus {
   private def run(graph: GraphFrame, conf: graphxlib.SVDPlusPlus.Conf): (DataFrame, Double) = {
     val edges = graph.edges.select(GraphFrame.SRC, GraphFrame.DST, COLUMN_WEIGHT).rdd.map {
       case Row(src: Long, dst: Long, w: Double) => Edge(src, dst, w)
+      case _ => throw new GraphFramesUnreachableException()
     }
     val (gx, res) = graphxlib.SVDPlusPlus.run(edges, conf)
     val gf = GraphXConversions.fromGraphX(

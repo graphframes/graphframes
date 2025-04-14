@@ -17,14 +17,16 @@
 
 package org.graphframes.lib
 
-import scala.reflect.runtime.universe._
-
 import org.apache.spark.graphx.Graph
-import org.apache.spark.sql.{Row, DataFrame}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.graphframes.GraphFrame
+import org.graphframes.NoSuchVertexException
 
-import org.graphframes.{NoSuchVertexException, GraphFrame}
+import scala.reflect.runtime.universe._
 
 /**
  * Convenience functions to map GraphX graphs to GraphFrames, checking for the types expected by
@@ -189,7 +191,7 @@ private[graphframes] object GraphXConversions {
       .take(1)
     if (longIdRow.isEmpty) {
       throw new NoSuchVertexException(
-        s"GraphFrame algorithm given vertex ID which does not exist" +
+        "GraphFrame algorithm given vertex ID which does not exist" +
           s" in Graph. Vertex ID $vertexId not contained in $graph")
     }
     // TODO(tjh): could do more informative message

@@ -1,14 +1,18 @@
 package org.graphframes.ldbc
 
-import org.graphframes.SparkFunSuite
-import org.graphframes.GraphFrameTestSparkContext
-import java.nio.file._
-import org.graphframes.GraphFrame
-import org.graphframes.examples.LDBCUtils
-import java.util.Properties
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions.{col, lit, abs, sum}
+import org.apache.spark.sql.functions.abs
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.sum
 import org.apache.spark.sql.types.LongType
+import org.graphframes.GraphFrame
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
+import org.graphframes.examples.LDBCUtils
+
+import java.nio.file._
+import java.util.Properties
 
 class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
   private val resourcesPath = Paths.get(getClass().getResource("/").toURI())
@@ -46,7 +50,6 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
     LDBCUtils.downloadLDBCIfNotExists(resourcesPath, LDBCUtils.TEST_BFS_UNDIRECTED)
     val caseRoot = resourcesPath.resolve(LDBCUtils.TEST_BFS_UNDIRECTED)
 
-    val edgesPath = caseRoot.resolve(s"${LDBCUtils.TEST_BFS_UNDIRECTED}.e")
     val expectedPath = caseRoot.resolve(s"${LDBCUtils.TEST_BFS_UNDIRECTED}-BFS")
 
     val expectedDistances = spark.read

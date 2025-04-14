@@ -17,12 +17,15 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.functions.{col, expr}
-import org.apache.spark.sql.{Column, DataFrame, Row}
-
-import org.graphframes.{GraphFrame, Logging}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.expr
+import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.nestAsCol
+import org.graphframes.Logging
 
 /**
  * Breadth-first search (BFS)
@@ -193,7 +196,7 @@ private object BFS extends Logging with Serializable {
         // TODO: Avoid crossing paths; i.e., touch each vertex at most once.
         val previousVertexChecks = Range(1, iter + 1)
           .map(i => paths(s"v$i.id") =!= paths(nextVertex + ".id"))
-          .foldLeft(paths(s"from.id") =!= paths(nextVertex + ".id"))((c1, c2) => c1 && c2)
+          .foldLeft(paths("from.id") =!= paths(nextVertex + ".id"))((c1, c2) => c1 && c2)
         paths = paths.filter(previousVertexChecks)
       }
       // Check if done by applying toExpr to column nextVertex

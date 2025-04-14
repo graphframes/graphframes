@@ -24,6 +24,10 @@ ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
 ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
 
+// Scalafix configuration
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports both 2.13.8 and 2.12.18
+
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
     "org.apache.spark" %% "spark-graphx" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
@@ -55,7 +59,22 @@ lazy val commonSetting = Seq(
     "--add-opens=java.base/java.nio=ALL-UNNAMED",
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
     "--add-opens=java.base/java.util=ALL-UNNAMED"),
-  credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"))
+  credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"),
+
+  // Scalafix
+  scalacOptions ++= Seq(
+    "-Xlint", // to enforce code quality checks
+    if (scalaVersion.value.startsWith("2.12")) {
+      // fail on warning
+      "-Xfatal-warnings"
+    } else {
+      "-Werror" // the same but in 2.13
+    },
+    // scalastyle related things
+    if (scalaVersion.value.startsWith("2.12"))
+      "-Ywarn-unused-import"
+    else
+      "-Wunused:imports"))
 
 lazy val root = (project in file("."))
   .settings(
@@ -108,5 +127,4 @@ lazy val connect = (project in file("graphframes-connect"))
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
-    }
-  )
+    })
