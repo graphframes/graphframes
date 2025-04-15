@@ -64,6 +64,7 @@ GraphFrames supplied as a package.
 * [GraphFrames User Guide](user-guide.html): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
 * [Motif Finding Tutorial](motif-tutorial.html): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
+* [Pregel API Tutorial](pregel-tutorial.html): learn to mega scale graph algorithms using GraphFrames' Pregel API
 
 **API Docs:**
 
