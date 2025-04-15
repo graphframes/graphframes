@@ -17,9 +17,12 @@
 
 package org.graphframes
 
-import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.{col, lit, when}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.when
 
 /**
  * Cases to go through:
@@ -559,9 +562,11 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     chainWith2Friends
       .select("ab.relationship", "bc.relationship", "cd.relationship")
       .collect()
-      .foreach { case Row(ab: String, bc: String, cd: String) =>
-        val numFriends = Seq(ab, bc, cd).map(r => if (r == "friend") 1 else 0).sum
-        assert(numFriends >= 2)
+      .foreach {
+        case Row(ab: String, bc: String, cd: String) =>
+          val numFriends = Seq(ab, bc, cd).map(r => if (r == "friend") 1 else 0).sum
+          assert(numFriends >= 2)
+        case _ => throw new GraphFramesUnreachableException()
       }
 
     // Operating in a stateful manner, where cnt is the state.

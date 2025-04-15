@@ -13,3 +13,6 @@ addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.4")
 // Protobuf things needed for the Spark Connect
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.10"
+
+// Scalafix
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.2")

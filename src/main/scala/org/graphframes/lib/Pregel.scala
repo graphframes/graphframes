@@ -17,16 +17,20 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.explode
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.struct
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
+import org.graphframes.Logging
 
-import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{array, col, explode, struct, lit}
-
-import scala.util.control.Breaks.{breakable, break}
-import spire.std.boolean
+import java.io.IOException
+import scala.util.control.Breaks.break
+import scala.util.control.Breaks.breakable
 
 /**
  * Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
@@ -76,7 +80,7 @@ import spire.std.boolean
  *   <a href="https://doi.org/10.1145/1807167.1807184"> Malewicz et al., Pregel: a system for
  *   large-scale graph processing. </a>
  */
-class Pregel(val graph: GraphFrame) {
+class Pregel(val graph: GraphFrame) extends Logging {
 
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
@@ -88,10 +92,8 @@ class Pregel(val graph: GraphFrame) {
   private var initialActiveVertexExpression = lit(true)
   private var updateActiveVertexExpression = lit(true)
 
-  private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
+  private val sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
-
-  private val CHECKPOINT_NAME_PREFIX = "pregel"
 
   /** Sets the max number of iterations (default: 10). */
   def setMaxIter(value: Int): this.type = {
@@ -353,6 +355,7 @@ class Pregel(val graph: GraphFrame) {
 
     breakable {
       while (iteration <= maxIter) {
+        logInfo(s"start Pregel iteration $iteration / $maxIter")
         var tripletsDF = currentVertices
           .select(struct(col("*")).as(SRC))
           .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
@@ -371,10 +374,12 @@ class Pregel(val graph: GraphFrame) {
           .filter(Pregel.msg.isNotNull)
 
         if (earlyStopping && msgDF.isEmpty) {
+          logInfo(
+            s"there are no more non-null messages; Pregel stops earlier at iteration $iteration")
           if (vertexUpdateColDF != null) {
             vertexUpdateColDF.unpersist()
           }
-          break
+          break()
         }
 
         val newAggMsgDF = msgDF
@@ -405,7 +410,9 @@ class Pregel(val graph: GraphFrame) {
 
         if (stopIfAllNonActiveVertices) {
           if (currentVertices.filter(col(Pregel.ACTIVE_FLAG_COL)).isEmpty) {
-            break
+            logInfo(
+              s"all the verties are non-active; Pregel stops earlier at iteration $iteration")
+            break()
           }
         }
 

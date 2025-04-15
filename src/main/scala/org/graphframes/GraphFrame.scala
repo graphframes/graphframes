@@ -17,19 +17,27 @@
 
 package org.graphframes
 
-import java.util.Random
-
-import scala.reflect.runtime.universe.TypeTag
-
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.Graph
+import org.apache.spark.ml.clustering.PowerIterationClustering
+import org.apache.spark.sql._
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.broadcast
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.count
+import org.apache.spark.sql.functions.explode
+import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.monotonically_increasing_id
+import org.apache.spark.sql.functions.struct
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.types._
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.lib._
 import org.graphframes.pattern._
 
-import org.apache.spark.graphx.{Edge, Graph}
-import org.apache.spark.ml.clustering.PowerIterationClustering
-import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, expr, lit, max, monotonically_increasing_id, struct, udf}
-import org.apache.spark.sql.types._
-import org.apache.spark.storage.StorageLevel
+import java.util.Random
+import scala.reflect.runtime.universe.TypeTag
 
 /**
  * A representation of a graph using `DataFrame`s.
@@ -189,20 +197,26 @@ class GraphFrame private (
     if (hasIntegralIdType) {
       val vv = vertices.select(col(ID).cast(LongType), nestAsCol(vertices, ATTR)).rdd.map {
         case Row(id: Long, attr: Row) => (id, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       val ee = edges
         .select(col(SRC).cast(LongType), col(DST).cast(LongType), nestAsCol(edges, ATTR))
         .rdd
-        .map { case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr) }
+        .map {
+          case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr)
+          case _ => throw new GraphFramesUnreachableException()
+        }
       Graph(vv, ee)
     } else {
       // Compute Long vertex IDs
       val vv = indexedVertices.select(LONG_ID, ATTR).rdd.map {
         case Row(long_id: Long, attr: Row) => (long_id, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       val ee = indexedEdges.select(LONG_SRC, LONG_DST, ATTR).rdd.map {
         case Row(long_src: Long, long_dst: Long, attr: Row) =>
           Edge(long_src, long_dst, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       Graph(vv, ee)
     }
@@ -686,8 +700,6 @@ object GraphFrame extends Serializable with Logging {
       joinCol: String,
       hubs: Set[T],
       logPrefix: String): DataFrame = {
-    val spark = a.sparkSession
-    import spark.implicits._
     if (hubs.isEmpty) {
       // No skew.  Do regular join.
       a.join(b, joinCol)
