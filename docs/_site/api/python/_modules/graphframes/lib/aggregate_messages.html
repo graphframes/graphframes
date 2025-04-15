@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>graphframes.lib.aggregate_messages &#8212; pygraphframes 0.8.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css?v=279e0f84" />
+    <link rel="stylesheet" href="../../../_static/pygraphframes.css" type="text/css" />
+    <script src="../../../_static/documentation_options.js?v=b41f4c93"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/pygraphframes.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.lib.aggregate_messages</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for graphframes.lib.aggregate_messages</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkContext</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">SparkSession</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">functions</span> <span class="k">as</span> <span class="n">sqlfunctions</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_java_api</span><span class="p">(</span><span class="n">jsc</span><span class="p">:</span> <span class="n">SparkContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="n">javaClassName</span> <span class="o">=</span> <span class="s2">&quot;org.graphframes.GraphFramePythonAPI&quot;</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">jsc</span><span class="o">.</span><span class="n">_jvm</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">currentThread</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">getContextClassLoader</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">loadClass</span><span class="p">(</span><span class="n">javaClassName</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">newInstance</span><span class="p">()</span>
+    <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_ClassProperty</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom read-only class property descriptor.</span>
+
+<span class="sd">    The underlying method should take the class as the sole argument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="nb">callable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">=</span> <span class="n">f</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="vm">__doc__</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">(</span><span class="n">owner</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="AggregateMessages">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.AggregateMessages">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AggregateMessages</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Collection of utilities usable with :meth:`graphframes.GraphFrame.aggregateMessages()`.&quot;&quot;&quot;</span>
+
+    <span class="nd">@_ClassProperty</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">src</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Column</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reference for source column, used for specifying messages.&quot;&quot;&quot;</span>
+        <span class="n">jvm_gf_api</span> <span class="o">=</span> <span class="n">_java_api</span><span class="p">(</span><span class="n">SparkContext</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">jvm_gf_api</span><span class="o">.</span><span class="n">SRC</span><span class="p">())</span>
+
+    <span class="nd">@_ClassProperty</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dst</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Column</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reference for destination column, used for specifying messages.&quot;&quot;&quot;</span>
+        <span class="n">jvm_gf_api</span> <span class="o">=</span> <span class="n">_java_api</span><span class="p">(</span><span class="n">SparkContext</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">jvm_gf_api</span><span class="o">.</span><span class="n">DST</span><span class="p">())</span>
+
+    <span class="nd">@_ClassProperty</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edge</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Column</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reference for edge column, used for specifying messages.&quot;&quot;&quot;</span>
+        <span class="n">jvm_gf_api</span> <span class="o">=</span> <span class="n">_java_api</span><span class="p">(</span><span class="n">SparkContext</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">jvm_gf_api</span><span class="o">.</span><span class="n">EDGE</span><span class="p">())</span>
+
+    <span class="nd">@_ClassProperty</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">msg</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Column</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reference for message column, used for specifying aggregation function.&quot;&quot;&quot;</span>
+        <span class="n">jvm_gf_api</span> <span class="o">=</span> <span class="n">_java_api</span><span class="p">(</span><span class="n">SparkContext</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">jvm_gf_api</span><span class="o">.</span><span class="n">aggregateMessages</span><span class="p">()</span><span class="o">.</span><span class="n">MSG_COL_NAME</span><span class="p">())</span>
+
+<div class="viewcode-block" id="AggregateMessages.getCachedDataFrame">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.AggregateMessages.getCachedDataFrame">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getCachedDataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new cached copy of a DataFrame.</span>
+
+<span class="sd">        This utility method is useful for iterative DataFrame-based algorithms. See Scala</span>
+<span class="sd">        documentation for more details.</span>
+
+<span class="sd">        WARNING: This is NOT the same as `DataFrame.cache()`.</span>
+<span class="sd">                 The original DataFrame will NOT be cached.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">getActiveSession</span><span class="p">()</span>
+        <span class="n">jvm_gf_api</span> <span class="o">=</span> <span class="n">_java_api</span><span class="p">(</span><span class="n">spark</span><span class="o">.</span><span class="n">_sc</span><span class="p">)</span>
+        <span class="n">jdf</span> <span class="o">=</span> <span class="n">jvm_gf_api</span><span class="o">.</span><span class="n">aggregateMessages</span><span class="p">()</span><span class="o">.</span><span class="n">getCachedDataFrame</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">_jdf</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DataFrame</span><span class="p">(</span><span class="n">jdf</span><span class="p">,</span> <span class="n">spark</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.lib.aggregate_messages</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, Timothy Hunter and Joseph Bradley.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>

@@ -127,8 +127,8 @@
                         <a href="BFS.html" title="Breadth-first search (BFS)">BFS</a>
                       </li><li class="current-entities indented3">
                         <a class="object" href="ConnectedComponents$.html" title=""></a>
-                        <a class="class" href="ConnectedComponents.html" title="Connected components algorithm."></a>
-                        <a href="ConnectedComponents.html" title="Connected components algorithm.">ConnectedComponents</a>
+                        <a class="class" href="ConnectedComponents.html" title="Connected Components algorithm."></a>
+                        <a href="ConnectedComponents.html" title="Connected Components algorithm.">ConnectedComponents</a>
                       </li><li class="current-entities indented3">
                         <span class="separator"></span>
                         <a class="class" href="LabelPropagation.html" title="Run static Label Propagation for detecting communities in networks."></a>
@@ -774,6 +774,32 @@ controls.</p><p>Example code for Page Rank:</p><pre><span class="kw">val</span> 
       <p class="shortcomment cmt">Sets the number of iterations between two checkpoints (default: 2).</p><div class="fullcomment"><div class="comment cmt"><p>Sets the number of iterations between two checkpoints (default: 2).</p><p>This is an advanced control to balance query plan optimization and checkpoint data I/O cost.
 In most cases, you should keep the default value.</p><p>Checkpoint is disabled if this is set to 0.
 </p></div></div>
+    </li><li name="org.graphframes.lib.Pregel#setEarlyStopping" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="setEarlyStopping(value:Boolean):Pregel.this.type"></a><a id="setEarlyStopping(Boolean):Pregel.this.type"></a>
+      <span class="permalink">
+      <a href="../../../org/graphframes/lib/Pregel.html#setEarlyStopping(value:Boolean):Pregel.this.type" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">setEarlyStopping</span><span class="params">(<span name="value">value: <a href="https://www.scala-lang.org/api/2.12.18/scala/Boolean.html#scala.Boolean" class="extype" name="scala.Boolean">Boolean</a></span>)</span><span class="result">: <a href="" class="extype" name="org.graphframes.lib.Pregel">Pregel</a>.this.type</span>
+      </span>
+      
+      <p class="shortcomment cmt">Should Pregel stop earlier in case of no new messages to send?</p><div class="fullcomment"><div class="comment cmt"><p>Should Pregel stop earlier in case of no new messages to send?</p><p>Early stopping allows to terminate Pregel before reaching maxIter by checking is there any
+non-null message or not. While in some cases it may gain significant performance boost, it
+other cases it can tend to performance degradation, because checking is messages DataFrame is
+empty or not is an action and requires materialization of the Spark Plan with some additional
+computations.</p><p>In the case when user can assume a good value of maxIter it is recommended to leave this
+value to the default &quot;false&quot;. In the case when it is hard to estimate an amount of iterations
+required for convergence, it is recommended to set this value to &quot;false&quot; to avoid iterating
+over convergence until reaching maxIter. When this value is &quot;true&quot;, maxIter can be set to a
+bigger value without risks.
+</p></div><dl class="paramcmts block"><dt class="param">value</dt><dd class="cmt"><p>
+  should Pregel checks for the termination condition on each step</p></dd></dl></div>
     </li><li name="org.graphframes.lib.Pregel#setMaxIter" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="setMaxIter(value:Int):Pregel.this.type"></a><a id="setMaxIter(Int):Pregel.this.type"></a>
       <span class="permalink">

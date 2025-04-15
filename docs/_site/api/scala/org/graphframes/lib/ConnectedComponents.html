@@ -127,8 +127,8 @@
                         <a href="BFS.html" title="Breadth-first search (BFS)">BFS</a>
                       </li><li class="current-entities indented3">
                         <a class="object" href="ConnectedComponents$.html" title=""></a>
-                        <a class="class" href="" title="Connected components algorithm."></a>
-                        <a href="" title="Connected components algorithm.">ConnectedComponents</a>
+                        <a class="class" href="" title="Connected Components algorithm."></a>
+                        <a href="" title="Connected Components algorithm.">ConnectedComponents</a>
                       </li><li class="current-entities indented3">
                         <span class="separator"></span>
                         <a class="class" href="LabelPropagation.html" title="Run static Label Propagation for detecting communities in networks."></a>
@@ -186,18 +186,18 @@
         <span class="kind">class</span>
       </span>
       <span class="symbol">
-        <span class="name">ConnectedComponents</span><span class="result"> extends <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span> with <span class="extype" name="org.graphframes.Logging">Logging</span></span>
+        <span class="name">ConnectedComponents</span><span class="result"> extends <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span> with <span class="extype" name="org.graphframes.Logging">Logging</span> with <span class="extype" name="org.graphframes.WithAlgorithmChoice">WithAlgorithmChoice</span></span>
       </span>
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Connected components algorithm.</p><p>Computes the connected component membership of each vertex and returns a DataFrame of vertex
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Connected Components algorithm.</p><p>Computes the connected component membership of each vertex and returns a DataFrame of vertex
 information with each vertex assigned a component ID.</p><p>The resulting DataFrame contains all the vertex information and one additional column:</p><ul><li>component (<code>LongType</code>): unique ID for this component
 </li></ul></div><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
-          <div class="superTypes hiddenContent"><span class="extype" name="org.graphframes.Logging">Logging</span>, <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span>, <a href="https://www.scala-lang.org/api/2.12.18/scala/AnyRef.html#scala.AnyRef" class="extype" name="scala.AnyRef">AnyRef</a>, <a href="https://www.scala-lang.org/api/2.12.18/scala/Any.html#scala.Any" class="extype" name="scala.Any">Any</a></div>
+          <div class="superTypes hiddenContent"><span class="extype" name="org.graphframes.WithAlgorithmChoice">WithAlgorithmChoice</span>, <span class="extype" name="org.graphframes.Logging">Logging</span>, <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span>, <a href="https://www.scala-lang.org/api/2.12.18/scala/AnyRef.html#scala.AnyRef" class="extype" name="scala.AnyRef">AnyRef</a>, <a href="https://www.scala-lang.org/api/2.12.18/scala/Any.html#scala.Any" class="extype" name="scala.Any">Any</a></div>
         </div></div>
         
 
@@ -223,7 +223,7 @@ information with each vertex assigned a component ID.</p><p>The resulting DataFr
                   <span class="filtertype">Inherited<br />
                   </span>
                   <ol id="linearization">
-                    <li class="in" name="org.graphframes.lib.ConnectedComponents"><span>ConnectedComponents</span></li><li class="in" name="org.graphframes.Logging"><span>Logging</span></li><li class="in" name="org.graphframes.lib.Arguments"><span>Arguments</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                    <li class="in" name="org.graphframes.lib.ConnectedComponents"><span>ConnectedComponents</span></li><li class="in" name="org.graphframes.WithAlgorithmChoice"><span>WithAlgorithmChoice</span></li><li class="in" name="org.graphframes.Logging"><span>Logging</span></li><li class="in" name="org.graphframes.lib.Arguments"><span>Arguments</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
                   </ol>
                 </div><div class="ancestors">
                   <span class="filtertype">Implicitly<br />
@@ -346,6 +346,54 @@ information with each vertex assigned a component ID.</p><p>The resulting DataFr
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li name="org.graphframes.WithAlgorithmChoice#ALGO_GRAPHFRAMES" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="ALGO_GRAPHFRAMES:String"></a>
+      <span class="permalink">
+      <a href="../../../org/graphframes/lib/ConnectedComponents.html#ALGO_GRAPHFRAMES:String" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">ALGO_GRAPHFRAMES</span><span class="result">: <span class="extype" name="java.lang.String">String</span></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>WithAlgorithmChoice</dd></dl></div>
+    </li><li name="org.graphframes.WithAlgorithmChoice#ALGO_GRAPHX" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="ALGO_GRAPHX:String"></a>
+      <span class="permalink">
+      <a href="../../../org/graphframes/lib/ConnectedComponents.html#ALGO_GRAPHX:String" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">ALGO_GRAPHX</span><span class="result">: <span class="extype" name="java.lang.String">String</span></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>WithAlgorithmChoice</dd></dl></div>
+    </li><li name="org.graphframes.WithAlgorithmChoice#algorithm" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="algorithm:String"></a>
+      <span class="permalink">
+      <a href="../../../org/graphframes/lib/ConnectedComponents.html#algorithm:String" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">algorithm</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>WithAlgorithmChoice</dd></dl></div>
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">
@@ -500,7 +548,7 @@ information with each vertex assigned a component ID.</p><p>The resulting DataFr
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li name="org.graphframes.lib.ConnectedComponents#getAlgorithm" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+    </li><li name="org.graphframes.WithAlgorithmChoice#getAlgorithm" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getAlgorithm:String"></a>
       <span class="permalink">
       <a href="../../../org/graphframes/lib/ConnectedComponents.html#getAlgorithm:String" title="Permalink">
@@ -515,8 +563,7 @@ information with each vertex assigned a component ID.</p><p>The resulting DataFr
         <span class="name">getAlgorithm</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
       </span>
       
-      <p class="shortcomment cmt">Gets the connected component algorithm to use.</p><div class="fullcomment"><div class="comment cmt"><p>Gets the connected component algorithm to use.</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p>
-  <a href="#setAlgorithm(value:String):ConnectedComponents.this.type" class="extmbr" name="org.graphframes.lib.ConnectedComponents#setAlgorithm">org.graphframes.lib.ConnectedComponents.setAlgorithm</a>.</p></span></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>WithAlgorithmChoice</dd></dl></div>
     </li><li name="org.graphframes.lib.ConnectedComponents#getBroadcastThreshold" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getBroadcastThreshold:Int"></a>
       <span class="permalink">
@@ -763,10 +810,10 @@ information with each vertex assigned a component ID.</p><p>The resulting DataFr
       </span>
       
       <p class="shortcomment cmt">Runs the algorithm.</p>
-    </li><li name="org.graphframes.lib.ConnectedComponents#setAlgorithm" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="setAlgorithm(value:String):ConnectedComponents.this.type"></a><a id="setAlgorithm(String):ConnectedComponents.this.type"></a>
+    </li><li name="org.graphframes.WithAlgorithmChoice#setAlgorithm" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="setAlgorithm(value:String):WithAlgorithmChoice.this.type"></a><a id="setAlgorithm(String):ConnectedComponents.this.type"></a>
       <span class="permalink">
-      <a href="../../../org/graphframes/lib/ConnectedComponents.html#setAlgorithm(value:String):ConnectedComponents.this.type" title="Permalink">
+      <a href="../../../org/graphframes/lib/ConnectedComponents.html#setAlgorithm(value:String):WithAlgorithmChoice.this.type" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -778,12 +825,7 @@ information with each vertex assigned a component ID.</p><p>The resulting DataFr
         <span class="name">setAlgorithm</span><span class="params">(<span name="value">value: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result">: <a href="" class="extype" name="org.graphframes.lib.ConnectedComponents">ConnectedComponents</a>.this.type</span>
       </span>
       
-      <p class="shortcomment cmt">Sets the connected components algorithm to use (default: &quot;graphframes&quot;).</p><div class="fullcomment"><div class="comment cmt"><p>Sets the connected components algorithm to use (default: &quot;graphframes&quot;). Supported algorithms
-are:</p><ul><li>&quot;graphframes&quot;: Uses alternating large star and small star iterations proposed in
-    <a href="http://dx.doi.org/10.1145/2670979.2670997" target="_blank">Connected Components in MapReduce and Beyond</a>
-    with skewed join optimization.</li><li>&quot;graphx&quot;: Converts the graph to a GraphX graph and then uses the connected components
-    implementation in GraphX.</li></ul></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p>
-  <a href="ConnectedComponents$.html#supportedAlgorithms:Array[String]" class="extmbr" name="org.graphframes.lib.ConnectedComponents#supportedAlgorithms">org.graphframes.lib.ConnectedComponents.supportedAlgorithms</a></p></span></dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>WithAlgorithmChoice</dd></dl></div>
     </li><li name="org.graphframes.lib.ConnectedComponents#setBroadcastThreshold" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="setBroadcastThreshold(value:Int):ConnectedComponents.this.type"></a><a id="setBroadcastThreshold(Int):ConnectedComponents.this.type"></a>
       <span class="permalink">
@@ -823,7 +865,7 @@ the algorithm is set to &quot;graphframes&quot;.
       <p class="shortcomment cmt">Sets checkpoint interval in terms of number of iterations (default: 2).</p><div class="fullcomment"><div class="comment cmt"><p>Sets checkpoint interval in terms of number of iterations (default: 2). Checkpointing
 regularly helps recover from failures, clean shuffle files, shorten the lineage of the
 computation graph, and reduce the complexity of plan optimization. As of Spark 2.0, the
-complexity of plan optimization would grow exponentially without checkpointing. Hence
+complexity of plan optimization would grow exponentially without checkpointing. Hence,
 disabling or setting longer-than-default checkpoint intervals are not recommended. Checkpoint
 data is saved under <code>org.apache.spark.SparkContext.getCheckpointDir</code> with prefix
 &quot;connected-components&quot;. If the checkpoint directory is not set, this throws a
@@ -848,6 +890,22 @@ future.</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class=
       
       <p class="shortcomment cmt">Sets storage level for intermediate datasets that require multiple passes (default:
 <code><code>MEMORY_AND_DISK</code></code>).</p>
+    </li><li name="org.graphframes.WithAlgorithmChoice#supportedAlgorithms" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="supportedAlgorithms:Array[String]"></a>
+      <span class="permalink">
+      <a href="../../../org/graphframes/lib/ConnectedComponents.html#supportedAlgorithms:Array[String]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">supportedAlgorithms</span><span class="result">: <a href="https://www.scala-lang.org/api/2.12.18/scala/Array.html#scala.Array" class="extype" name="scala.Array">Array</a>[<span class="extype" name="scala.Predef.String">String</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>WithAlgorithmChoice</dd></dl></div>
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>
       <span class="permalink">
@@ -1032,7 +1090,9 @@ or use the <code>f&quot;&quot;</code> string interpolator. In Java 15 and later,
         </div>
 
         <div id="inheritedMembers">
-        <div class="parent" name="org.graphframes.Logging">
+        <div class="parent" name="org.graphframes.WithAlgorithmChoice">
+              <h3>Inherited from <span class="extype" name="org.graphframes.WithAlgorithmChoice">WithAlgorithmChoice</span></h3>
+            </div><div class="parent" name="org.graphframes.Logging">
               <h3>Inherited from <span class="extype" name="org.graphframes.Logging">Logging</span></h3>
             </div><div class="parent" name="org.graphframes.lib.Arguments">
               <h3>Inherited from <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span></h3>

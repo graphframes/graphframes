@@ -143,8 +143,8 @@
                         <a href="BFS.html" title="Breadth-first search (BFS)">BFS</a>
                       </li><li class="current-entities indented3">
                         <a class="object" href="ConnectedComponents$.html" title=""></a>
-                        <a class="class" href="ConnectedComponents.html" title="Connected components algorithm."></a>
-                        <a href="ConnectedComponents.html" title="Connected components algorithm.">ConnectedComponents</a>
+                        <a class="class" href="ConnectedComponents.html" title="Connected Components algorithm."></a>
+                        <a href="ConnectedComponents.html" title="Connected Components algorithm.">ConnectedComponents</a>
                       </li><li class="current-entities indented3">
                         <span class="separator"></span>
                         <a class="class" href="LabelPropagation.html" title="Run static Label Propagation for detecting communities in networks."></a>
@@ -321,7 +321,7 @@ returned DataFrame will have the &quot;from&quot; and &quot;to&quot; columns (as
     after BFS, run specifying the filter here is more efficient.</li></ul><p>Returns:</p><ul><li>DataFrame of valid shortest paths found in the BFS
 </li></ul></div></div>
     </li><li name="org.graphframes.lib.ConnectedComponents" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="ConnectedComponentsextendsArgumentswithLogging"></a><a id="ConnectedComponents:ConnectedComponents"></a>
+      <a id="ConnectedComponentsextendsArgumentswithLoggingwithWithAlgorithmChoice"></a><a id="ConnectedComponents:ConnectedComponents"></a>
       <span class="permalink">
       <a href="../../../org/graphframes/lib/ConnectedComponents.html" title="Permalink">
         <i class="material-icons"></i>
@@ -332,10 +332,10 @@ returned DataFrame will have the &quot;from&quot; and &quot;to&quot; columns (as
         <span class="kind">class</span>
       </span>
       <span class="symbol">
-        <a title="Connected components algorithm." href="ConnectedComponents.html"><span class="name">ConnectedComponents</span></a><span class="result"> extends <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span> with <span class="extype" name="org.graphframes.Logging">Logging</span></span>
+        <a title="Connected Components algorithm." href="ConnectedComponents.html"><span class="name">ConnectedComponents</span></a><span class="result"> extends <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span> with <span class="extype" name="org.graphframes.Logging">Logging</span> with <span class="extype" name="org.graphframes.WithAlgorithmChoice">WithAlgorithmChoice</span></span>
       </span>
       
-      <p class="shortcomment cmt">Connected components algorithm.</p><div class="fullcomment"><div class="comment cmt"><p>Connected components algorithm.</p><p>Computes the connected component membership of each vertex and returns a DataFrame of vertex
+      <p class="shortcomment cmt">Connected Components algorithm.</p><div class="fullcomment"><div class="comment cmt"><p>Connected Components algorithm.</p><p>Computes the connected component membership of each vertex and returns a DataFrame of vertex
 information with each vertex assigned a component ID.</p><p>The resulting DataFrame contains all the vertex information and one additional column:</p><ul><li>component (<code>LongType</code>): unique ID for this component
 </li></ul></div></div>
     </li><li name="org.graphframes.lib.LabelPropagation" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
@@ -486,7 +486,7 @@ See the details on page 6 of the article.</p><p>Configuration parameters: see th
 (static) members for the names of the output columns.
 </p></div></div>
     </li><li name="org.graphframes.lib.ShortestPaths" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="ShortestPathsextendsArguments"></a><a id="ShortestPaths:ShortestPaths"></a>
+      <a id="ShortestPathsextendsArgumentswithWithAlgorithmChoice"></a><a id="ShortestPaths:ShortestPaths"></a>
       <span class="permalink">
       <a href="../../../org/graphframes/lib/ShortestPaths.html" title="Permalink">
         <i class="material-icons"></i>
@@ -497,7 +497,7 @@ See the details on page 6 of the article.</p><p>Configuration parameters: see th
         <span class="kind">class</span>
       </span>
       <span class="symbol">
-        <a title="Computes shortest paths from every vertex to the given set of landmark vertices." href="ShortestPaths.html"><span class="name">ShortestPaths</span></a><span class="result"> extends <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span></span>
+        <a title="Computes shortest paths from every vertex to the given set of landmark vertices." href="ShortestPaths.html"><span class="name">ShortestPaths</span></a><span class="result"> extends <span class="extype" name="org.graphframes.lib.Arguments">Arguments</span> with <span class="extype" name="org.graphframes.WithAlgorithmChoice">WithAlgorithmChoice</span></span>
       </span>
       
       <p class="shortcomment cmt">Computes shortest paths from every vertex to the given set of landmark vertices.</p><div class="fullcomment"><div class="comment cmt"><p>Computes shortest paths from every vertex to the given set of landmark vertices. Note that this

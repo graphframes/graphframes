@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>graphframes.lib.pregel &#8212; pygraphframes 0.8.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css?v=279e0f84" />
+    <link rel="stylesheet" href="../../../_static/pygraphframes.css" type="text/css" />
+    <script src="../../../_static/documentation_options.js?v=b41f4c93"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/pygraphframes.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.lib.pregel</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for graphframes.lib.pregel</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version</span> <span class="o">&gt;</span> <span class="s2">&quot;3&quot;</span><span class="p">:</span>
+    <span class="n">basestring</span> <span class="o">=</span> <span class="nb">str</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.ml.wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">JavaWrapper</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">SparkSession</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.functions</span><span class="w"> </span><span class="kn">import</span> <span class="n">col</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">graphframes</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphFrame</span>
+
+
+<div class="viewcode-block" id="Pregel">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Pregel</span><span class="p">(</span><span class="n">JavaWrapper</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.</span>
+
+<span class="sd">    See `Malewicz et al., Pregel: a system for large-scale graph processing &lt;https://doi.org/10.1145/1807167.1807184&gt;`_</span>
+<span class="sd">    for a detailed description of the Pregel algorithm.</span>
+
+<span class="sd">    You can construct a Pregel instance using either this constructor or :attr:`graphframes.GraphFrame.pregel`,</span>
+<span class="sd">    then use builder pattern to describe the operations, and then call :func:`run` to start a run.</span>
+<span class="sd">    It returns a DataFrame of vertices from the last iteration.</span>
+
+<span class="sd">    When a run starts, it expands the vertices DataFrame using column expressions defined by :func:`withVertexColumn`.</span>
+<span class="sd">    Those additional vertex properties can be changed during Pregel iterations.</span>
+<span class="sd">    In each Pregel iteration, there are three phases:</span>
+<span class="sd">      - Given each edge triplet, generate messages and specify target vertices to send,</span>
+<span class="sd">        described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.</span>
+<span class="sd">      - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.</span>
+<span class="sd">      - Update additional vertex properties based on aggregated messages and states from previous iteration,</span>
+<span class="sd">        described by :func:`withVertexColumn`.</span>
+
+<span class="sd">    Please find what columns you can reference at each phase in the method API docs.</span>
+
+<span class="sd">    You can control the number of iterations by :func:`setMaxIter` and check API docs for advanced controls.</span>
+
+<span class="sd">    :param graph: a :class:`graphframes.GraphFrame` object holding a graph with vertices and edges stored as DataFrames.</span>
+
+<span class="sd">    &gt;&gt;&gt; from graphframes import GraphFrame</span>
+<span class="sd">    &gt;&gt;&gt; from pyspark.sql.functions import coalesce, col, lit, sum, when</span>
+<span class="sd">    &gt;&gt;&gt; from graphframes.lib import Pregel</span>
+<span class="sd">    &gt;&gt;&gt; edges = spark.createDataFrame([[0, 1],</span>
+<span class="sd">    ...                                [1, 2],</span>
+<span class="sd">    ...                                [2, 4],</span>
+<span class="sd">    ...                                [2, 0],</span>
+<span class="sd">    ...                                [3, 4], # 3 has no in-links</span>
+<span class="sd">    ...                                [4, 0],</span>
+<span class="sd">    ...                                [4, 2]], [&quot;src&quot;, &quot;dst&quot;])</span>
+<span class="sd">    &gt;&gt;&gt; edges.cache()</span>
+<span class="sd">    &gt;&gt;&gt; vertices = spark.createDataFrame([[0], [1], [2], [3], [4]], [&quot;id&quot;])</span>
+<span class="sd">    &gt;&gt;&gt; numVertices = vertices.count()</span>
+<span class="sd">    &gt;&gt;&gt; vertices = GraphFrame(vertices, edges).outDegrees</span>
+<span class="sd">    &gt;&gt;&gt; vertices.cache()</span>
+<span class="sd">    &gt;&gt;&gt; graph = GraphFrame(vertices, edges)</span>
+<span class="sd">    &gt;&gt;&gt; alpha = 0.15</span>
+<span class="sd">    &gt;&gt;&gt; ranks = graph.pregel \</span>
+<span class="sd">    ...     .setMaxIter(5) \</span>
+<span class="sd">    ...     .withVertexColumn(&quot;rank&quot;, lit(1.0 / numVertices), \</span>
+<span class="sd">    ...         coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \</span>
+<span class="sd">    ...     .sendMsgToDst(Pregel.src(&quot;rank&quot;) / Pregel.src(&quot;outDegree&quot;)) \</span>
+<span class="sd">    ...     .aggMsgs(sum(Pregel.msg())) \</span>
+<span class="sd">    ...     .run()</span>
+<span class="sd">    &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Pregel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">graph</span> <span class="o">=</span> <span class="n">graph</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_java_obj</span><span class="p">(</span><span class="s2">&quot;org.graphframes.lib.Pregel&quot;</span><span class="p">,</span> <span class="n">graph</span><span class="o">.</span><span class="n">_jvm_graph</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Pregel.setMaxIter">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.setMaxIter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setMaxIter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Pregel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the max number of iterations (default: 10).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">setMaxIter</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Pregel.setCheckpointInterval">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.setCheckpointInterval">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setCheckpointInterval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Pregel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the number of iterations between two checkpoints (default: 2).</span>
+
+<span class="sd">        This is an advanced control to balance query plan optimization and checkpoint data I/O cost.</span>
+<span class="sd">        In most cases, you should keep the default value.</span>
+
+<span class="sd">        Checkpoint is disabled if this is set to 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">setCheckpointInterval</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Pregel.setEarlyStopping">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.setEarlyStopping">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setEarlyStopping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Pregel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set should Pregel stop earlier in case of no new messages to send or not.</span>
+
+<span class="sd">        Early stopping allows to terminate Pregel before reaching maxIter by checking if there are any non-null messages.</span>
+<span class="sd">        While in some cases it may gain significant performance boost, in other cases it can lead to performance degradation,</span>
+<span class="sd">        because checking if the messages DataFrame is empty or not is an action and requires materialization of the Spark Plan</span>
+<span class="sd">        with some additional computations.</span>
+
+<span class="sd">        In the case when the user can assume a good value of maxIter, it is recommended to leave this value to the default &quot;false&quot;.</span>
+<span class="sd">        In the case when it is hard to estimate the number of iterations required for convergence,</span>
+<span class="sd">        it is recommended to set this value to &quot;false&quot; to avoid iterating over convergence until reaching maxIter.</span>
+<span class="sd">        When this value is &quot;true&quot;, maxIter can be set to a bigger value without risks.</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">setEarlyStopping</span><span class="p">(</span><span class="nb">bool</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Pregel.withVertexColumn">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.withVertexColumn">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">withVertexColumn</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">colName</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">initialExpr</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">updateAfterAggMsgsExpr</span><span class="p">:</span> <span class="n">Any</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Pregel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Defines an additional vertex column at the start of run and how to update it in each iteration.</span>
+
+<span class="sd">        You can call it multiple times to add more than one additional vertex columns.</span>
+
+<span class="sd">        :param colName: the name of the additional vertex column.</span>
+<span class="sd">                        It cannot be an existing vertex column in the graph.</span>
+<span class="sd">        :param initialExpr: the expression to initialize the additional vertex column.</span>
+<span class="sd">                            You can reference all original vertex columns in this expression.</span>
+<span class="sd">        :param updateAfterAggMsgsExpr: the expression to update the additional vertex column after messages aggregation.</span>
+<span class="sd">                                       You can reference all original vertex columns, additional vertex columns, and the</span>
+<span class="sd">                                       aggregated message column using :func:`msg`.</span>
+<span class="sd">                                       If the vertex received no messages, the message column would be null.</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">withVertexColumn</span><span class="p">(</span><span class="n">colName</span><span class="p">,</span> <span class="n">initialExpr</span><span class="o">.</span><span class="n">_jc</span><span class="p">,</span> <span class="n">updateAfterAggMsgsExpr</span><span class="o">.</span><span class="n">_jc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Pregel.sendMsgToSrc">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.sendMsgToSrc">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sendMsgToSrc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msgExpr</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Pregel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Defines a message to send to the source vertex of each edge triplet.</span>
+
+<span class="sd">        You can call it multiple times to send more than one messages.</span>
+
+<span class="sd">        See method :func:`sendMsgToDst`.</span>
+
+<span class="sd">        :param msgExpr: the expression of the message to send to the source vertex given a (src, edge, dst) triplet.</span>
+<span class="sd">                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,</span>
+<span class="sd">                        and `edge`, respectively.</span>
+<span class="sd">                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.</span>
+<span class="sd">                        Null messages are not included in message aggregation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">sendMsgToSrc</span><span class="p">(</span><span class="n">msgExpr</span><span class="o">.</span><span class="n">_jc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Pregel.sendMsgToDst">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.sendMsgToDst">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sendMsgToDst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msgExpr</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Pregel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Defines a message to send to the destination vertex of each edge triplet.</span>
+
+<span class="sd">        You can call it multiple times to send more than one messages.</span>
+
+<span class="sd">        See method :func:`sendMsgToSrc`.</span>
+
+<span class="sd">        :param msgExpr: the message expression to send to the destination vertex given a (`src`, `edge`, `dst`) triplet.</span>
+<span class="sd">                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,</span>
+<span class="sd">                        and `edge`, respectively.</span>
+<span class="sd">                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.</span>
+<span class="sd">                        Null messages are not included in message aggregation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">sendMsgToDst</span><span class="p">(</span><span class="n">msgExpr</span><span class="o">.</span><span class="n">_jc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Pregel.aggMsgs">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.aggMsgs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">aggMsgs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggExpr</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Pregel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Defines how messages are aggregated after grouped by target vertex IDs.</span>
+
+<span class="sd">        :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg())`.</span>
+<span class="sd">                        You can reference the message column by :func:`msg` and the vertex ID by `col(&quot;id&quot;)`,</span>
+<span class="sd">                        while the latter is usually not used.</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">aggMsgs</span><span class="p">(</span><span class="n">aggExpr</span><span class="o">.</span><span class="n">_jc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Pregel.run">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the defined Pregel algorithm.</span>
+
+<span class="sd">        :return: the result vertex DataFrame from the final iteration including both original and additional columns.</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="k">return</span> <span class="n">DataFrame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_java_obj</span><span class="o">.</span><span class="n">run</span><span class="p">(),</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">getActiveSession</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="Pregel.msg">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.msg">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">msg</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        References the message column in aggregating messages and updating additional vertex columns.</span>
+
+<span class="sd">        See :func:`aggMsgs` and :func:`withVertexColumn`</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="k">return</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;_pregel_msg_&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Pregel.src">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.src">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">src</span><span class="p">(</span><span class="n">colName</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        References a source vertex column in generating messages to send.</span>
+
+<span class="sd">        See :func:`sendMsgToSrc` and :func:`sendMsgToDst`</span>
+
+<span class="sd">        :param colName: the vertex column name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;src.&quot;</span> <span class="o">+</span> <span class="n">colName</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Pregel.dst">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.dst">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dst</span><span class="p">(</span><span class="n">colName</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        References a destination vertex column in generating messages to send.</span>
+
+<span class="sd">        See :func:`sendMsgToSrc` and :func:`sendMsgToDst`</span>
+
+<span class="sd">        :param colName: the vertex column name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;dst.&quot;</span> <span class="o">+</span> <span class="n">colName</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Pregel.edge">
+<a class="viewcode-back" href="../../../graphframes.lib.html#graphframes.lib.Pregel.edge">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edge</span><span class="p">(</span><span class="n">colName</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        References an edge column in generating messages to send.</span>
+
+<span class="sd">        See :func:`sendMsgToSrc` and :func:`sendMsgToDst`</span>
+
+<span class="sd">        :param colName: the edge column name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;edge.&quot;</span> <span class="o">+</span> <span class="n">colName</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.lib.pregel</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, Timothy Hunter and Joseph Bradley.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>graphframes.graphframe &#8212; pygraphframes 0.8.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nature.css?v=279e0f84" />
+    <link rel="stylesheet" href="../../_static/pygraphframes.css" type="text/css" />
+    <script src="../../_static/documentation_options.js?v=b41f4c93"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/pygraphframes.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.graphframe</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for graphframes.graphframe</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.storagelevel</span><span class="w"> </span><span class="kn">import</span> <span class="n">StorageLevel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+
+<span class="k">if</span> <span class="n">__version__</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="s2">&quot;3.4&quot;</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_remote</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="c1"># All the Connect-related utilities are accessible starting from 3.4.x</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_remote</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">graphframes.classic.graphframe</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphFrame</span> <span class="k">as</span> <span class="n">GraphFrameClassic</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">graphframes.lib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pregel</span>
+
+<span class="k">if</span> <span class="n">__version__</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="s2">&quot;3.4&quot;</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">graphframes.connect.graphframe_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphFrameConnect</span>
+<span class="k">else</span><span class="p">:</span>
+
+    <span class="k">class</span><span class="w"> </span><span class="nc">GraphFrameConnect</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unreachable error happened!&quot;</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">DataFrame</span>
+
+
+<div class="viewcode-block" id="GraphFrame">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GraphFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a graph with vertices and edges stored as DataFrames.</span>
+
+<span class="sd">    :param v:  :class:`DataFrame` holding vertex information.</span>
+<span class="sd">               Must contain a column named &quot;id&quot; that stores unique</span>
+<span class="sd">               vertex IDs.</span>
+<span class="sd">    :param e:  :class:`DataFrame` holding edge information.</span>
+<span class="sd">               Must contain two columns &quot;src&quot; and &quot;dst&quot; storing source</span>
+<span class="sd">               vertex IDs and destination vertex IDs of edges, respectively.</span>
+
+<span class="sd">    &gt;&gt;&gt; localVertices = [(1,&quot;A&quot;), (2,&quot;B&quot;), (3, &quot;C&quot;)]</span>
+<span class="sd">    &gt;&gt;&gt; localEdges = [(1,2,&quot;love&quot;), (2,1,&quot;hate&quot;), (2,3,&quot;follow&quot;)]</span>
+<span class="sd">    &gt;&gt;&gt; v = spark.createDataFrame(localVertices, [&quot;id&quot;, &quot;name&quot;])</span>
+<span class="sd">    &gt;&gt;&gt; e = spark.createDataFrame(localEdges, [&quot;src&quot;, &quot;dst&quot;, &quot;action&quot;])</span>
+<span class="sd">    &gt;&gt;&gt; g = GraphFrame(v, e)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_from_impl</span><span class="p">(</span><span class="n">impl</span><span class="p">:</span> <span class="n">GraphFrameClassic</span> <span class="o">|</span> <span class="n">GraphFrameConnect</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">impl</span><span class="o">.</span><span class="n">vertices</span><span class="p">,</span> <span class="n">impl</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_remote</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span> <span class="o">=</span> <span class="n">GraphFrameConnect</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span> <span class="o">=</span> <span class="n">GraphFrameClassic</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">vertices</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :class:`DataFrame` holding vertex information, with unique column &quot;id&quot;</span>
+<span class="sd">        for vertex IDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">vertices</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :class:`DataFrame` holding edge information, with unique columns &quot;src&quot; and</span>
+<span class="sd">        &quot;dst&quot; storing source vertex IDs and destination vertex IDs of edges,</span>
+<span class="sd">        respectively.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">edges</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="GraphFrame.cache">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.cache">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist the dataframe representation of vertices and edges of the graph with the default</span>
+<span class="sd">        storage level.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">cache</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.persist">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.persist">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">persist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storageLevel</span><span class="p">:</span> <span class="n">StorageLevel</span> <span class="o">=</span> <span class="n">StorageLevel</span><span class="o">.</span><span class="n">MEMORY_ONLY</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist the dataframe representation of vertices and edges of the graph with the given</span>
+<span class="sd">        storage level.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">persist</span><span class="p">(</span><span class="n">storageLevel</span><span class="o">=</span><span class="n">storageLevel</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.unpersist">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.unpersist">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unpersist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocking</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mark the dataframe representation of vertices and edges of the graph as non-persistent,</span>
+<span class="sd">        and remove all blocks for it from memory and disk.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">unpersist</span><span class="p">(</span><span class="n">blocking</span><span class="o">=</span><span class="n">blocking</span><span class="p">))</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">outDegrees</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The out-degree of each vertex in the graph, returned as a DataFrame with two columns:</span>
+<span class="sd">         - &quot;id&quot;: the ID of the vertex</span>
+<span class="sd">         - &quot;outDegree&quot; (integer) storing the out-degree of the vertex</span>
+
+<span class="sd">        Note that vertices with 0 out-edges are not returned in the result.</span>
+
+<span class="sd">        :return:  DataFrame with new vertices column &quot;outDegree&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">outDegrees</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inDegrees</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The in-degree of each vertex in the graph, returned as a DataFame with two columns:</span>
+<span class="sd">         - &quot;id&quot;: the ID of the vertex</span>
+<span class="sd">         - &quot;inDegree&quot; (int) storing the in-degree of the vertex</span>
+
+<span class="sd">        Note that vertices with 0 in-edges are not returned in the result.</span>
+
+<span class="sd">        :return:  DataFrame with new vertices column &quot;inDegree&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">inDegrees</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">degrees</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The degree of each vertex in the graph, returned as a DataFrame with two columns:</span>
+<span class="sd">         - &quot;id&quot;: the ID of the vertex</span>
+<span class="sd">         - &#39;degree&#39; (integer) the degree of the vertex</span>
+
+<span class="sd">        Note that vertices with 0 edges are not returned in the result.</span>
+
+<span class="sd">        :return:  DataFrame with new vertices column &quot;degree&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">degrees</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">triplets</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The triplets (source vertex)-[edge]-&gt;(destination vertex) for all edges in the graph.</span>
+
+<span class="sd">        Returned as a :class:`DataFrame` with three columns:</span>
+<span class="sd">         - &quot;src&quot;: source vertex with schema matching &#39;vertices&#39;</span>
+<span class="sd">         - &quot;edge&quot;: edge with schema matching &#39;edges&#39;</span>
+<span class="sd">         - &#39;dst&#39;: destination vertex with schema matching &#39;vertices&#39;</span>
+
+<span class="sd">        :return:  DataFrame with columns &#39;src&#39;, &#39;edge&#39;, and &#39;dst&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">triplets</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">pregel</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pregel</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the :class:`graphframes.lib.Pregel` object for running pregel.</span>
+
+<span class="sd">        See :class:`graphframes.lib.Pregel` for more details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">pregel</span>
+
+<div class="viewcode-block" id="GraphFrame.find">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.find">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Motif finding.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param pattern:  String describing the motif to search for.</span>
+<span class="sd">        :return:  DataFrame with one Row for each instance of the motif found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="n">pattern</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.filterVertices">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.filterVertices">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filterVertices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">condition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Column</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filters the vertices based on expression, remove edges containing any dropped vertices.</span>
+
+<span class="sd">        :param condition: String or Column describing the condition expression for filtering.</span>
+<span class="sd">        :return: GraphFrame with filtered vertices and edges.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">filterVertices</span><span class="p">(</span><span class="n">condition</span><span class="o">=</span><span class="n">condition</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.filterEdges">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.filterEdges">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filterEdges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">condition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Column</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filters the edges based on expression, keep all vertices.</span>
+
+<span class="sd">        :param condition: String or Column describing the condition expression for filtering.</span>
+<span class="sd">        :return: GraphFrame with filtered edges.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">filterEdges</span><span class="p">(</span><span class="n">condition</span><span class="o">=</span><span class="n">condition</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.dropIsolatedVertices">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.dropIsolatedVertices">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dropIsolatedVertices</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Drops isolated vertices, vertices are not contained in any edges.</span>
+
+<span class="sd">        :return: GraphFrame with filtered vertices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">dropIsolatedVertices</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.bfs">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.bfs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bfs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">fromExpr</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">toExpr</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">edgeFilter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">maxPathLength</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Breadth-first search (BFS).</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :return: DataFrame with one Row for each shortest path between matching vertices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">bfs</span><span class="p">(</span>
+            <span class="n">fromExpr</span><span class="o">=</span><span class="n">fromExpr</span><span class="p">,</span>
+            <span class="n">toExpr</span><span class="o">=</span><span class="n">toExpr</span><span class="p">,</span>
+            <span class="n">edgeFilter</span><span class="o">=</span><span class="n">edgeFilter</span><span class="p">,</span>
+            <span class="n">maxPathLength</span><span class="o">=</span><span class="n">maxPathLength</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.aggregateMessages">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.aggregateMessages">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">aggregateMessages</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggCol</span><span class="p">:</span> <span class="n">Column</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">sendToSrc</span><span class="p">:</span> <span class="n">Column</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sendToDst</span><span class="p">:</span> <span class="n">Column</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Aggregates messages from the neighbours.</span>
+
+<span class="sd">        When specifying the messages and aggregation function, the user may reference columns using</span>
+<span class="sd">        the static methods in :class:`graphframes.lib.AggregateMessages`.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param aggCol: the requested aggregation output either as</span>
+<span class="sd">            :class:`pyspark.sql.Column` or SQL expression string</span>
+<span class="sd">        :param sendToSrc: message sent to the source vertex of each triplet either as</span>
+<span class="sd">            :class:`pyspark.sql.Column` or SQL expression string (default: None)</span>
+<span class="sd">        :param sendToDst: message sent to the destination vertex of each triplet either as</span>
+<span class="sd">            :class:`pyspark.sql.Column` or SQL expression string (default: None)</span>
+
+<span class="sd">        :return: DataFrame with columns for the vertex ID and the resulting aggregated message</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">aggregateMessages</span><span class="p">(</span><span class="n">aggCol</span><span class="o">=</span><span class="n">aggCol</span><span class="p">,</span> <span class="n">sendToSrc</span><span class="o">=</span><span class="n">sendToSrc</span><span class="p">,</span> <span class="n">sendToDst</span><span class="o">=</span><span class="n">sendToDst</span><span class="p">)</span></div>
+
+
+    <span class="c1"># Standard algorithms</span>
+
+<div class="viewcode-block" id="GraphFrame.connectedComponents">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.connectedComponents">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">connectedComponents</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">algorithm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;graphframes&quot;</span><span class="p">,</span>
+        <span class="n">checkpointInterval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">broadcastThreshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000000</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes the connected components of the graph.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param algorithm: connected components algorithm to use (default: &quot;graphframes&quot;)</span>
+<span class="sd">          Supported algorithms are &quot;graphframes&quot; and &quot;graphx&quot;.</span>
+<span class="sd">        :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)</span>
+<span class="sd">        :param broadcastThreshold: broadcast threshold in propagating component assignments</span>
+<span class="sd">          (default: 1000000)</span>
+
+<span class="sd">        :return: DataFrame with new vertices column &quot;component&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">connectedComponents</span><span class="p">(</span>
+            <span class="n">algorithm</span><span class="o">=</span><span class="n">algorithm</span><span class="p">,</span>
+            <span class="n">checkpointInterval</span><span class="o">=</span><span class="n">checkpointInterval</span><span class="p">,</span>
+            <span class="n">broadcastThreshold</span><span class="o">=</span><span class="n">broadcastThreshold</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.labelPropagation">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.labelPropagation">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">labelPropagation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">maxIter</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs static label propagation for detecting communities in networks.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param maxIter: the number of iterations to be performed</span>
+<span class="sd">        :return: DataFrame with new vertices column &quot;label&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">labelPropagation</span><span class="p">(</span><span class="n">maxIter</span><span class="o">=</span><span class="n">maxIter</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.pageRank">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.pageRank">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">pageRank</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">resetProbability</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span><span class="p">,</span>
+        <span class="n">sourceId</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">maxIter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">tol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the PageRank algorithm on the graph.</span>
+<span class="sd">        Note: Exactly one of fixed_num_iter or tolerance must be set.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param resetProbability: Probability of resetting to a random vertex.</span>
+<span class="sd">        :param sourceId: (optional) the source vertex for a personalized PageRank.</span>
+<span class="sd">        :param maxIter: If set, the algorithm is run for a fixed number</span>
+<span class="sd">               of iterations. This may not be set if the `tol` parameter is set.</span>
+<span class="sd">        :param tol: If set, the algorithm is run until the given tolerance.</span>
+<span class="sd">               This may not be set if the `numIter` parameter is set.</span>
+<span class="sd">        :return:  GraphFrame with new vertices column &quot;pagerank&quot; and new edges column &quot;weight&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">pageRank</span><span class="p">(</span>
+                <span class="n">resetProbability</span><span class="o">=</span><span class="n">resetProbability</span><span class="p">,</span>
+                <span class="n">sourceId</span><span class="o">=</span><span class="n">sourceId</span><span class="p">,</span>
+                <span class="n">maxIter</span><span class="o">=</span><span class="n">maxIter</span><span class="p">,</span>
+                <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.parallelPersonalizedPageRank">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.parallelPersonalizedPageRank">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parallelPersonalizedPageRank</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">resetProbability</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span><span class="p">,</span>
+        <span class="n">sourceIds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">maxIter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;GraphFrame&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run the personalized PageRank algorithm on the graph,</span>
+<span class="sd">        from the provided list of sources in parallel for a fixed number of iterations.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param resetProbability: Probability of resetting to a random vertex</span>
+<span class="sd">        :param sourceIds: the source vertices for a personalized PageRank</span>
+<span class="sd">        :param maxIter: the fixed number of iterations this algorithm runs</span>
+<span class="sd">        :return:  GraphFrame with new vertices column &quot;pageranks&quot; and new edges column &quot;weight&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="o">.</span><span class="n">_from_impl</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">parallelPersonalizedPageRank</span><span class="p">(</span>
+                <span class="n">resetProbability</span><span class="o">=</span><span class="n">resetProbability</span><span class="p">,</span> <span class="n">sourceIds</span><span class="o">=</span><span class="n">sourceIds</span><span class="p">,</span> <span class="n">maxIter</span><span class="o">=</span><span class="n">maxIter</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.shortestPaths">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.shortestPaths">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shortestPaths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">landmarks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the shortest path algorithm from a set of landmark vertices in the graph.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param landmarks: a set of one or more landmarks</span>
+<span class="sd">        :return: DataFrame with new vertices column &quot;distances&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">shortestPaths</span><span class="p">(</span><span class="n">landmarks</span><span class="o">=</span><span class="n">landmarks</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.stronglyConnectedComponents">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.stronglyConnectedComponents">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stronglyConnectedComponents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">maxIter</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the strongly connected components algorithm on this graph.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :param maxIter: the number of iterations to run</span>
+<span class="sd">        :return: DataFrame with new vertex column &quot;component&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">stronglyConnectedComponents</span><span class="p">(</span><span class="n">maxIter</span><span class="o">=</span><span class="n">maxIter</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.svdPlusPlus">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.svdPlusPlus">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">svdPlusPlus</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">maxIter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">minValue</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">maxValue</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+        <span class="n">gamma1</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.007</span><span class="p">,</span>
+        <span class="n">gamma2</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.007</span><span class="p">,</span>
+        <span class="n">gamma6</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.005</span><span class="p">,</span>
+        <span class="n">gamma7</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.015</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the SVD++ algorithm.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :return: Tuple of DataFrame with new vertex columns storing learned model, and loss value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">svdPlusPlus</span><span class="p">(</span>
+            <span class="n">rank</span><span class="o">=</span><span class="n">rank</span><span class="p">,</span>
+            <span class="n">maxIter</span><span class="o">=</span><span class="n">maxIter</span><span class="p">,</span>
+            <span class="n">minValue</span><span class="o">=</span><span class="n">minValue</span><span class="p">,</span>
+            <span class="n">maxValue</span><span class="o">=</span><span class="n">maxValue</span><span class="p">,</span>
+            <span class="n">gamma1</span><span class="o">=</span><span class="n">gamma1</span><span class="p">,</span>
+            <span class="n">gamma2</span><span class="o">=</span><span class="n">gamma2</span><span class="p">,</span>
+            <span class="n">gamma6</span><span class="o">=</span><span class="n">gamma6</span><span class="p">,</span>
+            <span class="n">gamma7</span><span class="o">=</span><span class="n">gamma7</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.triangleCount">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.triangleCount">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">triangleCount</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Counts the number of triangles passing through each vertex in this graph.</span>
+
+<span class="sd">        See Scala documentation for more details.</span>
+
+<span class="sd">        :return:  DataFrame with new vertex column &quot;count&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">triangleCount</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="GraphFrame.powerIterationClustering">
+<a class="viewcode-back" href="../../graphframes.html#graphframes.GraphFrame.powerIterationClustering">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">powerIterationClustering</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">maxIter</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">weightCol</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen.</span>
+<span class="sd">        From the abstract: PIC finds a very low-dimensional embedding of a dataset using truncated power iteration</span>
+<span class="sd">        on a normalized pair-wise similarity matrix of the data.</span>
+
+<span class="sd">        :param k: the numbers of clusters to create</span>
+<span class="sd">        :param maxIter: param for maximum number of iterations (&gt;= 0)</span>
+<span class="sd">        :param weightCol: optional name of weight column, 1.0 is used if not provided</span>
+
+<span class="sd">        :return: DataFrame with new column &quot;cluster&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">powerIterationClustering</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">maxIter</span><span class="p">,</span> <span class="n">weightCol</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_test</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">doctest</span>
+
+    <span class="kn">import</span><span class="w"> </span><span class="nn">graphframe</span>
+
+    <span class="n">globs</span> <span class="o">=</span> <span class="n">graphframe</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">globs</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">master</span><span class="p">(</span><span class="s2">&quot;local[4]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">&quot;PythonTest&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+    <span class="p">(</span><span class="n">failure_count</span><span class="p">,</span> <span class="n">test_count</span><span class="p">)</span> <span class="o">=</span> <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">(</span>
+        <span class="n">globs</span><span class="o">=</span><span class="n">globs</span><span class="p">,</span> <span class="n">optionflags</span><span class="o">=</span><span class="n">doctest</span><span class="o">.</span><span class="n">ELLIPSIS</span> <span class="o">|</span> <span class="n">doctest</span><span class="o">.</span><span class="n">NORMALIZE_WHITESPACE</span>
+    <span class="p">)</span>
+    <span class="n">globs</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">failure_count</span><span class="p">:</span>
+        <span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">_test</span><span class="p">()</span>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.graphframe</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, Timothy Hunter and Joseph Bradley.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>
