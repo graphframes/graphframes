@@ -75,6 +75,7 @@ jobs:
         run: jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           SKIP_SCALADOC: 0
+          SKIP_PYTHONDOC: 0
           PRODUCTION: 1
 
       - name: Upload artifact
