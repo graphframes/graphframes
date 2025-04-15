@@ -106,6 +106,23 @@ class Pregel(JavaWrapper):
         self._java_obj.setCheckpointInterval(int(value))
         return self
 
+    def setEarlyStopping(self, value: bool) -> "Pregel":
+        """
+        Set should Pregel stop earlier in case of no new messages to send or not.
+
+        Early stopping allows to terminate Pregel before reaching maxIter by checking if there are any non-null messages.
+        While in some cases it may gain significant performance boost, in other cases it can lead to performance degradation,
+        because checking if the messages DataFrame is empty or not is an action and requires materialization of the Spark Plan
+        with some additional computations.
+
+        In the case when the user can assume a good value of maxIter, it is recommended to leave this value to the default "false".
+        In the case when it is hard to estimate the number of iterations required for convergence,
+        it is recommended to set this value to "false" to avoid iterating over convergence until reaching maxIter.
+        When this value is "true", maxIter can be set to a bigger value without risks.
+        """  # noqa: E501
+        self._java_obj.setEarlyStopping(bool(value))
+        return self
+
     def withVertexColumn(
         self, colName: str, initialExpr: Any, updateAfterAggMsgsExpr: Any
     ) -> "Pregel":

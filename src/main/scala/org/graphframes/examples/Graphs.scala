@@ -17,14 +17,15 @@
 
 package org.graphframes.examples
 
-import scala.reflect.runtime.universe.TypeTag
-
-import org.apache.spark.SparkContext
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, lit, randn, udf}
-
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.randn
+import org.apache.spark.sql.functions.udf
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
+
+import scala.reflect.runtime.universe.TypeTag
 
 class Graphs private[graphframes] () {
   // Note: this cannot be values: we are creating and destroying spark contexts during the tests,
@@ -103,7 +104,7 @@ class Graphs private[graphframes] () {
       v1 <- n until (2 * n)
       v2 <- n until (2 * n)
     } yield (v1.toLong, v2.toLong, s"$v1-$v2")
-    val edges = edges1 ++ edges2 :+ (0L, n.toLong, s"0-$n")
+    val edges = edges1 ++ edges2 ++ Seq((0L, n.toLong, s"0-$n"))
     val vertices = (0 until (2 * n)).map { v => (v.toLong, s"$v", v) }
     val e = spark.createDataFrame(edges).toDF("src", "dst", "e_attr1")
     val v = spark.createDataFrame(vertices).toDF("id", "v_attr1", "v_attr2")

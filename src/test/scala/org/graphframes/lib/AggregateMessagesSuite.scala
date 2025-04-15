@@ -17,12 +17,13 @@
 
 package org.graphframes.lib
 
-import scala.collection.mutable
-
 import org.apache.spark.sql.functions._
-
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.GraphFramesUnreachableException
+import org.graphframes.SparkFunSuite
 import org.graphframes.examples.Graphs
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
+
+import scala.collection.mutable
 
 class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -43,8 +44,10 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     val aggMap: Map[String, Long] = agg
       .select("id", "summedAges")
       .collect()
-      .map { case Row(id: String, s: Long) =>
-        id -> s
+      .map {
+        case Row(id: String, s: Long) =>
+          id -> s
+        case _: Row => throw new GraphFramesUnreachableException()
       }
       .toMap
     // Compute the truth via brute force for comparison.
@@ -52,8 +55,10 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
       val user2age = g.vertices
         .select("id", "age")
         .collect()
-        .map { case Row(id: String, age: Int) =>
-          id -> age
+        .map {
+          case Row(id: String, age: Int) =>
+            id -> age
+          case _: Row => throw new GraphFramesUnreachableException()
         }
         .toMap
       val a = mutable.HashMap.empty[String, Int]
@@ -63,6 +68,7 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
             src,
             a.getOrElse(src, 0) + user2age(dst) + (if (relationship == "friend") 1 else 0))
           a.put(dst, a.getOrElse(dst, 0) + user2age(src))
+        case _ => throw new GraphFramesUnreachableException()
       }
       a.toMap
     }
@@ -81,8 +87,10 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     val agg2Map: Map[String, Long] = agg2
       .select("id", "summedAges")
       .collect()
-      .map { case Row(id: String, s: Long) =>
-        id -> s
+      .map {
+        case Row(id: String, s: Long) =>
+          id -> s
+        case _: Row => throw new GraphFramesUnreachableException()
       }
       .toMap
     // Compare to the true values.

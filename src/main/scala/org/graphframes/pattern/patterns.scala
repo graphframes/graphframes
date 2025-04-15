@@ -17,9 +17,11 @@
 
 package org.graphframes.pattern
 
+import org.graphframes.GraphFramesUnreachableException
+import org.graphframes.InvalidParseException
+
 import scala.collection.mutable
 import scala.util.parsing.combinator._
-import org.graphframes.{GraphFramesUnreachableException, InvalidParseException}
 
 /**
  * Parser for graph patterns for motif finding. Copied from GraphFrames with minor modification.
@@ -79,7 +81,7 @@ private[graphframes] object Pattern {
         if (edgeNames.contains(name)) {
           throw new InvalidParseException(
             s"Motif reused name '$name' for both a vertex and " +
-              s"an edge, which is not allowed.")
+              "an edge, which is not allowed.")
         }
         vertexNames += name
       case AnonymousVertex => // pass
@@ -89,12 +91,12 @@ private[graphframes] object Pattern {
         if (vertexNames.contains(name)) {
           throw new InvalidParseException(
             s"Motif reused name '$name' for both a vertex and " +
-              s"an edge, which is not allowed.")
+              "an edge, which is not allowed.")
         }
         if (edgeNames.contains(name)) {
           throw new InvalidParseException(
             s"Motif reused name '$name' for multiple edges, " +
-              s"which is not allowed.")
+              "which is not allowed.")
         }
         edgeNames += name
         addVertex(src)
@@ -109,20 +111,21 @@ private[graphframes] object Pattern {
         edge match {
           case NamedEdge(name, src, dst) =>
             throw new InvalidParseException(
-              s"Motif finding does not support negated named " +
+              "Motif finding does not support negated named " +
                 s"edges, but the given pattern contained: !($src)-[$name]->($dst)")
           case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
-            throw new InvalidParseException(s"Motif finding does not support completely " +
-              s"anonymous negated edges !()-[]->().  Users can check for 0 edges in the graph " +
-              s"using the edges DataFrame.")
+            throw new InvalidParseException(
+              "Motif finding does not support completely " +
+                "anonymous negated edges !()-[]->().  Users can check for 0 edges in the graph " +
+                "using the edges DataFrame.")
           case e @ AnonymousEdge(_, _) =>
             addEdge(e)
         }
       case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
         throw new InvalidParseException(
-          s"Motif finding does not support completely " +
-            s"anonymous edges ()-[]->().  Users can check for the existence of edges in the " +
-            s"graph using the edges DataFrame.")
+          "Motif finding does not support completely " +
+            "anonymous edges ()-[]->().  Users can check for the existence of edges in the " +
+            "graph using the edges DataFrame.")
       case e @ AnonymousEdge(_, _) =>
         addEdge(e)
       case e @ NamedEdge(_, _, _) =>

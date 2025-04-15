@@ -25,3 +25,11 @@ repos:
         language: system
         types: [scala]
         pass_filenames: false
+
+      - id: scalafix
+        name: scalafix
+        entry: build/sbt scalafixAll
+        language: system
+        types: [scala]
+        pass_filenames: false
+

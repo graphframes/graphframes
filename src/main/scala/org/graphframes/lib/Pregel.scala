@@ -17,13 +17,18 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.explode
+import org.apache.spark.sql.functions.struct
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 
-import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{array, col, explode, struct}
+import java.io.IOException
+import scala.util.control.Breaks.break
+import scala.util.control.Breaks.breakable
 
 /**
  * Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
@@ -79,11 +84,10 @@ class Pregel(val graph: GraphFrame) {
 
   private var maxIter: Int = 10
   private var checkpointInterval = 2
+  private var earlyStopping = false
 
-  private var sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
+  private val sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
-
-  private val CHECKPOINT_NAME_PREFIX = "pregel"
 
   /** Sets the max number of iterations (default: 10). */
   def setMaxIter(value: Int): this.type = {
@@ -101,6 +105,30 @@ class Pregel(val graph: GraphFrame) {
    */
   def setCheckpointInterval(value: Int): this.type = {
     checkpointInterval = value
+    this
+  }
+
+  /**
+   * Should Pregel stop earlier in case of no new messages to send?
+   *
+   * Early stopping allows to terminate Pregel before reaching maxIter by checking is there any
+   * non-null message or not. While in some cases it may gain significant performance boost, it
+   * other cases it can tend to performance degradation, because checking is messages DataFrame is
+   * empty or not is an action and requires materialization of the Spark Plan with some additional
+   * computations.
+   *
+   * In the case when user can assume a good value of maxIter it is recommended to leave this
+   * value to the default "false". In the case when it is hard to estimate an amount of iterations
+   * required for convergence, it is recommended to set this value to "false" to avoid iterating
+   * over convergence until reaching maxIter. When this value is "true", maxIter can be set to a
+   * bigger value without risks.
+   *
+   * @param value
+   *   should Pregel checks for the termination condition on each step
+   * @return
+   */
+  def setEarlyStopping(value: Boolean): this.type = {
+    earlyStopping = value
     this
   }
 
@@ -231,54 +259,63 @@ class Pregel(val graph: GraphFrame) {
 
     val shouldCheckpoint = checkpointInterval > 0
 
-    while (iteration <= maxIter) {
-      val tripletsDF = currentVertices
-        .select(struct(col("*")).as(SRC))
-        .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
-        .join(
-          currentVertices.select(struct(col("*")).as(DST)),
-          Pregel.edge(DST) === Pregel.dst(ID))
+    if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
+      // Spark Connect workaround
+      graph.spark.conf.getOption("spark.checkpoint.dir") match {
+        case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
+        case None =>
+          throw new IOException(
+            "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
+              "or by specifying the conf 'spark.checkpoint.dir'.")
+      }
+    }
 
-      var msgDF: DataFrame = tripletsDF
-        .select(explode(array(sendMsgsColList: _*)).as("msg"))
-        .select(col("msg.id"), col("msg.msg").as(Pregel.MSG_COL_NAME))
+    breakable {
+      while (iteration <= maxIter) {
+        val tripletsDF = currentVertices
+          .select(struct(col("*")).as(SRC))
+          .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
+          .join(
+            currentVertices.select(struct(col("*")).as(DST)),
+            Pregel.edge(DST) === Pregel.dst(ID))
 
-      val newAggMsgDF = msgDF
-        .filter(Pregel.msg.isNotNull)
-        .groupBy(ID)
-        .agg(aggMsgsCol.as(Pregel.MSG_COL_NAME))
+        val msgDF: DataFrame = tripletsDF
+          .select(explode(array(sendMsgsColList: _*)).as("msg"))
+          .select(col("msg.id"), col("msg.msg").as(Pregel.MSG_COL_NAME))
+          .filter(Pregel.msg.isNotNull)
 
-      val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
-
-      var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
-
-      if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
-        // Spark Connect workaround
-        graph.spark.conf.getOption("spark.checkpoint.dir") match {
-          case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
-          case None =>
-            throw new IOException(
-              "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
-                "or by specifying the conf 'spark.checkpoint.dir'.")
+        if (earlyStopping && msgDF.isEmpty) {
+          if (vertexUpdateColDF != null) {
+            vertexUpdateColDF.unpersist()
+          }
+          break()
         }
+
+        val newAggMsgDF = msgDF
+          .groupBy(ID)
+          .agg(aggMsgsCol.as(Pregel.MSG_COL_NAME))
+
+        val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
+
+        var newVertexUpdateColDF = verticesWithMsg.select((col(ID) :: updateVertexCols): _*)
+
+        if (shouldCheckpoint && iteration % checkpointInterval == 0) {
+          // do checkpoint, use lazy checkpoint because later we will materialize this DF.
+          newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
+          // TODO: remove last checkpoint file.
+        }
+        newVertexUpdateColDF.cache()
+        newVertexUpdateColDF.count() // materialize it
+
+        if (vertexUpdateColDF != null) {
+          vertexUpdateColDF.unpersist()
+        }
+        vertexUpdateColDF = newVertexUpdateColDF
+
+        currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
+
+        iteration += 1
       }
-
-      if (shouldCheckpoint && iteration % checkpointInterval == 0) {
-        // do checkpoint, use lazy checkpoint because later we will materialize this DF.
-        newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
-        // TODO: remove last checkpoint file.
-      }
-      newVertexUpdateColDF.cache()
-      newVertexUpdateColDF.count() // materialize it
-
-      if (vertexUpdateColDF != null) {
-        vertexUpdateColDF.unpersist()
-      }
-      vertexUpdateColDF = newVertexUpdateColDF
-
-      currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
-
-      iteration += 1
     }
 
     currentVertices

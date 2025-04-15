@@ -18,7 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
-import org.graphframes.{GraphFrame, Logging}
+import org.graphframes.GraphFrame
 
 /**
  * Parallel Personalized PageRank algorithm implementation.
@@ -77,8 +77,8 @@ class ParallelPersonalizedPageRank private[graphframes] (private val graph: Grap
   }
 
   def run(): GraphFrame = {
-    require(maxIter != None, s"Max number of iterations maxIter() must be provided")
-    require(srcIds.nonEmpty, s"Source vertices Ids sourceIds() must be provided")
+    require(maxIter != None, "Max number of iterations maxIter() must be provided")
+    require(srcIds.nonEmpty, "Source vertices Ids sourceIds() must be provided")
     ParallelPersonalizedPageRank.run(graph, maxIter.get, resetProb.get, srcIds)
   }
 }
