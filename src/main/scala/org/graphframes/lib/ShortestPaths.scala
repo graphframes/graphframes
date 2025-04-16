@@ -39,6 +39,7 @@ import org.graphframes.GraphFrame.quote
 import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
+import org.graphframes.WithCheckpointInterval
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -54,7 +55,8 @@ import scala.jdk.CollectionConverters._
  */
 class ShortestPaths private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with WithAlgorithmChoice {
+    with WithAlgorithmChoice
+    with WithCheckpointInterval {
   import org.graphframes.lib.ShortestPaths._
 
   private var lmarks: Option[Seq[Any]] = None
@@ -79,7 +81,7 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
     val lmarksChecked = check(lmarks, "landmarks")
     algorithm match {
       case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked)
-      case ALGO_GRAPHFRAMES => runInGraphFrames(graph, lmarksChecked)
+      case ALGO_GRAPHFRAMES => runInGraphFrames(graph, lmarksChecked, checkpointInterval)
       case _ => throw new GraphFramesUnreachableException()
     }
   }
@@ -125,6 +127,7 @@ private object ShortestPaths extends Logging {
   private def runInGraphFrames(
       graph: GraphFrame,
       landmarks: Seq[Any],
+      checkpointInterval: Int,
       isDirected: Boolean = true): DataFrame = {
     logWarn("The GraphFrames based implementation is slow and considered experimental!")
     val vertexType = graph.vertices.schema(GraphFrame.ID).dataType
@@ -192,6 +195,12 @@ private object ShortestPaths extends Logging {
     val srcDistanceCol = Pregel.src(DISTANCE_ID)
     val dstDistanceCol = Pregel.dst(DISTANCE_ID)
 
+    // Initial active-vertex col expression: only landmarks
+    val initialActiveVerticesExpr = col(GraphFrame.ID).isInCollection(landmarks)
+
+    // Mark vertex as active only in the case idstance changed
+    val updateActiveVierticesExpr = isDistanceImprovedWithMessage(Pregel.msg, col(DISTANCE_ID))
+
     // Overall:
     // 1. Initialize distances
     // 2. If new message can improve distances send it
@@ -208,6 +217,10 @@ private object ShortestPaths extends Logging {
         incrementDistances(dstDistanceCol)))
       .aggMsgs(aggregateArrayOfDistanceMaps(collect_list(Pregel.msg)))
       .setEarlyStopping(true)
+      .setInitialActiveVertexExpression(initialActiveVerticesExpr)
+      .setUpdateActiveVertexExpression(updateActiveVierticesExpr)
+      .setStopIfAllNonActiveVertices(true)
+      .setSkipMessagesFromNonActiveVertices(true)
 
     // Experimental feature
     if (isDirected) {
