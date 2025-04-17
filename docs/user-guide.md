@@ -903,7 +903,7 @@ sameG = GraphFrame(sameV, sameE)
 
 # Pregel Message passing via AggregateMessages
 
-Like GraphX, GraphFrames provides primitives for developing graph algorithms using [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf).
+Like GraphX, GraphFrames provides primitives for developing graph algorithms using [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf), a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) algorithm for distributed graph processing. See `Malewicz et al., Pregel: a system for large-scale graph processing <https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf>` for a detailed description of the Pregel algorithm.
 
 The two key components are:
 
