@@ -901,9 +901,10 @@ sameG = GraphFrame(sameV, sameE)
 
 </div>
 
-# Message passing via AggregateMessages
+# Pregel Message passing via AggregateMessages
 
-Like GraphX, GraphFrames provides primitives for developing graph algorithms.
+Like GraphX, GraphFrames provides primitives for developing graph algorithms using [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf).
+
 The two key components are:
 
 * `aggregateMessages`: Send messages between vertices, and aggregate messages for each vertex.
