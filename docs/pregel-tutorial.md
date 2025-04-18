@@ -10,19 +10,17 @@ This tutorial covers GraphFrames' aggregateMessages API for developing graph alg
 * Table of contents (This text will be scraped.)
   {:toc}
 
-<h1 id="pregel">What is Pregel?</h1>
+<h2 id="pregel">What is Pregel?</h2>
 
 Pregel is a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) algorithm for large scale graph processing described in the landmark 2010 paper [Pregel: A System for Large-Scale Graph Processing](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) from Grzegorz Malewicz, Matthew H. Austern, Aart J. C. Bik, James C. Dehnert, Ilan Horn, Naty Leiser, and Grzegorz Czajkowski at Google.
 
-<h1 id="stackexchange">Tutorial Dataset</h1>
+<h2 id="stackexchange">Tutorial Dataset</h2>
 
 As in the [Network Motif Tutorial](motif-tutorial.html#download-the-stack-exchange-dump-for-statsmeta), we will work with the [Stack Exchange Data Dump hosted at the Internet Archive](https://archive.org/details/stackexchange) using PySpark to build a property graph. To generate the knowledge graph for this tutorial, please refer to the [motif finding tutorial](motif-tutorial.html#download-the-stack-exchange-dump-for-statsmeta) before moving on to the next section.
 
-<h1 id="inDegree">In-Degree in Pregel with aggreagateMessages</h1>
+<h2 id="inDegree">In-Degree in Pregel with aggreagateMessages</h2>
 
-We begin with the simplest algorithm Pregel can run: computing the in-degree of every node in the graph.
-
-First let's load our stats.meta knowledge graph and setup a SparkSession:
+We begin with the simplest algorithm Pregel can run: computing the in-degree of every node in the graph. Let's start by loading our stats.meta knowledge graph and creating a SparkSession:
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
@@ -39,22 +37,12 @@ spark: SparkSession = (
     .config("spark.sql.caseSensitive", True)
     .getOrCreate()
 )
-sc: SparkContext = spark.sparkContext
-sc.setCheckpointDir("/tmp/graphframes-checkpoints")
-
-# Change me if you download a different stackexchange site
-STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
-NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
-nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
+nodes_df: DataFrame = spark.read.parquet("python/graphframes/tutorials/data/stats.meta.stackexchange.com/Nodes.parquet")
 
 # We created these in stackexchange.py from Stack Exchange data dump XML files
-EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
-edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
-
-
+edges_df: DataFrame = spark.read.parquet("python/graphframes/tutorials/data/stats.meta.stackexchange.com/Edges.parquet")
 {% endhighlight %}
 </div>
 
@@ -73,6 +61,66 @@ agg = g.aggregateMessages(
     F.sum(AM.msg).alias("in_degree"),
     sendToDst=msgToDst)
 agg.show()
+{% endhighlight %}
+</div>
+
+There's a problem, however - isolated or dangling nodes (those with no in-links) will not have degree zero, they simply won't appear in the data. You can see below the lowest in_degree is 1, not 0. There are definitely some 0 in-degree nodes in our knowledge graph.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+agg.groupBy("in_degree").count().orderBy("in_degree").show(10)
+
++---------+-----+
+|in_degree|count|
++---------+-----+
+|        1|43165|
+|        2|  341|
+|        3|  218|
+|        4|  289|
+|        5|  326|
+|        6|  371|
+|        7|  318|
+|        8|  338|
+|        9|  304|
+|       10|  299|
++---------+-----+
+{% endhighlight %}
+</div>
+
+Here we LEFT JOIN all of the graph's vertices with the aggregated in-degrees and fill in undefined values with 0.
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# join back and fill zeros
+completeInDeg = (
+    g.vertices
+    .join(agg, on="id", how="left")   # isolates will have inDegree = null
+    .na.fill(0, ["in_degree"])              # turn null → 0
+    .select("id", "in_degree")
+)
+{% endhighlight %}
+</div>
+
+Now a histogram of degrees verifies the zeros have been added:
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+completeInDeg.groupBy("in_degree").count().orderBy("in_degree").show(10)
+
++---------+-----+                                                               
+|in_degree|count|
++---------+-----+
+|        0|81735|
+|        1|43165|
+|        2|  341|
+|        3|  218|
+|        4|  289|
+|        5|  326|
+|        6|  371|
+|        7|  318|
+|        8|  338|
+|        9|  304|
++---------+-----+
 {% endhighlight %}
 </div>
 
@@ -106,7 +154,7 @@ They are, as you can see below :)
 {% endhighlight %}
 </div>
 
-<h1 id="pagerank">Implementing PageRank with aggregateMesssages</h1>
+<h2 id="pagerank">Implementing PageRank with aggregateMesssages</h2>
 
 Let's move on to something more complex. PageRank was defined by Google cofounders Larry Page and Sergey Brin in a landmark 1999 paper <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Rakning: Bringing Order to the Web</a>.
 
