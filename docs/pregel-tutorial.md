@@ -14,11 +14,27 @@ This tutorial covers GraphFrames' aggregateMessages API for developing graph alg
 
 Pregel is a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) algorithm for large scale graph processing described in the landmark 2010 paper [Pregel: A System for Large-Scale Graph Processing](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) from Grzegorz Malewicz, Matthew H. Austern, Aart J. C. Bik, James C. Dehnert, Ilan Horn, Naty Leiser, and Grzegorz Czajkowski at Google.
 
+<blockquote>
+    <p>Pregel is essentially a message-passing interface constrained to the edges of a graph. The idea
+is to "think like a vertex" - algorithms within the Pregel framework are algorithms in which the
+computation of state for a given node depends only on the states of its neighbours.</p>
+    <footer>
+    — <span cite="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Spring 2015, Reza Zadeh, Databricks and Stanford</span>
+    </footer>
+</blockquote>
+
+<center>
+    <figure>
+        <img src="img/Pregel-Compute-Dataflow.png" width="800px" />
+        <figcaption><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Spring 2015, Reza Zadeh, Databricks and Stanford</a></figcaption>
+    </figure>
+</center>
+
 <h2 id="stackexchange">Tutorial Dataset</h2>
 
 As in the [Network Motif Tutorial](motif-tutorial.html#download-the-stack-exchange-dump-for-statsmeta), we will work with the [Stack Exchange Data Dump hosted at the Internet Archive](https://archive.org/details/stackexchange) using PySpark to build a property graph. To generate the knowledge graph for this tutorial, please refer to the [motif finding tutorial](motif-tutorial.html#download-the-stack-exchange-dump-for-statsmeta) before moving on to the next section.
 
-<h2 id="inDegree">In-Degree in Pregel with aggreagateMessages</h2>
+<h2 id="inDegree">In-Degree in Pregel with AggreagateMessages</h2>
 
 We begin with the simplest algorithm Pregel can run: computing the in-degree of every node in the graph. Let's start by loading our stats.meta knowledge graph and creating a SparkSession:
 
@@ -160,7 +176,7 @@ Let's move on to something more complex. PageRank was defined by Google cofounde
 
 <center>
     <figure>
-        <img src="img/Simplified-PageRank-Calculation.jpg" width="800px" />
+        <img src="img/Simplified-PageRank-Calculation.png" width="550px" />
         <figcaption>A Simplified PageRank Calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">PageRank paper</a></figcaption>
     </figure>
 </center>
@@ -197,6 +213,6 @@ agg.show()
 
 <h2 id="combine-node-types">Combining Node Types</h2>
 
-<h1 id="conclusion">Conclusion</h1>
+<h2 id="conclusion">Conclusion</h2>
 
 In this tutorial, we learned to use GraphFrames' Pregel API.
