@@ -698,8 +698,7 @@ There are two implementations of PageRank.
 
 * The first one uses the `org.apache.spark.graphx.graph` interface with `aggregateMessages` and runs
 PageRank for a fixed number of iterations. This can be executed by setting `maxIter`.
-* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank until
-convergence and this can be run by setting `tol`.
+* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank until convergence and this can be run by setting `tol`.
 
 Both implementations support non-personalized and personalized PageRank, where setting a `sourceId`
 personalizes the results for that vertex.
@@ -901,19 +900,18 @@ sameG = GraphFrame(sameV, sameE)
 
 </div>
 
-# Pregel Message passing via AggregateMessages
+# Message passing via AggregateMessages
 
 Like GraphX, GraphFrames provides primitives for developing graph algorithms using [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf), a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) algorithm for distributed graph processing. See `Malewicz et al., Pregel: a system for large-scale graph processing <https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf>` for a detailed description of the Pregel algorithm.
 
 The two key components are:
 
-* `aggregateMessages`: Send messages between vertices, and aggregate messages for each vertex.
+* `AggregateMessages`: Send messages between vertices, and aggregate messages for each vertex.
   GraphFrames provides a native `aggregateMessages` method implemented using DataFrame operations.
-  This may be used analogously to the GraphX API.
-* joins: Join message aggregates with the original graph.
-  GraphFrames rely on `DataFrame` joins, which provide the full functionality of GraphX joins.
+  This may be used analogously to the GraphX API. `AggregateMessages` offers a simplified Pregel API for a single aggregaton column.
+* joins: Join message aggregates with the original graph. GraphFrames rely on `DataFrame` joins, which provide the full functionality of GraphX joins.
 
-The below code snippets show how to use `aggregateMessages` to compute the sum of the ages
+The below code snippets show how to use `GraphFrame.aggregateMessages` to compute the sum of the ages
 of adjacent users.
 
 <div class="codetabs">
