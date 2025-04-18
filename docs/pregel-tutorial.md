@@ -1,11 +1,11 @@
 ---
 layout: global
-displayTitle: GraphFrames Pregel API Tutorial
+displayTitle: GraphFrames Pregel and AggregateMessages API Tutorial
 title: Pregel API Tutorial
 description: GraphFrames GRAPHFRAMES_VERSION Pregel API Tutorial - HOWTO scale up slow algorithms
 ---
 
-This tutorial covers GraphFrames' aggregateMessages API for developing graph algorithms using [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf), a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) algorithm for distributed graph processing. It teaches you how to write highly scalabe graph algorithms using Pregel.
+This tutorial covers GraphFrames' <a href="https://graphframes.io/api/python/graphframes.lib.html#graphframes.lib.Pregel">Pregel API</a> and <a href="https://graphframes.io/api/python/graphframes.lib.html#graphframes.lib.AggregateMessages">AggregateMessages API</a> for developing highly scalable graph algorithms. [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) is a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) algorithm for distributed graph processing. Pregel and AggregateMessages are similar, and we'll cover the difference and when to use each algorithm.
 
 * Table of contents (This text will be scraped.)
   {:toc}
