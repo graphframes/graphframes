@@ -23,6 +23,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFramesUnreachableException
+import org.graphframes.WithMaxIter
 
 /**
  * Implement SVD++ based on "Factorization Meets the Neighborhood: a Multifaceted Collaborative
@@ -39,9 +40,10 @@ import org.graphframes.GraphFramesUnreachableException
  * Returns a DataFrame with vertex attributes containing the trained model. See the object
  * (static) members for the names of the output columns.
  */
-class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends Arguments {
+class SVDPlusPlus private[graphframes] (private val graph: GraphFrame)
+    extends Arguments
+    with WithMaxIter {
   private var _rank: Int = 10
-  private var _maxIter: Int = 2
   private var _minVal: Double = 0.0
   private var _maxVal: Double = 5.0
   private var _gamma1: Double = 0.007
@@ -53,11 +55,6 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
 
   def rank(value: Int): this.type = {
     _rank = value
-    this
-  }
-
-  def maxIter(value: Int): this.type = {
-    _maxIter = value
     this
   }
 
@@ -94,7 +91,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame) extends A
   def run(): DataFrame = {
     val conf = new graphxlib.SVDPlusPlus.Conf(
       rank = _rank,
-      maxIters = _maxIter,
+      maxIters = maxIter.getOrElse(2),
       minVal = _minVal,
       maxVal = _maxVal,
       gamma1 = _gamma1,

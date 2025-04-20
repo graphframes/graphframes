@@ -54,3 +54,15 @@ private[graphframes] trait WithCheckpointInterval extends Logging {
    */
   def getCheckpointInterval: Int = checkpointInterval
 }
+
+private[graphframes] trait WithMaxIter {
+  protected var maxIter: Option[Int] = None
+
+  /**
+   * The max number of iterations of algorithm to be performed.
+   */
+  def maxIter(value: Int): this.type = {
+    maxIter = Some(value)
+    this
+  }
+}

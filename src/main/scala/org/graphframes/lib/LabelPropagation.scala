@@ -20,6 +20,7 @@ package org.graphframes.lib
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
 import org.graphframes.GraphFrame
+import org.graphframes.WithMaxIter
 
 /**
  * Run static Label Propagation for detecting communities in networks.
@@ -35,18 +36,9 @@ import org.graphframes.GraphFrame
  * The resulting DataFrame contains all the original vertex information and one additional column:
  *   - label (`LongType`): label of community affiliation
  */
-class LabelPropagation private[graphframes] (private val graph: GraphFrame) extends Arguments {
-
-  private var maxIter: Option[Int] = None
-
-  /**
-   * The max number of iterations of LPA to be performed. Because this is a static implementation,
-   * the algorithm will run for exactly this many iterations.
-   */
-  def maxIter(value: Int): this.type = {
-    maxIter = Some(value)
-    this
-  }
+class LabelPropagation private[graphframes] (private val graph: GraphFrame)
+    extends Arguments
+    with WithMaxIter {
 
   def run(): DataFrame = {
     LabelPropagation.run(graph, check(maxIter, "maxIter"))

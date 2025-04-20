@@ -19,6 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.graphframes.GraphFrame
+import org.graphframes.WithMaxIter
 
 /**
  * Parallel Personalized PageRank algorithm implementation.
@@ -52,10 +53,10 @@ import org.graphframes.GraphFrame
  *   - weight (`DoubleType`): the normalized weight of this edge after running PageRank
  */
 class ParallelPersonalizedPageRank private[graphframes] (private val graph: GraphFrame)
-    extends Arguments {
+    extends Arguments
+    with WithMaxIter {
 
   private var resetProb: Option[Double] = Some(0.15)
-  private var maxIter: Option[Int] = None
   private var srcIds: Array[Any] = Array()
 
   /** Source vertices for a Personalized Page Rank */
@@ -67,12 +68,6 @@ class ParallelPersonalizedPageRank private[graphframes] (private val graph: Grap
   /** Reset probability "alpha" */
   def resetProbability(value: Double): this.type = {
     resetProb = Some(value)
-    this
-  }
-
-  /** Number of iterations to run */
-  def maxIter(value: Int): this.type = {
-    this.maxIter = Some(value)
     this
   }
 

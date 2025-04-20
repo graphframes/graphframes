@@ -27,6 +27,7 @@ import org.graphframes.GraphFrame
 import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithMaxIter
 
 import java.io.IOException
 import java.math.BigDecimal
@@ -45,7 +46,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Logging
     with WithAlgorithmChoice
-    with WithCheckpointInterval {
+    with WithCheckpointInterval
+    with WithMaxIter {
 
   private var broadcastThreshold: Int = 1000000
   setAlgorithm(ALGO_GRAPHFRAMES)
@@ -105,7 +107,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
       runInGraphX = algorithm == ALGO_GRAPHX,
       broadcastThreshold = broadcastThreshold,
       checkpointInterval = checkpointInterval,
-      intermediateStorageLevel = intermediateStorageLevel)
+      intermediateStorageLevel = intermediateStorageLevel,
+      maxIter = maxIter)
   }
 }
 
@@ -205,9 +208,9 @@ object ConnectedComponents extends Logging {
     new ConnectedComponents(graph).run()
   }
 
-  private def runGraphX(graph: GraphFrame): DataFrame = {
+  private def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
     val components =
-      org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX)
+      org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
     GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
   }
 
@@ -216,9 +219,10 @@ object ConnectedComponents extends Logging {
       runInGraphX: Boolean,
       broadcastThreshold: Int,
       checkpointInterval: Int,
-      intermediateStorageLevel: StorageLevel): DataFrame = {
+      intermediateStorageLevel: StorageLevel,
+      maxIter: Option[Int]): DataFrame = {
     if (runInGraphX) {
-      return runGraphX(graph)
+      return runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
     }
 
     val spark = graph.spark
