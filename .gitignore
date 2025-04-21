@@ -47,3 +47,6 @@ python/graphframes/resources/*
 
 # tmp data for spark connect
 tmp/*
+
+# Table metadata
+spark-warehouse
