@@ -17,6 +17,7 @@ GRAPHFRAMES_VERSION = "0.8.4"
 if __name__ == "__main__":
     prj_root = Path(__file__).parent.parent.parent
     scala_root = prj_root.joinpath("graphframes-connect")
+    spark_major_version = SPARK_VERSION[0]
 
     print("Build Graphframes...")
     os.chdir(prj_root)
@@ -88,7 +89,7 @@ if __name__ == "__main__":
     gf_jar = (
         scala_root.joinpath("target")
         .joinpath(f"scala-{SCALA_VERSION}")
-        .joinpath(f"graphframes-connect-assembly-{GRAPHFRAMES_VERSION}.jar")
+        .joinpath(f"graphframes-connect-spark-{spark_major_version}-assembly-{GRAPHFRAMES_VERSION}.jar")
     )
     shutil.copyfile(gf_jar, spark_home.joinpath(gf_jar.name))
     checkpoint_dir = Path("/tmp/GFTestsCheckpointDir")
