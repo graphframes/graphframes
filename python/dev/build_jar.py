@@ -8,6 +8,7 @@ def build(spark_version: str = "3.5.4"):
     print("Building GraphFrames JAR...")
     print(f"SPARK_VERSION: {spark_version[:3]}")
     assert spark_version[:3] in {"3.3", "3.4", "3.5"}, "Unsopported spark version!"
+    spark_major_version = spark_version[0]
     project_root = Path(__file__).parent.parent.parent
     sbt_executable = project_root.joinpath("build").joinpath("sbt").absolute().__str__()
     sbt_build_command = [sbt_executable, f"-Dspark.version={spark_version}", "assembly"]
@@ -37,7 +38,7 @@ def build(spark_version: str = "3.5.4"):
     gf_jar = None
 
     for pp in target_dir.glob("*.jar"):
-        if "graphframes-assembly" in pp.name:
+        if f"graphframes-spark-{spark_major_version}-assembly" in pp.name:
             gf_jar = pp
             break
 
