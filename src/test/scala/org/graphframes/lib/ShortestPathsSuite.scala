@@ -17,10 +17,10 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
-
 import org.graphframes.GraphFrame.quote
 import org.graphframes._
 
@@ -98,8 +98,10 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       "distances",
       DataTypes.createMapType(v2.schema("id").dataType, DataTypes.IntegerType, true))
     val newVs = v2.select("id", "distances").collect().toSeq
-    val results = newVs.map { case Row(id: Long, spMap: Map[Long, Int] @unchecked) =>
-      (id, spMap)
+    val results = newVs.map {
+      case Row(id: Long, spMap: Map[Long, Int] @unchecked) =>
+        (id, spMap)
+      case _ => throw new GraphFramesUnreachableException()
     }
     assert(results.toSet === shortestPaths)
   }
@@ -118,8 +120,10 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val results = v
       .select("id", "distances")
       .collect()
-      .map { case Row(id: String, spMap: Map[String, Int] @unchecked) =>
-        (id, spMap)
+      .map {
+        case Row(id: String, spMap: Map[String, Int] @unchecked) =>
+          (id, spMap)
+        case _ => throw new GraphFramesUnreachableException()
       }
       .toSet
     assert(results === expected)
@@ -139,8 +143,10 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val results = v
       .select("id", "distances")
       .collect()
-      .map { case Row(id: String, spMap: Map[String, Int] @unchecked) =>
-        (id, spMap)
+      .map {
+        case Row(id: String, spMap: Map[String, Int] @unchecked) =>
+          (id, spMap)
+        case _ => throw new GraphFramesUnreachableException()
       }
       .toSet
     assert(results === expected)

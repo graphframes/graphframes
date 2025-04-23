@@ -17,18 +17,21 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-import java.math.BigDecimal
-import java.util.UUID
-
 import org.apache.hadoop.fs.Path
-
-import org.graphframes.{GraphFrame, Logging}
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
+import org.graphframes.GraphFrame
+import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
+import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithMaxIter
+
+import java.io.IOException
+import java.math.BigDecimal
+import java.util.UUID
 
 /**
  * Connected Components algorithm.
@@ -42,9 +45,9 @@ import org.graphframes.WithAlgorithmChoice
 class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Logging
-    with WithAlgorithmChoice {
-
-  import org.graphframes.lib.ConnectedComponents._
+    with WithAlgorithmChoice
+    with WithCheckpointInterval
+    with WithMaxIter {
 
   private var broadcastThreshold: Int = 1000000
   setAlgorithm(ALGO_GRAPHFRAMES)
@@ -74,43 +77,10 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    */
   def getBroadcastThreshold: Int = broadcastThreshold
 
-  private var checkpointInterval: Int = 2
-
-  /**
-   * Sets checkpoint interval in terms of number of iterations (default: 2). Checkpointing
-   * regularly helps recover from failures, clean shuffle files, shorten the lineage of the
-   * computation graph, and reduce the complexity of plan optimization. As of Spark 2.0, the
-   * complexity of plan optimization would grow exponentially without checkpointing. Hence,
-   * disabling or setting longer-than-default checkpoint intervals are not recommended. Checkpoint
-   * data is saved under `org.apache.spark.SparkContext.getCheckpointDir` with prefix
-   * "connected-components". If the checkpoint directory is not set, this throws a
-   * `java.io.IOException`. Set a nonpositive value to disable checkpointing. This parameter is
-   * only used when the algorithm is set to "graphframes". Its default value might change in the
-   * future.
-   * @see
-   *   `org.apache.spark.SparkContext.setCheckpointDir` in Spark API doc
-   */
-  def setCheckpointInterval(value: Int): this.type = {
-    if (value <= 0 || value > 2) {
-      logWarn(
-        s"Set checkpointInterval to $value. This would blow up the query plan and hang the " +
-          "driver for large graphs.")
-    }
-    checkpointInterval = value
-    this
-  }
-
   // python-friendly setter
   private[graphframes] def setCheckpointInterval(value: java.lang.Integer): this.type = {
     setCheckpointInterval(value.toInt)
   }
-
-  /**
-   * Gets checkpoint interval.
-   * @see
-   *   [[org.graphframes.lib.ConnectedComponents.setCheckpointInterval]]
-   */
-  def getCheckpointInterval: Int = checkpointInterval
 
   private var intermediateStorageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
 
@@ -137,7 +107,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
       runInGraphX = algorithm == ALGO_GRAPHX,
       broadcastThreshold = broadcastThreshold,
       checkpointInterval = checkpointInterval,
-      intermediateStorageLevel = intermediateStorageLevel)
+      intermediateStorageLevel = intermediateStorageLevel,
+      maxIter = maxIter)
   }
 }
 
@@ -237,9 +208,9 @@ object ConnectedComponents extends Logging {
     new ConnectedComponents(graph).run()
   }
 
-  private def runGraphX(graph: GraphFrame): DataFrame = {
+  private def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
     val components =
-      org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX)
+      org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
     GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
   }
 
@@ -248,9 +219,10 @@ object ConnectedComponents extends Logging {
       runInGraphX: Boolean,
       broadcastThreshold: Int,
       checkpointInterval: Int,
-      intermediateStorageLevel: StorageLevel): DataFrame = {
+      intermediateStorageLevel: StorageLevel,
+      maxIter: Option[Int]): DataFrame = {
     if (runInGraphX) {
-      return runGraphX(graph)
+      return runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
     }
 
     val spark = graph.spark

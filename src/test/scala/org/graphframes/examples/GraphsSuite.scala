@@ -17,7 +17,8 @@
 
 package org.graphframes.examples
 
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
 
 class GraphsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
