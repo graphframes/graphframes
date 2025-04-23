@@ -182,7 +182,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         case status if status.isDirectory =>
           fs.listStatus(status.getPath).map(_.getPath.toString)
         case status => Seq(status.getPath.toString)
-      }.toSet
+      }
+      .toSet
   }
 
   test("checkpoint interval") {
