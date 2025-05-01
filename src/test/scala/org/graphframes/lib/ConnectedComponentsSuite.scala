@@ -264,6 +264,23 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(spark.sparkContext.getPersistentRDDs.size === priorCachedDFsSize)
   }
 
+  test("set configuration from spark conf") {
+    spark.conf.set("spark.graphframes.connectedComponents.algorithm", "GRAPHX")
+    assert(Graphs.friends.connectedComponents.getAlgorithm == "graphx")
+
+    spark.conf.set("spark.graphframes.connectedComponents.broadcastthreshold", "1000")
+    assert(Graphs.friends.connectedComponents.getBroadcastThreshold == 1000)
+
+    spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", "5")
+    assert(Graphs.friends.connectedComponents.getCheckpointInterval == 5)
+
+    spark.conf.set(
+      "spark.graphframes.connectedComponents.intermediatestoragelevel",
+      "memory_only")
+    assert(
+      Graphs.friends.connectedComponents.getIntermediateStorageLevel == StorageLevel.MEMORY_ONLY)
+  }
+
   private def assertComponents[T: ClassTag: TypeTag](
       actual: DataFrame,
       expected: Set[Set[T]]): Unit = {
