@@ -1,8 +1,8 @@
 package org.graphframes
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.types.{DataType, StructType}
-
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.StructType
 import org.graphframes.GraphFrame._
 
 object TestUtils {
@@ -17,7 +17,7 @@ object TestUtils {
       case None =>
         throw new IllegalArgumentException(
           s"Spark tried to parse '$sparkVersion' as a Spark" +
-            s" version string, but it could not find the major and minor version numbers.")
+            " version string, but it could not find the major and minor version numbers.")
     }
   }
 

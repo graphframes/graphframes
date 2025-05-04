@@ -2,16 +2,23 @@
 // Same about Column helper object.
 package org.apache.spark.sql.graphframes
 
-import scala.jdk.CollectionConverters._
-import org.graphframes.{GraphFrame, GraphFramesUnreachableException}
-import org.graphframes.connect.proto.{ColumnOrExpression, GraphFramesAPI, StringOrLongID}
-import org.graphframes.connect.proto.ColumnOrExpression.ColOrExprCase
-import org.graphframes.connect.proto.GraphFramesAPI.MethodCase
-import org.graphframes.connect.proto.StringOrLongID.IdCase
-import org.apache.spark.sql.{Column, DataFrame, Dataset}
-import org.apache.spark.sql.connect.planner.SparkConnectPlanner
-import org.apache.spark.sql.functions.{col, expr, lit}
 import com.google.protobuf.ByteString
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.connect.planner.SparkConnectPlanner
+import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.functions.lit
+import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesUnreachableException
+import org.graphframes.connect.proto.ColumnOrExpression
+import org.graphframes.connect.proto.ColumnOrExpression.ColOrExprCase
+import org.graphframes.connect.proto.GraphFramesAPI
+import org.graphframes.connect.proto.GraphFramesAPI.MethodCase
+import org.graphframes.connect.proto.StringOrLongID
+import org.graphframes.connect.proto.StringOrLongID.IdCase
+
+import scala.jdk.CollectionConverters._
 
 object GraphFramesConnectUtils {
   private[graphframes] def parseColumnOrExpression(
@@ -173,6 +180,10 @@ object GraphFramesConnectUtils {
         pregel = pregelProto.getSendMsgToDstList.asScala
           .map(parseColumnOrExpression(_, planner))
           .foldLeft(pregel)((p, col) => p.sendMsgToDst(col))
+
+        if (pregelProto.hasEarlyStopping) {
+          pregel = pregel.setEarlyStopping(pregelProto.getEarlyStopping)
+        }
 
         pregel.run()
       }

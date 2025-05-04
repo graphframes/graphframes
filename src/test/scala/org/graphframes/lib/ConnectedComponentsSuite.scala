@@ -17,19 +17,19 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-
-import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
-
-import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.functions.{col, lit}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.storage.StorageLevel
-
-import org.graphframes._
 import org.graphframes.GraphFrame._
+import org.graphframes._
 import org.graphframes.examples.Graphs
+
+import java.io.IOException
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -253,6 +253,17 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  test("not leaking cached data") {
+    val priorCachedDFsSize = spark.sparkContext.getPersistentRDDs.size
+
+    val cc = Graphs.friends.connectedComponents
+    val components = cc.run()
+
+    components.unpersist(blocking = true)
+
+    assert(spark.sparkContext.getPersistentRDDs.size === priorCachedDFsSize)
+  }
+
   private def assertComponents[T: ClassTag: TypeTag](
       actual: DataFrame,
       expected: Set[Set[T]]): Unit = {
@@ -260,7 +271,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // note: not using agg + collect_list because collect_list is not available in 1.6.2 w/o hive
     val actualComponents = actual
       .select("component", "id")
-      .as[(Long, T)]
+      .as[(T, T)]
       .rdd
       .groupByKey()
       .values

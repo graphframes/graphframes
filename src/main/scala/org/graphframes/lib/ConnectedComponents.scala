@@ -17,20 +17,24 @@
 
 package org.graphframes.lib
 
+import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.storage.StorageLevel
+import org.graphframes.GraphFrame
+import org.graphframes.Logging
+import org.graphframes.WithAlgorithmChoice
+import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithMaxIter
+
 import java.io.IOException
 import java.math.BigDecimal
 import java.util.UUID
 
-import org.graphframes.{GraphFrame, Logging}
-
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.DecimalType
-import org.apache.spark.storage.StorageLevel
-
 /**
- * Connected components algorithm.
+ * Connected Components algorithm.
  *
  * Computes the connected component membership of each vertex and returns a DataFrame of vertex
  * information with each vertex assigned a component ID.
@@ -40,11 +44,13 @@ import org.apache.spark.storage.StorageLevel
  */
 class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with Logging {
-
-  import org.graphframes.lib.ConnectedComponents._
+    with Logging
+    with WithAlgorithmChoice
+    with WithCheckpointInterval
+    with WithMaxIter {
 
   private var broadcastThreshold: Int = 1000000
+  setAlgorithm(ALGO_GRAPHFRAMES)
 
   /**
    * Sets broadcast threshold in propagating component assignments (default: 1000000). If a node
@@ -71,71 +77,10 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    */
   def getBroadcastThreshold: Int = broadcastThreshold
 
-  private var algorithm: String = ALGO_GRAPHFRAMES
-
-  /**
-   * Sets the connected components algorithm to use (default: "graphframes"). Supported algorithms
-   * are:
-   *   - "graphframes": Uses alternating large star and small star iterations proposed in
-   *     [[http://dx.doi.org/10.1145/2670979.2670997 Connected Components in MapReduce and Beyond]]
-   *     with skewed join optimization.
-   *   - "graphx": Converts the graph to a GraphX graph and then uses the connected components
-   *     implementation in GraphX.
-   * @see
-   *   [[org.graphframes.lib.ConnectedComponents.supportedAlgorithms]]
-   */
-  def setAlgorithm(value: String): this.type = {
-    require(
-      supportedAlgorithms.contains(value),
-      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $value.")
-    algorithm = value
-    this
-  }
-
-  /**
-   * Gets the connected component algorithm to use.
-   * @see
-   *   [[org.graphframes.lib.ConnectedComponents.setAlgorithm]].
-   */
-  def getAlgorithm: String = algorithm
-
-  private var checkpointInterval: Int = 2
-
-  /**
-   * Sets checkpoint interval in terms of number of iterations (default: 2). Checkpointing
-   * regularly helps recover from failures, clean shuffle files, shorten the lineage of the
-   * computation graph, and reduce the complexity of plan optimization. As of Spark 2.0, the
-   * complexity of plan optimization would grow exponentially without checkpointing. Hence
-   * disabling or setting longer-than-default checkpoint intervals are not recommended. Checkpoint
-   * data is saved under `org.apache.spark.SparkContext.getCheckpointDir` with prefix
-   * "connected-components". If the checkpoint directory is not set, this throws a
-   * `java.io.IOException`. Set a nonpositive value to disable checkpointing. This parameter is
-   * only used when the algorithm is set to "graphframes". Its default value might change in the
-   * future.
-   * @see
-   *   `org.apache.spark.SparkContext.setCheckpointDir` in Spark API doc
-   */
-  def setCheckpointInterval(value: Int): this.type = {
-    if (value <= 0 || value > 2) {
-      logWarn(
-        s"Set checkpointInterval to $value. This would blow up the query plan and hang the " +
-          "driver for large graphs.")
-    }
-    checkpointInterval = value
-    this
-  }
-
   // python-friendly setter
   private[graphframes] def setCheckpointInterval(value: java.lang.Integer): this.type = {
     setCheckpointInterval(value.toInt)
   }
-
-  /**
-   * Gets checkpoint interval.
-   * @see
-   *   [[org.graphframes.lib.ConnectedComponents.setCheckpointInterval]]
-   */
-  def getCheckpointInterval: Int = checkpointInterval
 
   private var intermediateStorageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
 
@@ -159,10 +104,11 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   def run(): DataFrame = {
     ConnectedComponents.run(
       graph,
-      algorithm = algorithm,
+      runInGraphX = algorithm == ALGO_GRAPHX,
       broadcastThreshold = broadcastThreshold,
       checkpointInterval = checkpointInterval,
-      intermediateStorageLevel = intermediateStorageLevel)
+      intermediateStorageLevel = intermediateStorageLevel,
+      maxIter = maxIter)
   }
 }
 
@@ -175,15 +121,6 @@ object ConnectedComponents extends Logging {
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
-
-  private val ALGO_GRAPHX = "graphx"
-  private val ALGO_GRAPHFRAMES = "graphframes"
-
-  /**
-   * Supported algorithms in [[org.graphframes.lib.ConnectedComponents.setAlgorithm]]:
-   * "graphframes" and "graphx".
-   */
-  val supportedAlgorithms: Array[String] = Array(ALGO_GRAPHX, ALGO_GRAPHFRAMES)
 
   /**
    * Returns the symmetric directed graph of the graph specified by input edges.
@@ -271,24 +208,21 @@ object ConnectedComponents extends Logging {
     new ConnectedComponents(graph).run()
   }
 
-  private def runGraphX(graph: GraphFrame): DataFrame = {
+  private def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
     val components =
-      org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX)
+      org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
     GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
   }
 
   private def run(
       graph: GraphFrame,
-      algorithm: String,
+      runInGraphX: Boolean,
       broadcastThreshold: Int,
       checkpointInterval: Int,
-      intermediateStorageLevel: StorageLevel): DataFrame = {
-    require(
-      supportedAlgorithms.contains(algorithm),
-      s"Supported algorithms are {${supportedAlgorithms.mkString(", ")}}, but got $algorithm.")
-
-    if (algorithm == ALGO_GRAPHX) {
-      return runGraphX(graph)
+      intermediateStorageLevel: StorageLevel,
+      maxIter: Option[Int]): DataFrame = {
+    if (runInGraphX) {
+      return runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
     }
 
     val spark = graph.spark
@@ -331,8 +265,7 @@ object ConnectedComponents extends Logging {
       val g = prepare(graph)
       val vv = g.vertices
       var ee = g.edges.persist(intermediateStorageLevel) // src < dst
-      val numEdges = ee.count()
-      logInfo(s"$logPrefix Found $numEdges edges after preparation.")
+      logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
 
       var converged = false
       var iteration = 1
@@ -426,11 +359,7 @@ object ConnectedComponents extends Logging {
           prevSum = currSum
         }
 
-        // materialize all persisted DataFrames in current round,
-        // then we can unpersist last round persisted DataFrames.
-        for (persisted_df <- currRoundPersistedDFs) {
-          persisted_df.count() // materialize it.
-        }
+        // clean up persisted DFs
         for (persisted_df <- lastRoundPersistedDFs) {
           persisted_df.unpersist()
         }
@@ -441,9 +370,39 @@ object ConnectedComponents extends Logging {
       logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
 
       logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
-      vv.join(ee, vv(ID) === ee(DST), "left_outer")
-        .select(vv(ATTR), when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT))
-        .select(col(s"$ATTR.*"), col(COMPONENT))
+      val indexedLabel = vv
+        .join(ee, vv(ID) === ee(DST), "left_outer")
+        .select(
+          vv(ATTR),
+          when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT),
+          col(ATTR + "." + ID).as(ID))
+      val output = if (graph.hasIntegralIdType) {
+        indexedLabel
+          .select(col(s"$ATTR.*"), col(COMPONENT))
+          .persist(intermediateStorageLevel)
+      } else {
+        indexedLabel
+          .join(
+            indexedLabel
+              .groupBy(col(COMPONENT))
+              .agg(min(col(ID)).as(ORIG_ID))
+              .select(col(COMPONENT), col(ORIG_ID)),
+            COMPONENT)
+          .select(col(s"$ATTR.*"), col(ORIG_ID).as(COMPONENT))
+          .persist(intermediateStorageLevel)
+      }
+
+      // An action must be performed on the DataFrame for the cache to load
+      output.count()
+
+      // clean up persisted DFs
+      for (persisted_df <- lastRoundPersistedDFs) {
+        persisted_df.unpersist()
+      }
+
+      logWarn("The DataFrame returned by ConnectedComponents is persisted and loaded.")
+
+      output
     } finally {
       // Restore original AQE setting
       spark.conf.set("spark.sql.adaptive.enabled", originalAQE)

@@ -18,10 +18,17 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions.{array, col, explode, when}
-
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.explode
+import org.apache.spark.sql.functions.when
 import org.graphframes.GraphFrame
-import org.graphframes.GraphFrame.{DST, ID, LONG_DST, LONG_SRC, SRC}
+import org.graphframes.GraphFrame.DST
+import org.graphframes.GraphFrame.ID
+import org.graphframes.GraphFrame.LONG_DST
+import org.graphframes.GraphFrame.LONG_SRC
+import org.graphframes.GraphFrame.SRC
+import org.graphframes.GraphFrame.quote
 
 /**
  * Computes the number of triangles passing through each vertex.
@@ -69,7 +76,7 @@ private object TriangleCount {
     val countsCol = when(col("count").isNull, 0L).otherwise(col("count"))
     val newV = v
       .join(triangleCounts, v(ID) === triangleCounts(ID), "left_outer")
-      .select((countsCol.as(COUNT_ID) +: v.columns.map(v.apply)).toSeq: _*)
+      .select((countsCol.as(COUNT_ID) +: v.columns.map(quote).map(v.apply)).toSeq: _*)
     newV
   }
 

@@ -17,19 +17,27 @@
 
 package org.graphframes
 
-import java.util.Random
-
-import scala.reflect.runtime.universe.TypeTag
-
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.Graph
+import org.apache.spark.ml.clustering.PowerIterationClustering
+import org.apache.spark.sql._
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.broadcast
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.count
+import org.apache.spark.sql.functions.explode
+import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.monotonically_increasing_id
+import org.apache.spark.sql.functions.struct
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.types._
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.lib._
 import org.graphframes.pattern._
 
-import org.apache.spark.graphx.{Edge, Graph}
-import org.apache.spark.ml.clustering.PowerIterationClustering
-import org.apache.spark.sql._
-import org.apache.spark.sql.functions.{array, broadcast, col, count, explode, expr, lit, max, monotonically_increasing_id, struct, udf}
-import org.apache.spark.sql.types._
-import org.apache.spark.storage.StorageLevel
+import java.util.Random
+import scala.reflect.runtime.universe.TypeTag
 
 /**
  * A representation of a graph using `DataFrame`s.
@@ -55,9 +63,11 @@ class GraphFrame private (
   override def toString: String = {
     // We call select on the vertices and edges to ensure that ID, SRC, DST always come first
     // in the printed schema.
-    val vCols = (ID +: vertices.columns.filter(_ != ID).toIndexedSeq).map(col)
+    val vCols = (ID +: vertices.columns.filter(_ != ID).toIndexedSeq).map(quote).map(col)
     val eCols =
-      (SRC +: DST +: edges.columns.filter(c => c != SRC && c != DST).toIndexedSeq).map(col)
+      (SRC +: DST +: edges.columns.filter(c => c != SRC && c != DST).toIndexedSeq)
+        .map(quote)
+        .map(col)
     val v = vertices.select(vCols.toSeq: _*).toString
     val e = edges.select(eCols.toSeq: _*).toString
     "GraphFrame(v:" + v + ", e:" + e + ")"
@@ -187,20 +197,26 @@ class GraphFrame private (
     if (hasIntegralIdType) {
       val vv = vertices.select(col(ID).cast(LongType), nestAsCol(vertices, ATTR)).rdd.map {
         case Row(id: Long, attr: Row) => (id, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       val ee = edges
         .select(col(SRC).cast(LongType), col(DST).cast(LongType), nestAsCol(edges, ATTR))
         .rdd
-        .map { case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr) }
+        .map {
+          case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr)
+          case _ => throw new GraphFramesUnreachableException()
+        }
       Graph(vv, ee)
     } else {
       // Compute Long vertex IDs
       val vv = indexedVertices.select(LONG_ID, ATTR).rdd.map {
         case Row(long_id: Long, attr: Row) => (long_id, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       val ee = indexedEdges.select(LONG_SRC, LONG_DST, ATTR).rdd.map {
         case Row(long_src: Long, long_dst: Long, attr: Row) =>
           Edge(long_src, long_dst, attr)
+        case _ => throw new GraphFramesUnreachableException()
       }
       Graph(vv, ee)
     }
@@ -356,7 +372,7 @@ class GraphFrame private (
     val df = findSimple(augmentedPatterns)
 
     val names = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
-    if (names.isEmpty) df else df.select(names.head, names.tail: _*)
+    if (names.isEmpty) df else df.select(quote(names.head), names.tail.map(quote): _*)
   }
 
   // ======================== Other queries ===================================
@@ -684,8 +700,6 @@ object GraphFrame extends Serializable with Logging {
       joinCol: String,
       hubs: Set[T],
       logPrefix: String): DataFrame = {
-    val spark = a.sparkSession
-    import spark.implicits._
     if (hubs.isEmpty) {
       // No skew.  Do regular join.
       a.join(b, joinCol)
@@ -873,11 +887,35 @@ object GraphFrame extends Serializable with Logging {
   private[graphframes] val LONG_DST: String = "new_dst"
   private[graphframes] val GX_ATTR: String = "graphx_attr"
 
-  /** Helper for using [col].* in Spark 1.4.  Returns sequence of [col].[field] for all fields */
+  /**
+   * Helper for column names containing a dot. Quotes the given column name with backticks to
+   * avoid further parsing.
+   *
+   * Note: This can be replaced with org.apache.spark.sql.catalyst.util.QuotingUtils.quoteIfNeeded
+   * once support for Spark 3 has been dropped
+   */
+  private[graphframes] def quote(column: String): String =
+    s"`${column.replace("`", "``")}`"
+
+  /**
+   * Helper for column names containing a dot. Quotes the given column name with backticks to
+   * avoid further parsing. The column name can be given in segments, e.g. quote("col", "field")
+   * representing column "col.field", which returns "`col`.`field`".
+   *
+   * Note: This can be replaced with org.apache.spark.sql.catalyst.util.QuotingUtils.quoted once
+   * support for Spark 3 has been dropped
+   */
+  private[graphframes] def quote(columnSegments: String*): String =
+    columnSegments.map(quote).mkString(".")
+
+  /**
+   * Helper for using [col].* in Spark 1.4. Returns sequence of [col].[field] for all fields. Both
+   * [col] and [field] are quoted with backticks to work with columns and fields containing dots.
+   */
   private[graphframes] def colStar(df: DataFrame, col: String): Seq[String] = {
     df.schema(col).dataType match {
       case s: StructType =>
-        s.fieldNames.map(f => col + "." + f).toIndexedSeq
+        s.fieldNames.map(f => quote(col, f)).toIndexedSeq
       case other =>
         throw new RuntimeException(
           s"Unknown error in GraphFrame. Expected column $col to be" +
@@ -887,7 +925,7 @@ object GraphFrame extends Serializable with Logging {
 
   /** Nest all columns within a single StructType column with the given name */
   private[graphframes] def nestAsCol(df: DataFrame, name: String): Column = {
-    struct(df.columns.map(c => df(c)).toSeq: _*).as(name)
+    struct(df.columns.map(quote).map(c => df(c)).toSeq: _*).as(name)
   }
 
   // ========== Motif finding ==========
