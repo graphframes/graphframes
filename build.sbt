@@ -22,6 +22,27 @@ ThisBuild / version := {
 
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
+ThisBuild / homepage := "https://graphframes.io/"
+ThisBuild / licenses := Seq("Apache-2.0" -> url("https://opensource.org/licenses/Apache-2.0"))
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/graphframes/graphframes"),
+    "scm:git@github.com:graphframes/graphframes.git"))
+ThisBuild / developers := List(
+  Developer(
+    id = "rjurney",
+    name = "Russell Jurney",
+    email = "russell.jurney@gmail.com",
+    url = url("https://github.com/rjurney")),
+  Developer(
+    id = "SemyonSinchenko",
+    name = "Sem",
+    email = "ssinchenko@apache.org",
+    url = url("https://github.com/SemyonSinchenko")))
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+ThisBuild / sonatypeProfileName := "io.graphframes"
+ThisBuild / publishMavenStyle := true
 ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
 
 // Scalafix configuration
@@ -37,7 +58,6 @@ lazy val commonSetting = Seq(
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"),
-  licenses := Seq("Apache-2.0" -> url("https://opensource.org/licenses/Apache-2.0")),
   Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
   Compile / doc / scalacOptions ++= Seq(
     "-groups",
