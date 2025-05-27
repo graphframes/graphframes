@@ -34,7 +34,7 @@ ThisBuild / developers := List(
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / sonatypeProfileName := "io.graphframes"
-ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
+ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.12")
 
 // Scalafix configuration
 ThisBuild / semanticdbEnabled := true
