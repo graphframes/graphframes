@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SPARK_VERSION = "3.5.4"
+SPARK_VERSION = "3.5.5"
 
 if __name__ == "__main__":
     prj_root = Path(__file__).parent.parent.parent

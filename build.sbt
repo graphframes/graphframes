@@ -1,6 +1,6 @@
 import xerial.sbt.Sonatype.sonatypeCentralHost
 
-lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.4")
+lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val defaultScalaVer = sparkBranch match {
   case "3.5" => "2.12.18"
@@ -122,8 +122,7 @@ lazy val connect = (project in file("graphframes-connect"))
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
     PB.protocVersion := "3.23.4", // Spark 3.5 branch
     libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
-      "com.google.protobuf" % "protobuf-java" % PB.protocVersion.value % "provided"),
+      "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
 
     // Assembly and shading
     assembly / test := {},

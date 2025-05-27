@@ -9,9 +9,8 @@ import sys
 from pathlib import Path
 
 SBT_BUILD_COMMAND = ["./build/sbt", "connect/assembly"]
-SPARK_VERSION = "3.5.4"
+SPARK_VERSION = "3.5.5"
 SCALA_VERSION = "2.12"
-GRAPHFRAMES_VERSION = "0.8.4"
 
 
 if __name__ == "__main__":
@@ -101,10 +100,10 @@ if __name__ == "__main__":
         "./sbin/start-connect-server.sh",
         "--conf",
         "spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect",
-        "--packages",
-        f"org.apache.spark:spark-connect_{SCALA_VERSION}:{SPARK_VERSION}",
         "--conf",
         "spark.checkpoint.dir=/tmp/GFTestsCheckpointDir",
+        "--packages",
+        f"org.apache.spark:spark-connect_{SCALA_VERSION}:{SPARK_VERSION}",
     ]
     print("Starting SparkConnect Server...")
     spark_connect = subprocess.run(
