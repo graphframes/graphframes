@@ -141,6 +141,7 @@ lazy val connect = (project in file("graphframes-connect"))
         .getName()
         .contains("slf4j-api-")
     },
+    publish / skip := false,
     Compile / packageBin := assembly.value,
     Test / packageBin / publishArtifact := false,
     Test / packageDoc / publishArtifact := false,
@@ -150,7 +151,7 @@ lazy val connect = (project in file("graphframes-connect"))
     Compile / packageSrc / publishArtifact := false)
 
 // The same connect but with a different shading rules
-lazy val databrickConnect = (project in file("graphframes-connect"))
+lazy val databricksConnect = (project in file("graphframes-connect"))
   .dependsOn(root)
   .settings(
     commonSetting,
@@ -180,6 +181,7 @@ lazy val databrickConnect = (project in file("graphframes-connect"))
         .getName()
         .contains("slf4j-api-")
     },
+    publish / skip := false,
     Compile / packageBin := assembly.value,
     Test / packageBin / publishArtifact := false,
     Test / packageDoc / publishArtifact := false,
