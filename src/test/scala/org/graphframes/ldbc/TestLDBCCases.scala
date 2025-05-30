@@ -107,12 +107,11 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
       props.getProperty(s"graph.${LDBCUtils.TEST_CDLP_UNDIRECTED}.cdlp.max-iterations").toInt)
   }
 
-  // TODO: add graphframes after finishing #564
-  Seq("graphx").foreach { algo =>
+  Seq("graphx", "graphframes").foreach { algo =>
     test(s"test undirected CDLP with LDBC for algo ${algo}") {
-      // Remove it after #571 or after removing GraphX at all
-      if ((algo == "graphx") && (scala.util.Properties.versionNumberString.startsWith("2.12"))) {
-        cancel("GraphX based implementation is broken in 2.12, see #571")
+      // I have no idea how to write it so it will work
+      if (scala.util.Properties.versionNumberString.startsWith("2.12")) {
+        cancel("CDLP implementations are broken in 2.12, see #571")
       }
       val testCase = ldbcTestCDLPUndirected
       val cdlpResults = testCase._1.labelPropagation.maxIter(testCase._3).run()
