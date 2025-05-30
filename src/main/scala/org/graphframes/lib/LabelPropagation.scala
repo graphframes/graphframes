@@ -77,6 +77,7 @@ private object LabelPropagation {
         LABEL_ID,
         col(GraphFrame.ID).alias(LABEL_ID),
         GraphFramesFunctions.keyWithMaxValue(Pregel.msg))
+      .setMaxIter(maxIter)
       .setStopIfAllNonActiveVertices(true)
       .setEarlyStopping(false)
       .setCheckpointInterval(checkpointInterval)
