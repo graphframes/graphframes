@@ -20,6 +20,7 @@ package org.graphframes.lib
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
 import org.graphframes.GraphFrame
+import org.graphframes.WithMaxIter
 
 /**
  * Compute the strongly connected component (SCC) of each vertex and return a DataFrame with each
@@ -29,14 +30,8 @@ import org.graphframes.GraphFrame
  *   - component (`LongType`): unique ID for this component
  */
 class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame)
-    extends Arguments {
-
-  private var maxIter: Option[Int] = None
-
-  def maxIter(value: Int): this.type = {
-    maxIter = Some(value)
-    this
-  }
+    extends Arguments
+    with WithMaxIter {
 
   def run(): DataFrame = {
     StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))

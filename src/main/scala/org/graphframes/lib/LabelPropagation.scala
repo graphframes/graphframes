@@ -23,6 +23,7 @@ import org.apache.spark.sql.functions._
 import org.graphframes.GraphFrame
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithMaxIter
 import org.graphframes.catalyst.GraphFramesFunctions
 
 /**
@@ -42,18 +43,8 @@ import org.graphframes.catalyst.GraphFramesFunctions
 class LabelPropagation private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with WithAlgorithmChoice
-    with WithCheckpointInterval {
-
-  private var maxIter: Option[Int] = None
-
-  /**
-   * The max number of iterations of LPA to be performed. Because this is a static implementation,
-   * the algorithm will run for exactly this many iterations.
-   */
-  def maxIter(value: Int): this.type = {
-    maxIter = Some(value)
-    this
-  }
+    with WithCheckpointInterval
+    with WithMaxIter {
 
   def run(): DataFrame = {
     val maxIterChecked = check(maxIter, "maxIter")
