@@ -11,6 +11,13 @@ lazy val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
 lazy val defaultScalaTestVer = scalaVer match {
   case s if s.startsWith("2.12") || s.startsWith("2.13") => "3.0.8"
 }
+// Some vendors are using an own shading rule for protobuf
+lazy val protobufShadingPattern = sys.props.getOrElse("vendor.name", "oss") match {
+  case "oss" => "org.sparkproject.connect.protobuf.@1"
+  case "dbx" => "grpc_shaded.com.google.protobuf.@1"
+  case s: String =>
+    throw new IllegalArgumentException(s"Unsupported vendor name: $s; supported: 'oss', 'dbx'")
+}
 
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
@@ -127,47 +134,7 @@ lazy val connect = (project in file("graphframes-connect"))
     // Assembly and shading
     assembly / test := {},
     assembly / assemblyShadeRules := Seq(
-      ShadeRule.rename("com.google.protobuf.**" -> "org.sparkproject.connect.protobuf.@1").inAll),
-    assembly / assemblyMergeStrategy := {
-      case PathList("google", "protobuf", xs @ _*) => MergeStrategy.discard
-      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-      case x if x.endsWith("module-info.class") => MergeStrategy.discard
-      case x => MergeStrategy.first
-    },
-    assembly / assemblyExcludedJars := (Compile / fullClasspath).value.filter { className =>
-      className.data
-        .getName()
-        .contains("scala-library-") || className.data
-        .getName()
-        .contains("slf4j-api-")
-    },
-    publish / skip := false,
-    Compile / packageBin := assembly.value,
-    Test / packageBin / publishArtifact := false,
-    Test / packageDoc / publishArtifact := false,
-    Test / packageSrc / publishArtifact := false,
-    Compile / packageBin / publishArtifact := true,
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false)
-
-// The same connect but with a different shading rules
-lazy val databricksConnect = (project in file("graphframes-connect"))
-  .dependsOn(root)
-  .settings(
-    commonSetting,
-    name := "graphframes-databricks-connect",
-    moduleName := s"${name.value}-spark${sparkBranch}",
-    Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
-    Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
-    target := file("graphframes-connect-databricks"),
-    PB.protocVersion := "3.23.4", // Spark 3.5 branch
-    libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
-
-    // Assembly and shading
-    assembly / test := {},
-    assembly / assemblyShadeRules := Seq(
-      ShadeRule.rename("com.google.protobuf.**" -> "grpc_shaded.com.google.protobuf.@1").inAll),
+      ShadeRule.rename("com.google.protobuf.**" -> protobufShadingPattern).inAll),
     assembly / assemblyMergeStrategy := {
       case PathList("google", "protobuf", xs @ _*) => MergeStrategy.discard
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
