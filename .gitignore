@@ -47,3 +47,6 @@ python/graphframes/resources/*
 
 # tmp data for spark connect
 tmp/*
+
+# db-connect targets
+graphframes-connect-databricks/*

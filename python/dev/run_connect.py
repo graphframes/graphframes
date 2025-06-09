@@ -8,10 +8,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pyspark
+
 SBT_BUILD_COMMAND = ["./build/sbt", "connect/assembly"]
-SPARK_VERSION = "3.5.4"
+SPARK_VERSION = "3.5.5"
 SCALA_VERSION = "2.12"
-GRAPHFRAMES_VERSION = "0.8.4"
 
 
 if __name__ == "__main__":
@@ -34,63 +35,15 @@ if __name__ == "__main__":
         print("stderr: ", build_sbt.stderr)
         sys.exit(1)
 
-    tmp_dir = prj_root.joinpath("tmp")
-    tmp_dir.mkdir(exist_ok=True)
-    os.chdir(tmp_dir)
-
-    unpackaed_spark_binary = f"spark-{SPARK_VERSION}-bin-hadoop3"
-    if not tmp_dir.joinpath(unpackaed_spark_binary).exists():
-        print(f"Download spark {SPARK_VERSION}...")
-        if tmp_dir.joinpath(f"spark-{SPARK_VERSION}-bin-hadoop3.tgz").exists():
-            shutil.rmtree(
-                tmp_dir.joinpath(f"spark-{SPARK_VERSION}-bin-hadoop3.tgz"),
-                ignore_errors=True,
-            )
-
-        get_spark = subprocess.run(
-            [
-                "wget",
-                "--no-verbose",
-                f"https://archive.apache.org/dist/spark/spark-{SPARK_VERSION}/spark-{SPARK_VERSION}-bin-hadoop3.tgz",
-            ],
-            stdout=subprocess.PIPE,
-            universal_newlines=True,
-        )
-        if get_spark.returncode == 0:
-            print("Done.")
-        else:
-            print("Downlad failed.")
-            print("stdout: ", get_spark.stdout)
-            print("stdeerr: ", get_spark.stderr)
-            sys.exit(1)
-
-        print("Unpack Spark...")
-        unpack_spark = subprocess.run(
-            [
-                "tar",
-                "-xzf",
-                f"spark-{SPARK_VERSION}-bin-hadoop3.tgz",
-            ],
-            stdout=subprocess.PIPE,
-            universal_newlines=True,
-        )
-        if unpack_spark.returncode == 0:
-            print("Done.")
-        else:
-            print("Unpacking failed.")
-            print("stdout: ", unpack_spark.stdout)
-            print("stdeerr: ", unpack_spark.stderr)
-            sys.exit(1)
-
-    spark_home = tmp_dir.joinpath(unpackaed_spark_binary)
+    spark_home = Path(pyspark.__path__[0])
     os.chdir(spark_home)
 
-    gf_jar = (
+    gf_jars = (
         scala_root.joinpath("target")
         .joinpath(f"scala-{SCALA_VERSION}")
-        .joinpath(f"graphframes-connect-assembly-{GRAPHFRAMES_VERSION}.jar")
     )
-    shutil.copyfile(gf_jar, spark_home.joinpath(gf_jar.name))
+    gf_jar = [pp for pp in gf_jars.glob("*.jar") if "graphframes-connect-assembly" in pp.name][0]
+
     checkpoint_dir = Path("/tmp/GFTestsCheckpointDir")
     if checkpoint_dir.exists():
         shutil.rmtree(checkpoint_dir.absolute().__str__(), ignore_errors=True)
@@ -98,16 +51,20 @@ if __name__ == "__main__":
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
     run_connect_command = [
-        "./sbin/start-connect-server.sh",
-        "--wait",
+        "./sbin/spark-daemon.sh",
+        "submit",
+        "org.apache.spark.sql.connect.service.SparkConnectServer",
+        "1",
+        "--name",
+        "Spark Connect server",
         "--jars",
-        f"{gf_jar}",
+        str(gf_jar.absolute()),
         "--conf",
         "spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect",
-        "--packages",
-        f"org.apache.spark:spark-connect_{SCALA_VERSION}:{SPARK_VERSION}",
         "--conf",
         "spark.checkpoint.dir=/tmp/GFTestsCheckpointDir",
+        "--packages",
+        f"org.apache.spark:spark-connect_{SCALA_VERSION}:{SPARK_VERSION}",
     ]
     print("Starting SparkConnect Server...")
     spark_connect = subprocess.run(

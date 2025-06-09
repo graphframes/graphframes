@@ -7,20 +7,24 @@ import subprocess
 import sys
 from pathlib import Path
 
-SPARK_VERSION = "3.5.4"
+import pyspark
+
+SPARK_VERSION = "3.5.5"
 
 if __name__ == "__main__":
     prj_root = Path(__file__).parent.parent.parent
-    scala_root = prj_root.joinpath("graphframes-connect")
-    tmp_dir = prj_root.joinpath("tmp")
-    unpackaed_spark_binary = f"spark-{SPARK_VERSION}-bin-hadoop3"
-    spark_home = tmp_dir.joinpath(unpackaed_spark_binary)
+    spark_home = Path(pyspark.__path__[0])
 
     os.chdir(spark_home)
 
     checkpoint_dir = Path("/tmp/GFTestsCheckpointDir")
 
-    stop_connect_cmd = ["./sbin/stop-connect-server.sh"]
+    stop_connect_cmd = [
+        "./sbin/spark-daemon.sh",
+        "stop",
+        "org.apache.spark.sql.connect.service.SparkConnectServer",
+        "1",
+    ]
     print("Stopping SparkConnect Server...")
     spark_connect_stop = subprocess.run(
         stop_connect_cmd,
