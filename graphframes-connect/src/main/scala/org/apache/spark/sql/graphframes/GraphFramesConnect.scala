@@ -1,22 +1,30 @@
 package org.apache.spark.sql.graphframes
 
-import com.google.protobuf
+import com.google.protobuf.Any
+import com.google.protobuf.InvalidProtocolBufferException
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connect.planner.SparkConnectPlanner
 import org.apache.spark.sql.connect.plugin.RelationPlugin
 import org.graphframes.connect.proto.GraphFramesAPI
+import java.util.Optional
+import org.apache.spark.sql.classic.{DataFrame => ClassicDataFrame}
 
 class GraphFramesConnect extends RelationPlugin {
   override def transform(
-      relation: protobuf.Any,
-      planner: SparkConnectPlanner): Option[LogicalPlan] = {
-    if (relation.is(classOf[GraphFramesAPI])) {
-      val protoCall = relation.unpack(classOf[GraphFramesAPI])
-      // Because the plugins API is changed in spark 4.0 it makes sense to separate plugin impl from the parsing logic
-      val result = GraphFramesConnectUtils.parseAPICall(protoCall, planner)
-      Some(result.logicalPlan)
-    } else {
-      None
+      relation: Array[Byte],
+      planner: SparkConnectPlanner): Optional[LogicalPlan] = {
+    try {
+      val relationProto = Any.parseFrom(relation)
+      if (relationProto.is(classOf[GraphFramesAPI])) {
+        val protoCall = relationProto.unpack(classOf[GraphFramesAPI])
+        val result = GraphFramesConnectUtils.parseAPICall(protoCall, planner)
+        // We know exactly that it is classic one!
+        Optional.of(result.asInstanceOf[ClassicDataFrame].logicalPlan)
+      } else {
+        Optional.empty()
+      }
+    } catch {
+      case e: InvalidProtocolBufferException => throw new RuntimeException(e)
     }
   }
 }

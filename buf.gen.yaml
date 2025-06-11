@@ -4,9 +4,9 @@ managed:
 
 plugins:
   # Python API
-  - remote: buf.build/grpc/python:v1.64.2
+  - remote: buf.build/grpc/python:v1.73.0
     out: python/graphframes/connect/proto
-  - remote: buf.build/protocolbuffers/python:v27.1
+  - remote: buf.build/protocolbuffers/python:v29.3
     out: python/graphframes/connect/proto
   - remote: buf.build/protocolbuffers/pyi
     out: python/graphframes/connect/proto

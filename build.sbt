@@ -124,7 +124,7 @@ lazy val connect = (project in file("graphframes-connect"))
     moduleName := s"${name.value}-spark${sparkBranch}",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
-    PB.protocVersion := "3.23.4", // Spark 3.5 branch
+    PB.protocVersion := "4.29.3", // Spark 4.0 branch
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
 
