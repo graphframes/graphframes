@@ -25,6 +25,7 @@ import org.apache.spark.sql.functions.expr
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.nestAsCol
 import org.graphframes.Logging
+
 import java.util.regex.Pattern
 
 /**
