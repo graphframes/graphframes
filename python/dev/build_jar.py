@@ -5,11 +5,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 
-def build(spark_versions: Sequence[str] = ["3.5.5"]):
+def build(spark_versions: Sequence[str] = ["4.0.0"]):
     for spark_version in spark_versions:
         print("Building GraphFrames JAR...")
         print(f"SPARK_VERSION: {spark_version[:3]}")
-        assert spark_version[:3] in {"3.5",}, "Unsopported spark version!"
+        assert spark_version[:3] in {"4.0",}, "Unsopported spark version!"
         project_root = Path(__file__).parent.parent.parent
         sbt_executable = project_root.joinpath("build").joinpath("sbt").absolute().__str__()
         sbt_build_command = [
@@ -40,7 +40,7 @@ def build(spark_versions: Sequence[str] = ["3.5.5"]):
         python_resources = (
             project_root.joinpath("python").joinpath("graphframes").joinpath("resources")
         )
-        target_dir = project_root.joinpath("target").joinpath("scala-2.12")
+        target_dir = project_root.joinpath("target").joinpath("scala-2.13")
         gf_jar = None
 
         for pp in target_dir.glob("*.jar"):

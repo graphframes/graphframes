@@ -11,8 +11,8 @@ from pathlib import Path
 import pyspark
 
 SBT_BUILD_COMMAND = ["./build/sbt", "connect/assembly"]
-SPARK_VERSION = "3.5.5"
-SCALA_VERSION = "2.12"
+SPARK_VERSION = "4.0.0"
+SCALA_VERSION = "2.13"
 
 
 if __name__ == "__main__":
