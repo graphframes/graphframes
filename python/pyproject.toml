@@ -13,7 +13,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12"
@@ -35,14 +34,14 @@ script = "dev/build_jar.py" # Spark version should be aligned inside the script!
 [tool.poetry.dependencies]
 python = ">=3.10 <3.13"
 nose = "1.3.7"
-pyspark = ">=3.5 <4.0"
+pyspark = ">=4.0,<4.1"
 numpy = ">= 1.7"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
-pyspark = { version = "3.5.5", extras = ["connect"] }
+pyspark = { version = "4.0.0", extras = ["connect"] }
 grpcio = "<=1.67.1"
 pytest = "^8.3.4"
 

@@ -6,8 +6,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.4
-            scala-version: 2.12.18
+          - spark-version: 4.0.0
+            scala-version: 2.13.16
             python-version: 3.10.6
     runs-on: ubuntu-22.04
     env:
