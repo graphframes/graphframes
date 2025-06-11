@@ -9,7 +9,7 @@ jobs:
           - spark-version: 4.0.0
             scala-version: 2.13.16
             java-version: 17
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       # fixing this error after tests success: sbt.ForkMain failed with exit code 134
       # https://stackoverflow.com/questions/33287424/strange-exception-in-sbt-test
