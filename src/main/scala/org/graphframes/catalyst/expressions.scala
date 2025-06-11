@@ -9,9 +9,26 @@ import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.MapType
 import org.graphframes.GraphFramesUnreachableException
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.FunctionIdentifier
+import org.apache.spark.sql.functions.call_function
 
 private[graphframes] object GraphFramesFunctions {
-  def keyWithMaxValue(mapCol: Column): Column = new Column(KeyWithMaxValue(mapCol.expr))
+  @volatile private var areRigestered = false
+  def registerIfNot(): Unit = {
+    if (!areRigestered) {
+      val spark = SparkSession.active
+      val registry = spark.sessionState.functionRegistry
+
+      registry.registerFunction(
+        FunctionIdentifier("_keyWithMaxValue"),
+        (children: Seq[Expression]) => KeyWithMaxValue(children.head),
+        "scala_udf")
+
+      areRigestered = true
+    }
+  }
+  def keyWithMaxValue(mapCol: Column): Column = call_function("_keyWithMaxValue", mapCol)
 }
 
 private[graphframes] case class KeyWithMaxValue(child: Expression)

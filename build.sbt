@@ -1,16 +1,14 @@
 import xerial.sbt.Sonatype.sonatypeCentralHost
 
-lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
+lazy val sparkVer = sys.props.getOrElse("spark.version", "4.0.0")
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val defaultScalaVer = sparkBranch match {
-  case "3.5" => "2.12.18"
-  case "3.4" => "2.12.17"
+  case "4.0" => "2.13.16"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 lazy val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
-lazy val defaultScalaTestVer = scalaVer match {
-  case s if s.startsWith("2.12") || s.startsWith("2.13") => "3.0.8"
-}
+lazy val defaultScalaTestVer = "3.0.8"
+
 // Some vendors are using an own shading rule for protobuf
 lazy val protobufShadingPattern = sys.props.getOrElse("vendor.name", "oss") match {
   case "oss" => "org.sparkproject.connect.protobuf.@1"
@@ -41,11 +39,10 @@ ThisBuild / developers := List(
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / sonatypeProfileName := "io.graphframes"
-ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.12")
 
 // Scalafix configuration
 ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports both 2.13.8 and 2.12.18
+ThisBuild / semanticdbVersion := "4.13.6"
 
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(

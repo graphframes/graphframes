@@ -20,12 +20,12 @@ package org.graphframes.lib
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.expr
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.nestAsCol
 import org.graphframes.Logging
+import java.util.regex.Pattern
 
 /**
  * Breadth-first search (BFS)
@@ -148,6 +148,9 @@ private object BFS extends Logging with Serializable {
         nestAsCol(fromEqualsToDF, "to"))
     }
 
+    val verticesFieldNames = g.vertices.schema.fieldNames.toSeq
+    val edgesFieldNames = g.edges.schema.fieldNames.toSeq
+
     // We handled edge cases above, so now we do BFS.
 
     // Edges a->b, to be reused for each iteration
@@ -155,7 +158,7 @@ private object BFS extends Logging with Serializable {
       val a2b = g.find("(a)-[e]->(b)")
       edgeFilter match {
         case Some(ef) =>
-          val efExpr = applyExprToCol(ef, "e")
+          val efExpr = applyExprToCol(ef, "e", edgesFieldNames)
           a2b.filter(efExpr)
         case None =>
           a2b
@@ -163,7 +166,7 @@ private object BFS extends Logging with Serializable {
     }
 
     // We will always apply fromExpr to column "a"
-    val fromAExpr = applyExprToCol(from, "a")
+    val fromAExpr = applyExprToCol(from, "a", verticesFieldNames)
 
     // DataFrame of current search paths
     var paths: DataFrame = null
@@ -200,7 +203,7 @@ private object BFS extends Logging with Serializable {
         paths = paths.filter(previousVertexChecks)
       }
       // Check if done by applying toExpr to column nextVertex
-      val toVExpr = applyExprToCol(to, nextVertex)
+      val toVExpr = applyExprToCol(to, nextVertex, verticesFieldNames)
       val foundPathDF = paths.filter(toVExpr)
       if (foundPathDF.take(1).nonEmpty) {
         // Found path
@@ -230,19 +233,36 @@ private object BFS extends Logging with Serializable {
   }
 
   /**
-   * Apply the given SQL expression (such as `id = 3`) to the field in a column, rather than to
-   * the column itself.
+   * Apply the given SQL expression to the fields in a struct column, rather than to the column
+   * itself.
    *
-   * @param expr
-   *   SQL expression, such as `id = 3`
+   * This implementation avoids private Spark APIs by working on the string representation of the
+   * expression. It safely replaces only known field names.
+   *
+   * @param c
+   *   The expression to transform, such as `col("age") > 30`.
    * @param colName
-   *   Column name, such as `myVertex`
+   *   The name of the struct column to apply the expression to, such as `myVertex`.
+   * @param fieldNames
+   *   The sequence of valid field names that can appear in the expression.
    * @return
-   *   SQL expression applied to the column fields, such as `myVertex.id = 3`
+   *   A new Column with the expression applied to the column fields, such as `myVertex.age > 30`.
    */
-  private def applyExprToCol(expr: Column, colName: String) = {
-    new Column(expr.expr.transform { case UnresolvedAttribute(nameParts) =>
-      UnresolvedAttribute(colName +: nameParts)
-    })
+  private def applyExprToCol(c: Column, colName: String, fieldNames: Seq[String]): Column = {
+    // TODO: is there a better way? I'm assumming a lot of ptential bugs here :(
+    val originalExprStr = c.toString()
+
+    // Create a regex that will only match the exact field names provided.
+    // We use Pattern.quote to escape any special characters in the field names
+    // and `\\b` for word boundaries to ensure we don't replace substrings
+    // (e.g., replacing "id" inside "valid").
+    val fieldRegex = fieldNames.map(Pattern.quote).mkString("|")
+    val finalRegex = s"\\b($fieldRegex)\\b"
+
+    // Replace all occurrences of the field names with the prefixed version.
+    // The replacement "$1" refers to the captured group from the regex, which is the field name itself.
+    val rewrittenExprStr = originalExprStr.replaceAll(finalRegex, s"$colName.$$1")
+
+    expr(rewrittenExprStr)
   }
 }

@@ -17,7 +17,6 @@
 
 package org.graphframes
 
-import com.google.common.io.Files
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 import org.apache.spark.graphx.Edge
@@ -35,6 +34,7 @@ import org.apache.spark.storage.StorageLevel
 import org.graphframes.examples.Graphs
 
 import java.io.File
+import java.nio.file.Files
 
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -49,7 +49,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    tempDir = Files.createTempDir()
+    tempDir = Files.createTempDirectory("gf-tmp").toFile()
     vertices = spark.createDataFrame(localVertices.toSeq).toDF("id", "name")
     edges = spark
       .createDataFrame(localEdges.toSeq.map { case ((src, dst), action) =>
