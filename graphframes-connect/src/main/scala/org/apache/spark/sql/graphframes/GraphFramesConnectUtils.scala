@@ -4,8 +4,9 @@ package org.apache.spark.sql.graphframes
 
 import com.google.protobuf.ByteString
 import org.apache.spark.sql.Column
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.classic.Dataset
 import org.apache.spark.sql.connect.planner.SparkConnectPlanner
 import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.functions.lit
@@ -190,7 +191,7 @@ object GraphFramesConnectUtils {
       case MethodCase.SHORTEST_PATHS => {
         graphFrame.shortestPaths
           .landmarks(
-            apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID))
+            apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID).toSeq)
           .run()
       }
       case MethodCase.STRONGLY_CONNECTED_COMPONENTS => {
