@@ -18,6 +18,8 @@ project/boot/
 project/plugins/project/
 .bsp
 .metals
+metals.sbt
+.bloop
 
 # intellij
 .idea/
@@ -30,6 +32,9 @@ project/plugins/project/
 .bloop/
 .metals/
 metals.sbt
+
+# Helix
+.helix
 
 # Mac
 *.DS_Store

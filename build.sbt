@@ -6,7 +6,7 @@ lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val defaultScalaVer = sparkBranch match {
-  case "4.0" => "2.13.16"
+  case "4.0" => "2.13.8"
   case "3.5" => "2.12.18"
   case "3.4" => "2.12.17"
   case "3.3" => "2.12.15"
@@ -23,6 +23,10 @@ ThisBuild / version := {
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
 ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.8")
+
+// Scalafix configuration
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports both 2.13.8 and 2.12.18
 
 def sparkVersionSettings(): Seq[Setting[_]] = {
   if (sparkMajorVer == "4") {
@@ -70,7 +74,22 @@ lazy val commonSetting = Seq(
     "--add-opens=java.base/java.nio=ALL-UNNAMED",
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
     "--add-opens=java.base/java.util=ALL-UNNAMED"),
-  credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"))
+  credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials"),
+
+  // Scalafix
+  scalacOptions ++= Seq(
+    "-Xlint", // to enforce code quality checks
+    if (scalaVersion.value.startsWith("2.12")) {
+      // fail on warning
+      "-Xfatal-warnings"
+    } else {
+      "-Werror" // the same but in 2.13
+    },
+    // scalastyle related things
+    if (scalaVersion.value.startsWith("2.12"))
+      "-Ywarn-unused-import"
+    else
+      "-Wunused:imports"))
 
 lazy val root = (project in file("."))
   .settings(
@@ -125,5 +144,4 @@ lazy val connect = (project in file("graphframes-connect"))
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
-    }
-  )
+    })

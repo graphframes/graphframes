@@ -40,6 +40,8 @@ jobs:
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}-java-${{ matrix.java-version }}
     - name: Check scalafmt
       run: build/sbt -Dspark.version=${{ matrix.spark-version }} root/scalafmtCheckAll connect/scalafmtCheckAll
+    - name: Check scalastyle
+      run: build/sbt -Dspark.version=${{ matrix.spark-version }} root/scalafixAll connect/scalafixAll
     - name: Build and Test
       run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} coverage test coverageReport "project connect" coverage test coverageReport
     - uses: codecov/codecov-action@v3

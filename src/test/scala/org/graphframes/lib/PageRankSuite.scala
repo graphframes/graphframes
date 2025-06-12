@@ -19,9 +19,10 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
-
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.SparkFunSuite
+import org.graphframes.TestUtils
 import org.graphframes.examples.Graphs
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite, TestUtils}
 
 class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 

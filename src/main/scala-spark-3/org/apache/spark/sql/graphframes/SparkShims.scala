@@ -17,14 +17,13 @@
 
 package org.apache.spark.sql.graphframes
 
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.functions.{col, expr}
-import org.apache.spark.sql.{Column, DataFrame, Dataset, Row, SparkSession}
-
-import org.graphframes.{GraphFrame, Logging}
-import org.graphframes.GraphFrame.nestAsCol
 
 object SparkShims {
 
@@ -39,7 +38,7 @@ object SparkShims {
    * @return
    *   SQL expression applied to the column fields, such as `myVertex.id = 3`
    */
-  def applyExprToCol(spark: SparkSession, expr: Column, colName: String) = {
+  def applyExprToCol(spark: SparkSession, expr: Column, colName: String): Column = {
     new Column(expr.expr.transform { case UnresolvedAttribute(nameParts) =>
       UnresolvedAttribute(colName +: nameParts)
     })

@@ -1,13 +1,12 @@
 import pathlib
 import shutil
 import warnings
-from importlib import resources
 
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.version import __version__
 
-from graphframes import GraphFrame
+from graphframes import GraphFrame, get_gf_jar_location
 from graphframes.classic.graphframe import _java_api
 
 if __version__[:3] >= "3.4":
@@ -43,15 +42,7 @@ def spark():
         spark_builder = SparkSession.builder.master("local[4]").config(
             "spark.sql.shuffle.partitions", 4
         )
-        resources_root = resources.files("graphframes").joinpath("resources")
-        spark_jars = []
-        for pp in resources_root.iterdir():
-            assert isinstance(pp, pathlib.PosixPath)  # type checking
-            if pp.is_file() and pp.name.endswith(".jar"):
-                spark_jars.append(pp.absolute().__str__())
-        if spark_jars:
-            jars_str = ",".join(spark_jars)
-            spark = spark_builder.config("spark.jars", jars_str)
+        spark = spark_builder.config("spark.jars", get_gf_jar_location())
         spark = spark_builder.getOrCreate()
         spark.sparkContext.setCheckpointDir(checkpointDir)
         yield spark

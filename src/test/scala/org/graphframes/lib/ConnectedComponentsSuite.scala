@@ -17,19 +17,19 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
-
-import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
-
-import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.functions.{col, lit}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.storage.StorageLevel
-
-import org.graphframes._
 import org.graphframes.GraphFrame._
+import org.graphframes._
 import org.graphframes.examples.Graphs
+
+import java.io.IOException
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -262,6 +262,23 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     components.unpersist(blocking = true)
 
     assert(spark.sparkContext.getPersistentRDDs.size === priorCachedDFsSize)
+  }
+
+  test("set configuration from spark conf") {
+    spark.conf.set("spark.graphframes.connectedComponents.algorithm", "GRAPHX")
+    assert(Graphs.friends.connectedComponents.getAlgorithm == "graphx")
+
+    spark.conf.set("spark.graphframes.connectedComponents.broadcastthreshold", "1000")
+    assert(Graphs.friends.connectedComponents.getBroadcastThreshold == 1000)
+
+    spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", "5")
+    assert(Graphs.friends.connectedComponents.getCheckpointInterval == 5)
+
+    spark.conf.set(
+      "spark.graphframes.connectedComponents.intermediatestoragelevel",
+      "memory_only")
+    assert(
+      Graphs.friends.connectedComponents.getIntermediateStorageLevel == StorageLevel.MEMORY_ONLY)
   }
 
   private def assertComponents[T: ClassTag: TypeTag](
