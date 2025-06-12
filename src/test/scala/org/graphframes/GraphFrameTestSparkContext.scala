@@ -35,16 +35,9 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sparkMajorVersion: Int = _
   @transient var sparkMinorVersion: Int = _
 
-  /**
-   * A helper object for importing SQL implicits.
-   *
-   * Note that the alternative of importing `spark.implicits._` is not possible here. This is
-   * because we create the `SQLContext` immediately before the first test is run, but the
-   * implicits import is needed in the constructor.
-   */
-  protected object testImplicits extends SQLImplicits {
-    protected override def _sqlContext: SQLContext = self.sqlContext
-  }
+  // Inspired by https://stackoverflow.com/a/59377177
+  protected def sparkSession: SparkSession = spark
+  protected lazy val sqlImplicits: SQLImplicits = self.sparkSession.implicits
 
   /** Check if current spark version is at least of the provided minimum version */
   def isLaterVersion(minVersion: String): Boolean = {
