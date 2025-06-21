@@ -102,9 +102,11 @@ private object ShortestPaths extends Logging {
       val longIdToLandmarkColumn = map(longIdToLandmarkFlatten: _*)
       transform_keys(
         col(DISTANCE_ID),
-        (kk: Column, vv: Column) =>
-          map_values(map_filter(longIdToLandmarkColumn, (kkk: Column, _: Column) => kkk === kk))(
-            0))
+        (longId: Column, distance: Column) =>
+          map_values(
+            map_filter(
+              longIdToLandmarkColumn,
+              (mappingId: Column, _: Column) => longId === mappingId))(0))
     }
     val cols = graph.vertices.columns.map(quote).map(col) :+ distanceCol.as(DISTANCE_ID)
     g.vertices.select(cols.toSeq: _*)
