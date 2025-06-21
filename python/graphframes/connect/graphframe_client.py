@@ -125,7 +125,7 @@ class PregelConnect:
         if self._agg_msg is None:
             raise ValueError("AggMsg is not initialized!")
 
-        return DataFrame.withPlan(
+        return DataFrame(
             Pregel(
                 max_iter=self._max_iter,
                 checkpoint_interval=self._checkpoint_interval,
@@ -269,7 +269,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(Triplets(self._vertices, self._edges), self._spark)
+        return DataFrame(Triplets(self._vertices, self._edges), self._spark)
 
     @property
     def pregel(self):
@@ -292,7 +292,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(Find(self._vertices, self._edges, pattern), self._spark)
+        return DataFrame(Find(self._vertices, self._edges, pattern), self._spark)
 
     def filterVertices(self, condition: str | Column) -> "GraphFrameConnect":
         class FilterVertices(LogicalPlan):
@@ -314,7 +314,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        new_vertices = DataFrame.withPlan(
+        new_vertices = DataFrame(
             FilterVertices(self._vertices, self._edges, condition), self._spark
         )
         # Exactly like in the scala-core
@@ -347,9 +347,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        new_edges = DataFrame.withPlan(
-            FilterEdges(self._vertices, self._edges, condition), self._spark
-        )
+        new_edges = DataFrame(FilterEdges(self._vertices, self._edges, condition), self._spark)
         return GraphFrameConnect(self._vertices, new_edges)
 
     def dropIsolatedVertices(self) -> "GraphFrameConnect":
@@ -368,9 +366,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        new_vertices = DataFrame.withPlan(
-            DropIsolatedVertices(self._vertices, self._edges), self._spark
-        )
+        new_vertices = DataFrame(DropIsolatedVertices(self._vertices, self._edges), self._spark)
         return GraphFrameConnect(new_vertices, self._edges)
 
     def bfs(
@@ -417,7 +413,7 @@ class GraphFrameConnect:
         if edgeFilter is None:
             edgeFilter = F.lit(True)
 
-        return DataFrame.withPlan(
+        return DataFrame(
             BFS(
                 v=self._vertices,
                 e=self._edges,
@@ -477,7 +473,7 @@ class GraphFrameConnect:
         if sendToSrc is None and sendToDst is None:
             raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
 
-        return DataFrame.withPlan(
+        return DataFrame(
             AggregateMessages(self._vertices, self._edges, aggCol, sendToSrc, sendToDst),
             self._spark,
         )
@@ -519,7 +515,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return DataFrame(
             ConnectedComponents(
                 self._vertices,
                 self._edges,
@@ -549,9 +545,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
-            LabelPropagation(self._vertices, self._edges, maxIter), self._spark
-        )
+        return DataFrame(LabelPropagation(self._vertices, self._edges, maxIter), self._spark)
 
     def _update_page_rank_edge_weights(self, new_vertices: DataFrame) -> "GraphFrameConnect":
         cols2select = self.edges.columns + ["weight"]
@@ -619,7 +613,7 @@ class GraphFrameConnect:
             # at the same time I think it should be an exception.
             raise ValueError("Exactly one of maxIter or tol should be set.")
 
-        new_vertices = DataFrame.withPlan(
+        new_vertices = DataFrame(
             PageRank(
                 self._vertices,
                 self._edges,
@@ -675,7 +669,7 @@ class GraphFrameConnect:
         ), "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
 
-        new_vertices = DataFrame.withPlan(
+        new_vertices = DataFrame(
             ParallelPersonalizedPageRank(
                 self._vertices,
                 self._edges,
@@ -721,7 +715,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return DataFrame(
             PowerIterationClustering(self._vertices, self._edges, k, maxIter, weightCol),
             self._spark,
         )
@@ -747,9 +741,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
-            ShortestPaths(self._vertices, self._edges, landmarks), self._spark
-        )
+        return DataFrame(ShortestPaths(self._vertices, self._edges, landmarks), self._spark)
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
         class StronglyConnectedComponents(LogicalPlan):
@@ -770,7 +762,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return DataFrame(
             StronglyConnectedComponents(self._vertices, self._edges, maxIter),
             self._spark,
         )
@@ -833,7 +825,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        output = DataFrame.withPlan(
+        output = DataFrame(
             SVDPlusPlus(
                 self._vertices,
                 self._edges,
@@ -871,4 +863,4 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(TriangleCount(self._vertices, self._edges), self._spark)
+        return DataFrame(TriangleCount(self._vertices, self._edges), self._spark)
