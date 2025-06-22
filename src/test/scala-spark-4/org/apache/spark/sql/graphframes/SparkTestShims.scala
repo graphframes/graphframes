@@ -17,10 +17,13 @@
 
 package org.apache.spark.sql.graphframes
 
-import org.scalatest.Suite
-
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.classic.{ClassicConversions, ColumnConversions, ColumnNodeToExpressionConverter, SparkSession => ClassicSparkSession, SQLImplicits}
+import org.apache.spark.sql.classic.ClassicConversions
+import org.apache.spark.sql.classic.ColumnConversions
+import org.apache.spark.sql.classic.ColumnNodeToExpressionConverter
+import org.apache.spark.sql.classic.SQLImplicits
+import org.apache.spark.sql.classic.{SparkSession => ClassicSparkSession}
+import org.scalatest.Suite
 
 trait SparkTestShims { self: Suite =>
   var spark: SparkSession

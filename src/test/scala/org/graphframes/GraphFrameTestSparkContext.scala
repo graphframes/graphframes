@@ -20,7 +20,6 @@ package org.graphframes
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.SQLImplicits
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.graphframes.SparkTestShims
 import org.scalatest.BeforeAndAfterAll
