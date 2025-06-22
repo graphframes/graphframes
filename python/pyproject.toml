@@ -67,7 +67,7 @@ line-length = 100
 target-version = ["py39"]
 include = ["graphframes"]
 extend-exclude = '''
-    graphframes-*-assembly-*
+    resources
 '''
 
 required-version = "23.12.1"
