@@ -8,7 +8,7 @@ jobs:
         include:
           - spark-version: 3.5.5
             scala-version: 2.12
-            python-version: 3.10
+            python-version: "3.10"
             java-version: 11
           - spark-version: 4.0.0
             scala-version: 2.13
@@ -56,7 +56,7 @@ jobs:
     - name: Build jar
       working-directory: ./python
       run: |
-        poetry run python dev/build_jar.py
+        poetry run python dev/build_jar.py ${{ matrix.spark-version }}
     - name: Test
       working-directory: ./python
       run: |
