@@ -58,9 +58,6 @@ build-backend = "poetry.core.masonry.api"
 line-length = 100
 target-version = ["py39"]
 include = ["graphframes"]
-extend-exclude = '''
-    resources
-'''
 
 required-version = "23.12.1"
 

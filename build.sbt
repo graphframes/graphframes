@@ -72,7 +72,7 @@ lazy val commonSetting = Seq(
     "org.apache.spark" %% "spark-graphx" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
-    "org.slf4j" % "slf4j-api" % "2.0.16",
+    "org.slf4j" % "slf4j-api" % "2.0.16" % "provided",
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
@@ -126,6 +126,7 @@ lazy val root = (project in file("."))
 
     // Assembly settings
     assembly / test := {}, // No tests in assembly
+    assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
       case x if x.endsWith("module-info.class") => MergeStrategy.discard
@@ -146,7 +147,7 @@ lazy val connect = (project in file("graphframes-connect"))
     commonSetting,
     sparkVersionSettings(),
     name := s"graphframes-connect",
-    moduleName := s"${name.value}-connect-spark${sparkBranch}",
+    moduleName := s"${name.value}-spark${sparkBranch}",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
     PB.protocVersion := "3.23.4", // Spark 3.5 branch
@@ -155,6 +156,7 @@ lazy val connect = (project in file("graphframes-connect"))
 
     // Assembly and shading
     assembly / test := {},
+    assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("com.google.protobuf.**" -> protobufShadingPattern).inAll),
     assembly / assemblyMergeStrategy := {
