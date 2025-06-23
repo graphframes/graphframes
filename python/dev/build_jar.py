@@ -8,7 +8,7 @@ def build(spark_versions: Sequence[str] = ["3.5.5"]):
     for spark_version in spark_versions:
         print("Building GraphFrames JAR...")
         print(f"SPARK_VERSION: {spark_version[:3]}")
-        assert spark_version[:3] in {"3.5", "4.0"}, "Unsopported spark version!"
+        assert spark_version[:3] in {"3.5", "4.0"}, "Unsupported spark version!"
 
         project_root = Path(__file__).parent.parent.parent
         sbt_executable = project_root.joinpath("build").joinpath("sbt").absolute().__str__()
