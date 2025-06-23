@@ -11,7 +11,7 @@ from pyspark.storagelevel import StorageLevel
 
 try:
     from typing import Self
-except ModuleNotFoundError:
+except ImportError:
     from typing_extensions import Self
 
 from .proto import graphframes_pb2 as pb
