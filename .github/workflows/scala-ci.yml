@@ -7,10 +7,10 @@ jobs:
       matrix:
         include:
           - spark-version: 3.5.4
-            scala-version: 2.13.8
+            scala-version: 2.13.12
             java-version: 11
           - spark-version: 3.5.4
-            scala-version: 2.13.8
+            scala-version: 2.13.12
             java-version: 17
           - spark-version: 3.5.4
             scala-version: 2.12.18
