@@ -117,7 +117,7 @@ lazy val root = (project in file("."))
     commonSetting,
     sparkVersionSettings(),
     name := "graphframes",
-    moduleName := s"{name.value}-spark$sparkMajorVer",
+    moduleName := s"graphframes-spark$sparkMajorVer",
 
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
@@ -146,7 +146,7 @@ lazy val connect = (project in file("graphframes-connect"))
     commonSetting,
     sparkVersionSettings(),
     name := s"graphframes-connect",
-    moduleName := s"${name.value}-spark${sparkBranch}",
+    moduleName := s"graphframes-connect-spark${sparkBranch}",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
     PB.protocVersion := "3.23.4", // Spark 3.5 branch
