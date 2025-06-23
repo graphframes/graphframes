@@ -21,6 +21,8 @@ def build(spark_versions: Sequence[str] = ["3.5.5"]):
             f"-Dspark.version={spark_version}",
             "clean",
             "assembly",
+            "connect/clean",
+            "connect/assembly"
         ]
         sbt_build = subprocess.Popen(
             sbt_build_command,
@@ -40,22 +42,6 @@ def build(spark_versions: Sequence[str] = ["3.5.5"]):
             sys.exit(1)
         else:
             print("Building DONE successfully!")
-
-        python_resources = (
-            project_root.joinpath("python").joinpath("graphframes").joinpath("resources")
-        )
-        target_dir = project_root.joinpath("target").joinpath(scala_version)
-        gf_jar = None
-
-        for pp in target_dir.glob("*.jar"):
-            if f"graphframes-spark-{spark_major_version}-assembly" in pp.name:
-                gf_jar = pp
-                break
-
-        assert gf_jar is not None, "Missing JAR!"
-        shutil.rmtree(python_resources, ignore_errors=True)
-        python_resources.mkdir(parents=True, exist_ok=True)
-        shutil.copy(gf_jar, python_resources.joinpath(f"spark-{spark_version}-{gf_jar.name}"))
 
 
 if __name__ == "__main__":

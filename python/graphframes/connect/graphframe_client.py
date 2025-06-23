@@ -6,6 +6,7 @@ from pyspark.sql.connect.client import SparkConnectClient
 from pyspark.sql.connect.column import Column
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
+from pyspark.sql.connect.session import SparkSession
 from pyspark.storagelevel import StorageLevel
 
 try:
@@ -15,6 +16,17 @@ except ModuleNotFoundError:
 
 from .proto import graphframes_pb2 as pb
 from .utils import dataframe_to_proto, make_column_or_expr, make_str_or_long_id
+
+# Spark 4 removed this in favor of the constructor, but Spark 3
+# does not have the plan as an arg in the constructor, so simply
+# monkey patch the DataFrame class in Spark 4 for compatibility
+# in both versions.
+if not hasattr(DataFrame, "withPlan"):
+
+    def withPlan(plan: LogicalPlan, session: SparkSession) -> DataFrame:
+        return DataFrame(plan, session)  # type: ignore
+
+    DataFrame.withPlan = withPlan  # type: ignore
 
 
 class PregelConnect:

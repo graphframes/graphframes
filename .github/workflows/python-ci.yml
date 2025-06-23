@@ -67,6 +67,4 @@ jobs:
         SPARK_CONNECT_MODE_ENABLED: 1
       working-directory: ./python
       run: |
-        poetry run python dev/run_connect.py
         poetry run python -m pytest
-        poetry run python dev/stop_connect.py
