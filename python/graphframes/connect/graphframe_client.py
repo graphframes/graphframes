@@ -7,7 +7,10 @@ from pyspark.sql.connect.column import Column
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.storagelevel import StorageLevel
-from typing_extensions import Self
+try:
+    from typing import Self
+except ModuleNotFoundError:
+    from typing_extensions import Self
 
 from .proto import graphframes_pb2 as pb
 from .utils import dataframe_to_proto, make_column_or_expr, make_str_or_long_id

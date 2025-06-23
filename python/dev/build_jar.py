@@ -11,6 +11,9 @@ def build(spark_versions: Sequence[str] = ["3.5.5"]):
         print(f"SPARK_VERSION: {spark_version[:3]}")
         assert spark_version[:3] in {"3.5", "4.0"}, "Unsopported spark version!"
         spark_major_version = spark_version[0]
+
+        scala_version = "scala-2.12" if spark_major_version == 3 else "scala-2.13"
+
         project_root = Path(__file__).parent.parent.parent
         sbt_executable = project_root.joinpath("build").joinpath("sbt").absolute().__str__()
         sbt_build_command = [
@@ -41,7 +44,7 @@ def build(spark_versions: Sequence[str] = ["3.5.5"]):
         python_resources = (
             project_root.joinpath("python").joinpath("graphframes").joinpath("resources")
         )
-        target_dir = project_root.joinpath("target").joinpath("scala-2.12")
+        target_dir = project_root.joinpath("target").joinpath(scala_version)
         gf_jar = None
 
         for pp in target_dir.glob("*.jar"):

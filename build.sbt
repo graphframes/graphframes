@@ -31,7 +31,6 @@ ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports b
 def sparkVersionSettings(): Seq[Setting[_]] = {
   if (sparkMajorVer == "4") {
     Seq(
-      resolvers += "Spark 4.0.0 RC3" at "https://repository.apache.org/content/repositories/orgapachespark-1479/",
       Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / "scala-spark-4",
       Test / unmanagedSourceDirectories += (Test / baseDirectory).value / "src" / "test" / "scala-spark-4",
     )
