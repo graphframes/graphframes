@@ -40,15 +40,18 @@ def get_gf_jar_locations() -> Tuple[str, str]:
         assert isinstance(pp, pathlib.PosixPath)  # type checking
         core_jar = str(pp.absolute())
 
+    if core_jar is None:
+        raise ValueError(
+            f"Failed to find graphframes jar for Spark {spark_major_version} in {core_dir}"
+        )
+
     for pp in connect_dir.glob(f"graphframes-connect-spark-{spark_major_version}-assembly-*.jar"):
         assert isinstance(pp, pathlib.PosixPath)  # type checking
         connect_jar = str(pp.absolute())
 
-    print(core_jar, connect_jar)
-
-    if core_jar is None or connect_jar is None:
+    if connect_jar is None:
         raise ValueError(
-            f"Failed to find graphframes jars for Spark {spark_major_version}"
+            f"Failed to find graphframes connect jar for Spark {spark_major_version} in {connect_dir}"
         )
     
     return (core_jar, connect_jar)
@@ -56,10 +59,8 @@ def get_gf_jar_locations() -> Tuple[str, str]:
 
 @pytest.fixture(scope="module")
 def spark():
-    checkpointDir = "/tmp/GFTestsCheckpointDir"
     warnings.filterwarnings("ignore", category=ResourceWarning)
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    pathlib.Path(checkpointDir).mkdir(parents=True, exist_ok=True)
 
     (core_jar, connect_jar) = get_gf_jar_locations()
 
