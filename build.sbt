@@ -53,20 +53,6 @@ ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.12")
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports both 2.13.8 and 2.12.18
 
-def sparkVersionSettings(): Seq[Setting[_]] = {
-  if (sparkMajorVer == "4") {
-    Seq(
-      Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / "scala-spark-4",
-      Test / unmanagedSourceDirectories += (Test / baseDirectory).value / "src" / "test" / "scala-spark-4",
-    )
-  } else {
-    Seq(
-      Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / "scala-spark-3",
-      Test / unmanagedSourceDirectories += (Test / baseDirectory).value / "src" / "test" / "scala-spark-3",
-    )
-  }
-}
-
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
     "org.apache.spark" %% "spark-graphx" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
@@ -115,7 +101,6 @@ lazy val commonSetting = Seq(
 lazy val root = (project in file("."))
   .settings(
     commonSetting,
-    sparkVersionSettings(),
     name := "graphframes",
     moduleName := s"${name.value}-spark$sparkMajorVer",
 
@@ -123,6 +108,8 @@ lazy val root = (project in file("."))
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
     autoAPIMappings := true,
     coverageHighlighting := false,
+
+    Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
 
     // Assembly settings
     assembly / test := {}, // No tests in assembly
@@ -145,9 +132,9 @@ lazy val connect = (project in file("graphframes-connect"))
   .dependsOn(root)
   .settings(
     commonSetting,
-    sparkVersionSettings(),
     name := s"graphframes-connect",
     moduleName := s"${name.value}-spark${sparkBranch}",
+    Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
     PB.protocVersion := "3.23.4", // Spark 3.5 branch

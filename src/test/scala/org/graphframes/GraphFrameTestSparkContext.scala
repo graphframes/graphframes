@@ -20,20 +20,25 @@ package org.graphframes
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SQLImplicits
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.graphframes.SparkTestShims
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Suite
 
 import java.io.File
 import java.nio.file.Files
 
-trait GraphFrameTestSparkContext extends BeforeAndAfterAll with SparkTestShims { self: Suite =>
+trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var spark: SparkSession = _
   @transient var sc: SparkContext = _
   @transient var sqlContext: SQLContext = _
   @transient var sparkMajorVersion: Int = _
   @transient var sparkMinorVersion: Int = _
+
+  // Inspired by https://stackoverflow.com/a/59377177
+  protected def sparkSession: SparkSession = spark
+  protected lazy val sqlImplicits: SQLImplicits = self.sparkSession.implicits
+
 
   /** Check if current spark version is at least of the provided minimum version */
   def isLaterVersion(minVersion: String): Boolean = {
