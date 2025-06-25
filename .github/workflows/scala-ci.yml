@@ -10,10 +10,6 @@ jobs:
             java-version: 11
           - spark-version: 3.5.5
             java-version: 17
-          - spark-version: 3.5.5
-            java-version: 11
-          - spark-version: 3.5.5
-            java-version: 17
           - spark-version: 4.0.0
             java-version: 17
     runs-on: ubuntu-22.04
