@@ -39,7 +39,6 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   protected def sparkSession: SparkSession = spark
   protected lazy val sqlImplicits: SQLImplicits = self.sparkSession.implicits
 
-
   /** Check if current spark version is at least of the provided minimum version */
   def isLaterVersion(minVersion: String): Boolean = {
     val (minMajorVersion, minMinorVersion) = TestUtils.majorMinorVersion(minVersion)

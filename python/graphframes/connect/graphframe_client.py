@@ -17,6 +17,7 @@ except ImportError:
 from .proto import graphframes_pb2 as pb
 from .utils import dataframe_to_proto, make_column_or_expr, make_str_or_long_id
 
+
 # Spark 4 removed the withPlan method in favor of the constructor, but Spark 3
 # does not have the plan as an arg in the constructor, so we need to handle
 # both cases.
@@ -24,7 +25,7 @@ def _dataframe_from_plan(plan: LogicalPlan, session: SparkSession) -> DataFrame:
     if hasattr(DataFrame, "withPlan"):
         # Spark 3
         return DataFrame.withPlan(plan, session)
-    
+
     # Spark 4
     return DataFrame(plan, session)
 
