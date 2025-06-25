@@ -3,17 +3,12 @@ import xerial.sbt.Sonatype.sonatypeCentralHost
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
-lazy val defaultScalaVer = sparkMajorVer match {
-  case "4" => "2.13.8"
-  case "3" => "2.12.18"
-  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
-}
 lazy val scalaVersions = sparkMajorVer match {
-  case "4" => Seq("2.13.8")
-  case "3" => Seq("2.12.18", "2.13.8")
+  case "4" => Seq("2.13.12")
+  case "3" => Seq("2.12.18", "2.13.12")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
-lazy val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
+lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions(0))
 lazy val defaultScalaTestVer = "3.0.8"
 
 ThisBuild / version := {
