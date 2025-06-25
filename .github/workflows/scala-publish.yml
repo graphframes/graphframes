@@ -9,6 +9,14 @@ on:
 
 jobs:
   release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spark-version: 3.5.5
+            java-version: 11
+          - spark-version: 4.0.0
+            java-version: 17
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -20,12 +28,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: "${{ matrix.java-version }}"
           distribution: 'zulu'
 
       - name: Run the release of core
         if: startsWith(github.ref, 'refs/tags/')
-        run: build/sbt ci-release
+        run: build/sbt -Dspark.version=${{ matrix.spark-version }} +ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
