@@ -151,14 +151,14 @@ def test_power_iteration_clustering(spark):
         e=spark.createDataFrame(vertices).toDF("src", "dst", "weight"),
     )
 
-    clusters = [
-        r["cluster"]
+    clusters = {
+        r["id"]: r["cluster"]
         for r in g.powerIterationClustering(k=2, maxIter=40, weightCol="weight")
         .sort("id")
         .collect()
-    ]
+    }
 
-    assert clusters == [0, 0, 0, 0, 1, 0]
+    assert clusters == {0: 0, 1: 0, 2: 0, 3: 0, 4: 1, 5: 0}
 
 
 def test_page_rank(spark):
