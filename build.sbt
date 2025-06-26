@@ -24,6 +24,12 @@ lazy val protobufShadingPattern = sys.props.getOrElse("vendor.name", "oss") matc
     throw new IllegalArgumentException(s"Unsupported vendor name: $s; supported: 'oss', 'dbx'")
 }
 
+lazy val protocVersion = sparkMajorVer match {
+  case "4" => "4.29.3"
+  case "3" => "3.23.4"
+  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
+}
+
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "org.graphframes"
 ThisBuild / homepage := Some(url("https://graphframes.io/"))
@@ -136,7 +142,7 @@ lazy val connect = (project in file("graphframes-connect"))
     Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
-    PB.protocVersion := "3.23.4", // Spark 3.5 branch
+    PB.protocVersion := protocVersion,
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
 
