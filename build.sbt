@@ -138,7 +138,7 @@ lazy val connect = (project in file("graphframes-connect"))
   .settings(
     commonSetting,
     name := s"graphframes-connect",
-    moduleName := s"${name.value}-spark${sparkBranch}",
+    moduleName := s"${name.value}-spark${sparkMajorVer}",
     Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
