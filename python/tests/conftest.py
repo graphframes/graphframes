@@ -78,7 +78,7 @@ def spark():
 
         if is_remote():
             builder = (builder
-                .remote("local")
+                .remote("local[4]")
                 .config("spark.connect.extensions.relation.classes", "org.apache.spark.sql.graphframes.GraphFramesConnect")
             )
         else:
