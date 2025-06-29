@@ -24,8 +24,9 @@ Steps to reproduce the behavior:
 **System [please complete the following information]:**
 
 -   OS: e.g. [Ubuntu 18.04]
--   Python Version: [e.g. Python 3.8]
--   PySpark version: [e.g. PySpark 3.5.1]
+-   Python Version (if applied): [e.g. Python 3.8]
+-   Spark / PySpark version: [e.g. PySpark 3.5.1]
+-   GraphFrames version: [e.g. graphframes-0.9.0]
 
 **Component**
 
