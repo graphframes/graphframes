@@ -20,9 +20,9 @@ package org.graphframes.lib
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.graphframes.SparkShims
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.nestAsCol
 import org.graphframes.Logging
@@ -155,7 +155,7 @@ private object BFS extends Logging with Serializable {
       val a2b = g.find("(a)-[e]->(b)")
       edgeFilter match {
         case Some(ef) =>
-          val efExpr = applyExprToCol(ef, "e")
+          val efExpr = SparkShims.applyExprToCol(g.spark, ef, "e")
           a2b.filter(efExpr)
         case None =>
           a2b
@@ -163,7 +163,7 @@ private object BFS extends Logging with Serializable {
     }
 
     // We will always apply fromExpr to column "a"
-    val fromAExpr = applyExprToCol(from, "a")
+    val fromAExpr = SparkShims.applyExprToCol(g.spark, from, "a")
 
     // DataFrame of current search paths
     var paths: DataFrame = null
@@ -200,7 +200,7 @@ private object BFS extends Logging with Serializable {
         paths = paths.filter(previousVertexChecks)
       }
       // Check if done by applying toExpr to column nextVertex
-      val toVExpr = applyExprToCol(to, nextVertex)
+      val toVExpr = SparkShims.applyExprToCol(g.spark, to, nextVertex)
       val foundPathDF = paths.filter(toVExpr)
       if (foundPathDF.take(1).nonEmpty) {
         // Found path
@@ -227,22 +227,5 @@ private object BFS extends Logging with Serializable {
       // Return empty DataFrame
       g.spark.createDataFrame(g.spark.sparkContext.parallelize(Seq.empty[Row]), g.vertices.schema)
     }
-  }
-
-  /**
-   * Apply the given SQL expression (such as `id = 3`) to the field in a column, rather than to
-   * the column itself.
-   *
-   * @param expr
-   *   SQL expression, such as `id = 3`
-   * @param colName
-   *   Column name, such as `myVertex`
-   * @return
-   *   SQL expression applied to the column fields, such as `myVertex.id = 3`
-   */
-  private def applyExprToCol(expr: Column, colName: String) = {
-    new Column(expr.expr.transform { case UnresolvedAttribute(nameParts) =>
-      UnresolvedAttribute(colName +: nameParts)
-    })
   }
 }
