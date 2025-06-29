@@ -23,7 +23,7 @@ import org.scalactic.Tolerance._
 
 class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  import testImplicits._
+  import sqlImplicits._
 
   test("page rank") {
     val edges = Seq(

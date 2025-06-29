@@ -18,13 +18,13 @@
 package org.graphframes.lib
 
 import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.graphframes.GraphFrame
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithMaxIter
-import org.graphframes.catalyst.GraphFramesFunctions
 
 /**
  * Run static Label Propagation for detecting communities in networks.
@@ -62,6 +62,14 @@ private object LabelPropagation {
     GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
   }
 
+  private def keyWithMaxValue(column: Column): Column = {
+    // Get the key with the highest value, using the key to break a tie. To do this, simply get
+    // map entries, swap the value and key columns to create the natural ordering, and then
+    // take the key from the max entry
+    array_max(transform(map_entries(column), x => struct(x.getField("value"), x.getField("key"))))
+      .getField("key")
+  }
+
   private def runInGraphFrames(
       graph: GraphFrame,
       maxIter: Int,
@@ -73,17 +81,13 @@ private object LabelPropagation {
     // - Choosing a new label - top across neighbours (tie-braking is determenistic)
 
     var pregel = graph.pregel
-      .withVertexColumn(
-        LABEL_ID,
-        col(GraphFrame.ID).alias(LABEL_ID),
-        GraphFramesFunctions.keyWithMaxValue(Pregel.msg))
+      .withVertexColumn(LABEL_ID, col(GraphFrame.ID).alias(LABEL_ID), keyWithMaxValue(Pregel.msg))
       .setMaxIter(maxIter)
       .setStopIfAllNonActiveVertices(true)
       .setEarlyStopping(false)
       .setCheckpointInterval(checkpointInterval)
       .setSkipMessagesFromNonActiveVertices(false)
-      .setUpdateActiveVertexExpression(col(LABEL_ID) =!= GraphFramesFunctions
-        .keyWithMaxValue(Pregel.msg))
+      .setUpdateActiveVertexExpression(col(LABEL_ID) =!= keyWithMaxValue(Pregel.msg))
 
     if (isDirected) {
       pregel = pregel.sendMsgToDst(col(LABEL_ID))

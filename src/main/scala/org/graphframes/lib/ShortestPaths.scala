@@ -20,8 +20,6 @@ package org.graphframes.lib
 import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.api.java.UDF1
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.collect_list
 import org.apache.spark.sql.functions.lit
@@ -29,8 +27,8 @@ import org.apache.spark.sql.functions.map
 import org.apache.spark.sql.functions.map_values
 import org.apache.spark.sql.functions.map_zip_with
 import org.apache.spark.sql.functions.reduce
+import org.apache.spark.sql.functions.transform_keys
 import org.apache.spark.sql.functions.transform_values
-import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.functions.when
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.MapType
@@ -90,35 +88,18 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
 private object ShortestPaths extends Logging {
 
   private def runInGraphX(graph: GraphFrame, landmarks: Seq[Any]): DataFrame = {
-    val idType = graph.vertices.schema(GraphFrame.ID).dataType
     val longIdToLandmark = landmarks.map(l => GraphXConversions.integralId(graph, l) -> l).toMap
     val gx = graphxlib.ShortestPaths
       .run(graph.cachedTopologyGraphX, longIdToLandmark.keys.toSeq.sorted)
-      .mapVertices { case (_, m) => m.toSeq }
     val g = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
     val distanceCol: Column = if (graph.hasIntegralIdType) {
-      // It seems there are no easy way to convert a sequence of pairs into a map
-      val mapToLandmark = udf { distances: Seq[Row] =>
-        distances.map {
-          case Row(k: Long, v: Int) =>
-            k -> v
-          case _: Row => throw new GraphFramesUnreachableException()
-        }.toMap
-      }
-      mapToLandmark(g.vertices(DISTANCE_ID))
+      g.vertices(DISTANCE_ID)
     } else {
-      val func = new UDF1[Seq[Row], Map[Any, Int]] {
-        override def call(t1: Seq[Row]): Map[Any, Int] = {
-          t1.map {
-            case Row(k: Long, v: Int) =>
-              longIdToLandmark(k) -> v
-
-            case _: Row => throw new GraphFramesUnreachableException()
-          }.toMap
-        }
-      }
-      val mapToLandmark = udf(func, MapType(idType, IntegerType, false))
-      mapToLandmark(col(DISTANCE_ID))
+      val longIdToLandmarkFlatten: Seq[Column] = longIdToLandmark.flatMap {
+        case (k: Long, v: Any) => Seq(lit(k), lit(v))
+      }.toSeq
+      val longIdToLandmarkColumn = map(longIdToLandmarkFlatten: _*)
+      transform_keys(col(DISTANCE_ID), (longId: Column, _) => longIdToLandmarkColumn(longId))
     }
     val cols = graph.vertices.columns.map(quote).map(col) :+ distanceCol.as(DISTANCE_ID)
     g.vertices.select(cols.toSeq: _*)

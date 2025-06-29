@@ -1,22 +1,33 @@
 import xerial.sbt.Sonatype.sonatypeCentralHost
 
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
+lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
-lazy val defaultScalaVer = sparkBranch match {
-  case "3.5" => "2.12.18"
-  case "3.4" => "2.12.17"
+lazy val scalaVersions = sparkMajorVer match {
+  case "4" => Seq("2.13.12")
+  case "3" => Seq("2.12.18", "2.13.12")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
-lazy val scalaVer = sys.props.getOrElse("scala.version", defaultScalaVer)
-lazy val defaultScalaTestVer = scalaVer match {
-  case s if s.startsWith("2.12") || s.startsWith("2.13") => "3.0.8"
+lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions(0))
+lazy val defaultScalaTestVer = "3.0.8"
+
+ThisBuild / version := {
+  val baseVersion = (ThisBuild / version).value
+  s"${baseVersion}-spark${sparkBranch}"
 }
+
 // Some vendors are using an own shading rule for protobuf
 lazy val protobufShadingPattern = sys.props.getOrElse("vendor.name", "oss") match {
   case "oss" => "org.sparkproject.connect.protobuf.@1"
   case "dbx" => "grpc_shaded.com.google.protobuf.@1"
   case s: String =>
     throw new IllegalArgumentException(s"Unsupported vendor name: $s; supported: 'oss', 'dbx'")
+}
+
+lazy val protocVersion = sparkMajorVer match {
+  case "4" => "4.29.3"
+  case "3" => "3.23.4"
+  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 
 ThisBuild / scalaVersion := scalaVer
@@ -41,7 +52,7 @@ ThisBuild / developers := List(
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / sonatypeProfileName := "io.graphframes"
-ThisBuild / crossScalaVersions := Seq("2.12.18", "2.13.12")
+ThisBuild / crossScalaVersions := scalaVersions
 
 // Scalafix configuration
 ThisBuild / semanticdbEnabled := true
@@ -52,7 +63,7 @@ lazy val commonSetting = Seq(
     "org.apache.spark" %% "spark-graphx" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
-    "org.slf4j" % "slf4j-api" % "2.0.16",
+    "org.slf4j" % "slf4j-api" % "2.0.16" % "provided",
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
@@ -96,15 +107,18 @@ lazy val root = (project in file("."))
   .settings(
     commonSetting,
     name := "graphframes",
-    moduleName := s"${name.value}-spark${sparkBranch}",
+    moduleName := s"${name.value}-spark$sparkMajorVer",
 
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
     autoAPIMappings := true,
     coverageHighlighting := false,
 
+    Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
+
     // Assembly settings
     assembly / test := {}, // No tests in assembly
+    assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
       case x if x.endsWith("module-info.class") => MergeStrategy.discard
@@ -123,16 +137,18 @@ lazy val connect = (project in file("graphframes-connect"))
   .dependsOn(root)
   .settings(
     commonSetting,
-    name := "graphframes-connect",
-    moduleName := s"${name.value}-spark${sparkBranch}",
+    name := s"graphframes-connect",
+    moduleName := s"${name.value}-spark${sparkMajorVer}",
+    Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
-    PB.protocVersion := "3.23.4", // Spark 3.5 branch
+    PB.protocVersion := protocVersion,
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
 
     // Assembly and shading
     assembly / test := {},
+    assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("com.google.protobuf.**" -> protobufShadingPattern).inAll),
     assembly / assemblyMergeStrategy := {

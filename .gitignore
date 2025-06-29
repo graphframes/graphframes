@@ -27,6 +27,12 @@ metals.sbt
 # VSCode
 .vscode
 
+# metals
+.ammonite/
+.bloop/
+.metals/
+metals.sbt
+
 # Helix
 .helix
 
