@@ -23,3 +23,5 @@ class InvalidPatternException() extends Exception()
  */
 class GraphFramesUnreachableException()
     extends Exception("This exception should not be reachable")
+
+class InvalidPropertyGroupException(message: String) extends Exception(message)
