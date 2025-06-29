@@ -1,4 +1,7 @@
 package org.graphframes.propertygraph
+
+import org.apache.spark.sql.Column
+import org.graphframes.GraphFrame
 import org.graphframes.propertygraph.property.EdgePropertyGroup
 import org.graphframes.propertygraph.property.VertexPropertyGroup
 
@@ -39,7 +42,29 @@ import org.graphframes.propertygraph.property.VertexPropertyGroup
 case class PropertyGraphFrame(
     vertexPropertyGroups: Seq[VertexPropertyGroup],
     edgesPropertyGroups: Seq[EdgePropertyGroup]) {
-  vertexPropertyGroups.map(pg => pg.name -> pg).toMap
-  edgesPropertyGroups.map(pg => pg.name -> pg).toMap
+  lazy private val vertexGroups: Map[String, VertexPropertyGroup] =
+    vertexPropertyGroups.map(pg => pg.name -> pg).toMap
+  lazy private val edgeGroups: Map[String, EdgePropertyGroup] =
+    edgesPropertyGroups.map(pg => pg.name -> pg).toMap
 
+  def toGraphFrame(
+      vertexPropertyGroups: Seq[String],
+      edgePropertyGroups: Seq[String],
+      edgeFilters: Seq[Column],
+      vertexFilters: Seq[Column]): GraphFrame = {
+    vertexPropertyGroups.foreach(name =>
+      require(vertexGroups.contains(name), s"Vertex property group $name does not exist"))
+    edgePropertyGroups.foreach(name =>
+      require(edgeGroups.contains(name), s"Edge property group $name does not exist"))
+
+    val vertices = vertexPropertyGroups
+      .map(name => vertexGroups(name).getData(vertexFilters))
+      .reduce(_ union _)
+
+    val edges = edgePropertyGroups
+      .map(name => edgeGroups(name).getData(edgeFilters))
+      .reduce(_ union _)
+
+    GraphFrame(vertices, edges)
+  }
 }
