@@ -749,6 +749,15 @@ object GraphFrame extends Serializable with Logging {
    */
   val EDGE: String = "edge"
 
+  /**
+   * Column name representing the weight attribute of edges in a graph.
+   *
+   * This field is used to identify and represent the weight associated with edges in a
+   * GraphFrame. The weight generally encodes the strength or importance of the connection between
+   * two nodes in a graph.
+   */
+  val WEIGHT: String = "weight"
+
   // ============================ Constructors and converters =================================
 
   /**
