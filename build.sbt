@@ -1,5 +1,3 @@
-import xerial.sbt.Sonatype.sonatypeCentralHost
-
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
@@ -38,6 +36,7 @@ ThisBuild / scmInfo := Some(
   ScmInfo(
     url("https://github.com/graphframes/graphframes"),
     "scm:git@github.com:graphframes/graphframes.git"))
+// The list of active maintainers with Write/Maintain/Admin access
 ThisBuild / developers := List(
   Developer(
     id = "rjurney",
@@ -48,7 +47,12 @@ ThisBuild / developers := List(
     id = "SemyonSinchenko",
     name = "Sem",
     email = "ssinchenko@apache.org",
-    url = url("https://github.com/SemyonSinchenko")))
+    url = url("https://github.com/SemyonSinchenko")),
+  Developer(
+    id = "james-willis",
+    name = "James Willis",
+    email = "???",
+    url = url("https://github.com/james-willis")))
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / sonatypeProfileName := "io.graphframes"
@@ -113,7 +117,6 @@ lazy val root = (project in file("."))
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
     autoAPIMappings := true,
     coverageHighlighting := false,
-
     Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
 
     // Assembly settings
@@ -134,7 +137,7 @@ lazy val root = (project in file("."))
     Compile / packageSrc / publishArtifact := true)
 
 lazy val connect = (project in file("graphframes-connect"))
-  .dependsOn(root)
+  .dependsOn(root % "provided") // It will be provided in the final POM
   .settings(
     commonSetting,
     name := s"graphframes-connect",
@@ -152,17 +155,45 @@ lazy val connect = (project in file("graphframes-connect"))
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("com.google.protobuf.**" -> protobufShadingPattern).inAll),
     assembly / assemblyMergeStrategy := {
-      case PathList("google", "protobuf", xs @ _*) => MergeStrategy.discard
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
       case x if x.endsWith("module-info.class") => MergeStrategy.discard
-      case x => MergeStrategy.first
+      case _ => MergeStrategy.first
     },
-    assembly / assemblyExcludedJars := (Compile / fullClasspath).value.filter { className =>
-      className.data
-        .getName()
-        .contains("scala-library-") || className.data
-        .getName()
-        .contains("slf4j-api-")
+    // I have zero ideas how to apply shading and exclude everything except connect classes in the right way.
+    // This looks terrible, but it works:
+    assembly / assemblyExcludedJars := (Compile / fullClasspath).value.filterNot { className =>
+      className.data.getName.contains("GraphFramesConnect") || className.data.getPath.contains(
+        "graphframes/connect/proto")
+    },
+    // This magic is required to have graphframes-core as a runtime dependency
+    // at the same time depends on it as provided to avoid packing it to the Uber JAR we are publishing
+    pomPostProcess := {
+      val rootModuleName = (root / moduleName).value
+      node =>
+        import scala.xml._
+        import scala.xml.transform._
+
+        val rewriteRule = new RewriteRule {
+          override def transform(n: Node): Seq[Node] = n match {
+            case e: Elem
+                if e.label == "dependency" && (e \ "artifactId").text.contains(rootModuleName) =>
+              val scope = e \ "scope"
+              if (scope.text == "provided") {
+                val children = e.child.filter(_.label != "scope") ++ <scope>runtime</scope>
+                Elem(
+                  e.prefix,
+                  e.label,
+                  e.attributes,
+                  e.scope,
+                  minimizeEmpty = false,
+                  children: _*)
+              } else {
+                e
+              }
+            case _ => n
+          }
+        }
+        new RuleTransformer(rewriteRule).transform(node).head
     },
     publish / skip := false,
     Compile / packageBin := assembly.value,
