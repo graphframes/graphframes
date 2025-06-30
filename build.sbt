@@ -51,7 +51,7 @@ ThisBuild / developers := List(
   Developer(
     id = "james-willis",
     name = "James Willis",
-    email = "???",
+    email = "jimwillis95@gmail.com",
     url = url("https://github.com/james-willis")))
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
