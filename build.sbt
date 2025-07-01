@@ -116,16 +116,6 @@ lazy val root = (project in file("."))
 
     Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
 
-    // Assembly settings
-    assembly / test := {}, // No tests in assembly
-    assemblyPackageScala / assembleArtifact := false,
-    assembly / assemblyMergeStrategy := {
-      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-      case x if x.endsWith("module-info.class") => MergeStrategy.discard
-      case x =>
-        val oldStrategy = (assembly / assemblyMergeStrategy).value
-        oldStrategy(x)
-    },
     Test / packageBin / publishArtifact := false,
     Test / packageDoc / publishArtifact := false,
     Test / packageSrc / publishArtifact := false,
@@ -133,12 +123,13 @@ lazy val root = (project in file("."))
     Compile / packageDoc / publishArtifact := true,
     Compile / packageSrc / publishArtifact := true)
 
-lazy val connect = (project in file("graphframes-connect"))
+// Dedicated project for creating the shaded JAR that doesn't get published
+lazy val connectAssembly = (project in file("graphframes-connect"))
   .dependsOn(root)
   .settings(
+    name := s"graphframes-connect-assembly",
+    moduleName := s"graphframes-connect-spark${sparkMajorVer}",
     commonSetting,
-    name := s"graphframes-connect",
-    moduleName := s"${name.value}-spark${sparkMajorVer}",
     Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
@@ -147,8 +138,8 @@ lazy val connect = (project in file("graphframes-connect"))
       "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
 
     // Assembly and shading
+    assembly / assemblyJarName := s"${moduleName.value}_${(scalaBinaryVersion).value}-${version.value}.jar",
     assembly / test := {},
-    assemblyPackageScala / assembleArtifact := false,
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("com.google.protobuf.**" -> protobufShadingPattern).inAll),
     assembly / assemblyMergeStrategy := {
@@ -157,18 +148,28 @@ lazy val connect = (project in file("graphframes-connect"))
       case x if x.endsWith("module-info.class") => MergeStrategy.discard
       case x => MergeStrategy.first
     },
-    assembly / assemblyExcludedJars := (Compile / fullClasspath).value.filter { className =>
-      className.data
-        .getName()
-        .contains("scala-library-") || className.data
-        .getName()
-        .contains("slf4j-api-")
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      val allowedPrefixes = Set("protobuf-java")
+      cp.filter { f =>
+        !allowedPrefixes.exists(prefix => f.data.getName.startsWith(prefix))
+      }
     },
-    publish / skip := false,
+    publish / skip := true,
     Compile / packageBin := assembly.value,
     Test / packageBin / publishArtifact := false,
     Test / packageDoc / publishArtifact := false,
     Test / packageSrc / publishArtifact := false,
-    Compile / packageBin / publishArtifact := true,
+    Compile / packageBin / publishArtifact := false,
     Compile / packageDoc / publishArtifact := false,
     Compile / packageSrc / publishArtifact := false)
+
+// Publish the shaded JAR with the correct dependencies in the POM
+lazy val connect = project
+  .dependsOn(root)
+  .settings(
+    commonSetting,
+    name := s"graphframes-connect",
+    moduleName := s"${name.value}-spark${sparkMajorVer}",
+    Compile / packageBin := (connectAssembly / Compile / assembly).value
+  )
