@@ -36,7 +36,7 @@ def get_gf_jar_locations() -> Tuple[str, str]:
     core_jar: Optional[str] = None
     connect_jar: Optional[str] = None
 
-    for pp in core_dir.glob(f"graphframes-spark{spark_major_version}-*.jar"):
+    for pp in core_dir.glob(f"graphframes-spark{spark_major_version}*.jar"):
         assert isinstance(pp, pathlib.PosixPath)  # type checking
         core_jar = str(pp.absolute())
 
@@ -45,7 +45,7 @@ def get_gf_jar_locations() -> Tuple[str, str]:
             f"Failed to find graphframes jar for Spark {spark_major_version} in {core_dir}"
         )
 
-    for pp in connect_dir.glob(f"graphframes-connect-spark{spark_major_version}-*.jar"):
+    for pp in connect_dir.glob(f"graphframes-connect-spark{spark_major_version}*.jar"):
         assert isinstance(pp, pathlib.PosixPath)  # type checking
         connect_jar = str(pp.absolute())
 
