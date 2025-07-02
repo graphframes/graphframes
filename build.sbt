@@ -1,5 +1,3 @@
-import xerial.sbt.Sonatype.sonatypeCentralHost
-
 lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
@@ -38,6 +36,7 @@ ThisBuild / scmInfo := Some(
   ScmInfo(
     url("https://github.com/graphframes/graphframes"),
     "scm:git@github.com:graphframes/graphframes.git"))
+// The list of active maintainers with Write/Maintain/Admin access
 ThisBuild / developers := List(
   Developer(
     id = "rjurney",
@@ -48,7 +47,13 @@ ThisBuild / developers := List(
     id = "SemyonSinchenko",
     name = "Sem",
     email = "ssinchenko@apache.org",
-    url = url("https://github.com/SemyonSinchenko")))
+    url = url("https://github.com/SemyonSinchenko")),
+  Developer(
+    id = "james-willis",
+    name = "James Willis",
+    email = "jimwillis95@gmail.com",
+    url = url("https://github.com/james-willis"))
+)
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 ThisBuild / sonatypeProfileName := "io.graphframes"
