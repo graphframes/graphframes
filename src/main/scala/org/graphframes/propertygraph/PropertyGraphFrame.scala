@@ -50,19 +50,19 @@ case class PropertyGraphFrame(
   def toGraphFrame(
       vertexPropertyGroups: Seq[String],
       edgePropertyGroups: Seq[String],
-      edgeFilters: Seq[Column],
-      vertexFilters: Seq[Column]): GraphFrame = {
+      edgeGroupFilters: Map[String, Column],
+      vertexGroupFilters: Map[String, Column]): GraphFrame = {
     vertexPropertyGroups.foreach(name =>
       require(vertexGroups.contains(name), s"Vertex property group $name does not exist"))
     edgePropertyGroups.foreach(name =>
       require(edgeGroups.contains(name), s"Edge property group $name does not exist"))
 
     val vertices = vertexPropertyGroups
-      .map(name => vertexGroups(name).getData(vertexFilters))
+      .map(name => vertexGroups(name).getData(vertexGroupFilters(name)))
       .reduce(_ union _)
 
     val edges = edgePropertyGroups
-      .map(name => edgeGroups(name).getData(edgeFilters))
+      .map(name => edgeGroups(name).getData(edgeGroupFilters(name)))
       .reduce(_ union _)
 
     GraphFrame(vertices, edges)

@@ -2,6 +2,7 @@ package org.graphframes.propertygraph.property
 
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.lit
 
 trait PropertyGroup {
   val name: String
@@ -19,6 +20,6 @@ trait PropertyGroup {
    *   3. Storing this mapping internally to enable conversion back to original IDs
    */
   protected[graphframes] def internalIdMapping: DataFrame
-  protected[graphframes] def getData(): DataFrame = getData(Seq.empty[Column])
-  protected[graphframes] def getData(filters: Seq[Column]): DataFrame
+  protected[graphframes] def getData: DataFrame = getData(lit(true))
+  protected[graphframes] def getData(filter: Column): DataFrame
 }

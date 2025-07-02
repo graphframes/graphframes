@@ -3,8 +3,9 @@ package org.graphframes.propertygraph.property
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.lit
-import org.apache.spark.sql.functions.xxhash64
+import org.apache.spark.sql.functions.sha2
 import org.graphframes.GraphFrame
 import org.graphframes.InvalidPropertyGroupException
 
@@ -53,11 +54,11 @@ case class VertexPropertyGroup(
 
   override protected[graphframes] def internalIdMapping: DataFrame = data
     .select(col(primaryKeyColumn).alias(EXTERNAL_ID))
-    .withColumn(GraphFrame.ID, xxhash64(lit(name), col(EXTERNAL_ID)))
+    .withColumn(GraphFrame.ID, concat(lit(name), sha2(col(EXTERNAL_ID), 256)))
 
-  override protected[graphframes] def getData(filters: Seq[Column]): DataFrame = {
-    val filteredData = filters.foldLeft(data)((data, filter) => data.filter(filter))
-    filteredData.select(xxhash64(lit(name), col(primaryKeyColumn)).alias(GraphFrame.ID))
+  override protected[graphframes] def getData(filter: Column): DataFrame = {
+    val filteredData = data.filter(filter)
+    filteredData.select(concat(lit(name), sha2(col(primaryKeyColumn), 256)).alias(GraphFrame.ID))
   }
 }
 
