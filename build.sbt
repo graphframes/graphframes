@@ -108,6 +108,7 @@ lazy val root = (project in file("."))
     commonSetting,
     name := "graphframes",
     moduleName := s"${name.value}-spark$sparkMajorVer",
+    exportJars := true,
 
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
