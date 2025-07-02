@@ -125,17 +125,17 @@ lazy val root = (project in file("."))
     Compile / packageDoc / publishArtifact := true,
     Compile / packageSrc / publishArtifact := true)
 
-// Dedicated project for creating the shaded JAR that doesn't get published
-lazy val connectAssembly = (project in file("graphframes-connect"))
+lazy val connect = (project in file("graphframes-connect"))
   .dependsOn(root)
   .settings(
-    name := s"graphframes-connect-assembly",
-    moduleName := s"graphframes-connect-spark${sparkMajorVer}",
+    name := s"graphframes-connect",
+    moduleName := s"${name.value}-spark${sparkMajorVer}",
     commonSetting,
     Compile / unmanagedSourceDirectories += (Compile / baseDirectory).value / "src" / "main" / s"scala-spark-$sparkMajorVer",
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value),
     Compile / PB.includePaths ++= Seq(file("src/main/protobuf")),
     PB.protocVersion := protocVersion,
+    PB.additionalDependencies := Nil,
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
 
@@ -146,21 +146,11 @@ lazy val connectAssembly = (project in file("graphframes-connect"))
       ShadeRule.rename("com.google.protobuf.**" -> protobufShadingPattern).inAll),
     // Don't actually shade anything, we just need to rename the protobuf packages to what's bundled with Spark
     assembly / assemblyExcludedJars := (assembly / fullClasspath).value,
-    publish / skip := true,
     Compile / packageBin := assembly.value,
     Test / packageBin / publishArtifact := false,
     Test / packageDoc / publishArtifact := false,
     Test / packageSrc / publishArtifact := false,
-    Compile / packageBin / publishArtifact := false,
+    Compile / packageBin / publishArtifact := true,
     Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false)
-
-// Publish the shaded JAR with the correct dependencies in the POM
-lazy val connect = project
-  .dependsOn(root)
-  .settings(
-    commonSetting,
-    name := s"graphframes-connect",
-    moduleName := s"${name.value}-spark${sparkMajorVer}",
-    Compile / packageBin := (connectAssembly / Compile / assembly).value
+    Compile / packageSrc / publishArtifact := false
   )
