@@ -190,6 +190,10 @@ lazy val connect = (project in file("graphframes-connect"))
               } else {
                 e
               }
+            case e: Elem
+                if e.label == "dependency" && (e \ "artifactId").text.contains("protobuf-java") =>
+              val children = e.child ++ <scope>provided</scope>
+              Elem(e.prefix, e.label, e.attributes, e.scope, minimizeEmpty = false, children: _*)
             case _ => n
           }
         }
