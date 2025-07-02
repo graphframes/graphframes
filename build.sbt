@@ -144,19 +144,8 @@ lazy val connectAssembly = (project in file("graphframes-connect"))
     assembly / test := {},
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("com.google.protobuf.**" -> protobufShadingPattern).inAll),
-    assembly / assemblyMergeStrategy := {
-      case PathList("google", "protobuf", xs @ _*) => MergeStrategy.discard
-      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-      case x if x.endsWith("module-info.class") => MergeStrategy.discard
-      case x => MergeStrategy.first
-    },
-    assembly / assemblyExcludedJars := {
-      val cp = (assembly / fullClasspath).value
-      val allowedPrefixes = Set("protobuf-java")
-      cp.filter { f =>
-        !allowedPrefixes.exists(prefix => f.data.getName.startsWith(prefix))
-      }
-    },
+    // Don't actually shade anything, we just need to rename the protobuf packages to what's bundled with Spark
+    assembly / assemblyExcludedJars := (assembly / fullClasspath).value,
     publish / skip := true,
     Compile / packageBin := assembly.value,
     Test / packageBin / publishArtifact := false,
