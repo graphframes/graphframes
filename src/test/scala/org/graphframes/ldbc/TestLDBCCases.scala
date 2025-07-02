@@ -11,11 +11,12 @@ import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.SparkFunSuite
 import org.graphframes.examples.LDBCUtils
 
+import java.io.File
 import java.nio.file._
 import java.util.Properties
 
 class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
-  private val resourcesPath = Paths.get(getClass().getResource("/").toURI())
+  private val resourcesPath = Path.of(new File("target").toURI())
   private val unreachableID = 9223372036854775807L
 
   private def readUndirectedUnweighted(pathPrefix: String): GraphFrame = {
