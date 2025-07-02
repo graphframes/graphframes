@@ -108,6 +108,7 @@ lazy val root = (project in file("."))
     commonSetting,
     name := "graphframes",
     moduleName := s"${name.value}-spark$sparkMajorVer",
+    // Export the JAR so that this can be excluded from shading in connect
     exportJars := true,
 
     // Global settings
