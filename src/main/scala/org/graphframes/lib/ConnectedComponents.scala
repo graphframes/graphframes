@@ -340,7 +340,7 @@ object ConnectedComponents extends Logging {
           vv(ATTR),
           when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT),
           col(ATTR + "." + ID).as(ID))
-      val output = if (graph.hasIntegralIdType) {
+      val output = if (graph.hasIntegralIdType || !GraphFramesConf.getUseLabelsAsComponents) {
         indexedLabel
           .select(col(s"$ATTR.*"), col(COMPONENT))
           .persist(intermediateStorageLevel)

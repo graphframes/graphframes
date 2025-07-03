@@ -6,6 +6,16 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.storage.StorageLevel
 
 object GraphFramesConf {
+  private val USE_LABELS_AS_COMPONENTS =
+    SQLConf
+      .buildConf("spark.graphframes.useLabelsAsComponents")
+      .doc(""" Tells the connected components algorithm to use (default: "true") labels as components in the output
+          | DataFrame. If set to "false", randomly generated labels with the data type LONG will returned.
+          |""".stripMargin)
+      .version("0.9.0")
+      .booleanConf
+      .createWithDefault(true)
+
   private val CONNECTED_COMPONENTS_ALGORITHM =
     SQLConf
       .buildConf("spark.graphframes.connectedComponents.algorithm")
@@ -93,4 +103,6 @@ object GraphFramesConf {
       case _ => None
     }
   }
+
+  def getUseLabelsAsComponents: Boolean = get(USE_LABELS_AS_COMPONENTS).get.toBoolean
 }
