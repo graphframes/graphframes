@@ -22,6 +22,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.LongType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame._
 import org.graphframes._
@@ -73,6 +74,25 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val components = g.connectedComponents.run()
     val expected = (0L until n).map(Set(_)).toSet
     assertComponents(components, expected)
+  }
+
+  test("using labels as components") {
+    val vertices = spark.createDataFrame(Seq("a", "b", "c", "d", "e").map(Tuple1.apply)).toDF(ID)
+    val edges = spark.createDataFrame(Seq.empty[(String, String)]).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = Seq("a", "b", "c", "d", "e").map(Set(_)).toSet
+    assertComponents(components, expected)
+  }
+
+  test("don't using labels as components") {
+    spark.conf.set("spark.graphframes.useLabelsAsComponents", "false")
+    val vertices = spark.createDataFrame(Seq("a", "b", "c", "d", "e").map(Tuple1.apply)).toDF(ID)
+    val edges = spark.createDataFrame(Seq.empty[(String, String)]).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    assert(components.schema("component").dataType == LongType)
+    spark.conf.set("spark.graphframes.useLabelsAsComponents", "true")
   }
 
   test("two connected vertices") {
