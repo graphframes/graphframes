@@ -10,7 +10,7 @@ object GraphFramesConf {
     SQLConf
       .buildConf("spark.graphframes.useLabelsAsComponents")
       .doc(""" Tells the connected components algorithm to use (default: "true") labels as components in the output
-          | DataFrame. If set to "false", randomly generated labels will returned.
+          | DataFrame. If set to "false", randomly generated labels with the data type LONG will returned.
           |""".stripMargin)
       .version("0.9.0")
       .booleanConf
