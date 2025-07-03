@@ -17,4 +17,4 @@ libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.10"
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.3")
 
 // SBT CI Release
-addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.9.3")
+addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.11.1")

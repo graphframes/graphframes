@@ -29,7 +29,7 @@ lazy val protocVersion = sparkMajorVer match {
 }
 
 ThisBuild / scalaVersion := scalaVer
-ThisBuild / organization := "org.graphframes"
+ThisBuild / organization := "io.graphframes"
 ThisBuild / homepage := Some(url("https://graphframes.io/"))
 ThisBuild / licenses := Seq("Apache-2.0" -> url("https://opensource.org/licenses/Apache-2.0"))
 ThisBuild / scmInfo := Some(
@@ -54,9 +54,6 @@ ThisBuild / developers := List(
     email = "jimwillis95@gmail.com",
     url = url("https://github.com/james-willis"))
 )
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
-ThisBuild / sonatypeProfileName := "io.graphframes"
 ThisBuild / crossScalaVersions := scalaVersions
 
 // Scalafix configuration
