@@ -3,9 +3,16 @@ name: scala-central-publish
 on:
   push:
     branches:
-      - main
+      - master
     tags:
       - "*.*.*"
+
+# In the case of pushing the tag, it will publish the release.
+# In the case of pushing to the main, it will publish the SNAPSHOT
+
+# From the docs (https://github.com/sbt/sbt-ci-release):
+# - git tag pushes are published as regular releases to Maven Central
+# - merge into main commits are published as -SNAPSHOT with a unique version number for every commit
 
 jobs:
   release:
@@ -25,14 +32,12 @@ jobs:
           fetch-depth: 0 # sbt-git requires the full history to determine the version
 
       - name: Set up JDK
-        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java-version }}"
           distribution: 'zulu'
 
       - name: Run the release of core
-        if: startsWith(github.ref, 'refs/tags/')
         run: build/sbt -Dspark.version=${{ matrix.spark-version }} +ci-release "project connect" +ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
