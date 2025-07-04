@@ -47,6 +47,36 @@ case class PropertyGraphFrame(
   lazy private val edgeGroups: Map[String, EdgePropertyGroup] =
     edgesPropertyGroups.map(pg => pg.name -> pg).toMap
 
+  /**
+   * Converts a heterogeneous property graph into a unified GraphFrame representation.
+   *
+   * This method transforms a property graph that may contain multiple vertex types and both
+   * directed and undirected edges into a single GraphFrame object where all vertices and edges
+   * share the same schema. The conversion process handles:
+   *
+   *   - Internal ID generation and collision prevention by hashing vertex/edge IDs with their
+   *     group names
+   *   - Merging of different vertex types into a unified vertex DataFrame
+   *   - Conversion of directed/undirected edge relationships into a consistent edge DataFrame
+   *   - Filtering of vertices and edges based on provided predicates
+   *
+   * The method allows selecting a subset of property groups and applying filters to control which
+   * data is included in the final GraphFrame.
+   *
+   * @param vertexPropertyGroups
+   *   Sequence of vertex property group names to include in the GraphFrame
+   * @param edgePropertyGroups
+   *   Sequence of edge property group names to include in the GraphFrame
+   * @param edgeGroupFilters
+   *   Map of edge property group names to filter predicates (Column expressions)
+   * @param vertexGroupFilters
+   *   Map of vertex property group names to filter predicates (Column expressions)
+   * @return
+   *   A GraphFrame containing the unified representation of the selected and filtered property
+   *   groups
+   * @throws IllegalArgumentException
+   *   if any specified property group name doesn't exist
+   */
   def toGraphFrame(
       vertexPropertyGroups: Seq[String],
       edgePropertyGroups: Seq[String],

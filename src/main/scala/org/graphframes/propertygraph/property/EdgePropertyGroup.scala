@@ -100,7 +100,7 @@ case class EdgePropertyGroup(
     val baseEdges = filteredData.select(
       hashSrcEdge.alias(GraphFrame.SRC),
       hashDstEdge.alias(GraphFrame.DST),
-      col(weightColumnName))
+      col(weightColumnName).alias(GraphFrame.WEIGHT))
 
     if (isDirected) {
       baseEdges
@@ -109,7 +109,7 @@ case class EdgePropertyGroup(
         baseEdges.select(
           col(GraphFrame.DST).as(GraphFrame.SRC),
           col(GraphFrame.SRC).as(GraphFrame.DST),
-          col(weightColumnName)))
+          col(weightColumnName).alias(GraphFrame.WEIGHT)))
     }
   }
 }
@@ -136,5 +136,26 @@ object EdgePropertyGroup {
       srcColumnName,
       dstColumnName,
       weightColumnName)
+  }
+
+  def apply(
+      name: String,
+      data: DataFrame,
+      srcPropertyGroup: VertexPropertyGroup,
+      dstPropertyGroup: VertexPropertyGroup,
+      isDirected: Boolean,
+      srcColumnName: String,
+      dstColumnName: String,
+      weightColumn: Column): EdgePropertyGroup = {
+    val dataWithWeight = data.withColumn(GraphFrame.WEIGHT, weightColumn)
+    EdgePropertyGroup(
+      name,
+      dataWithWeight,
+      srcPropertyGroup,
+      dstPropertyGroup,
+      isDirected,
+      srcColumnName,
+      dstColumnName,
+      GraphFrame.WEIGHT)
   }
 }
