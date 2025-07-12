@@ -27,6 +27,12 @@ metals.sbt
 # VSCode
 .vscode
 
+# metals
+.ammonite/
+.bloop/
+.metals/
+metals.sbt
+
 # Helix
 .helix
 
@@ -50,3 +56,5 @@ tmp/*
 
 # Table metadata
 spark-warehouse
+# db-connect targets
+graphframes-connect-databricks/*

@@ -21,12 +21,15 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.graphframes.GraphFramesConf
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
+import org.graphframes.WithBroadcastThreshold
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithMaxIter
 
 import java.io.IOException
@@ -47,56 +50,17 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     with Logging
     with WithAlgorithmChoice
     with WithCheckpointInterval
+    with WithBroadcastThreshold
+    with WithIntermediateStorageLevel
     with WithMaxIter {
 
-  private var broadcastThreshold: Int = 1000000
-  setAlgorithm(ALGO_GRAPHFRAMES)
-
-  /**
-   * Sets broadcast threshold in propagating component assignments (default: 1000000). If a node
-   * degree is greater than this threshold at some iteration, its component assignment will be
-   * collected and then broadcasted back to propagate the assignment to its neighbors. Otherwise,
-   * the assignment propagation is done by a normal Spark join. This parameter is only used when
-   * the algorithm is set to "graphframes".
-   */
-  def setBroadcastThreshold(value: Int): this.type = {
-    require(value >= 0, s"Broadcast threshold must be non-negative but got $value.")
-    broadcastThreshold = value
-    this
-  }
-
-  // python-friendly setter
-  private[graphframes] def setBroadcastThreshold(value: java.lang.Integer): this.type = {
-    setBroadcastThreshold(value.toInt)
-  }
-
-  /**
-   * Gets broadcast threshold in propagating component assignment.
-   * @see
-   *   [[org.graphframes.lib.ConnectedComponents.setBroadcastThreshold]]
-   */
-  def getBroadcastThreshold: Int = broadcastThreshold
-
-  // python-friendly setter
-  private[graphframes] def setCheckpointInterval(value: java.lang.Integer): this.type = {
-    setCheckpointInterval(value.toInt)
-  }
-
-  private var intermediateStorageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK
-
-  /**
-   * Sets storage level for intermediate datasets that require multiple passes (default:
-   * ``MEMORY_AND_DISK``).
-   */
-  def setIntermediateStorageLevel(value: StorageLevel): this.type = {
-    intermediateStorageLevel = value
-    this
-  }
-
-  /**
-   * Gets storage level for intermediate datasets that require multiple passes.
-   */
-  def getIntermediateStorageLevel: StorageLevel = intermediateStorageLevel
+  setAlgorithm(GraphFramesConf.getConnectedComponentsAlgorithm.getOrElse(ALGO_GRAPHFRAMES))
+  setCheckpointInterval(
+    GraphFramesConf.getConnectedComponentsCheckpointInterval.getOrElse(checkpointInterval))
+  setBroadcastThreshold(
+    GraphFramesConf.getConnectedComponentsBroadcastThreshold.getOrElse(broadcastThreshold))
+  setIntermediateStorageLevel(
+    GraphFramesConf.getConnectedComponentsStorageLevel.getOrElse(intermediateStorageLevel))
 
   /**
    * Runs the algorithm.
@@ -376,7 +340,7 @@ object ConnectedComponents extends Logging {
           vv(ATTR),
           when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT),
           col(ATTR + "." + ID).as(ID))
-      val output = if (graph.hasIntegralIdType) {
+      val output = if (graph.hasIntegralIdType || !GraphFramesConf.getUseLabelsAsComponents) {
         indexedLabel
           .select(col(s"$ATTR.*"), col(COMPONENT))
           .persist(intermediateStorageLevel)
