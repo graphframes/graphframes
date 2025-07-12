@@ -22,18 +22,6 @@ import org.graphframes.propertygraph.property.VertexPropertyGroup
  * data internally, while this class provides a simplified interface for working with the
  * underlying GraphFrame structure.
  *
- * Example usage:
- * {{{
- *   val userVertices = VertexPropertyGroup("users", userDF, "userId")
- *   val productVertices = VertexPropertyGroup("products", productDF, "productId")
- *   val purchaseEdges = EdgePropertyGroup("purchases", purchaseDF, "userId", "productId")
- *
- *   val graph = PropertyGraphFrame(
- *     vertexPropertyGroups = Seq(userVertices, productVertices),
- *     edgesPropertyGroups = Seq(purchaseEdges)
- *   )
- * }}}
- *
  * @param vertexPropertyGroups
  *   Sequence of vertex property groups that define the graph's vertices
  * @param edgesPropertyGroups
