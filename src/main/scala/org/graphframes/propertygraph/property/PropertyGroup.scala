@@ -19,7 +19,6 @@ trait PropertyGroup {
    *   2. Using these hashed values instead of original edge IDs in the GraphFrame
    *   3. Storing this mapping internally to enable conversion back to original IDs
    */
-  protected[graphframes] def internalIdMapping: DataFrame
   protected[graphframes] def getData: DataFrame = getData(lit(true))
   protected[graphframes] def getData(filter: Column): DataFrame
 }

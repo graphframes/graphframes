@@ -6,6 +6,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.sha2
+import org.apache.spark.sql.types._
 import org.graphframes.GraphFrame
 import org.graphframes.InvalidPropertyGroupException
 
@@ -17,7 +18,7 @@ import org.graphframes.InvalidPropertyGroupException
  *
  *   - A unique name identifier
  *   - DataFrame containing the actual edge data
- *   - Names of source and destination vertex property groups
+ *   - Source and destination vertex property groups
  *   - Direction flag indicating if edges are directed or undirected
  *   - Column names specifying source vertex, destination vertex and edge weight columns
  *
@@ -31,10 +32,10 @@ import org.graphframes.InvalidPropertyGroupException
  *   Unique identifier for this edge property group
  * @param data
  *   DataFrame containing the edge data with required columns
- * @param srcPropertyGroupName
- *   Name of the source vertex property group
- * @param dstPropertyGroupName
- *   Name of the destination vertex property group
+ * @param srcPropertyGroup
+ *   Source vertex property group
+ * @param dstPropertyGroup
+ *   Destination vertex property group
  * @param isDirected
  *   Whether edges should be treated as directed (true) or undirected (false)
  * @param srcColumnName
@@ -48,17 +49,16 @@ import org.graphframes.InvalidPropertyGroupException
  *   hashed with the group name to prevent collisions in the same way as ID of the corresponded
  *   vertex group is hashed.
  */
-case class EdgePropertyGroup(
-    val name: String,
-    val data: DataFrame,
-    srcPropertyGroupName: String,
-    dstPropertyGroupName: String,
+case class EdgePropertyGroup private (
+    name: String,
+    data: DataFrame,
+    srcPropertyGroup: VertexPropertyGroup,
+    dstPropertyGroup: VertexPropertyGroup,
     isDirected: Boolean,
     srcColumnName: String,
     dstColumnName: String,
     weightColumnName: String)
     extends PropertyGroup {
-  import EdgePropertyGroup._
 
   override protected def validate(): this.type = {
     if (!data.columns.contains(srcColumnName)) {
@@ -73,26 +73,19 @@ case class EdgePropertyGroup(
       throw new InvalidPropertyGroupException(
         s"weight column $weightColumnName does not exist, existed columns [${data.columns.mkString(", ")}]")
     }
+    val weightColumnType = data.schema(weightColumnName).dataType
+    if (!weightColumnType.isInstanceOf[NumericType]) {
+      throw new InvalidPropertyGroupException(
+        s"weight column $weightColumnName must be numeric type, but was $weightColumnType")
+    }
+
     this
   }
 
-  private val hashSrcEdge: Column =
-    concat(lit(srcPropertyGroupName), sha2(col(srcColumnName), 256))
-  private val hashDstEdge: Column =
-    concat(lit(dstPropertyGroupName), sha2(col(dstColumnName), 256))
-
-  override protected[graphframes] def internalIdMapping: DataFrame = {
-    data
-      .select(col(srcColumnName))
-      .distinct()
-      .select(col(srcColumnName).alias(EXTERNAL_ID), hashSrcEdge.alias(INTERNAL_ID))
-      .union(
-        data
-          .select(col(dstColumnName))
-          .distinct()
-          .select(col(dstColumnName).alias(EXTERNAL_ID), hashDstEdge.alias(INTERNAL_ID)))
-      .distinct()
-  }
+  private def hashSrcEdge: Column =
+    concat(lit(srcPropertyGroup.name), sha2(col(srcColumnName), 256))
+  private def hashDstEdge: Column =
+    concat(lit(dstPropertyGroup.name), sha2(col(dstColumnName), 256))
 
   override protected[graphframes] def getData(filter: Column): DataFrame = {
     val filteredData = data.filter(filter)
@@ -109,15 +102,12 @@ case class EdgePropertyGroup(
         baseEdges.select(
           col(GraphFrame.DST).as(GraphFrame.SRC),
           col(GraphFrame.SRC).as(GraphFrame.DST),
-          col(weightColumnName).alias(GraphFrame.WEIGHT)))
+          col(GraphFrame.WEIGHT).alias(GraphFrame.WEIGHT)))
     }
   }
 }
 
 object EdgePropertyGroup {
-  private val EXTERNAL_ID = "externalId"
-  private val INTERNAL_ID = "internalId"
-
   def apply(
       name: String,
       data: DataFrame,
@@ -127,15 +117,15 @@ object EdgePropertyGroup {
       srcColumnName: String,
       dstColumnName: String,
       weightColumnName: String): EdgePropertyGroup = {
-    EdgePropertyGroup(
+    new EdgePropertyGroup(
       name,
       data,
-      srcPropertyGroup.name,
-      dstPropertyGroup.name,
+      srcPropertyGroup,
+      dstPropertyGroup,
       isDirected,
       srcColumnName,
       dstColumnName,
-      weightColumnName)
+      weightColumnName).validate()
   }
 
   def apply(
@@ -148,7 +138,7 @@ object EdgePropertyGroup {
       dstColumnName: String,
       weightColumn: Column): EdgePropertyGroup = {
     val dataWithWeight = data.withColumn(GraphFrame.WEIGHT, weightColumn)
-    EdgePropertyGroup(
+    apply(
       name,
       dataWithWeight,
       srcPropertyGroup,

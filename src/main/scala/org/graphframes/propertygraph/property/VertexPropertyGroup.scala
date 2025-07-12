@@ -52,7 +52,7 @@ case class VertexPropertyGroup(
     this
   }
 
-  override protected[graphframes] def internalIdMapping: DataFrame = data
+  private[graphframes] def internalIdMapping: DataFrame = data
     .select(col(primaryKeyColumn).alias(EXTERNAL_ID))
     .withColumn(GraphFrame.ID, concat(lit(name), sha2(col(EXTERNAL_ID), 256)))
 
