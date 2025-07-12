@@ -42,3 +42,6 @@ python/graphframes/resources/*
 
 # tmp data for spark connect
 tmp/*
+
+# Spark warehouse folder
+spark-warehouse
