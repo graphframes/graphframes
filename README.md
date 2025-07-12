@@ -8,9 +8,9 @@
 
 This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
-You can find user guide and API docs at https://graphframes.github.io/graphframes
+You can find user guide and API docs at <https://graphframes.github.io/graphframes>
 
-## GraphFrames is Back!
+## GraphFrames is Back
 
 This projects was in maintenance mode for some time, but we are happy to announce that it is now back in active development! We are working on a new release with many bug fixes and improvements. We are also working on a new website and documentation.
 
@@ -134,6 +134,7 @@ g.connectedComponents().show()
 ## Learn GraphFrames
 
 To learn more about GraphFrames, check out these resources:
+
 * [GraphFrames Documentation](https://graphframes.github.io/graphframes)
 * [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
 * [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
@@ -143,6 +144,8 @@ To learn more about GraphFrames, check out these resources:
 
 * [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
 * [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
+* [Graph Operations in Apache Spark Using GraphFrames](https://www.pluralsight.com/courses/apache-spark-graphframes-graph-operations)
+* [Executing Graph Algorithms with GraphFrames on Databricks](https://www.pluralsight.com/courses/executing-graph-algorithms-graphframes-databricks)
 
 ## `graphframes-py` is our Official PyPi Package
 
@@ -152,7 +155,7 @@ We recommend using the Spark Packages system to install the latest version of Gr
 pip install graphframes-py
 ```
 
-This project does not own or control the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.4). 
+This project does not own or control the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.4).
 
 ## GraphFrames and sbt
 
@@ -215,6 +218,6 @@ This project is compatible with Spark 3.4+.  Significant speed improvements have
 
 GraphFrames is collaborative effort among UC Berkeley, MIT, Databricks and the open source community. We welcome open source contributions as well!
 
-## Releases:
+## Releases
 
 See [release notes](https://github.com/graphframes/graphframes/releases).
