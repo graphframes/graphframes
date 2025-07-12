@@ -20,7 +20,7 @@ This project was in maintenance mode for some time, but we are happy to announce
 
 ### GraphFrames core
 
-GraphFrames scala core and Spark-Connect plugin are published in the Sonatype Central.
+GraphFrames scala core and Spark-Connect plugin are published in the Sonatype Central. Namespace is `io.graphframes`.
 
 ```bash
 # Interactive Scala/Java
