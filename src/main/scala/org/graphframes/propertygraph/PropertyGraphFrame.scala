@@ -119,7 +119,7 @@ case class PropertyGraphFrame(
     // Create new edges by joining vertices through their common neighbors
     val projectedEdges = oldEdgesData
       .as("e1")
-      .join(oldEdgesData.as("e2"), "e1.dst = e2.dst")
+      .join(oldEdgesData.as("e2"), col("e1.dst") === col("e2.dst"))
       .where("e1.src < e2.src")
       .select(col("e1.src").alias(GraphFrame.SRC), col("e2.src").alias(GraphFrame.DST))
 

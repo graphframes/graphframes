@@ -83,9 +83,9 @@ case class EdgePropertyGroup private (
   }
 
   private def hashSrcEdge: Column =
-    concat(lit(srcPropertyGroup.name), sha2(col(srcColumnName), 256))
+    concat(lit(srcPropertyGroup.name), sha2(col(srcColumnName).cast("string"), 256))
   private def hashDstEdge: Column =
-    concat(lit(dstPropertyGroup.name), sha2(col(dstColumnName), 256))
+    concat(lit(dstPropertyGroup.name), sha2(col(dstColumnName).cast("string"), 256))
 
   override protected[graphframes] def getData(filter: Column): DataFrame = {
     val filteredData = data.filter(filter)

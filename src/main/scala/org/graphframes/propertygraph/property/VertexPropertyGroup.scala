@@ -54,11 +54,12 @@ case class VertexPropertyGroup(
 
   private[graphframes] def internalIdMapping: DataFrame = data
     .select(col(primaryKeyColumn).alias(EXTERNAL_ID))
-    .withColumn(GraphFrame.ID, concat(lit(name), sha2(col(EXTERNAL_ID), 256)))
+    .withColumn(GraphFrame.ID, concat(lit(name), sha2(col(EXTERNAL_ID).cast("string"), 256)))
 
   override protected[graphframes] def getData(filter: Column): DataFrame = {
     val filteredData = data.filter(filter)
-    filteredData.select(concat(lit(name), sha2(col(primaryKeyColumn), 256)).alias(GraphFrame.ID))
+    filteredData.select(
+      concat(lit(name), sha2(col(primaryKeyColumn).cast("string"), 256)).alias(GraphFrame.ID))
   }
 }
 
