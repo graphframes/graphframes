@@ -1,6 +1,8 @@
 package org.graphframes.propertygraph
 
 import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
 import org.graphframes.GraphFrame
 import org.graphframes.propertygraph.property.EdgePropertyGroup
 import org.graphframes.propertygraph.property.VertexPropertyGroup
@@ -84,5 +86,53 @@ case class PropertyGraphFrame(
       .reduce(_ union _)
 
     GraphFrame(vertices, edges)
+  }
+
+  /**
+   * Projects a bipartite graph onto one of its parts, creating edges between vertices that share
+   * neighbors in the other part. Drops the property group used for projection through and returns
+   * a new property graph.
+   *
+   * @param leftBiGraphPart
+   *   Name of the vertex property group to project onto
+   * @param rightBiGraphPart
+   *   Name of the vertex property group to project through
+   * @param edgeGroup
+   *   Name of the edge property group connecting the two parts
+   * @return
+   *   A new PropertyGraphFrame containing the projected graph
+   */
+  def projectionBy(
+      leftBiGraphPart: String,
+      rightBiGraphPart: String,
+      edgeGroup: String): PropertyGraphFrame = {
+    require(
+      edgeGroups(edgeGroup).srcPropertyGroup.name == leftBiGraphPart,
+      s"Edge Property Group should have $leftBiGraphPart source group but has ${edgeGroups(edgeGroup).srcPropertyGroup.name}")
+    require(
+      edgeGroups(edgeGroup).dstPropertyGroup.name == rightBiGraphPart,
+      s"Edge Property Group should have $rightBiGraphPart destination group but has ${edgeGroups(edgeGroup).dstPropertyGroup.name}")
+    val keptVPropertyGroups = vertexPropertyGroups.filterNot(g => g.name == rightBiGraphPart)
+    val keptEPropertyGroups = edgesPropertyGroups.filterNot(g => g.name == edgeGroup)
+    val oldEdgesData = edgeGroups(edgeGroup).data
+
+    // Create new edges by joining vertices through their common neighbors
+    val projectedEdges = oldEdgesData
+      .as("e1")
+      .join(oldEdgesData.as("e2"), "e1.dst = e2.dst")
+      .where("e1.src < e2.src")
+      .select(col("e1.src").alias(GraphFrame.SRC), col("e2.src").alias(GraphFrame.DST))
+
+    val newEdgeGroup = EdgePropertyGroup(
+      name = s"projected_$edgeGroup",
+      data = projectedEdges,
+      srcPropertyGroup = vertexGroups(leftBiGraphPart),
+      dstPropertyGroup = vertexGroups(leftBiGraphPart),
+      isDirected = false,
+      srcColumnName = GraphFrame.SRC,
+      dstColumnName = GraphFrame.DST,
+      weightColumn = lit(1.0))
+
+    PropertyGraphFrame(keptVPropertyGroups, keptEPropertyGroups :+ newEdgeGroup)
   }
 }
