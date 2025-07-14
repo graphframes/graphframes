@@ -17,9 +17,11 @@
 
 package org.graphframes.examples
 
-import org.apache.spark.sql.{DataFrame, Row}
-
-import org.graphframes.{GraphFrameTestSparkContext, SparkFunSuite}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.graphframes.GraphFrameTestSparkContext
+import org.graphframes.GraphFramesUnreachableException
+import org.graphframes.SparkFunSuite
 import org.graphframes.examples.BeliefPropagation._
 import org.graphframes.examples.Graphs.gridIsingModel
 
@@ -39,10 +41,12 @@ class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkConte
 
     // Check beliefs.
     def checkResults(v: DataFrame): Unit = {
-      v.select("belief").collect().foreach { case Row(belief: Double) =>
-        assert(
-          belief >= 0.0 && belief <= 1.0,
-          s"Expected belief to be probability in [0,1], but found $belief")
+      v.select("belief").collect().foreach {
+        case Row(belief: Double) =>
+          assert(
+            belief >= 0.0 && belief <= 1.0,
+            s"Expected belief to be probability in [0,1], but found $belief")
+        case _ => throw new GraphFramesUnreachableException()
       }
     }
     checkResults(gxResults.vertices)
@@ -55,8 +59,10 @@ class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkConte
       .join(gfBeliefs, "id")
       .select(gxBeliefs("belief").as("gxBelief"), gfBeliefs("belief").as("gfBelief"))
       .collect()
-      .foreach { case Row(gxBelief: Double, gfBelief: Double) =>
-        assert(math.abs(gxBelief - gfBelief) <= 1e-6)
+      .foreach {
+        case Row(gxBelief: Double, gfBelief: Double) =>
+          assert(math.abs(gxBelief - gfBelief) <= 1e-6)
+        case _ => throw new GraphFramesUnreachableException()
       }
   }
 }

@@ -6,11 +6,28 @@ from pyspark.sql.connect.client import SparkConnectClient
 from pyspark.sql.connect.column import Column
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
+from pyspark.sql.connect.session import SparkSession
 from pyspark.storagelevel import StorageLevel
-from typing_extensions import Self
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 from .proto import graphframes_pb2 as pb
 from .utils import dataframe_to_proto, make_column_or_expr, make_str_or_long_id
+
+
+# Spark 4 removed the withPlan method in favor of the constructor, but Spark 3
+# does not have the plan as an arg in the constructor, so we need to handle
+# both cases.
+def _dataframe_from_plan(plan: LogicalPlan, session: SparkSession) -> DataFrame:
+    if hasattr(DataFrame, "withPlan"):
+        # Spark 3
+        return DataFrame.withPlan(plan, session)
+
+    # Spark 4
+    return DataFrame(plan, session)
 
 
 class PregelConnect:
@@ -24,6 +41,7 @@ class PregelConnect:
         self._send_msg_to_src = []
         self._send_msg_to_dst = []
         self._agg_msg = None
+        self._early_stopping = False
 
     def setMaxIter(self, value: int) -> Self:
         self._max_iter = value
@@ -31,6 +49,10 @@ class PregelConnect:
 
     def setCheckpointInterval(self, value: int) -> Self:
         self._checkpoint_interval = value
+        return self
+
+    def setEarlyStopping(self, value: bool) -> Self:
+        self._early_stopping = value
         return self
 
     def withVertexColumn(
@@ -62,6 +84,7 @@ class PregelConnect:
                 self,
                 max_iter: int,
                 checkpoint_interval: int,
+                early_stopping: bool,
                 vertex_col_name: str,
                 agg_msg: Column | str,
                 send2dst: list[Column | str],
@@ -74,6 +97,7 @@ class PregelConnect:
                 super().__init__(None)
                 self.max_iter = max_iter
                 self.checkpoint_interval = checkpoint_interval
+                self.early_stopping = early_stopping
                 self.vertex_col_name = vertex_col_name
                 self.agg_msg = agg_msg
                 self.send2dst = send2dst
@@ -97,6 +121,7 @@ class PregelConnect:
                     additional_col_name=self.vertex_col_name,
                     additional_col_initial=make_column_or_expr(self.vertex_col_init, session),
                     additional_col_upd=make_column_or_expr(self.vertex_col_upd, session),
+                    early_stopping=self.early_stopping,
                 )
                 pb_message = pb.GraphFramesAPI(
                     vertices=dataframe_to_proto(self.vertices, session),
@@ -117,7 +142,7 @@ class PregelConnect:
         if self._agg_msg is None:
             raise ValueError("AggMsg is not initialized!")
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             Pregel(
                 max_iter=self._max_iter,
                 checkpoint_interval=self._checkpoint_interval,
@@ -129,6 +154,7 @@ class PregelConnect:
                 send2src=self._send_msg_to_src,
                 vertices=self.graph._vertices,
                 edges=self.graph._edges,
+                early_stopping=self._early_stopping,
             ),
             session=self.graph._spark,
         )
@@ -260,7 +286,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(Triplets(self._vertices, self._edges), self._spark)
+        return _dataframe_from_plan(Triplets(self._vertices, self._edges), self._spark)
 
     @property
     def pregel(self):
@@ -283,7 +309,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(Find(self._vertices, self._edges, pattern), self._spark)
+        return _dataframe_from_plan(Find(self._vertices, self._edges, pattern), self._spark)
 
     def filterVertices(self, condition: str | Column) -> "GraphFrameConnect":
         class FilterVertices(LogicalPlan):
@@ -305,7 +331,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        new_vertices = DataFrame.withPlan(
+        new_vertices = _dataframe_from_plan(
             FilterVertices(self._vertices, self._edges, condition), self._spark
         )
         # Exactly like in the scala-core
@@ -338,7 +364,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        new_edges = DataFrame.withPlan(
+        new_edges = _dataframe_from_plan(
             FilterEdges(self._vertices, self._edges, condition), self._spark
         )
         return GraphFrameConnect(self._vertices, new_edges)
@@ -359,7 +385,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        new_vertices = DataFrame.withPlan(
+        new_vertices = _dataframe_from_plan(
             DropIsolatedVertices(self._vertices, self._edges), self._spark
         )
         return GraphFrameConnect(new_vertices, self._edges)
@@ -408,7 +434,7 @@ class GraphFrameConnect:
         if edgeFilter is None:
             edgeFilter = F.lit(True)
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             BFS(
                 v=self._vertices,
                 e=self._edges,
@@ -468,7 +494,7 @@ class GraphFrameConnect:
         if sendToSrc is None and sendToDst is None:
             raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             AggregateMessages(self._vertices, self._edges, aggCol, sendToSrc, sendToDst),
             self._spark,
         )
@@ -510,7 +536,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             ConnectedComponents(
                 self._vertices,
                 self._edges,
@@ -540,7 +566,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             LabelPropagation(self._vertices, self._edges, maxIter), self._spark
         )
 
@@ -610,7 +636,7 @@ class GraphFrameConnect:
             # at the same time I think it should be an exception.
             raise ValueError("Exactly one of maxIter or tol should be set.")
 
-        new_vertices = DataFrame.withPlan(
+        new_vertices = _dataframe_from_plan(
             PageRank(
                 self._vertices,
                 self._edges,
@@ -666,7 +692,7 @@ class GraphFrameConnect:
         ), "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
 
-        new_vertices = DataFrame.withPlan(
+        new_vertices = _dataframe_from_plan(
             ParallelPersonalizedPageRank(
                 self._vertices,
                 self._edges,
@@ -712,7 +738,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             PowerIterationClustering(self._vertices, self._edges, k, maxIter, weightCol),
             self._spark,
         )
@@ -738,7 +764,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             ShortestPaths(self._vertices, self._edges, landmarks), self._spark
         )
 
@@ -761,7 +787,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(
+        return _dataframe_from_plan(
             StronglyConnectedComponents(self._vertices, self._edges, maxIter),
             self._spark,
         )
@@ -824,7 +850,7 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        output = DataFrame.withPlan(
+        output = _dataframe_from_plan(
             SVDPlusPlus(
                 self._vertices,
                 self._edges,
@@ -862,4 +888,4 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return DataFrame.withPlan(TriangleCount(self._vertices, self._edges), self._spark)
+        return _dataframe_from_plan(TriangleCount(self._vertices, self._edges), self._spark)

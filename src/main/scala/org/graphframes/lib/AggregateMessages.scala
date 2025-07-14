@@ -17,10 +17,12 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.functions.{col, expr}
-import org.apache.spark.sql.{Column, DataFrame}
-
-import org.graphframes.{GraphFrame, Logging}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.expr
+import org.graphframes.GraphFrame
+import org.graphframes.Logging
 
 /**
  * This is a primitive for implementing graph algorithms. This method aggregates messages from the
@@ -101,8 +103,8 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
   def agg(aggCol: Column): DataFrame = {
     require(
       msgToSrc.nonEmpty || msgToDst.nonEmpty,
-      s"To run GraphFrame.aggregateMessages," +
-        s" messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")
+      "To run GraphFrame.aggregateMessages," +
+        " messages must be sent to src, dst, or both.  Set using sendToSrc(), sendToDst().")
     val triplets = g.triplets
     val sentMsgsToSrc = msgToSrc.map { msg =>
       val msgsToSrc =

@@ -6,9 +6,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.4
-            scala-version: 2.12.18
-            python-version: 3.10.6
+          - spark-version: 3.5.5
+            scala-version: 2.12
+            python-version: "3.10"
+            java-version: 11
+          - spark-version: 4.0.0
+            scala-version: 2.13
+            python-version: 3.12
+            java-version: 17
     runs-on: ubuntu-22.04
     env:
       # define Java options for both official sbt and sbt-extras
@@ -21,7 +26,7 @@ jobs:
     - uses: actions/setup-java@v4
       with:
         distribution: "zulu"
-        java-version: "11"
+        java-version: "${{ matrix.java-version }}"
     - uses: actions/cache@v4
       with:
         path: |
@@ -41,23 +46,24 @@ jobs:
       working-directory: ./python
       run: |
         poetry install --with=dev
+        poetry run pip install pyspark[connect]==${{ matrix.spark-version }}
     - name: Code style
       working-directory: ./python
       run: |
         poetry run python -m black --check graphframes
         poetry run python -m flake8 graphframes
         poetry run python -m isort --check graphframes
-
+    - name: Build jar
+      working-directory: ./python
+      run: |
+        poetry run python dev/build_jar.py ${{ matrix.spark-version }}
     - name: Test
       working-directory: ./python
       run: |
         poetry run python -m pytest
-
     - name: Test SparkConnect
       env:
         SPARK_CONNECT_MODE_ENABLED: 1
       working-directory: ./python
       run: |
-        poetry run python dev/run_connect.py
         poetry run python -m pytest
-        poetry run python dev/stop_connect.py
