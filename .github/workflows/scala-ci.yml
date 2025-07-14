@@ -6,17 +6,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.4
-            scala-version: 2.13.8
+          - spark-version: 3.5.5
             java-version: 11
-          - spark-version: 3.5.4
-            scala-version: 2.13.8
+          - spark-version: 3.5.5
             java-version: 17
-          - spark-version: 3.5.4
-            scala-version: 2.12.18
-            java-version: 11
-          - spark-version: 3.5.4
-            scala-version: 2.12.18
+          - spark-version: 4.0.0
             java-version: 17
     runs-on: ubuntu-22.04
     env:
@@ -34,9 +28,11 @@ jobs:
       with:
         path: |
           ~/.ivy2/cache
-        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}-java-${{ matrix.java-version }}
+        key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-java-${{ matrix.java-version }}
     - name: Check scalafmt
-      run: build/sbt root/scalafmtCheckAll
+      run: build/sbt -Dspark.version=${{ matrix.spark-version }} root/scalafmtCheckAll connect/scalafmtCheckAll
+    - name: Check scalastyle
+      run: build/sbt -Dspark.version=${{ matrix.spark-version }} root/scalafixAll connect/scalafixAll
     - name: Build and Test
-      run: build/sbt -v ++${{ matrix.scala-version }} -Dspark.version=${{ matrix.spark-version }} coverage test coverageReport
+      run: build/sbt -v -Dspark.version=${{ matrix.spark-version }} coverage +test coverageReport "project connect" coverage +test coverageReport
     - uses: codecov/codecov-action@v3

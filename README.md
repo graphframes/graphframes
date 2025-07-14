@@ -3,12 +3,13 @@
 [![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
 [![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
 [![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
+[![scala-central-publish](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml)
 
 # GraphFrames: DataFrame-based Graphs
 
 This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
-You can find user guide and API docs at <https://graphframes.github.io/graphframes>
+You can find user guide and API docs at <https://graphframes.io>
 
 ## GraphFrames is Back
 
@@ -175,25 +176,15 @@ libraryDependencies += "graphframes" % "graphframes" % "0.8.4-spark3.5-s_2.12"
 
 ## GraphFrames and Maven
 
-GraphFrames is not on Maven Central Repository but we are going to restore it soon. For now use Spark Packages system to install the package: [https://spark-packages.org/package/graphframes/graphframes](https://spark-packages.org/package/graphframes/graphframes).
+Please see the section about nightly builds!
 
-```xml
-<dependencies>
-  <!-- list of dependencies -->
-  <dependency>
-    <groupId>graphframes</groupId>
-    <artifactId>graphframes</artifactId>
-    <version>0.8.4-spark3.5-s_2.12</version>
-  </dependency>
-</dependencies>
-<repositories>
-  <!-- list of other repositories -->
-  <repository>
-    <id>SparkPackagesRepo</id>
-    <url>https://repos.spark-packages.org/</url>
-  </repository>
-</repositories>
-```
+**WARNING!**
+
+**=========================**
+
+Due to governance problems and limitations, all the new releases of `GraphFrames` will be published to the Maven Central under the namespace `io.graphframes` (not `org.graphframes`)!
+
+**=========================**
 
 ## GraphFrames Internals
 
@@ -202,22 +193,41 @@ Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/pa
 
 ## Building and running unit tests
 
-To compile this project, run `build/sbt assembly` from the project home directory. This will also run the Scala unit tests.
-
-To run the Python unit tests, run the `run-tests.sh` script from the `python/` directory. You will need to set `SPARK_HOME` to your local Spark installation directory.
-
-## Release new version
-
-Please see guide `dev/release_guide.md`.
+To compile the core project, run `build/sbt package` from the project home directory.
+To compile the Spark Connect Plugin, run `build/sbt connect/package`
 
 ## Spark version compatibility
 
-This project is compatible with Spark 3.4+.  Significant speed improvements have been made to DataFrames in recent versions of Spark, so you may see speedups from using the latest Spark version.
+This project is compatible with Spark 3.4+. Significant speed improvements have been made to DataFrames in recent versions of Spark, so you may see speedups from using the latest Spark version.
+
+Nightly builds of GraphFrames:
+
+| Component           | Spark 3.x (Scala 2.12) | Spark 3.x (Scala 2.13) | Spark 4.x (Scala 2.13) |
+|---------------------|------------------------|------------------------|------------------------|
+| graphframes         | ✓                      | ✓                      | ✓                      |
+| graphframes-connect | ✓                      | ✓                      | ✓                      |
 
 ## Contributing
 
-GraphFrames is collaborative effort among UC Berkeley, MIT, Databricks and the open source community. We welcome open source contributions as well!
+GraphFrames was made as collaborative effort among UC Berkeley, MIT, Databricks and the open source community. At the moment GraphFrames is maintained by the group of individual contributors.
+
+See [contribution guide](./CONTRIBUTING.md)
 
 ## Releases
 
 See [release notes](https://github.com/graphframes/graphframes/releases).
+
+## Nightly builds
+
+GraphFrames project is publishing SNAPSHOTS (nightly builds) to the "Central Portal Snapshots."
+Please read [this section](https://central.sonatype.org/publish/publish-portal-snapshots/#consuming-snapshot-releases-for-your-project) of the Sonatype documentation to check how can you use snapshots in your project.
+
+GroupId: `io.graphframes`
+ArtifactIds:
+
+* `graphframes-spark3_2.12`
+* `graphframes-spark3_2.13`
+* `graphframes-connect-spark3_2.12`
+* `graphframes-connect-spark3_2.13`
+* `graphframes-spark4_2.13`
+* `graphframes-connect-spark4_2.13`

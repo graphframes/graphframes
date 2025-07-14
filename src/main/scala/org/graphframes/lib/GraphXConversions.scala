@@ -17,14 +17,16 @@
 
 package org.graphframes.lib
 
-import scala.reflect.runtime.universe._
-
 import org.apache.spark.graphx.Graph
-import org.apache.spark.sql.{Row, DataFrame}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.graphframes.GraphFrame
+import org.graphframes.NoSuchVertexException
 
-import org.graphframes.{NoSuchVertexException, GraphFrame}
+import scala.reflect.runtime.universe._
 
 /**
  * Convenience functions to map GraphX graphs to GraphFrames, checking for the types expected by
@@ -103,7 +105,7 @@ private[graphframes] object GraphXConversions {
     val renamedSubfields = origSubfields.zip(fieldNames).map { case (orig, newName) =>
       orig.as(newName)
     }
-    val otherFields = df.schema.fieldNames.filter(_ != structName).map(col)
+    val otherFields = df.schema.fieldNames.filter(_ != structName).map(quote).map(col)
     if (renamedSubfields.isEmpty) {
       // Do not attempt to add an empty structure.
       df.select(otherFields.toSeq: _*)
@@ -114,7 +116,7 @@ private[graphframes] object GraphXConversions {
   }
 
   private def drop(df: DataFrame, cols: String*): DataFrame = {
-    val remainingCols = df.schema.map(_.name).filterNot(cols.contains).map(n => df(n))
+    val remainingCols = df.schema.map(_.name).filterNot(cols.contains).map(quote).map(n => df(n))
     df.select(remainingCols: _*)
   }
 
@@ -122,8 +124,8 @@ private[graphframes] object GraphXConversions {
   private def unpackStructFields(df: DataFrame): DataFrame = {
     val cols = df.schema.flatMap {
       case StructField(fname, dt: StructType, nullable, meta) =>
-        dt.iterator.map(sub => col(s"$fname.${sub.name}").as(sub.name))
-      case f => Seq(col(f.name))
+        dt.iterator.map(sub => col(quote(fname, sub.name)).as(sub.name))
+      case f => Seq(col(quote(f.name)))
     }
     df.select(cols: _*)
   }
@@ -189,7 +191,7 @@ private[graphframes] object GraphXConversions {
       .take(1)
     if (longIdRow.isEmpty) {
       throw new NoSuchVertexException(
-        s"GraphFrame algorithm given vertex ID which does not exist" +
+        "GraphFrame algorithm given vertex ID which does not exist" +
           s" in Graph. Vertex ID $vertexId not contained in $graph")
     }
     // TODO(tjh): could do more informative message

@@ -17,13 +17,16 @@
 
 package org.graphframes
 
+import org.apache.commons.io.FileUtils
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SQLImplicits
+import org.apache.spark.sql.SparkSession
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Suite
+
 import java.io.File
 import java.nio.file.Files
-
-import org.apache.commons.io.FileUtils
-import org.scalatest.{BeforeAndAfterAll, Suite}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.{SparkSession, SQLContext, SQLImplicits}
 
 trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var spark: SparkSession = _
@@ -32,16 +35,9 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sparkMajorVersion: Int = _
   @transient var sparkMinorVersion: Int = _
 
-  /**
-   * A helper object for importing SQL implicits.
-   *
-   * Note that the alternative of importing `spark.implicits._` is not possible here. This is
-   * because we create the `SQLContext` immediately before the first test is run, but the
-   * implicits import is needed in the constructor.
-   */
-  protected object testImplicits extends SQLImplicits {
-    protected override def _sqlContext: SQLContext = self.sqlContext
-  }
+  // Inspired by https://stackoverflow.com/a/59377177
+  protected def sparkSession: SparkSession = spark
+  protected lazy val sqlImplicits: SQLImplicits = self.sparkSession.implicits
 
   /** Check if current spark version is at least of the provided minimum version */
   def isLaterVersion(minVersion: String): Boolean = {
@@ -53,7 +49,7 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     }
   }
 
-  override def beforeAll() {
+  override def beforeAll(): Unit = {
     super.beforeAll()
 
     spark = SparkSession
@@ -73,7 +69,7 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     sparkMinorVersion = verMinor
   }
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     val checkpointDir = sc.getCheckpointDir
     if (spark != null) {
       spark.stop()

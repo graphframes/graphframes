@@ -18,12 +18,23 @@ project/boot/
 project/plugins/project/
 .bsp
 .metals
+metals.sbt
+.bloop
 
 # intellij
 .idea/
 
 # VSCode
 .vscode
+
+# metals
+.ammonite/
+.bloop/
+.metals/
+metals.sbt
+
+# Helix
+.helix
 
 # Mac
 *.DS_Store
@@ -45,3 +56,6 @@ tmp/*
 
 # Spark warehouse folder
 spark-warehouse
+
+# db-connect targets
+graphframes-connect-databricks/*

@@ -2,16 +2,22 @@
 // Same about Column helper object.
 package org.apache.spark.sql.graphframes
 
-import scala.jdk.CollectionConverters._
-import org.graphframes.{GraphFrame, GraphFramesUnreachableException}
-import org.graphframes.connect.proto.{ColumnOrExpression, GraphFramesAPI, StringOrLongID}
-import org.graphframes.connect.proto.ColumnOrExpression.ColOrExprCase
-import org.graphframes.connect.proto.GraphFramesAPI.MethodCase
-import org.graphframes.connect.proto.StringOrLongID.IdCase
-import org.apache.spark.sql.{Column, DataFrame, Dataset}
-import org.apache.spark.sql.connect.planner.SparkConnectPlanner
-import org.apache.spark.sql.functions.{col, expr, lit}
 import com.google.protobuf.ByteString
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.connect.planner.SparkConnectPlanner
+import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.functions.lit
+import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesUnreachableException
+import org.graphframes.connect.proto.ColumnOrExpression
+import org.graphframes.connect.proto.ColumnOrExpression.ColOrExprCase
+import org.graphframes.connect.proto.GraphFramesAPI
+import org.graphframes.connect.proto.GraphFramesAPI.MethodCase
+import org.graphframes.connect.proto.StringOrLongID
+import org.graphframes.connect.proto.StringOrLongID.IdCase
+
+import scala.jdk.CollectionConverters._
 
 object GraphFramesConnectUtils {
   private[graphframes] def parseColumnOrExpression(
@@ -19,7 +25,7 @@ object GraphFramesConnectUtils {
       planner: SparkConnectPlanner): Column = {
     colOrExpr.getColOrExprCase match {
       case ColOrExprCase.COL =>
-        Column(
+        SparkShims.createColumn(
           planner.transformExpression(
             org.apache.spark.connect.proto.Expression.parseFrom(colOrExpr.getCol.toByteArray)))
       case ColOrExprCase.EXPR => expr(colOrExpr.getExpr)
@@ -46,7 +52,7 @@ object GraphFramesConnectUtils {
       throw new IllegalArgumentException(
         "Expected a serialized DataFrame but got an empty ByteString.")
     }
-    Dataset.ofRows(
+    SparkShims.createDataFrame(
       planner.sessionHolder.session,
       planner.transformRelation(
         org.apache.spark.connect.proto.Plan.parseFrom(data.toByteArray).getRoot))
@@ -174,12 +180,16 @@ object GraphFramesConnectUtils {
           .map(parseColumnOrExpression(_, planner))
           .foldLeft(pregel)((p, col) => p.sendMsgToDst(col))
 
+        if (pregelProto.hasEarlyStopping) {
+          pregel = pregel.setEarlyStopping(pregelProto.getEarlyStopping)
+        }
+
         pregel.run()
       }
       case MethodCase.SHORTEST_PATHS => {
         graphFrame.shortestPaths
           .landmarks(
-            apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID))
+            apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID).toSeq)
           .run()
       }
       case MethodCase.STRONGLY_CONNECTED_COMPONENTS => {

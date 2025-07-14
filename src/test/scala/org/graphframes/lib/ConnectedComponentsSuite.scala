@@ -17,19 +17,20 @@
 
 package org.graphframes.lib
 
-import java.io.IOException
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.storage.StorageLevel
+import org.graphframes.GraphFrame._
+import org.graphframes._
+import org.graphframes.examples.Graphs
 
+import java.io.IOException
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
-
-import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.functions.{col, lit}
-import org.apache.spark.sql.types.DataTypes
-import org.apache.spark.storage.StorageLevel
-
-import org.graphframes._
-import org.graphframes.GraphFrame._
-import org.graphframes.examples.Graphs
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -73,6 +74,25 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val components = g.connectedComponents.run()
     val expected = (0L until n).map(Set(_)).toSet
     assertComponents(components, expected)
+  }
+
+  test("using labels as components") {
+    val vertices = spark.createDataFrame(Seq("a", "b", "c", "d", "e").map(Tuple1.apply)).toDF(ID)
+    val edges = spark.createDataFrame(Seq.empty[(String, String)]).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    val expected = Seq("a", "b", "c", "d", "e").map(Set(_)).toSet
+    assertComponents(components, expected)
+  }
+
+  test("don't using labels as components") {
+    spark.conf.set("spark.graphframes.useLabelsAsComponents", "false")
+    val vertices = spark.createDataFrame(Seq("a", "b", "c", "d", "e").map(Tuple1.apply)).toDF(ID)
+    val edges = spark.createDataFrame(Seq.empty[(String, String)]).toDF(SRC, DST)
+    val g = GraphFrame(vertices, edges)
+    val components = g.connectedComponents.run()
+    assert(components.schema("component").dataType == LongType)
+    spark.conf.set("spark.graphframes.useLabelsAsComponents", "true")
   }
 
   test("two connected vertices") {
@@ -253,6 +273,34 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  test("not leaking cached data") {
+    val priorCachedDFsSize = spark.sparkContext.getPersistentRDDs.size
+
+    val cc = Graphs.friends.connectedComponents
+    val components = cc.run()
+
+    components.unpersist(blocking = true)
+
+    assert(spark.sparkContext.getPersistentRDDs.size === priorCachedDFsSize)
+  }
+
+  test("set configuration from spark conf") {
+    spark.conf.set("spark.graphframes.connectedComponents.algorithm", "GRAPHX")
+    assert(Graphs.friends.connectedComponents.getAlgorithm == "graphx")
+
+    spark.conf.set("spark.graphframes.connectedComponents.broadcastthreshold", "1000")
+    assert(Graphs.friends.connectedComponents.getBroadcastThreshold == 1000)
+
+    spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", "5")
+    assert(Graphs.friends.connectedComponents.getCheckpointInterval == 5)
+
+    spark.conf.set(
+      "spark.graphframes.connectedComponents.intermediatestoragelevel",
+      "memory_only")
+    assert(
+      Graphs.friends.connectedComponents.getIntermediateStorageLevel == StorageLevel.MEMORY_ONLY)
+  }
+
   private def assertComponents[T: ClassTag: TypeTag](
       actual: DataFrame,
       expected: Set[Set[T]]): Unit = {
@@ -260,7 +308,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     // note: not using agg + collect_list because collect_list is not available in 1.6.2 w/o hive
     val actualComponents = actual
       .select("component", "id")
-      .as[(Long, T)]
+      .as[(T, T)]
       .rdd
       .groupByKey()
       .values

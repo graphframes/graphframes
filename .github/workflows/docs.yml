@@ -1,0 +1,96 @@
+# This file is inspired by:
+# https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml
+# MIT License
+#
+# Copyright (c) 2020 GitHub
+
+name: Deploy Docs
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: true
+          cache-version: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "11"
+
+      - name: Setup Jekyll
+        run: |
+          gem install jekyll jekyll-redirect-from bundler
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.1
+          virtualenvs-create: true
+          virtualenvs-in-project: false
+          installer-parallel: true
+
+      - name: Configure poetry shell and deps
+        working-directory: ./python
+        run: |
+          poetry self add poetry-plugin-shell
+          poetry install --with=dev,docs
+
+      - name: Build Python API docs
+        working-directory: ./python
+        run: |
+          poetry run bash -c "cd docs && make clean && make html"
+
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Build with Jekyll
+        working-directory: ./docs
+        run: jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        env:
+          SKIP_SCALADOC: 0
+          SKIP_PYTHONDOC: 0
+          PRODUCTION: 1
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs/_site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

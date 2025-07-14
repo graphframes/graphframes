@@ -17,11 +17,17 @@
 
 package org.graphframes.examples
 
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.graphx.{Graph, VertexRDD, Edge => GXEdge}
-import org.apache.spark.sql.{Column, Row, SparkSession}
-import org.apache.spark.sql.functions.{col, lit, sum, udf, when}
-
+import org.apache.spark.graphx.Graph
+import org.apache.spark.graphx.VertexRDD
+import org.apache.spark.graphx.{Edge => GXEdge}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.sum
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.when
 import org.graphframes.GraphFrame
 import org.graphframes.examples.Graphs.gridIsingModel
 import org.graphframes.lib.AggregateMessages
