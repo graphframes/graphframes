@@ -54,7 +54,8 @@ python/graphframes/resources/*
 # tmp data for spark connect
 tmp/*
 
-# Table metadata
+# Spark warehouse folder
 spark-warehouse
+
 # db-connect targets
 graphframes-connect-databricks/*
