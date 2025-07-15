@@ -524,19 +524,21 @@ class GraphFrameConnect:
                 self.broadcast_threshold = broadcast_threshold
                 self.useLabelsAsComponents = use_labels_as_components
 
-        def plan(self, session: SparkConnectClient) -> proto.Relation:
-            graphframes_api_call = GraphFrameConnect._get_pb_api_message(self.v, self.e, session)
-            graphframes_api_call.connected_components.CopyFrom(
-                pb.ConnectedComponents(
-                    algorithm=self.algorithm,
-                    checkpoint_interval=self.checkpoint_interval,
-                    broadcast_threshold=self.broadcast_threshold,
-                    use_labels_as_components=self.use_labels_as_components,
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
                 )
-            )
-            plan = self._create_proto_relation()
-            plan.extension.Pack(graphframes_api_call)
-            return plan
+                graphframes_api_call.connected_components.CopyFrom(
+                    pb.ConnectedComponents(
+                        algorithm=self.algorithm,
+                        checkpoint_interval=self.checkpoint_interval,
+                        broadcast_threshold=self.broadcast_threshold,
+                        use_labels_as_components=self.use_labels_as_components,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
 
         return _dataframe_from_plan(
             ConnectedComponents(
