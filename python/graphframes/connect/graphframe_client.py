@@ -504,6 +504,7 @@ class GraphFrameConnect:
         algorithm: str = "graphframes",
         checkpointInterval: int = 2,
         broadcastThreshold: int = 1000000,
+        useLabelsAsComponents: bool = False,
     ) -> DataFrame:
         class ConnectedComponents(LogicalPlan):
             def __init__(
@@ -513,6 +514,7 @@ class GraphFrameConnect:
                 algorithm: str,
                 checkpoint_interval: int,
                 broadcast_threshold: int,
+                use_labels_as_components: bool,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -520,21 +522,21 @@ class GraphFrameConnect:
                 self.algorithm = algorithm
                 self.checkpoint_interval = checkpoint_interval
                 self.broadcast_threshold = broadcast_threshold
+                self.useLabelsAsComponents = use_labels_as_components
 
-            def plan(self, session: SparkConnectClient) -> proto.Relation:
-                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
-                    self.v, self.e, session
+        def plan(self, session: SparkConnectClient) -> proto.Relation:
+            graphframes_api_call = GraphFrameConnect._get_pb_api_message(self.v, self.e, session)
+            graphframes_api_call.connected_components.CopyFrom(
+                pb.ConnectedComponents(
+                    algorithm=self.algorithm,
+                    checkpoint_interval=self.checkpoint_interval,
+                    broadcast_threshold=self.broadcast_threshold,
+                    use_labels_as_components=self.use_labels_as_components,
                 )
-                graphframes_api_call.connected_components.CopyFrom(
-                    pb.ConnectedComponents(
-                        algorithm=self.algorithm,
-                        checkpoint_interval=self.checkpoint_interval,
-                        broadcast_threshold=self.broadcast_threshold,
-                    )
-                )
-                plan = self._create_proto_relation()
-                plan.extension.Pack(graphframes_api_call)
-                return plan
+            )
+            plan = self._create_proto_relation()
+            plan.extension.Pack(graphframes_api_call)
+            return plan
 
         return _dataframe_from_plan(
             ConnectedComponents(
@@ -543,6 +545,7 @@ class GraphFrameConnect:
                 algorithm,
                 checkpointInterval,
                 broadcastThreshold,
+                useLabelsAsComponents,
             ),
             self._spark,
         )

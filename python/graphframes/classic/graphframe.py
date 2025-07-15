@@ -206,12 +206,14 @@ class GraphFrame:
         algorithm: str = "graphframes",
         checkpointInterval: int = 2,
         broadcastThreshold: int = 1000000,
+        useLabelsAsComponents: bool = False,
     ) -> DataFrame:
         jdf = (
             self._jvm_graph.connectedComponents()
             .setAlgorithm(algorithm)
             .setCheckpointInterval(checkpointInterval)
             .setBroadcastThreshold(broadcastThreshold)
+            .setUseLabelsAsComponents(useLabelsAsComponents)
             .run()
         )
         return DataFrame(jdf, self._spark)
