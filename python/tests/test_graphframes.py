@@ -333,6 +333,7 @@ def test_connected_components_friends(examples, spark):
         g.connectedComponents(checkpointInterval=0),
         g.connectedComponents(checkpointInterval=10),
         g.connectedComponents(algorithm="graphx"),
+        g.connectedComponents(useLabelsAsComponents=True),
     ]
     for c in comps_tests:
         assert c.groupBy("component").count().count() == 2

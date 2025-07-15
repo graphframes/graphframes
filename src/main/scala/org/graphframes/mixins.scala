@@ -122,3 +122,22 @@ private[graphframes] trait WithMaxIter {
     this
   }
 }
+
+private[graphframes] trait WithUseLabelsAsComponents {
+  protected var useLabelsAsComponents: Boolean = false
+
+  /**
+   * Sets whether to use vertex labels as component identifiers (default: false). When true,
+   * vertex labels will be used as component identifiers instead of computing connected
+   * components.
+   */
+  def setUseLabelsAsComponents(value: Boolean): this.type = {
+    useLabelsAsComponents = value
+    this
+  }
+
+  /**
+   * Gets whether to use vertex labels as component identifiers.
+   */
+  def getUseLabelsAsComponents: Boolean = useLabelsAsComponents
+}

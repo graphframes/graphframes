@@ -14,7 +14,7 @@ object GraphFramesConf {
           |""".stripMargin)
       .version("0.9.0")
       .booleanConf
-      .createWithDefault(true)
+      .createOptional
 
   private val CONNECTED_COMPONENTS_ALGORITHM =
     SQLConf
@@ -104,5 +104,8 @@ object GraphFramesConf {
     }
   }
 
-  def getUseLabelsAsComponents: Boolean = get(USE_LABELS_AS_COMPONENTS).get.toBoolean
+  def getUseLabelsAsComponents: Option[Boolean] = get(USE_LABELS_AS_COMPONENTS) match {
+    case Some(use) => Some(use.toBoolean)
+    case _ => None
+  }
 }
