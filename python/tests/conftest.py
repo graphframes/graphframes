@@ -17,7 +17,7 @@ else:
 
     def is_remote() -> bool:
         return False
-    
+
 spark_major_version = __version__[:1]
 scala_version = os.environ.get("SCALA_VERSION", "2.12" if __version__ < "4" else "2.13")
 

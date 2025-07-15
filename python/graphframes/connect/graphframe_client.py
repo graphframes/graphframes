@@ -522,7 +522,7 @@ class GraphFrameConnect:
                 self.algorithm = algorithm
                 self.checkpoint_interval = checkpoint_interval
                 self.broadcast_threshold = broadcast_threshold
-                self.useLabelsAsComponents = use_labels_as_components
+                self.use_labels_as_components = use_labels_as_components
 
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
