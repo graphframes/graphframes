@@ -59,13 +59,14 @@ class GraphFrame:
     """
 
     @staticmethod
-    def _from_impl(impl: GraphFrameClassic | 'GraphFrameConnect') -> "GraphFrame":
+    def _from_impl(impl: GraphFrameClassic | "GraphFrameConnect") -> "GraphFrame":
         return GraphFrame(impl.vertices, impl.edges)
 
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
-        self._impl: GraphFrameClassic | 'GraphFrameConnect'
+        self._impl: GraphFrameClassic | "GraphFrameConnect"
         if is_remote():
             from graphframes.connect.graphframe_client import GraphFrameConnect
+
             self._impl = GraphFrameConnect(v, e)
         else:
             self._impl = GraphFrameClassic(v, e)
