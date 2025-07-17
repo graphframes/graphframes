@@ -37,6 +37,7 @@ from graphframes.lib import Pregel
 
 if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
+
     from graphframes.connect.graphframe_client import GraphFrameConnect
 
 
