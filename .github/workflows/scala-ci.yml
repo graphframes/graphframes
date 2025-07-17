@@ -32,7 +32,7 @@ jobs:
     - name: Check scalafmt
       run: build/sbt -Dspark.version=${{ matrix.spark-version }} scalafmtCheckAll
     - name: Check scalastyle
-      run: build/sbt -Dspark.version=${{ matrix.spark-version }} core/scalafixAll connect/scalafixAll
+      run: build/sbt -Dspark.version=${{ matrix.spark-version }} scalafixAll --check
     - name: Build and Test
       run: build/sbt -v -Dspark.version=${{ matrix.spark-version }} coverage +test coverageReport
     - uses: codecov/codecov-action@v3
