@@ -9,11 +9,6 @@ lazy val scalaVersions = sparkMajorVer match {
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions(0))
 lazy val defaultScalaTestVer = "3.0.8"
 
-ThisBuild / version := {
-  val baseVersion = (ThisBuild / version).value
-  s"${baseVersion}-spark${sparkBranch}"
-}
-
 // Some vendors are using an own shading rule for protobuf
 lazy val protobufShadingPattern = sys.props.getOrElse("vendor.name", "oss") match {
   case "oss" => "org.sparkproject.connect.protobuf.@1"
