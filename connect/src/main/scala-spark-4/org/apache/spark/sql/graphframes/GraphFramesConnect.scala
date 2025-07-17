@@ -1,14 +1,12 @@
 package org.apache.spark.sql.graphframes
 
-import java.util.Optional
-
-import org.graphframes.connect.proto.GraphFramesAPI
-
+import com.google.protobuf
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connect.planner.SparkConnectPlanner
 import org.apache.spark.sql.connect.plugin.RelationPlugin
+import org.graphframes.connect.proto.GraphFramesAPI
 
-import com.google.protobuf
+import java.util.Optional
 
 class GraphFramesConnect extends RelationPlugin {
   override def transform(
