@@ -100,7 +100,7 @@ lazy val commonSetting = Seq(
     else
       "-Wunused:imports"))
 
-lazy val core = (project in file("graphframes-core"))
+lazy val core = (project in file("core"))
   .settings(
     commonSetting,
     name := "graphframes",
@@ -122,7 +122,7 @@ lazy val core = (project in file("graphframes-core"))
     Compile / packageDoc / publishArtifact := true,
     Compile / packageSrc / publishArtifact := true)
 
-lazy val connect = (project in file("graphframes-connect"))
+lazy val connect = (project in file("connect"))
   .dependsOn(core)
   .settings(
     name := s"graphframes-connect",
