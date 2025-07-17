@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>graphframes.lib package &#8212; pygraphframes 0.8.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/nature.css?v=279e0f84" />
+    <link rel="stylesheet" href="_static/pygraphframes.css" type="text/css" />
+    <script src="_static/documentation_options.js?v=b41f4c93"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/pygraphframes.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="graphframes.examples package" href="graphframes.examples.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="graphframes.examples.html" title="graphframes.examples package"
+             accesskey="P">previous</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="graphframes.html" accesskey="U">graphframes package</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.lib package</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="graphframes-lib-package">
+<h1>graphframes.lib package<a class="headerlink" href="#graphframes-lib-package" title="Link to this heading">¶</a></h1>
+<section id="module-graphframes.lib">
+<span id="collection-of-utilities-usable-with-message-aggregation"></span><h2>Collection of utilities usable with message aggregation<a class="headerlink" href="#module-graphframes.lib" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="graphframes.lib.AggregateMessages">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">graphframes.lib.</span></span><span class="sig-name descname"><span class="pre">AggregateMessages</span></span><a class="reference internal" href="_modules/graphframes/lib/aggregate_messages.html#AggregateMessages"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.AggregateMessages" title="Link to this definition">¶</a></dt>
+<dd><p>Collection of utilities usable with <a class="reference internal" href="graphframes.html#graphframes.GraphFrame.aggregateMessages" title="graphframes.GraphFrame.aggregateMessages"><code class="xref py py-meth docutils literal notranslate"><span class="pre">graphframes.GraphFrame.aggregateMessages()</span></code></a>.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="graphframes.lib.AggregateMessages.dst">
+<span class="sig-name descname"><span class="pre">dst</span></span><a class="headerlink" href="#graphframes.lib.AggregateMessages.dst" title="Link to this definition">¶</a></dt>
+<dd><p>Reference for destination column, used for specifying messages.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="graphframes.lib.AggregateMessages.edge">
+<span class="sig-name descname"><span class="pre">edge</span></span><a class="headerlink" href="#graphframes.lib.AggregateMessages.edge" title="Link to this definition">¶</a></dt>
+<dd><p>Reference for edge column, used for specifying messages.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.AggregateMessages.getCachedDataFrame">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">getCachedDataFrame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/graphframes/lib/aggregate_messages.html#AggregateMessages.getCachedDataFrame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.AggregateMessages.getCachedDataFrame" title="Link to this definition">¶</a></dt>
+<dd><p>Create a new cached copy of a DataFrame.</p>
+<p>This utility method is useful for iterative DataFrame-based algorithms. See Scala
+documentation for more details.</p>
+<dl class="simple">
+<dt>WARNING: This is NOT the same as <cite>DataFrame.cache()</cite>.</dt><dd><p>The original DataFrame will NOT be cached.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="graphframes.lib.AggregateMessages.msg">
+<span class="sig-name descname"><span class="pre">msg</span></span><a class="headerlink" href="#graphframes.lib.AggregateMessages.msg" title="Link to this definition">¶</a></dt>
+<dd><p>Reference for message column, used for specifying aggregation function.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="graphframes.lib.AggregateMessages.src">
+<span class="sig-name descname"><span class="pre">src</span></span><a class="headerlink" href="#graphframes.lib.AggregateMessages.src" title="Link to this definition">¶</a></dt>
+<dd><p>Reference for source column, used for specifying messages.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">graphframes.lib.</span></span><span class="sig-name descname"><span class="pre">Pregel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="graphframes.html#graphframes.GraphFrame" title="graphframes.GraphFrame"><span class="pre">GraphFrame</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel" title="Link to this definition">¶</a></dt>
+<dd><p>Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.</p>
+<p>See <a class="reference external" href="https://doi.org/10.1145/1807167.1807184">Malewicz et al., Pregel: a system for large-scale graph processing</a>
+for a detailed description of the Pregel algorithm.</p>
+<p>You can construct a Pregel instance using either this constructor or <a class="reference internal" href="graphframes.html#graphframes.GraphFrame.pregel" title="graphframes.GraphFrame.pregel"><code class="xref py py-attr docutils literal notranslate"><span class="pre">graphframes.GraphFrame.pregel</span></code></a>,
+then use builder pattern to describe the operations, and then call <a class="reference internal" href="#graphframes.lib.Pregel.run" title="graphframes.lib.Pregel.run"><code class="xref py py-func docutils literal notranslate"><span class="pre">run()</span></code></a> to start a run.
+It returns a DataFrame of vertices from the last iteration.</p>
+<p>When a run starts, it expands the vertices DataFrame using column expressions defined by <a class="reference internal" href="#graphframes.lib.Pregel.withVertexColumn" title="graphframes.lib.Pregel.withVertexColumn"><code class="xref py py-func docutils literal notranslate"><span class="pre">withVertexColumn()</span></code></a>.
+Those additional vertex properties can be changed during Pregel iterations.
+In each Pregel iteration, there are three phases:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Given each edge triplet, generate messages and specify target vertices to send,
+described by <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToDst" title="graphframes.lib.Pregel.sendMsgToDst"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToDst()</span></code></a> and <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToSrc" title="graphframes.lib.Pregel.sendMsgToSrc"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToSrc()</span></code></a>.</p></li>
+<li><p>Aggregate messages by target vertex IDs, described by <a class="reference internal" href="#graphframes.lib.Pregel.aggMsgs" title="graphframes.lib.Pregel.aggMsgs"><code class="xref py py-func docutils literal notranslate"><span class="pre">aggMsgs()</span></code></a>.</p></li>
+<li><p>Update additional vertex properties based on aggregated messages and states from previous iteration,
+described by <a class="reference internal" href="#graphframes.lib.Pregel.withVertexColumn" title="graphframes.lib.Pregel.withVertexColumn"><code class="xref py py-func docutils literal notranslate"><span class="pre">withVertexColumn()</span></code></a>.</p></li>
+</ul>
+</div></blockquote>
+<p>Please find what columns you can reference at each phase in the method API docs.</p>
+<p>You can control the number of iterations by <a class="reference internal" href="#graphframes.lib.Pregel.setMaxIter" title="graphframes.lib.Pregel.setMaxIter"><code class="xref py py-func docutils literal notranslate"><span class="pre">setMaxIter()</span></code></a> and check API docs for advanced controls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>graph</strong> – a <a class="reference internal" href="graphframes.html#graphframes.GraphFrame" title="graphframes.GraphFrame"><code class="xref py py-class docutils literal notranslate"><span class="pre">graphframes.GraphFrame</span></code></a> object holding a graph with vertices and edges stored as DataFrames.</p>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">graphframes</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphFrame</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql.functions</span><span class="w"> </span><span class="kn">import</span> <span class="n">coalesce</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">lit</span><span class="p">,</span> <span class="nb">sum</span><span class="p">,</span> <span class="n">when</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">graphframes.lib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pregel</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">edges</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+<span class="gp">... </span>                               <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+<span class="gp">... </span>                               <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span>
+<span class="gp">... </span>                               <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+<span class="gp">... </span>                               <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span> <span class="c1"># 3 has no in-links</span>
+<span class="gp">... </span>                               <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+<span class="gp">... </span>                               <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]],</span> <span class="p">[</span><span class="s2">&quot;src&quot;</span><span class="p">,</span> <span class="s2">&quot;dst&quot;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">edges</span><span class="o">.</span><span class="n">cache</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">vertices</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">([[</span><span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">4</span><span class="p">]],</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">numVertices</span> <span class="o">=</span> <span class="n">vertices</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">vertices</span> <span class="o">=</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="n">edges</span><span class="p">)</span><span class="o">.</span><span class="n">outDegrees</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">vertices</span><span class="o">.</span><span class="n">cache</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">graph</span> <span class="o">=</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="n">edges</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.15</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ranks</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">pregel</span> \
+<span class="gp">... </span>    <span class="o">.</span><span class="n">setMaxIter</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> \
+<span class="gp">... </span>    <span class="o">.</span><span class="n">withVertexColumn</span><span class="p">(</span><span class="s2">&quot;rank&quot;</span><span class="p">,</span> <span class="n">lit</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">numVertices</span><span class="p">),</span> \
+<span class="gp">... </span>        <span class="n">coalesce</span><span class="p">(</span><span class="n">Pregel</span><span class="o">.</span><span class="n">msg</span><span class="p">(),</span> <span class="n">lit</span><span class="p">(</span><span class="mf">0.0</span><span class="p">))</span> <span class="o">*</span> <span class="n">lit</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="n">lit</span><span class="p">(</span><span class="n">alpha</span> <span class="o">/</span> <span class="n">numVertices</span><span class="p">))</span> \
+<span class="gp">... </span>    <span class="o">.</span><span class="n">sendMsgToDst</span><span class="p">(</span><span class="n">Pregel</span><span class="o">.</span><span class="n">src</span><span class="p">(</span><span class="s2">&quot;rank&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="n">Pregel</span><span class="o">.</span><span class="n">src</span><span class="p">(</span><span class="s2">&quot;outDegree&quot;</span><span class="p">))</span> \
+<span class="gp">... </span>    <span class="o">.</span><span class="n">aggMsgs</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">Pregel</span><span class="o">.</span><span class="n">msg</span><span class="p">()))</span> \
+<span class="gp">... </span>    <span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.aggMsgs">
+<span class="sig-name descname"><span class="pre">aggMsgs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aggExpr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#graphframes.lib.Pregel" title="graphframes.lib.pregel.Pregel"><span class="pre">Pregel</span></a></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.aggMsgs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.aggMsgs" title="Link to this definition">¶</a></dt>
+<dd><p>Defines how messages are aggregated after grouped by target vertex IDs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>aggExpr</strong> – the message aggregation expression, such as <cite>sum(Pregel.msg())</cite>.
+You can reference the message column by <a class="reference internal" href="#graphframes.lib.Pregel.msg" title="graphframes.lib.Pregel.msg"><code class="xref py py-func docutils literal notranslate"><span class="pre">msg()</span></code></a> and the vertex ID by <cite>col(“id”)</cite>,
+while the latter is usually not used.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.dst">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dst</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">colName</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.dst"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.dst" title="Link to this definition">¶</a></dt>
+<dd><p>References a destination vertex column in generating messages to send.</p>
+<p>See <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToSrc" title="graphframes.lib.Pregel.sendMsgToSrc"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToSrc()</span></code></a> and <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToDst" title="graphframes.lib.Pregel.sendMsgToDst"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToDst()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>colName</strong> – the vertex column name.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.edge">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">colName</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.edge"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.edge" title="Link to this definition">¶</a></dt>
+<dd><p>References an edge column in generating messages to send.</p>
+<p>See <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToSrc" title="graphframes.lib.Pregel.sendMsgToSrc"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToSrc()</span></code></a> and <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToDst" title="graphframes.lib.Pregel.sendMsgToDst"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToDst()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>colName</strong> – the edge column name.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.msg">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">msg</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.msg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.msg" title="Link to this definition">¶</a></dt>
+<dd><p>References the message column in aggregating messages and updating additional vertex columns.</p>
+<p>See <a class="reference internal" href="#graphframes.lib.Pregel.aggMsgs" title="graphframes.lib.Pregel.aggMsgs"><code class="xref py py-func docutils literal notranslate"><span class="pre">aggMsgs()</span></code></a> and <a class="reference internal" href="#graphframes.lib.Pregel.withVertexColumn" title="graphframes.lib.Pregel.withVertexColumn"><code class="xref py py-func docutils literal notranslate"><span class="pre">withVertexColumn()</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.run" title="Link to this definition">¶</a></dt>
+<dd><p>Runs the defined Pregel algorithm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the result vertex DataFrame from the final iteration including both original and additional columns.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.sendMsgToDst">
+<span class="sig-name descname"><span class="pre">sendMsgToDst</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msgExpr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#graphframes.lib.Pregel" title="graphframes.lib.pregel.Pregel"><span class="pre">Pregel</span></a></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.sendMsgToDst"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.sendMsgToDst" title="Link to this definition">¶</a></dt>
+<dd><p>Defines a message to send to the destination vertex of each edge triplet.</p>
+<p>You can call it multiple times to send more than one messages.</p>
+<p>See method <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToSrc" title="graphframes.lib.Pregel.sendMsgToSrc"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToSrc()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>msgExpr</strong> – the message expression to send to the destination vertex given a (<cite>src</cite>, <cite>edge</cite>, <cite>dst</cite>) triplet.
+Source/destination vertex properties and edge properties are nested under columns <cite>src</cite>, <cite>dst</cite>,
+and <cite>edge</cite>, respectively.
+You can reference them using <a class="reference internal" href="#graphframes.lib.Pregel.src" title="graphframes.lib.Pregel.src"><code class="xref py py-func docutils literal notranslate"><span class="pre">src()</span></code></a>, <a class="reference internal" href="#graphframes.lib.Pregel.dst" title="graphframes.lib.Pregel.dst"><code class="xref py py-func docutils literal notranslate"><span class="pre">dst()</span></code></a>, and <a class="reference internal" href="#graphframes.lib.Pregel.edge" title="graphframes.lib.Pregel.edge"><code class="xref py py-func docutils literal notranslate"><span class="pre">edge()</span></code></a>.
+Null messages are not included in message aggregation.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.sendMsgToSrc">
+<span class="sig-name descname"><span class="pre">sendMsgToSrc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msgExpr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#graphframes.lib.Pregel" title="graphframes.lib.pregel.Pregel"><span class="pre">Pregel</span></a></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.sendMsgToSrc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.sendMsgToSrc" title="Link to this definition">¶</a></dt>
+<dd><p>Defines a message to send to the source vertex of each edge triplet.</p>
+<p>You can call it multiple times to send more than one messages.</p>
+<p>See method <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToDst" title="graphframes.lib.Pregel.sendMsgToDst"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToDst()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>msgExpr</strong> – the expression of the message to send to the source vertex given a (src, edge, dst) triplet.
+Source/destination vertex properties and edge properties are nested under columns <cite>src</cite>, <cite>dst</cite>,
+and <cite>edge</cite>, respectively.
+You can reference them using <a class="reference internal" href="#graphframes.lib.Pregel.src" title="graphframes.lib.Pregel.src"><code class="xref py py-func docutils literal notranslate"><span class="pre">src()</span></code></a>, <a class="reference internal" href="#graphframes.lib.Pregel.dst" title="graphframes.lib.Pregel.dst"><code class="xref py py-func docutils literal notranslate"><span class="pre">dst()</span></code></a>, and <a class="reference internal" href="#graphframes.lib.Pregel.edge" title="graphframes.lib.Pregel.edge"><code class="xref py py-func docutils literal notranslate"><span class="pre">edge()</span></code></a>.
+Null messages are not included in message aggregation.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.setCheckpointInterval">
+<span class="sig-name descname"><span class="pre">setCheckpointInterval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#graphframes.lib.Pregel" title="graphframes.lib.pregel.Pregel"><span class="pre">Pregel</span></a></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.setCheckpointInterval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.setCheckpointInterval" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the number of iterations between two checkpoints (default: 2).</p>
+<p>This is an advanced control to balance query plan optimization and checkpoint data I/O cost.
+In most cases, you should keep the default value.</p>
+<p>Checkpoint is disabled if this is set to 0.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.setMaxIter">
+<span class="sig-name descname"><span class="pre">setMaxIter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#graphframes.lib.Pregel" title="graphframes.lib.pregel.Pregel"><span class="pre">Pregel</span></a></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.setMaxIter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.setMaxIter" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the max number of iterations (default: 10).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.src">
+<em class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">src</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">colName</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.src"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.src" title="Link to this definition">¶</a></dt>
+<dd><p>References a source vertex column in generating messages to send.</p>
+<p>See <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToSrc" title="graphframes.lib.Pregel.sendMsgToSrc"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToSrc()</span></code></a> and <a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToDst" title="graphframes.lib.Pregel.sendMsgToDst"><code class="xref py py-func docutils literal notranslate"><span class="pre">sendMsgToDst()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>colName</strong> – the vertex column name.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="graphframes.lib.Pregel.withVertexColumn">
+<span class="sig-name descname"><span class="pre">withVertexColumn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">colName</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initialExpr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">updateAfterAggMsgsExpr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#graphframes.lib.Pregel" title="graphframes.lib.pregel.Pregel"><span class="pre">Pregel</span></a></span></span><a class="reference internal" href="_modules/graphframes/lib/pregel.html#Pregel.withVertexColumn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#graphframes.lib.Pregel.withVertexColumn" title="Link to this definition">¶</a></dt>
+<dd><p>Defines an additional vertex column at the start of run and how to update it in each iteration.</p>
+<p>You can call it multiple times to add more than one additional vertex columns.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>colName</strong> – the name of the additional vertex column.
+It cannot be an existing vertex column in the graph.</p></li>
+<li><p><strong>initialExpr</strong> – the expression to initialize the additional vertex column.
+You can reference all original vertex columns in this expression.</p></li>
+<li><p><strong>updateAfterAggMsgsExpr</strong> – the expression to update the additional vertex column after messages aggregation.
+You can reference all original vertex columns, additional vertex columns, and the
+aggregated message column using <a class="reference internal" href="#graphframes.lib.Pregel.msg" title="graphframes.lib.Pregel.msg"><code class="xref py py-func docutils literal notranslate"><span class="pre">msg()</span></code></a>.
+If the vertex received no messages, the message column would be null.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">graphframes.lib package</a><ul>
+<li><a class="reference internal" href="#module-graphframes.lib">Collection of utilities usable with message aggregation</a><ul>
+<li><a class="reference internal" href="#graphframes.lib.AggregateMessages"><code class="docutils literal notranslate"><span class="pre">AggregateMessages</span></code></a><ul>
+<li><a class="reference internal" href="#graphframes.lib.AggregateMessages.dst"><code class="docutils literal notranslate"><span class="pre">AggregateMessages.dst</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.AggregateMessages.edge"><code class="docutils literal notranslate"><span class="pre">AggregateMessages.edge</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.AggregateMessages.getCachedDataFrame"><code class="docutils literal notranslate"><span class="pre">AggregateMessages.getCachedDataFrame()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.AggregateMessages.msg"><code class="docutils literal notranslate"><span class="pre">AggregateMessages.msg</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.AggregateMessages.src"><code class="docutils literal notranslate"><span class="pre">AggregateMessages.src</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel"><code class="docutils literal notranslate"><span class="pre">Pregel</span></code></a><ul>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.aggMsgs"><code class="docutils literal notranslate"><span class="pre">Pregel.aggMsgs()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.dst"><code class="docutils literal notranslate"><span class="pre">Pregel.dst()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.edge"><code class="docutils literal notranslate"><span class="pre">Pregel.edge()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.msg"><code class="docutils literal notranslate"><span class="pre">Pregel.msg()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.run"><code class="docutils literal notranslate"><span class="pre">Pregel.run()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToDst"><code class="docutils literal notranslate"><span class="pre">Pregel.sendMsgToDst()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.sendMsgToSrc"><code class="docutils literal notranslate"><span class="pre">Pregel.sendMsgToSrc()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.setCheckpointInterval"><code class="docutils literal notranslate"><span class="pre">Pregel.setCheckpointInterval()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.setMaxIter"><code class="docutils literal notranslate"><span class="pre">Pregel.setMaxIter()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.src"><code class="docutils literal notranslate"><span class="pre">Pregel.src()</span></code></a></li>
+<li><a class="reference internal" href="#graphframes.lib.Pregel.withVertexColumn"><code class="docutils literal notranslate"><span class="pre">Pregel.withVertexColumn()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="graphframes.examples.html"
+                          title="previous chapter">graphframes.examples package</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/graphframes.lib.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="graphframes.examples.html" title="graphframes.examples package"
+             >previous</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="graphframes.html" >graphframes package</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.lib package</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, Timothy Hunter and Joseph Bradley.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>

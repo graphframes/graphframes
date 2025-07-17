@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>Overview - GraphFrames 0.9.0 Documentation</title>
+        
+          <meta name="description" content="GraphFrames 0.9.0 documentation homepage">
+        
+
+        
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <style>
+            body {
+                padding-top: 60px;
+                padding-bottom: 40px;
+            }
+        </style>
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" href="css/bootstrap-responsive.min.css">
+        <link rel="stylesheet" href="css/main.css">
+
+        <script src="js/vendor/modernizr-2.6.1-respond-1.1.0.min.js"></script>
+
+        <link rel="stylesheet" href="css/pygments-default.css">
+
+        
+
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an outdated browser. <a href="http://browsehappy.com/">Upgrade your browser today</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to better experience this site.</p>
+        <![endif]-->
+
+        <!-- This code is taken from http://twitter.github.com/bootstrap/examples/hero.html -->
+
+        <div class="navbar navbar-fixed-top" id="topbar">
+            <div class="navbar-inner">
+                <div class="container">
+                    <div class="brand">
+                        <a href="index.html"><img src="img/graphframes_logo.png" alt="GraphFrames" width="200" height="50"/></a>
+                        <span class="version">0.9.0</span>
+                    </div>
+                    <ul class="nav">
+                        <li><a href="index.html">Overview</a></li>
+
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">User Guides<b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="quick-start.html">Quick Start</a></li>
+                                <li><a href="user-guide.html">GraphFrames User Guide</a></li>
+                                <li><a href="motif-tutorial.html">Network Motif Finding Tutorial</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">API Docs<b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="api/scala/index.html#org.graphframes.package">Scala</a></li>
+                                <li><a href="api/python/index.html">Python</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <!--<p class="navbar-text pull-right"><span class="version-text">v0.9.0</span></p>-->
+                </div>
+            </div>
+        </div>
+
+        <div class="container" id="content">
+          
+            <h1 class="title">GraphFrames Overview</h1>
+          
+
+          <p>GraphFrames is a package for Apache Spark which provides DataFrame-based Graphs.
+It provides high-level APIs in Scala, Java, and Python.
+It aims to provide both the functionality of GraphX and extended functionality taking advantage
+of Spark DataFrames.  This extended functionality includes motif finding, DataFrame-based
+serialization, and highly expressive graph queries.</p>
+
+<h1 id="what-are-graphframes">What are GraphFrames?</h1>
+
+<p><em>GraphFrames are to DataFrames as GraphX is to RDDs.</em></p>
+
+<p>GraphFrames represent graphs: vertices (e.g., users) and edges (e.g., relationships between users).
+If you are familiar with <a href="http://spark.apache.org/docs/latest/graphx-programming-guide.html">GraphX</a>,
+then GraphFrames will be easy to learn.  The key difference is that GraphFrames are based upon
+<a href="http://spark.apache.org/docs/latest/sql-programming-guide.html">Spark DataFrames</a>,
+rather than <a href="http://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds">RDDs</a>.</p>
+
+<p>GraphFrames also provide powerful tools for running queries and standard graph algorithms.
+With GraphFrames, you can easily search for patterns within graphs, find important vertices, and more.
+Refer to the <a href="user-guide.html">User Guide</a> for a full list of queries and algorithms.</p>
+
+<p><strong>Will GraphFrames be part of Apache Spark?</strong></p>
+
+<p>The GraphX component of Apache Spark has no DataFrames - or Dataset-based equivalent, so it is
+natural to ask this question.</p>
+
+<p><strong>The new plan is to merge GraphFrames with Apache Spark to make it a component of core Spark.
+<a href="https://spark.apache.org/committers.html#:~:text=Holden%20Karau,Netflix">Spark committer Holden Karau</a>
+is willing to support this effort by reviewing the relevant pull requests.</strong></p>
+
+<h1 id="downloading">Downloading</h1>
+
+<p>Get GraphFrames from the <a href="http://spark-packages.org/package/graphframes/graphframes">Spark Packages website</a>.
+This documentation is for GraphFrames version 0.9.0.
+GraphFrames depends on Apache Spark, which is available for download from the
+<a href="http://spark.apache.org">Apache Spark website</a>.</p>
+
+<p>GraphFrames should be compatible with any platform which runs Spark.
+Refer to the <a href="http://spark.apache.org/docs/latest">Apache Spark documentation</a> for more information.</p>
+
+<p>GraphFrames is compatible with Spark 1.6+.  However, later versions of Spark include major improvements
+to DataFrames, so GraphFrames may be more efficient when running on more recent Spark versions.</p>
+
+<p>GraphFrames is tested with Java 8, Python 2 and 3, and running against Spark 2.2+ (Scala 2.11).</p>
+
+<h1 id="applications-the-apache-spark-shell-and-clusters">Applications, the Apache Spark shell, and clusters</h1>
+
+<p>See the <a href="http://spark.apache.org/docs/latest/">Apache Spark User Guide</a> for more information about
+submitting Spark jobs to clusters, running the Spark shell, and launching Spark clusters.
+The <a href="quick-start.html">GraphFrame Quick-Start guide</a> also shows how to run the Spark shell with
+GraphFrames supplied as a package.</p>
+
+<h1 id="where-to-go-from-here">Where to Go from Here</h1>
+
+<p><strong>User Guides:</strong></p>
+
+<ul>
+  <li><a href="quick-start.html">Quick Start</a>: a quick introduction to the GraphFrames API; start here!</li>
+  <li><a href="user-guide.html">GraphFrames User Guide</a>: detailed overview of GraphFrames
+in all supported languages (Scala, Java, Python)</li>
+  <li><a href="motif-tutorial.html">Motif Finding Tutorial</a>: learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the <code class="language-plaintext highlighter-rouge">stackexchange.com</code> subdomain <a href="https://archive.org/details/stackexchange">data dump</a></li>
+</ul>
+
+<p><strong>API Docs:</strong></p>
+
+<ul>
+  <li><a href="api/scala/index.html#org.graphframes.package">GraphFrames Scala API (Scaladoc)</a></li>
+  <li><a href="api/python/index.html">GraphFrames Python API (Sphinx)</a></li>
+</ul>
+
+<p><strong>Community Forums:</strong></p>
+
+<ul>
+  <li><a href="https://groups.google.com/g/graphframes/">GraphFrames Mailing List</a>: ask questions about GraphFrames here</li>
+  <li><a href="https://discord.com/channels/1162999022819225631/1326257052368113674">#graphframes Discord Channel on GraphGeeks</a></li>
+</ul>
+
+<p><strong>External Resources:</strong></p>
+
+<ul>
+  <li><a href="http://spark.apache.org">Apache Spark Homepage</a></li>
+  <li><a href="https://cwiki.apache.org/confluence/display/SPARK">Apache Spark Wiki</a></li>
+  <li><a href="http://spark.apache.org/mailing-lists.html">Apache Spark Mailing Lists</a></li>
+  <li><a href="https://stackoverflow.com/questions/tagged/graphframes">GraphFrames on Stack Overflow</a></li>
+</ul>
+
+
+        </div> <!-- /container -->
+
+        <script src="js/vendor/jquery-1.8.0.min.js"></script>
+        <script src="js/vendor/bootstrap.min.js"></script>
+        <script src="js/vendor/anchor.min.js"></script>
+        <script src="js/main.js"></script>
+
+        <!-- MathJax Section -->
+        <script type="text/x-mathjax-config">
+            MathJax.Hub.Config({
+                TeX: { equationNumbers: { autoNumber: "AMS" } }
+            });
+        </script>
+        <script>
+            // Note that we load MathJax this way to work with local file (file://), HTTP and HTTPS.
+            // We could use "//cdn.mathjax...", but that won't support "file://".
+            (function(d, script) {
+                script = d.createElement('script');
+                script.type = 'text/javascript';
+                script.async = true;
+                script.onload = function(){
+                    MathJax.Hub.Config({
+                        tex2jax: {
+                            inlineMath: [ ["$", "$"], ["\\\\(","\\\\)"] ],
+                            displayMath: [ ["$$","$$"], ["\\[", "\\]"] ],
+                            processEscapes: true,
+                            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+                        }
+                    });
+                };
+                script.src = ('https:' == document.location.protocol ? 'https://' : 'http://') +
+                    'cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+                d.getElementsByTagName('head')[0].appendChild(script);
+            }(document));
+        </script>
+    </body>
+</html>

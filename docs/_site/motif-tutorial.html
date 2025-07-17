@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>Network Motif Finding Tutorial - GraphFrames 0.9.0 Documentation</title>
+        
+          <meta name="description" content="GraphFrames 0.9.0 motif finding tutorial - teaches you to find motifs using Stack Exchange data">
+        
+
+        
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <style>
+            body {
+                padding-top: 60px;
+                padding-bottom: 40px;
+            }
+        </style>
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" href="css/bootstrap-responsive.min.css">
+        <link rel="stylesheet" href="css/main.css">
+
+        <script src="js/vendor/modernizr-2.6.1-respond-1.1.0.min.js"></script>
+
+        <link rel="stylesheet" href="css/pygments-default.css">
+
+        
+
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an outdated browser. <a href="http://browsehappy.com/">Upgrade your browser today</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to better experience this site.</p>
+        <![endif]-->
+
+        <!-- This code is taken from http://twitter.github.com/bootstrap/examples/hero.html -->
+
+        <div class="navbar navbar-fixed-top" id="topbar">
+            <div class="navbar-inner">
+                <div class="container">
+                    <div class="brand">
+                        <a href="index.html"><img src="img/graphframes_logo.png" alt="GraphFrames" width="200" height="50"/></a>
+                        <span class="version">0.9.0</span>
+                    </div>
+                    <ul class="nav">
+                        <li><a href="index.html">Overview</a></li>
+
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">User Guides<b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="quick-start.html">Quick Start</a></li>
+                                <li><a href="user-guide.html">GraphFrames User Guide</a></li>
+                                <li><a href="motif-tutorial.html">Network Motif Finding Tutorial</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">API Docs<b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="api/scala/index.html#org.graphframes.package">Scala</a></li>
+                                <li><a href="api/python/index.html">Python</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <!--<p class="navbar-text pull-right"><span class="version-text">v0.9.0</span></p>-->
+                </div>
+            </div>
+        </div>
+
+        <div class="container" id="content">
+          
+            <h1 class="title">GraphFrames Network Motif Finding Tutorial</h1>
+          
+
+          <p>This tutorial covers GraphFrames&#8217; motif finding feature. We perform pattern matching on a property graph representing a Stack Exchange site using Apache Spark and <a href="user-guide.html#motif-finding">GraphFrames&#8217; motif finding</a> feature. We will download the <code class="language-plaintext highlighter-rouge">stats.meta</code> archive from the <a href="https://archive.org/details/stackexchange">Stack Exchange Data Dump at the Internet Archive</a>, use PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.</p>
+
+<ul>
+  <li>Table of contents (This text will be scraped.)</li>
+</ul>
+
+<h1 id="what-are-graphlets-and-network-motifs">What are graphlets and network motifs?</h1>
+
+<p>Graphlets are small, connected subgraphs of a larger graph. Network motifs are recurring patterns in complex networks that are significantly more frequent than in random networks. They are the building blocks of complex networks and can be used to understand the structure and function of networks. Network motifs can be used to identify functional modules in biological networks, detect anomalies in social networks, detect money laundering and terrorism financing in financial networks, and predict the behavior of complex systems.</p>
+
+<center>
+    <figure>
+        <img src="img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
+        <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of
+Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
+    </figure>
+</center>
+
+<p>We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames&#8217; motif finding feature to find network motifs in the graph. You&#8217;ll see how to combine graph and relational queries to find complex patterns in the graph.</p>
+
+<h1 id="download-the-stack-exchange-dump-for-statsmeta">Download the Stack Exchange Dump for <a href="https://stats.meta.stackexchange.com">stats.meta</a></h1>
+
+<p>The Python tutorials include a CLI utility at <code class="language-plaintext highlighter-rouge">graphframes stackexchange</code>for downloading any site&#8217;s <a href="https://archive.org/details/stackexchange">Stack Exchange Data Dump</a> from the Internet Archive. The command takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the <code class="language-plaintext highlighter-rouge">python/graphframes/tutorials/data</code> folder.</p>
+
+<div data-lang="bash">
+
+  <figure class="highlight"><pre><code class="language-bash" data-lang="bash">Usage: graphframes <span class="o">[</span>OPTIONS] COMMAND <span class="o">[</span>ARGS]...
+
+  GraphFrames CLI: a collection of commands <span class="k">for </span>graphframes.
+
+Options:
+  <span class="nt">--help</span>  Show this message and exit.
+
+Commands:
+  stackexchange  Download Stack Exchange archive <span class="k">for </span>a given SUBDOMAIN.</code></pre></figure>
+
+</div>
+
+<p>Use <code class="language-plaintext highlighter-rouge">graphframes stackexchange stats.meta</code> to download the Stack Exchange Data Dump for <code class="language-plaintext highlighter-rouge">stats.meta.stackexchange.com</code>.</p>
+
+<div data-lang="bash">
+
+  <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>graphframes stackexchange stats.meta
+
+Downloading archive from &lt;https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z&gt;
+Downloading  <span class="o">[</span><span class="c">####################################]  100%</span>
+Download <span class="nb">complete</span>: python/graphframes/tutorials/data/stats.meta.stackexchange.com.7z
+Extracting archive...
+Extraction <span class="nb">complete</span>: stats.meta.stackexchange.com</code></pre></figure>
+
+</div>
+
+<h1 id="build-the-graph">Build the Graph</h1>
+
+<p>We will build a property graph from the Stack Exchange data dump using PySpark in the <a href="python/graphframes/tutorials/stackexchange.py">python/graphframes/tutorials/stackexchange.py</a> script. The data comes as a single XML file, so we use <a href="https://github.com/databricks/spark-xml">spark-xml</a> (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.</p>
+
+<div data-lang="bash">
+
+  <figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>spark-submit <span class="nt">--packages</span> com.databricks:spark-xml_2.12:0.18.0 <span class="nt">--driver-memory</span> 4g <span class="nt">--executor-memory</span> 4g python/graphframes/tutorials/stackexchange.py</code></pre></figure>
+
+</div>
+
+<p>The script will output the nodes and edges of the graph in the <code class="language-plaintext highlighter-rouge">python/graphframes/tutorials/data</code> folder. We can now use GraphFrames to load the graph and perform motif finding.</p>
+
+<h1 id="motif-finding">Motif Finding</h1>
+
+<p>We will use GraphFrames to find motifs in the Stack Exchange property graph. The script <a href="python/graphframes/tutorials/motif.py">python/graphframes/tutorials/motif.py</a> demonstrates how to load the graph, define various motifs and find all instances of the motif in the graph.</p>
+
+<p>NOTE: I use the terms <code class="language-plaintext highlighter-rouge">node</code> as interchangaable with <code class="language-plaintext highlighter-rouge">vertex</code> and <code class="language-plaintext highlighter-rouge">edge</code> with <code class="language-plaintext highlighter-rouge">link</code> or <code class="language-plaintext highlighter-rouge">relationship</code>. The API is <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.vertices">GraphFrame.vertices</a> and <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.edges">GraphFrames.edges</a> but some documentation says <code class="language-plaintext highlighter-rouge">relationships</code>. We need to add an alias from <code class="language-plaintext highlighter-rouge">g.vertices</code> to <code class="language-plaintext highlighter-rouge">g.nodes</code> and <code class="language-plaintext highlighter-rouge">g.edges</code> to both <code class="language-plaintext highlighter-rouge">g.relationships</code> and <code class="language-plaintext highlighter-rouge">g.links</code>.</p>
+
+<p>For a quick run-through of the script, use the following command:</p>
+
+<div data-lang="bash">
+
+  <figure class="highlight"><pre><code class="language-bash" data-lang="bash">spark-submit <span class="nt">--packages</span> graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/tutorials/motif.py</code></pre></figure>
+
+</div>
+
+<p>Let&#8217;s walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by <a href="https://graphframes.github.io/graphframes/docs/_site/user-guide.html#motif-finding">g.find()</a>. Note that if you give <code class="language-plaintext highlighter-rouge">python/graphframes/tutorials/download.py</code> CLI a different subdomain, you will need to change the <code class="language-plaintext highlighter-rouge">STACKEXCHANGE_SITE</code> variable.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="nn">pyspark.sql.functions</span> <span class="k">as</span> <span class="n">F</span>
+<span class="kn">from</span> <span class="nn">graphframes</span> <span class="kn">import</span> <span class="n">GraphFrame</span>
+<span class="kn">from</span> <span class="nn">pyspark</span> <span class="kn">import</span> <span class="n">SparkContext</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">SparkSession</span>
+
+<span class="c1"># Initialize a SparkSession
+</span><span class="n">spark</span><span class="p">:</span> <span class="n">SparkSession</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">SparkSession</span><span class="p">.</span><span class="n">builder</span><span class="p">.</span><span class="n">appName</span><span class="p">(</span><span class="s">"Stack Overflow Motif Analysis"</span><span class="p">)</span>
+    <span class="c1"># Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+</span>    <span class="p">.</span><span class="n">config</span><span class="p">(</span><span class="s">"spark.sql.caseSensitive"</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+<span class="p">)</span>
+<span class="n">sc</span><span class="p">:</span> <span class="n">SparkContext</span> <span class="o">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">sparkContext</span>
+<span class="n">sc</span><span class="p">.</span><span class="n">setCheckpointDir</span><span class="p">(</span><span class="s">"/tmp/graphframes-checkpoints"</span><span class="p">)</span>
+
+<span class="c1"># Change me if you download a different stackexchange site
+</span><span class="n">STACKEXCHANGE_SITE</span> <span class="o">=</span> <span class="s">"stats.meta.stackexchange.com"</span>
+<span class="n">BASE_PATH</span> <span class="o">=</span> <span class="sa">f</span><span class="s">"python/graphframes/tutorials/data/</span><span class="si">{</span><span class="n">STACKEXCHANGE_SITE</span><span class="si">}</span><span class="s">"</span></code></pre></figure>
+
+</div>
+
+<p>Load the nodes and edges of the graph from the <code class="language-plaintext highlighter-rouge">data</code> folder and count the types of node and edge. We repartition the nodes and edges to give our motif searches parallelism. GraphFrames likes nodes/vertices and edges/relatonships to be cached.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1">#
+# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache.
+#
+</span>
+<span class="c1"># We created these in stackexchange.py from Stack Exchange data dump XML files
+</span><span class="n">NODES_PATH</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="sa">f</span><span class="s">"</span><span class="si">{</span><span class="n">BASE_PATH</span><span class="si">}</span><span class="s">/Nodes.parquet"</span>
+<span class="n">nodes_df</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">read</span><span class="p">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">NODES_PATH</span><span class="p">)</span>
+
+<span class="c1"># Repartition the nodes to give our motif searches parallelism
+</span><span class="n">nodes_df</span> <span class="o">=</span> <span class="n">nodes_df</span><span class="p">.</span><span class="n">repartition</span><span class="p">(</span><span class="mi">50</span><span class="p">).</span><span class="n">checkpoint</span><span class="p">().</span><span class="n">cache</span><span class="p">()</span>
+
+<span class="c1"># We created these in stackexchange.py from Stack Exchange data dump XML files
+</span><span class="n">EDGES_PATH</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="sa">f</span><span class="s">"</span><span class="si">{</span><span class="n">BASE_PATH</span><span class="si">}</span><span class="s">/Edges.parquet"</span>
+<span class="n">edges_df</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">spark</span><span class="p">.</span><span class="n">read</span><span class="p">.</span><span class="n">parquet</span><span class="p">(</span><span class="n">EDGES_PATH</span><span class="p">)</span>
+
+<span class="c1"># Repartition the edges to give our motif searches parallelism
+</span><span class="n">edges_df</span> <span class="o">=</span> <span class="n">edges_df</span><span class="p">.</span><span class="n">repartition</span><span class="p">(</span><span class="mi">50</span><span class="p">).</span><span class="n">checkpoint</span><span class="p">().</span><span class="n">cache</span><span class="p">()</span></code></pre></figure>
+
+</div>
+
+<p>Check out the node types we have to work with:</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># What kind of nodes we do we have to work with?
+</span><span class="n">node_counts</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">nodes_df</span>
+    <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s">"id"</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"Node Type"</span><span class="p">))</span>
+    <span class="p">.</span><span class="n">groupBy</span><span class="p">(</span><span class="s">"Node Type"</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="p">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">).</span><span class="n">desc</span><span class="p">())</span>
+    <span class="c1"># Add a comma formatted column for display
+</span>    <span class="p">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s">"count"</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">format_number</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
+<span class="p">)</span>
+<span class="n">node_counts</span><span class="p">.</span><span class="n">show</span><span class="p">()</span></code></pre></figure>
+
+</div>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">+---------+------+</span>
+<span class="o">|</span><span class="n">Node</span> <span class="n">Type</span><span class="o">|</span> <span class="n">count</span><span class="o">|</span>
+<span class="o">+---------+------+</span>
+<span class="o">|</span>    <span class="n">Badge</span><span class="o">|</span><span class="mi">43</span><span class="p">,</span><span class="mi">029</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Vote</span><span class="o">|</span><span class="mi">42</span><span class="p">,</span><span class="mi">593</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">User</span><span class="o">|</span><span class="mi">37</span><span class="p">,</span><span class="mi">709</span><span class="o">|</span>
+<span class="o">|</span>   <span class="n">Answer</span><span class="o">|</span> <span class="mi">2</span><span class="p">,</span><span class="mi">978</span><span class="o">|</span>
+<span class="o">|</span> <span class="n">Question</span><span class="o">|</span> <span class="mi">2</span><span class="p">,</span><span class="mi">025</span><span class="o">|</span>
+<span class="o">|</span><span class="n">PostLinks</span><span class="o">|</span> <span class="mi">1</span><span class="p">,</span><span class="mi">274</span><span class="o">|</span>
+<span class="o">|</span>      <span class="n">Tag</span><span class="o">|</span>   <span class="mi">143</span><span class="o">|</span>
+<span class="o">+---------+------+</span></code></pre></figure>
+
+</div>
+
+<p>Check out the edge types we have to work with:</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># What kind of edges do we have to work with?
+</span><span class="n">edge_counts</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">edges_df</span>
+    <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s">"src"</span><span class="p">,</span> <span class="s">"dst"</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"Edge Type"</span><span class="p">))</span>
+    <span class="p">.</span><span class="n">groupBy</span><span class="p">(</span><span class="s">"Edge Type"</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="p">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">).</span><span class="n">desc</span><span class="p">())</span>
+    <span class="c1"># Add a comma formatted column for display
+</span>    <span class="p">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s">"count"</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">format_number</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
+<span class="p">)</span>
+<span class="n">edge_counts</span><span class="p">.</span><span class="n">show</span><span class="p">()</span></code></pre></figure>
+
+</div>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">+----------+------+</span>
+<span class="o">|</span> <span class="n">Edge</span> <span class="n">Type</span><span class="o">|</span> <span class="n">count</span><span class="o">|</span>
+<span class="o">+----------+------+</span>
+<span class="o">|</span>     <span class="n">Earns</span><span class="o">|</span><span class="mi">43</span><span class="p">,</span><span class="mi">029</span><span class="o">|</span>
+<span class="o">|</span>   <span class="n">CastFor</span><span class="o">|</span><span class="mi">40</span><span class="p">,</span><span class="mi">701</span><span class="o">|</span>
+<span class="o">|</span>      <span class="n">Tags</span><span class="o">|</span> <span class="mi">4</span><span class="p">,</span><span class="mi">427</span><span class="o">|</span>
+<span class="o">|</span>   <span class="n">Answers</span><span class="o">|</span> <span class="mi">2</span><span class="p">,</span><span class="mi">978</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Posts</span><span class="o">|</span> <span class="mi">2</span><span class="p">,</span><span class="mi">767</span><span class="o">|</span>
+<span class="o">|</span>      <span class="n">Asks</span><span class="o">|</span> <span class="mi">1</span><span class="p">,</span><span class="mi">934</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Links</span><span class="o">|</span> <span class="mi">1</span><span class="p">,</span><span class="mi">180</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">88</span><span class="o">|</span>
+<span class="o">+----------+------+</span></code></pre></figure>
+
+</div>
+
+<h2 id="combine-node-types">Combining Node Types</h2>
+
+<p><b>Note: you don&#8217;t need to run the code in this section, it is just for reference. The data we loaded above is already prepared for use.</b> Jump ahead to <a href="#creating-graphframes">Creating GraphFrames</a> and run that next :)</p>
+
+<p>At the moment, GraphFrames has a limitation: <i>there is only one node and edge type (for now).</i> There are many fields in the nodes of our <code class="language-plaintext highlighter-rouge">GraphFrame</code> because there only one node type is available. I have combined different types of node into a single type by including all properties of all types in one class of node. I created a <code class="language-plaintext highlighter-rouge">Type</code> field for each type of node, then merged all fields into a single, global <code class="language-plaintext highlighter-rouge">nodes_df</code> <code class="language-plaintext highlighter-rouge">DataFrame</code>. This <code class="language-plaintext highlighter-rouge">Type</code> column can then be used in relational <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html">DataFrame</a> operations to distinguish between types of nodes.</p>
+
+<p>This limitation is an annoyance that should be fixed in the future, with the ability to have multiple node types in a <code class="language-plaintext highlighter-rouge">GraphFrame</code>. In practice it isn&#8217;t a big hit in productivity, but it means you have to <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.select.html">DataFrame.select</a> certain columns for each node <code class="language-plaintext highlighter-rouge">Type</code> when you do a <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html">DataFrame.show()</a> or the width of the DataFrame will be too wide to easily read.</p>
+
+<p>Here is how that was accomplished in <a href="https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/stackexchange.py">python/graphframes/tutorials/stackexchange.py</a>.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1">#
+# Form the nodes from the UNION of posts, users, votes and their combined schemas
+#
+</span>
+<span class="n">all_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">T</span><span class="p">.</span><span class="n">StructField</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+    <span class="nb">set</span><span class="p">(</span>
+        <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">posts_df</span><span class="p">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">posts_df</span><span class="p">.</span><span class="n">schema</span><span class="p">))</span>
+        <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">post_links_df</span><span class="p">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">post_links_df</span><span class="p">.</span><span class="n">schema</span><span class="p">))</span>
+        <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">comments_df</span><span class="p">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">comments_df</span><span class="p">.</span><span class="n">schema</span><span class="p">))</span>
+        <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">users_df</span><span class="p">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">users_df</span><span class="p">.</span><span class="n">schema</span><span class="p">))</span>
+        <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">votes_df</span><span class="p">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">votes_df</span><span class="p">.</span><span class="n">schema</span><span class="p">))</span>
+        <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">tags_df</span><span class="p">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">tags_df</span><span class="p">.</span><span class="n">schema</span><span class="p">))</span>
+        <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">badges_df</span><span class="p">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">badges_df</span><span class="p">.</span><span class="n">schema</span><span class="p">))</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+<span class="n">all_column_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">all_cols</span><span class="p">])</span>
+
+<span class="k">def</span> <span class="nf">add_missing_columns</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">all_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">T</span><span class="p">.</span><span class="n">StructField</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+    <span class="s">"""Add any missing columns from any DataFrame among several we want to merge."""</span>
+    <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">schema_field</span> <span class="ow">in</span> <span class="n">all_cols</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">col_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="p">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">col_name</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">lit</span><span class="p">(</span><span class="bp">None</span><span class="p">).</span><span class="n">cast</span><span class="p">(</span><span class="n">schema_field</span><span class="p">.</span><span class="n">dataType</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">df</span>
+
+<span class="c1"># Now apply this function to each of your DataFrames to get a consistent schema
+</span><span class="n">posts_df</span> <span class="o">=</span> <span class="n">add_missing_columns</span><span class="p">(</span><span class="n">posts_df</span><span class="p">,</span> <span class="n">all_cols</span><span class="p">).</span><span class="n">select</span><span class="p">(</span><span class="n">all_column_names</span><span class="p">)</span>
+<span class="n">post_links_df</span> <span class="o">=</span> <span class="n">add_missing_columns</span><span class="p">(</span><span class="n">post_links_df</span><span class="p">,</span> <span class="n">all_cols</span><span class="p">).</span><span class="n">select</span><span class="p">(</span><span class="n">all_column_names</span><span class="p">)</span>
+<span class="n">users_df</span> <span class="o">=</span> <span class="n">add_missing_columns</span><span class="p">(</span><span class="n">users_df</span><span class="p">,</span> <span class="n">all_cols</span><span class="p">).</span><span class="n">select</span><span class="p">(</span><span class="n">all_column_names</span><span class="p">)</span>
+<span class="n">votes_df</span> <span class="o">=</span> <span class="n">add_missing_columns</span><span class="p">(</span><span class="n">votes_df</span><span class="p">,</span> <span class="n">all_cols</span><span class="p">).</span><span class="n">select</span><span class="p">(</span><span class="n">all_column_names</span><span class="p">)</span>
+<span class="n">tags_df</span> <span class="o">=</span> <span class="n">add_missing_columns</span><span class="p">(</span><span class="n">tags_df</span><span class="p">,</span> <span class="n">all_cols</span><span class="p">).</span><span class="n">select</span><span class="p">(</span><span class="n">all_column_names</span><span class="p">)</span>
+<span class="n">badges_df</span> <span class="o">=</span> <span class="n">add_missing_columns</span><span class="p">(</span><span class="n">badges_df</span><span class="p">,</span> <span class="n">all_cols</span><span class="p">).</span><span class="n">select</span><span class="p">(</span><span class="n">all_column_names</span><span class="p">)</span>
+<span class="k">assert</span> <span class="p">(</span>
+    <span class="nb">set</span><span class="p">(</span><span class="n">posts_df</span><span class="p">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">post_links_df</span><span class="p">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">users_df</span><span class="p">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">votes_df</span><span class="p">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">all_column_names</span><span class="p">)</span>
+    <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">tags_df</span><span class="p">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">badges_df</span><span class="p">.</span><span class="n">columns</span><span class="p">)</span>
+<span class="p">)</span></code></pre></figure>
+
+</div>
+
+<h2 id="creating-graphframes">Creating GraphFrames</h2>
+
+<p>Now we create a <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame">GraphFrame object</a> from the <code class="language-plaintext highlighter-rouge">nodes_df</code> and <code class="language-plaintext highlighter-rouge">edges_df</code> <code class="language-plaintext highlighter-rouge">DataFrames</code>. We will use this object to find motifs in the graph.</p>
+
+<p>Back to our motifs :) It is time to create our <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame">GraphFrame</a> object. It has a number of powerful APIs, including the <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find">GraphFrame.find()</a> method for finding motifs in the graph.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">g</span> <span class="o">=</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">nodes_df</span><span class="p">,</span> <span class="n">edges_df</span><span class="p">)</span>  
+
+<span class="n">g</span><span class="p">.</span><span class="n">vertices</span><span class="p">.</span><span class="n">show</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"Node columns: </span><span class="si">{</span><span class="n">g</span><span class="p">.</span><span class="n">vertices</span><span class="p">.</span><span class="n">columns</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+
+<span class="n">g</span><span class="p">.</span><span class="n">edges</span><span class="p">.</span><span class="n">sample</span><span class="p">(</span><span class="mf">0.0001</span><span class="p">).</span><span class="n">show</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span></code></pre></figure>
+
+</div>
+
+<p>The <code class="language-plaintext highlighter-rouge">GraphFrame</code> object is created and the node columns and edges are displayed.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># Node DataFrame is too wide to display here... because it has this many columns.
+</span><span class="n">Node</span> <span class="n">columns</span><span class="p">:</span> <span class="p">[</span><span class="s">'id'</span><span class="p">,</span> <span class="s">'AboutMe'</span><span class="p">,</span> <span class="s">'AcceptedAnswerId'</span><span class="p">,</span> <span class="s">'AccountId'</span><span class="p">,</span> <span class="s">'AnswerCount'</span><span class="p">,</span> <span class="s">'Body'</span><span class="p">,</span> <span class="s">'Class'</span><span class="p">,</span> <span class="s">'ClosedDate'</span><span class="p">,</span> <span class="s">'CommentCount'</span><span class="p">,</span> <span class="s">'CommunityOwnedDate'</span><span class="p">,</span> <span class="s">'ContentLicense'</span><span class="p">,</span> <span class="s">'Count'</span><span class="p">,</span> <span class="s">'CreationDate'</span><span class="p">,</span> <span class="s">'Date'</span><span class="p">,</span> <span class="s">'DisplayName'</span><span class="p">,</span> <span class="s">'DownVotes'</span><span class="p">,</span> <span class="s">'ExcerptPostId'</span><span class="p">,</span> <span class="s">'FavoriteCount'</span><span class="p">,</span> <span class="s">'Id'</span><span class="p">,</span> <span class="s">'IsModeratorOnly'</span><span class="p">,</span> <span class="s">'IsRequired'</span><span class="p">,</span> <span class="s">'LastAccessDate'</span><span class="p">,</span> <span class="s">'LastActivityDate'</span><span class="p">,</span> <span class="s">'LastEditDate'</span><span class="p">,</span> <span class="s">'LastEditorDisplayName'</span><span class="p">,</span> <span class="s">'LastEditorUserId'</span><span class="p">,</span> <span class="s">'LinkTypeId'</span><span class="p">,</span> <span class="s">'Location'</span><span class="p">,</span> <span class="s">'Name'</span><span class="p">,</span> <span class="s">'OwnerDisplayName'</span><span class="p">,</span> <span class="s">'OwnerUserId'</span><span class="p">,</span> <span class="s">'ParentId'</span><span class="p">,</span> <span class="s">'PostId'</span><span class="p">,</span> <span class="s">'PostTypeId'</span><span class="p">,</span> <span class="s">'RelatedPostId'</span><span class="p">,</span> <span class="s">'Reputation'</span><span class="p">,</span> <span class="s">'Score'</span><span class="p">,</span> <span class="s">'TagBased'</span><span class="p">,</span> <span class="s">'TagName'</span><span class="p">,</span> <span class="s">'Tags'</span><span class="p">,</span> <span class="s">'Text'</span><span class="p">,</span> <span class="s">'Title'</span><span class="p">,</span> <span class="s">'Type'</span><span class="p">,</span> <span class="s">'UpVotes'</span><span class="p">,</span> <span class="s">'UserDisplayName'</span><span class="p">,</span> <span class="s">'UserId'</span><span class="p">,</span> <span class="s">'ViewCount'</span><span class="p">,</span> <span class="s">'Views'</span><span class="p">,</span> <span class="s">'VoteType'</span><span class="p">,</span> <span class="s">'VoteTypeId'</span><span class="p">,</span> <span class="s">'WebsiteUrl'</span><span class="p">,</span> <span class="s">'WikiPostId'</span><span class="p">,</span> <span class="s">'degree'</span><span class="p">]</span>
+
+<span class="c1"># Edge DataFrame is simpler
+</span>
+<span class="o">+--------------------+--------------------+------------+</span>
+<span class="o">|</span>                 <span class="n">src</span><span class="o">|</span>                 <span class="n">dst</span><span class="o">|</span><span class="n">relationship</span><span class="o">|</span>
+<span class="o">+--------------------+--------------------+------------+</span>
+<span class="o">|</span><span class="n">b0d39443</span><span class="o">-</span><span class="mi">5</span><span class="n">b0b</span><span class="o">-</span><span class="mi">42</span><span class="n">e</span><span class="p">...</span><span class="o">|</span><span class="mf">3e84</span><span class="n">a1ed</span><span class="o">-</span><span class="mi">1</span><span class="n">c20</span><span class="o">-</span><span class="mf">413.</span><span class="p">..</span><span class="o">|</span>     <span class="n">Answers</span><span class="o">|</span>
+<span class="o">|</span><span class="mi">4</span><span class="n">c781826</span><span class="o">-</span><span class="mi">3112</span><span class="o">-</span><span class="mi">4</span><span class="n">b2</span><span class="p">...</span><span class="o">|</span><span class="mi">07665936</span><span class="o">-</span><span class="n">d759</span><span class="o">-</span><span class="mi">4</span><span class="n">f6</span><span class="p">...</span><span class="o">|</span>       <span class="n">Earns</span><span class="o">|</span>
+<span class="o">|</span><span class="n">a11d77a7</span><span class="o">-</span><span class="n">da09</span><span class="o">-</span><span class="mi">4</span><span class="n">b0</span><span class="p">...</span><span class="o">|</span><span class="n">a9ea6e7d</span><span class="o">-</span><span class="mi">7</span><span class="n">cc1</span><span class="o">-</span><span class="mf">408.</span><span class="p">..</span><span class="o">|</span>     <span class="n">CastFor</span><span class="o">|</span>
+<span class="o">|</span><span class="n">bd42f75a</span><span class="o">-</span><span class="n">b3ee</span><span class="o">-</span><span class="mi">4</span><span class="n">d0</span><span class="p">...</span><span class="o">|</span><span class="n">fe216e41</span><span class="o">-</span><span class="mi">1</span><span class="n">ae0</span><span class="o">-</span><span class="mi">4</span><span class="n">c0</span><span class="p">...</span><span class="o">|</span>       <span class="n">Earns</span><span class="o">|</span>
+<span class="o">|</span><span class="mi">4</span><span class="n">dd3c6be</span><span class="o">-</span><span class="n">b103</span><span class="o">-</span><span class="mi">4</span><span class="n">ab</span><span class="p">...</span><span class="o">|</span><span class="mi">2</span><span class="n">aa18136</span><span class="o">-</span><span class="mi">59</span><span class="n">a7</span><span class="o">-</span><span class="mf">498.</span><span class="p">..</span><span class="o">|</span>       <span class="n">Earns</span><span class="o">|</span>
+<span class="o">|</span><span class="mi">13540451</span><span class="o">-</span><span class="mi">5823</span><span class="o">-</span><span class="mf">417.</span><span class="p">..</span><span class="o">|</span><span class="mi">37966108</span><span class="o">-</span><span class="n">de38</span><span class="o">-</span><span class="mi">4</span><span class="n">aa</span><span class="p">...</span><span class="o">|</span>     <span class="n">CastFor</span><span class="o">|</span>
+<span class="o">|</span><span class="n">f60ed1aa</span><span class="o">-</span><span class="mi">5361</span><span class="o">-</span><span class="mi">4</span><span class="n">ab</span><span class="p">...</span><span class="o">|</span><span class="mi">1</span><span class="n">c5352c1</span><span class="o">-</span><span class="n">d084</span><span class="o">-</span><span class="mi">47</span><span class="n">c</span><span class="p">...</span><span class="o">|</span>       <span class="n">Earns</span><span class="o">|</span>
+<span class="o">|</span><span class="mi">9</span><span class="n">cb948f8</span><span class="o">-</span><span class="n">c7d5</span><span class="o">-</span><span class="mi">40</span><span class="n">d</span><span class="p">...</span><span class="o">|</span><span class="mi">71</span><span class="n">bc77c4</span><span class="o">-</span><span class="n">dfe7</span><span class="o">-</span><span class="mi">47</span><span class="n">e</span><span class="p">...</span><span class="o">|</span>       <span class="n">Earns</span><span class="o">|</span>
+<span class="o">|</span><span class="mi">03980309</span><span class="o">-</span><span class="n">e97e</span><span class="o">-</span><span class="mf">402.</span><span class="p">..</span><span class="o">|</span><span class="n">d0b4c366</span><span class="o">-</span><span class="n">c8d0</span><span class="o">-</span><span class="mf">458.</span><span class="p">..</span><span class="o">|</span>        <span class="n">Asks</span><span class="o">|</span>
+<span class="o">|</span><span class="n">b3736001</span><span class="o">-</span><span class="n">b654</span><span class="o">-</span><span class="mf">419.</span><span class="p">..</span><span class="o">|</span><span class="mi">14920</span><span class="n">c81</span><span class="o">-</span><span class="mi">232</span><span class="n">b</span><span class="o">-</span><span class="mf">479.</span><span class="p">..</span><span class="o">|</span>       <span class="n">Earns</span><span class="o">|</span>
+<span class="o">+--------------------+--------------------+------------+</span>
+<span class="n">only</span> <span class="n">showing</span> <span class="n">top</span> <span class="mi">10</span> <span class="n">rows</span></code></pre></figure>
+
+</div>
+
+<h2 id="validating-graphframes">Validating GraphFrames</h2>
+
+<p>Let&#8217;s validate that all edges in our <code class="language-plaintext highlighter-rouge">GraphFrame</code> object have valid IDs - it is common to make mistakes in ETL for knowledge graph construction and have edges that point nowhere. GraphFrames tries to validate itself but can sometimes accept bogus edges.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># Sanity test that all edges have valid ids
+</span><span class="n">edge_count</span> <span class="o">=</span> <span class="n">g</span><span class="p">.</span><span class="n">edges</span><span class="p">.</span><span class="n">count</span><span class="p">()</span>
+<span class="n">valid_edge_count</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">g</span><span class="p">.</span><span class="n">edges</span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="n">g</span><span class="p">.</span><span class="n">vertices</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">g</span><span class="p">.</span><span class="n">edges</span><span class="p">.</span><span class="n">src</span> <span class="o">==</span> <span class="n">g</span><span class="p">.</span><span class="n">vertices</span><span class="p">.</span><span class="nb">id</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s">"src"</span><span class="p">,</span> <span class="s">"dst"</span><span class="p">,</span> <span class="s">"relationship"</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="n">g</span><span class="p">.</span><span class="n">vertices</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">g</span><span class="p">.</span><span class="n">edges</span><span class="p">.</span><span class="n">dst</span> <span class="o">==</span> <span class="n">g</span><span class="p">.</span><span class="n">vertices</span><span class="p">.</span><span class="nb">id</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">count</span><span class="p">()</span>
+<span class="p">)</span>
+
+<span class="c1"># Just up and die if we have edges that point to non-existent nodes
+</span><span class="k">assert</span> <span class="p">(</span>
+    <span class="n">edge_count</span> <span class="o">==</span> <span class="n">valid_edge_count</span>
+<span class="p">),</span> <span class="sa">f</span><span class="s">"Edge count </span><span class="si">{</span><span class="n">edge_count</span><span class="si">}</span><span class="s"> != valid edge count </span><span class="si">{</span><span class="n">valid_edge_count</span><span class="si">}</span><span class="s">"</span>
+<span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"Edge count: </span><span class="si">{</span><span class="n">edge_count</span><span class="si">:</span><span class="p">,</span><span class="si">}</span><span class="s"> == Valid edge count: </span><span class="si">{</span><span class="n">valid_edge_count</span><span class="si">:</span><span class="p">,</span><span class="si">}</span><span class="s">"</span><span class="p">)</span></code></pre></figure>
+
+</div>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">Edge</span> <span class="n">count</span><span class="p">:</span> <span class="mi">97</span><span class="p">,</span><span class="mi">104</span> <span class="o">==</span> <span class="n">Valid</span> <span class="n">edge</span> <span class="n">count</span><span class="p">:</span> <span class="mi">97</span><span class="p">,</span><span class="mi">104</span></code></pre></figure>
+
+</div>
+
+<h2 id="structural-motifs">Structural Motifs</h2>
+
+<p>Let&#8217;s look for a simple motif: a directed triangle. We will find all instances of a directed triangle in the graph. The <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find"><code class="language-plaintext highlighter-rouge">GraphFrame.find()</code></a> method takes a string as an argument that specifies the structure of a motif one edge at a time, in the same syntax as Cypher, with a semi-colon between edges. For a triangle motif, that works out to: <code class="language-plaintext highlighter-rouge">(a)-[e]-&gt;(b); (b)-[e2]-&gt;(c); (c)-[e3]-&gt;(a)</code>. Edge labels are optional, this is valid graph query: <code class="language-plaintext highlighter-rouge">(a)-[]-&gt;(b)</code>.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">g.find()</code> method returns a <code class="language-plaintext highlighter-rouge">DataFrame</code> with fields fo each of the node and edge labels in the pattern. To further express the motif you&#8217;re interested in, you can now use relational <code class="language-plaintext highlighter-rouge">DataFrame</code> operations to filter, group, and aggregate the results. This makes the network motif finding in GraphFrames very powerful, and this type of property graph motif was originally defined in the <a href="https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf">graphframes paper</a>.</p>
+
+<p>A complete description of the graph query language is in the <a href="https://graphframes.github.io/graphframes/docs/_site/user-guide.html#motif-finding">GraphFrames User Guide</a>. Let&#8217;s look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.</p>
+
+<center>
+    <figure>
+        <img src="img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
+        <figcaption>
+            <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
+        </figcaption>
+    </figure>
+</center>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># G4: Continuous Triangles
+</span><span class="n">paths</span> <span class="o">=</span> <span class="n">g</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">"(a)-[e1]-&gt;(b); (b)-[e2]-&gt;(c); (c)-[e3]-&gt;(a)"</span><span class="p">)</span>
+
+<span class="c1"># Show the first path
+</span><span class="n">paths</span><span class="p">.</span><span class="n">show</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span></code></pre></figure>
+
+</div>
+
+<p>The resulting path has a field for each step in the <code class="language-plaintext highlighter-rouge">find()</code>; each field has all properties of our nodes or edges.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">+------------+------------+------------+------------+------------+------------+</span>
+<span class="o">|</span>           <span class="n">a</span><span class="o">|</span>          <span class="n">e1</span><span class="o">|</span>           <span class="n">b</span><span class="o">|</span>          <span class="n">e2</span><span class="o">|</span>           <span class="n">c</span><span class="o">|</span>          <span class="n">e3</span><span class="o">|</span>
+<span class="o">+------------+------------+------------+------------+------------+------------+</span>
+<span class="o">|</span><span class="p">{</span><span class="mi">57198</span><span class="n">c52</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">57198</span><span class="n">c52</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">7</span><span class="n">fd044f5</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">7</span><span class="n">fd044f5</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">695</span><span class="n">b549b</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">695</span><span class="n">b549b</span><span class="p">...</span><span class="o">|</span>
+<span class="o">|</span><span class="p">{</span><span class="mi">8</span><span class="n">f534b7c</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">8</span><span class="n">f534b7c</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="n">e65038cf</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="n">e65038cf</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="n">d5ea2a3d</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="n">d5ea2a3d</span><span class="p">...</span><span class="o">|</span>
+<span class="o">|</span><span class="p">{</span><span class="mi">695</span><span class="n">b549b</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">695</span><span class="n">b549b</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">57198</span><span class="n">c52</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">57198</span><span class="n">c52</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">7</span><span class="n">fd044f5</span><span class="p">...</span><span class="o">|</span><span class="p">{</span><span class="mi">7</span><span class="n">fd044f5</span><span class="p">...</span><span class="o">|</span>
+<span class="o">+------------+------------+------------+------------+------------+------------+</span>
+<span class="n">only</span> <span class="n">showing</span> <span class="n">top</span> <span class="mi">3</span> <span class="n">rows</span></code></pre></figure>
+
+</div>
+
+<p>This can be overwhelming to look at, so in practice you will <code class="language-plaintext highlighter-rouge">DataFrame.select()</code> (a path is just a <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html">pyspark.sql.DataFrame</a>) the properties of interest.</p>
+
+<p>Aggregating paths can express powerful semantics. Let&#8217;s count the types of paths of this triangle motif in the graph of each node and edge type.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">graphlet_type_df</span> <span class="o">=</span> <span class="n">paths</span><span class="p">.</span><span class="n">select</span><span class="p">(</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"a.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"A_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e1.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(a)-[e1]-&gt;(b)"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"b.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"B_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e2.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(b)-[e2]-&gt;(c)"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"c.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"C_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e3.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(c)-[e3]-&gt;(a)"</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">graphlet_count_df</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">graphlet_type_df</span><span class="p">.</span><span class="n">groupby</span><span class="p">(</span>
+        <span class="s">"A_Type"</span><span class="p">,</span> <span class="s">"(a)-[e1]-&gt;(b)"</span><span class="p">,</span> <span class="s">"B_Type"</span><span class="p">,</span> <span class="s">"(b)-[e2]-&gt;(c)"</span><span class="p">,</span> <span class="s">"C_Type"</span><span class="p">,</span> <span class="s">"(c)-[e3]-&gt;(a)"</span>
+    <span class="p">)</span>
+    <span class="p">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="p">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">).</span><span class="n">desc</span><span class="p">())</span>
+    <span class="c1"># Add a comma formatted column for display
+</span>    <span class="p">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s">"count"</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">format_number</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
+<span class="p">)</span>
+<span class="n">graphlet_count_df</span><span class="p">.</span><span class="n">show</span><span class="p">()</span></code></pre></figure>
+
+</div>
+
+<p>The result shows the only continuous triangles in the graph are 39 question-link loops. Motif matching for simple motifs based on topology alone can be used to for exploratory data analysis over a knowledge graph in the same way you might run <code>GROUP BY / COUNT</code> queries on a table in a relational database to start to understand its contents.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">+--------+-------------+--------+-------------+--------+-------------+-----+</span>
+<span class="o">|</span>  <span class="n">A_Type</span><span class="o">|</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e1</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">|</span>  <span class="n">B_Type</span><span class="o">|</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e2</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">|</span>  <span class="n">C_Type</span><span class="o">|</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e3</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">|</span><span class="n">count</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+-----+</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>   <span class="mi">24</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>    <span class="mi">4</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">4</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>    <span class="mi">4</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">1</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>    <span class="mi">1</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">1</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+-----+</span></code></pre></figure>
+
+</div>
+
+<p>Let&#8217;s try a different triangle, a divergent triangle. The code to visualize a 3-edged motif is the same each time.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># G5: Divergent Triangles
+</span><span class="n">paths</span> <span class="o">=</span> <span class="n">g</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">"(a)-[e1]-&gt;(b); (a)-[e2]-&gt;(c); (c)-[e3]-&gt;(b)"</span><span class="p">)</span>
+
+<span class="n">graphlet_type_df</span> <span class="o">=</span> <span class="n">paths</span><span class="p">.</span><span class="n">select</span><span class="p">(</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"a.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"A_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e1.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(a)-[e1]-&gt;(b)"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"b.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"B_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e2.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(a)-[e2]-&gt;(c)"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"c.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"C_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e3.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(c)-[e3]-&gt;(b)"</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">graphlet_count_df</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">graphlet_type_df</span><span class="p">.</span><span class="n">groupby</span><span class="p">(</span>
+        <span class="s">"A_Type"</span><span class="p">,</span> <span class="s">"(a)-[e1]-&gt;(b)"</span><span class="p">,</span> <span class="s">"B_Type"</span><span class="p">,</span> <span class="s">"(a)-[e2]-&gt;(c)"</span><span class="p">,</span> <span class="s">"C_Type"</span><span class="p">,</span> <span class="s">"(c)-[e3]-&gt;(b)"</span>
+    <span class="p">)</span>
+    <span class="p">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="p">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">).</span><span class="n">desc</span><span class="p">())</span>
+    <span class="c1"># Add a comma formatted column for display
+</span>    <span class="p">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s">"count"</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">format_number</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
+<span class="p">)</span>
+<span class="n">graphlet_count_df</span><span class="p">.</span><span class="n">show</span><span class="p">()</span></code></pre></figure>
+
+</div>
+
+<p>The result is a count of the divergent triangles in the graph by type.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">+--------+-------------+--------+-------------+--------+-------------+-----+</span>
+<span class="o">|</span>  <span class="n">A_Type</span><span class="o">|</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e1</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">|</span>  <span class="n">B_Type</span><span class="o">|</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e2</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">|</span>  <span class="n">C_Type</span><span class="o">|</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e3</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">|</span><span class="n">count</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+-----+</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="mi">1</span><span class="p">,</span><span class="mi">775</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="mi">274</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="mi">236</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>  <span class="mi">140</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="mi">103</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>   <span class="mi">14</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>   <span class="mi">13</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>   <span class="mi">12</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">8</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">8</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>    <span class="mi">7</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">2</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span>    <span class="mi">1</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+-----+</span></code></pre></figure>
+
+</div>
+
+<ol>
+  <li><code>(Tag)-[Tags]-&gt;(Question B); (Tag)-[Tags]-&gt;(Question C); (Question C)-[Links]-&gt;(Question B)</code>, or &#8220;A tag is used on a question, that tag is used on another question, and the two questions are linked.&#8221; It makes sense that questions sharing tags are often linked.</li>
+  <li><code>(User)-[Asks]-&gt;(Question B); (User)-[Posts]-&gt;(Answer C); (Answer C)-[Answers]-&gt;(Question B)</code>, or &#8220;A user answers their own question.&#8221;</li>
+  <li>A triangle of linked questions.</li>
+  <li><code>(Tag)-[Tags]-&gt;(Question B); (Tag)-[Tags]-&gt;(Question C); (Question B)-[Duplicates]-&gt;(Question C)</code>, or &#8220;A tag appears for a pair of duplicate answers.&#8221;</li>
+  <li>A user asks linked questions.</li>
+</ol>
+
+<h2 id="property-graph-motifs">Property Graph Motifs</h2>
+
+<p>Simple motif finding can be used to explore a knowledge graph. It is also possibel to use domain knowledge to define and match known patterns and then explore new variant motifs. This can be used to apply and then expand domain knowledge about a knowledge graph. It is powerful stuff!</p>
+
+<p>We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form <i>property graph motifs</i>. Such complex motifs were first defined (without being formally named) in the paper describing this prject: <a href="https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf">GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016</a>. They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.</p>
+
+<p>The larger motifs get, the more interesting they are. Five nodes is often the limit with a Spark cluster, depending on how large your graph is. In this instance I will limit myself to a 4-path pattern as you may not have a Spark cluster on which to learn. Keep in mind that I am talking about paths - through aggregation a motif might cover thousands of nodes!</p>
+
+<p>First lets express the structural logic of the motif we are looking for. Let&#8217;s try G22 - a triangle with a fourth node pointing at the node with in-degree of 2. The pattern is <code>(a)-[e1]-&gt;(b); (a)-[e2]-&gt;(c); (c)-[e3]-&gt;(b); (d)-[e4]-&gt;(b)</code>.</p>
+
+<p>Visually this pattern looks like this:</p>
+
+<center>
+    <figure>
+        <img src="img/Directed-Graphlet-G30.png" width="90px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
+        <figcaption>
+            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
+        </figcaption>
+    </figure>
+</center>
+
+<p>The simplest pattern with four nodes is a 3-path, directed graphlet G30. Let&#8217;s see how aggregation makes this a more powerful pattern than we might at first guess.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># G17: A directed 3-path is a surprisingly diverse graphlet
+</span><span class="n">paths</span> <span class="o">=</span> <span class="n">g</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">"(a)-[e1]-&gt;(b); (b)-[e2]-&gt;(c); (d)-[e3]-&gt;(c)"</span><span class="p">)</span></code></pre></figure>
+
+</div>
+
+<p>Let&#8217;s count the number of instances by type for of this path in the graph. To let you know of a hard-won tip: alias the edge with its pattern. This makes it easier to read the results, even when C points to A or B, not D.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># Visualize the four-path by counting instances of paths by node / edge type
+</span><span class="n">graphlet_type_df</span> <span class="o">=</span> <span class="n">paths</span><span class="p">.</span><span class="n">select</span><span class="p">(</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"a.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"A_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e1.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(a)-[e1]-&gt;(b)"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"b.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"B_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e2.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(b)-[e2]-&gt;(c)"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"c.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"C_Type"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e3.relationship"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"(d)-[e3]-&gt;(c)"</span><span class="p">),</span>
+    <span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"d.Type"</span><span class="p">).</span><span class="n">alias</span><span class="p">(</span><span class="s">"D_Type"</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="n">graphlet_count_df</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">graphlet_type_df</span><span class="p">.</span><span class="n">groupby</span><span class="p">(</span>
+        <span class="s">"A_Type"</span><span class="p">,</span>
+        <span class="s">"(a)-[e1]-&gt;(b)"</span><span class="p">,</span>
+        <span class="s">"B_Type"</span><span class="p">,</span>
+        <span class="s">"(b)-[e2]-&gt;(c)"</span><span class="p">,</span>
+        <span class="s">"C_Type"</span><span class="p">,</span>
+        <span class="s">"(d)-[e3]-&gt;(c)"</span><span class="p">,</span>
+        <span class="s">"D_Type"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="p">.</span><span class="n">count</span><span class="p">()</span>
+    <span class="p">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">).</span><span class="n">desc</span><span class="p">())</span>
+    <span class="c1"># Add a comma formatted column for display
+</span>    <span class="p">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s">"count"</span><span class="p">,</span> <span class="n">F</span><span class="p">.</span><span class="n">format_number</span><span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"count"</span><span class="p">),</span> <span class="mi">0</span><span class="p">))</span>
+<span class="p">)</span>
+<span class="n">graphlet_count_df</span><span class="p">.</span><span class="n">show</span><span class="p">()</span></code></pre></figure>
+
+</div>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">+--------+-------------+--------+-------------+--------+-------------+--------+-------+</span>
+<span class="o">|</span>  <span class="n">A_Type</span><span class="o">|</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e1</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">|</span>  <span class="n">B_Type</span><span class="o">|</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e2</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">|</span>  <span class="n">C_Type</span><span class="o">|</span><span class="p">(</span><span class="n">d</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e3</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">|</span>  <span class="n">D_Type</span><span class="o">|</span>  <span class="n">count</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+--------+-------+</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span><span class="mi">445</span><span class="p">,</span><span class="mi">707</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span><span class="mi">300</span><span class="p">,</span><span class="mi">017</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span><span class="mi">117</span><span class="p">,</span><span class="mi">981</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">73</span><span class="p">,</span><span class="mi">227</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span> <span class="mi">64</span><span class="p">,</span><span class="mi">510</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">62</span><span class="p">,</span><span class="mi">203</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">56</span><span class="p">,</span><span class="mi">119</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">55</span><span class="p">,</span><span class="mi">938</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">55</span><span class="p">,</span><span class="mi">139</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span> <span class="mi">38</span><span class="p">,</span><span class="mi">633</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">37</span><span class="p">,</span><span class="mi">655</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">33</span><span class="p">,</span><span class="mi">747</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span> <span class="mi">23</span><span class="p">,</span><span class="mi">234</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">22</span><span class="p">,</span><span class="mi">243</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">17</span><span class="p">,</span><span class="mi">266</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">16</span><span class="p">,</span><span class="mi">362</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">14</span><span class="p">,</span><span class="mi">013</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span> <span class="mi">13</span><span class="p">,</span><span class="mi">252</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">12</span><span class="p">,</span><span class="mi">920</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">12</span><span class="p">,</span><span class="mi">105</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+--------+-------+</span>
+<span class="n">only</span> <span class="n">showing</span> <span class="n">top</span> <span class="mi">20</span> <span class="n">rows</span></code></pre></figure>
+
+</div>
+
+<p>How many of these motifs are there in the graph? Let&#8217;s count them.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">graphlet_count_df</span><span class="p">.</span><span class="n">count</span><span class="p">()</span>
+<span class="mi">104</span></code></pre></figure>
+
+</div>
+
+<p>104 - we hit the network motif jackpot with this pattern! Let&#8217;s order by the successive elements of the pattern to group them logically.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">graphlet_count_df</span><span class="p">.</span><span class="n">orderBy</span><span class="p">([</span>
+    <span class="s">"A_Type"</span><span class="p">,</span>
+    <span class="s">"(a)-[e1]-&gt;(b)"</span><span class="p">,</span>
+    <span class="s">"B_Type"</span><span class="p">,</span>
+    <span class="s">"(b)-[e2]-&gt;(c)"</span><span class="p">,</span>
+    <span class="s">"C_Type"</span><span class="p">,</span>
+    <span class="s">"(d)-[e3]-&gt;(c)"</span><span class="p">,</span>
+    <span class="s">"D_Type"</span><span class="p">,</span>
+<span class="p">],</span> <span class="n">ascending</span><span class="o">=</span><span class="bp">False</span><span class="p">).</span><span class="n">show</span><span class="p">(</span><span class="mi">104</span><span class="p">)</span></code></pre></figure>
+
+</div>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="o">+--------+-------------+--------+-------------+--------+-------------+--------+-------+</span>
+<span class="o">|</span>  <span class="n">A_Type</span><span class="o">|</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e1</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">|</span>  <span class="n">B_Type</span><span class="o">|</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e2</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">|</span>  <span class="n">C_Type</span><span class="o">|</span><span class="p">(</span><span class="n">d</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">e3</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">|</span>  <span class="n">D_Type</span><span class="o">|</span>  <span class="n">count</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+--------+-------+</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span> <span class="mi">38</span><span class="p">,</span><span class="mi">633</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">73</span><span class="p">,</span><span class="mi">227</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>  <span class="mi">3</span><span class="p">,</span><span class="mi">337</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span><span class="mi">300</span><span class="p">,</span><span class="mi">017</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span> <span class="mi">13</span><span class="p">,</span><span class="mi">252</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">55</span><span class="p">,</span><span class="mi">938</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>     <span class="mi">18</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>     <span class="mi">18</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>     <span class="mi">36</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>  <span class="mi">1</span><span class="p">,</span><span class="mi">292</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>  <span class="mi">1</span><span class="p">,</span><span class="mi">556</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">693</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>  <span class="mi">8</span><span class="p">,</span><span class="mi">205</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>    <span class="mi">418</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>  <span class="mi">2</span><span class="p">,</span><span class="mi">423</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span> <span class="mi">64</span><span class="p">,</span><span class="mi">510</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">55</span><span class="p">,</span><span class="mi">139</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>  <span class="mi">3</span><span class="p">,</span><span class="mi">941</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span><span class="mi">445</span><span class="p">,</span><span class="mi">707</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span> <span class="mi">23</span><span class="p">,</span><span class="mi">234</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span><span class="mi">117</span><span class="p">,</span><span class="mi">981</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>  <span class="mi">7</span><span class="p">,</span><span class="mi">164</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>  <span class="mi">4</span><span class="p">,</span><span class="mi">494</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">378</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">37</span><span class="p">,</span><span class="mi">655</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>  <span class="mi">2</span><span class="p">,</span><span class="mi">614</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">12</span><span class="p">,</span><span class="mi">105</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>  <span class="mi">3</span><span class="p">,</span><span class="mi">169</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>  <span class="mi">6</span><span class="p">,</span><span class="mi">119</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">331</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">22</span><span class="p">,</span><span class="mi">243</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>  <span class="mi">1</span><span class="p">,</span><span class="mi">064</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>  <span class="mi">4</span><span class="p">,</span><span class="mi">599</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>      <span class="mi">1</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="mi">1</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="mi">2</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>    <span class="mi">264</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">338</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">134</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>  <span class="mi">1</span><span class="p">,</span><span class="mi">528</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>     <span class="mi">86</span><span class="o">|</span>
+<span class="o">|</span>    <span class="n">User</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>    <span class="mi">374</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>  <span class="mi">9</span><span class="p">,</span><span class="mi">332</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">17</span><span class="p">,</span><span class="mi">266</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">931</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">62</span><span class="p">,</span><span class="mi">203</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>  <span class="mi">3</span><span class="p">,</span><span class="mi">037</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">12</span><span class="p">,</span><span class="mi">920</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>      <span class="mi">8</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="mi">8</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>     <span class="mi">16</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>    <span class="mi">666</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">828</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">341</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>  <span class="mi">3</span><span class="p">,</span><span class="mi">715</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>    <span class="mi">215</span><span class="o">|</span>
+<span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>    <span class="mi">965</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>  <span class="mi">5</span><span class="p">,</span><span class="mi">220</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">10</span><span class="p">,</span><span class="mi">140</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">387</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">33</span><span class="p">,</span><span class="mi">747</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>  <span class="mi">1</span><span class="p">,</span><span class="mi">740</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>  <span class="mi">7</span><span class="p">,</span><span class="mi">330</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>      <span class="mi">2</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="mi">2</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="mi">4</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>    <span class="mi">102</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">163</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>     <span class="mi">85</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>    <span class="mi">611</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>     <span class="mi">45</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>    <span class="mi">308</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>      <span class="mi">4</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="mi">4</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>     <span class="mi">10</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>      <span class="mi">2</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>     <span class="mi">17</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>    <span class="mi">328</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">511</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>     <span class="mi">38</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>  <span class="mi">2</span><span class="p">,</span><span class="mi">019</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>    <span class="mi">125</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>    <span class="mi">559</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>     <span class="mi">19</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>     <span class="mi">20</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>     <span class="mi">17</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>     <span class="mi">98</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>      <span class="mi">9</span><span class="o">|</span>
+<span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>     <span class="mi">67</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>  <span class="mi">8</span><span class="p">,</span><span class="mi">187</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span> <span class="mi">16</span><span class="p">,</span><span class="mi">362</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">811</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span> <span class="mi">56</span><span class="p">,</span><span class="mi">119</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>  <span class="mi">2</span><span class="p">,</span><span class="mi">758</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span> <span class="mi">14</span><span class="p">,</span><span class="mi">013</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Posts</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>      <span class="mi">2</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="mi">2</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>      <span class="mi">4</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Tags</span><span class="o">|</span>     <span class="n">Tag</span><span class="o">|</span>    <span class="mi">224</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>        <span class="n">Links</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">316</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>    <span class="mi">198</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">CastFor</span><span class="o">|</span>    <span class="n">Vote</span><span class="o">|</span>  <span class="mi">1</span><span class="p">,</span><span class="mi">330</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>         <span class="n">Asks</span><span class="o">|</span>    <span class="n">User</span><span class="o">|</span>    <span class="mi">110</span><span class="o">|</span>
+<span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>   <span class="n">Duplicates</span><span class="o">|</span><span class="n">Question</span><span class="o">|</span>      <span class="n">Answers</span><span class="o">|</span>  <span class="n">Answer</span><span class="o">|</span>  <span class="mi">1</span><span class="p">,</span><span class="mi">174</span><span class="o">|</span>
+<span class="o">+--------+-------------+--------+-------------+--------+-------------+--------+-------+</span></code></pre></figure>
+
+</div>
+
+<p>The fourth row catches my eye - there are 300,017 matches for the votes cast for linked questions: <code>(Vote A)-[CastFor]-&gt;(Question B); (Question B)-[Links]-&gt;(Question C); (Vote D)-[CastFor]-&gt;(Question C)</code>. This gives a way to compare the popularity of linked questions! Let&#8217;s calculate how correlated linked questions are.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="c1"># A user answers an answer that answers a question that links to an answer.
+</span><span class="n">linked_vote_paths</span> <span class="o">=</span> <span class="n">paths</span><span class="p">.</span><span class="nb">filter</span><span class="p">(</span>
+    <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"a.Type"</span><span class="p">)</span> <span class="o">==</span> <span class="s">"Vote"</span><span class="p">)</span> <span class="o">&amp;</span>
+    <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e1.relationship"</span><span class="p">)</span> <span class="o">==</span> <span class="s">"CastFor"</span><span class="p">)</span> <span class="o">&amp;</span>
+    <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"b.Type"</span><span class="p">)</span> <span class="o">==</span> <span class="s">"Question"</span><span class="p">)</span> <span class="o">&amp;</span>
+    <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e2.relationship"</span><span class="p">)</span> <span class="o">==</span> <span class="s">"Links"</span><span class="p">)</span> <span class="o">&amp;</span>
+    <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"c.Type"</span><span class="p">)</span> <span class="o">==</span> <span class="s">"Question"</span><span class="p">)</span> <span class="o">&amp;</span>
+    <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"e3.relationship"</span><span class="p">)</span> <span class="o">==</span> <span class="s">"CastFor"</span><span class="p">)</span> <span class="o">&amp;</span>
+    <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"d.Type"</span><span class="p">)</span> <span class="o">==</span> <span class="s">"Vote"</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="c1"># Sanity check the count - it should match the table above
+</span>
+<span class="n">linked_vote_paths</span><span class="p">.</span><span class="n">count</span><span class="p">()</span>
+
+<span class="mi">300017</span></code></pre></figure>
+
+</div>
+
+<p>We start by using aggregation to count the total votes cast for each end of a link questions. To get the count for Question B, get the distinct 3-paths, group by it&#8217;s ID and count the votes.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">b_vote_counts</span> <span class="o">=</span> <span class="n">linked_vote_paths</span><span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s">"a"</span><span class="p">,</span> <span class="s">"b"</span><span class="p">).</span><span class="n">distinct</span><span class="p">().</span><span class="n">groupBy</span><span class="p">(</span><span class="s">"b"</span><span class="p">).</span><span class="n">count</span><span class="p">()</span>
+<span class="n">c_vote_counts</span> <span class="o">=</span> <span class="n">linked_vote_paths</span><span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s">"c"</span><span class="p">,</span> <span class="s">"d"</span><span class="p">).</span><span class="n">distinct</span><span class="p">().</span><span class="n">groupBy</span><span class="p">(</span><span class="s">"c"</span><span class="p">).</span><span class="n">count</span><span class="p">()</span></code></pre></figure>
+
+</div>
+
+<p>Now join the counts to the links to get the total votes for each pair of linked questions. Then run <code class="language-plaintext highlighter-rouge">pyspark.sql.DataFrame.stats.corr()</code> to get the correlation between the vote counts for linked questions. We&#8217;ll use the <code class="language-plaintext highlighter-rouge">Vote.VoteTypeId</code> to ensure only positive votes are counted.</p>
+
+<div data-lang="python">
+
+  <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">linked_vote_counts</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">linked_vote_paths</span>
+    <span class="p">.</span><span class="nb">filter</span><span class="p">((</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"a.VoteTypeId"</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">F</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="s">"d.VoteTypeId"</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="p">.</span><span class="n">select</span><span class="p">(</span><span class="s">"b"</span><span class="p">,</span> <span class="s">"c"</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="n">b_vote_counts</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s">"b"</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s">"inner"</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">withColumnRenamed</span><span class="p">(</span><span class="s">"count"</span><span class="p">,</span> <span class="s">"b_count"</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="n">c_vote_counts</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s">"c"</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s">"inner"</span><span class="p">)</span>
+    <span class="p">.</span><span class="n">withColumnRenamed</span><span class="p">(</span><span class="s">"count"</span><span class="p">,</span> <span class="s">"c_count"</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">linked_vote_counts</span><span class="p">.</span><span class="n">stat</span><span class="p">.</span><span class="n">corr</span><span class="p">(</span><span class="s">"b_count"</span><span class="p">,</span> <span class="s">"c_count"</span><span class="p">)</span>
+<span class="mf">0.4287709940689788</span></code></pre></figure>
+
+  <p>We conclude there is a moderate correlation in the vote counts of linked questions. This makes sense. Note that this is only the fourth row, there are many more patterns to be examined and considered.</p>
+
+  <p>This is just one type of aggregation you can employ - but hopefully it illustrates the way properties and aggregation and other relational operators can transform simple pattern matching into a powerful tool for exploring a knowledge graph.</p>
+
+  <h1 id="conclusion">Conclusion</h1>
+
+  <p>In this tutorial, we learned to use GraphFrames to find network motifs in a property graph. We saw how to combine graph and relational queries to find complex patterns in the graph. We also saw how to use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form complex <i>property graph motifs</i>. Motif finding in GraphFrames is a powerful technique that can be used to explore and understand complex networks. Network motifs are the building blocks of complex networks.</p>
+</div>
+
+
+        </div> <!-- /container -->
+
+        <script src="js/vendor/jquery-1.8.0.min.js"></script>
+        <script src="js/vendor/bootstrap.min.js"></script>
+        <script src="js/vendor/anchor.min.js"></script>
+        <script src="js/main.js"></script>
+
+        <!-- MathJax Section -->
+        <script type="text/x-mathjax-config">
+            MathJax.Hub.Config({
+                TeX: { equationNumbers: { autoNumber: "AMS" } }
+            });
+        </script>
+        <script>
+            // Note that we load MathJax this way to work with local file (file://), HTTP and HTTPS.
+            // We could use "//cdn.mathjax...", but that won't support "file://".
+            (function(d, script) {
+                script = d.createElement('script');
+                script.type = 'text/javascript';
+                script.async = true;
+                script.onload = function(){
+                    MathJax.Hub.Config({
+                        tex2jax: {
+                            inlineMath: [ ["$", "$"], ["\\\\(","\\\\)"] ],
+                            displayMath: [ ["$$","$$"], ["\\[", "\\]"] ],
+                            processEscapes: true,
+                            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+                        }
+                    });
+                };
+                script.src = ('https:' == document.location.protocol ? 'https://' : 'http://') +
+                    'cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+                d.getElementsByTagName('head')[0].appendChild(script);
+            }(document));
+        </script>
+    </body>
+</html>

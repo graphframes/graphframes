@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>graphframes.examples.belief_propagation &#8212; pygraphframes 0.8.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css?v=279e0f84" />
+    <link rel="stylesheet" href="../../../_static/pygraphframes.css" type="text/css" />
+    <script src="../../../_static/documentation_options.js?v=b41f4c93"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/pygraphframes.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.examples.belief_propagation</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for graphframes.examples.belief_propagation</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparkSession</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">functions</span> <span class="k">as</span> <span class="n">sqlfunctions</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyspark.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">types</span>
+
+<span class="c1"># Import subpackage examples here explicitly so that</span>
+<span class="c1"># this module can be run directly with spark-submit.</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">graphframes.examples</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">graphframes</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphFrame</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">graphframes.lib</span><span class="w"> </span><span class="kn">import</span> <span class="n">AggregateMessages</span> <span class="k">as</span> <span class="n">AM</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;BeliefPropagation&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="BeliefPropagation">
+<a class="viewcode-back" href="../../../graphframes.examples.html#graphframes.examples.BeliefPropagation">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BeliefPropagation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Example code for Belief Propagation (BP)</span>
+
+<span class="sd">    This provides a template for building customized BP algorithms for different types of graphical</span>
+<span class="sd">    models.</span>
+
+<span class="sd">    This example:</span>
+
+<span class="sd">    * Ising model on a grid</span>
+<span class="sd">    * Parallel Belief Propagation using colored fields</span>
+
+<span class="sd">    Ising models are probabilistic graphical models over binary variables</span>
+<span class="sd">    (see :meth:`Graphs.gridIsingModel()`).</span>
+
+<span class="sd">    Belief Propagation (BP) provides marginal probabilities of the values of the variables</span>
+<span class="sd">    x\ :sub:`i` i.e., P(x\ :sub:`i`) for each i.  This allows a user to understand likely values of</span>
+<span class="sd">    variables. See `Wikipedia &lt;https://en.wikipedia.org/wiki/Belief_propagation&gt;`__ for more</span>
+<span class="sd">    information on BP.</span>
+
+<span class="sd">    We use a batch synchronous BP algorithm, where batches of vertices are updated synchronously.</span>
+<span class="sd">    We follow the mean field update algorithm in Slide 13 of the</span>
+<span class="sd">    `talk slides &lt;http://www.eecs.berkeley.edu/~wainwrig/Talks/A_GraphModel_Tutorial&gt;`__ from:</span>
+<span class="sd">    Wainwright. &quot;Graphical models, message-passing algorithms, and convex optimization.&quot;</span>
+
+<span class="sd">    The batches are chosen according to a coloring. For background on graph colorings for</span>
+<span class="sd">    inference, see for example: Gonzalez et al. &quot;Parallel Gibbs Sampling: From Colored Fields to</span>
+<span class="sd">    Thin Junction Trees.&quot; AISTATS, 2011.</span>
+
+<span class="sd">    The BP algorithm works by:</span>
+
+<span class="sd">    * Coloring the graph by assigning a color to each vertex such that no neighboring vertices</span>
+<span class="sd">      share the same color.</span>
+<span class="sd">    * In each step of BP, update all vertices of a single color.  Alternate colors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>  <span class="c1"># noqa: W605</span>
+
+<div class="viewcode-block" id="BeliefPropagation.runBPwithGraphFrames">
+<a class="viewcode-back" href="../../../graphframes.examples.html#graphframes.examples.BeliefPropagation.runBPwithGraphFrames">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">runBPwithGraphFrames</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">GraphFrame</span><span class="p">,</span> <span class="n">numIter</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GraphFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run Belief Propagation using GraphFrame.</span>
+
+<span class="sd">        This implementation of BP shows how to use GraphFrame&#39;s aggregateMessages method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># choose colors for vertices for BP scheduling</span>
+        <span class="n">colorG</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_colorGraph</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+        <span class="n">numColors</span> <span class="o">=</span> <span class="n">colorG</span><span class="o">.</span><span class="n">vertices</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;color&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">distinct</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+
+        <span class="c1"># TODO: handle vertices without any edges</span>
+
+        <span class="c1"># initialize vertex beliefs at 0.0</span>
+        <span class="n">gx</span> <span class="o">=</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">colorG</span><span class="o">.</span><span class="n">vertices</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;belief&quot;</span><span class="p">,</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)),</span> <span class="n">colorG</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+
+        <span class="c1"># run BP for numIter iterations</span>
+        <span class="k">for</span> <span class="n">iter_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">numIter</span><span class="p">):</span>
+            <span class="c1"># for each color, have that color receive messages from neighbors</span>
+            <span class="k">for</span> <span class="n">color</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">numColors</span><span class="p">):</span>
+                <span class="c1"># Send messages to vertices of the current color.</span>
+                <span class="c1"># We may send to source or destination since edges are treated as undirected.</span>
+                <span class="n">msgForSrc</span> <span class="o">=</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">when</span><span class="p">(</span>
+                    <span class="n">AM</span><span class="o">.</span><span class="n">src</span><span class="p">[</span><span class="s2">&quot;color&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">color</span><span class="p">,</span> <span class="n">AM</span><span class="o">.</span><span class="n">edge</span><span class="p">[</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">AM</span><span class="o">.</span><span class="n">dst</span><span class="p">[</span><span class="s2">&quot;belief&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">msgForDst</span> <span class="o">=</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">when</span><span class="p">(</span>
+                    <span class="n">AM</span><span class="o">.</span><span class="n">dst</span><span class="p">[</span><span class="s2">&quot;color&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">color</span><span class="p">,</span> <span class="n">AM</span><span class="o">.</span><span class="n">edge</span><span class="p">[</span><span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">AM</span><span class="o">.</span><span class="n">src</span><span class="p">[</span><span class="s2">&quot;belief&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="c1"># numerically stable sigmoid</span>
+                <span class="n">logistic</span> <span class="o">=</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">udf</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_sigmoid</span><span class="p">,</span> <span class="n">returnType</span><span class="o">=</span><span class="n">types</span><span class="o">.</span><span class="n">DoubleType</span><span class="p">())</span>
+                <span class="n">aggregates</span> <span class="o">=</span> <span class="n">gx</span><span class="o">.</span><span class="n">aggregateMessages</span><span class="p">(</span>
+                    <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">AM</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;aggMess&quot;</span><span class="p">),</span>
+                    <span class="n">sendToSrc</span><span class="o">=</span><span class="n">msgForSrc</span><span class="p">,</span>
+                    <span class="n">sendToDst</span><span class="o">=</span><span class="n">msgForDst</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">gx</span><span class="o">.</span><span class="n">vertices</span>
+                <span class="c1"># receive messages and update beliefs for vertices of the current color</span>
+                <span class="n">newBeliefCol</span> <span class="o">=</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">when</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;color&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">color</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">aggregates</span><span class="p">[</span><span class="s2">&quot;aggMess&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">()),</span>
+                    <span class="n">logistic</span><span class="p">(</span><span class="n">aggregates</span><span class="p">[</span><span class="s2">&quot;aggMess&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">]),</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+                    <span class="n">v</span><span class="p">[</span><span class="s2">&quot;belief&quot;</span><span class="p">]</span>
+                <span class="p">)</span>  <span class="c1"># keep old beliefs for other colors</span>
+                <span class="n">newVertices</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">v</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">aggregates</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">aggregates</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]),</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left_outer&quot;</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">aggregates</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>  <span class="c1"># drop duplicate ID column (from outer join)</span>
+                    <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;newBelief&quot;</span><span class="p">,</span> <span class="n">newBeliefCol</span><span class="p">)</span>  <span class="c1"># compute new beliefs</span>
+                    <span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;aggMess&quot;</span><span class="p">)</span>  <span class="c1"># drop messages</span>
+                    <span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;belief&quot;</span><span class="p">)</span>  <span class="c1"># drop old beliefs</span>
+                    <span class="o">.</span><span class="n">withColumnRenamed</span><span class="p">(</span><span class="s2">&quot;newBelief&quot;</span><span class="p">,</span> <span class="s2">&quot;belief&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="c1"># cache new vertices using workaround for SPARK-1334</span>
+                <span class="n">cachedNewVertices</span> <span class="o">=</span> <span class="n">AM</span><span class="o">.</span><span class="n">getCachedDataFrame</span><span class="p">(</span><span class="n">newVertices</span><span class="p">)</span>
+                <span class="n">gx</span> <span class="o">=</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">cachedNewVertices</span><span class="p">,</span> <span class="n">gx</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+
+        <span class="c1"># Drop the &quot;color&quot; column from vertices</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">gx</span><span class="o">.</span><span class="n">vertices</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;color&quot;</span><span class="p">),</span> <span class="n">gx</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_colorGraph</span><span class="p">(</span><span class="n">g</span><span class="p">:</span> <span class="n">GraphFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GraphFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Given a GraphFrame, choose colors for each vertex.</span>
+
+<span class="sd">        No neighboring vertices will share the same color. The number of colors is minimized.</span>
+
+<span class="sd">        This is written specifically for grid graphs. For non-grid graphs, it should be generalized,</span>
+<span class="sd">        such as by using a greedy coloring scheme.</span>
+
+<span class="sd">        :param g: Grid graph generated by :meth:`Graphs.gridIsingModel()`</span>
+<span class="sd">        :return: Same graph, but with a new vertex column &quot;color&quot; of type Int (0 or 1)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">colorUDF</span> <span class="o">=</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">udf</span><span class="p">(</span><span class="k">lambda</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span><span class="p">,</span> <span class="n">returnType</span><span class="o">=</span><span class="n">types</span><span class="o">.</span><span class="n">IntegerType</span><span class="p">())</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">vertices</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;color&quot;</span><span class="p">,</span> <span class="n">colorUDF</span><span class="p">(</span><span class="n">sqlfunctions</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;i&quot;</span><span class="p">),</span> <span class="n">sqlfunctions</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;j&quot;</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">GraphFrame</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sigmoid</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Numerically stable sigmoid function 1 / (1 + exp(-x))&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">z</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run the belief propagation algorithm for an example problem.&quot;&quot;&quot;</span>
+    <span class="c1"># setup spark session</span>
+    <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">appName</span><span class="p">(</span><span class="s2">&quot;BeliefPropagation example&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+
+    <span class="c1"># create graphical model g of size 3 x 3</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">graphframes</span><span class="o">.</span><span class="n">examples</span><span class="o">.</span><span class="n">Graphs</span><span class="p">(</span><span class="n">spark</span><span class="p">)</span><span class="o">.</span><span class="n">gridIsingModel</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Original Ising model:&quot;</span><span class="p">)</span>
+    <span class="n">g</span><span class="o">.</span><span class="n">vertices</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="n">g</span><span class="o">.</span><span class="n">edges</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="c1"># run BP for 5 iterations</span>
+    <span class="n">numIter</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">BeliefPropagation</span><span class="o">.</span><span class="n">runBPwithGraphFrames</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">numIter</span><span class="p">)</span>
+
+    <span class="c1"># display beliefs</span>
+    <span class="n">beliefs</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">vertices</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;belief&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Done with BP. Final beliefs after </span><span class="si">{}</span><span class="s2"> iterations:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">numIter</span><span class="p">))</span>
+    <span class="n">beliefs</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="n">spark</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+    
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pygraphframes 0.8.4 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">graphframes.examples.belief_propagation</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, Timothy Hunter and Joseph Bradley.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>
