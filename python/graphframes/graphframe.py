@@ -35,17 +35,9 @@ from pyspark.sql import SparkSession
 from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
 from graphframes.lib import Pregel
 
-if __version__[:3] >= "3.4":
-    from graphframes.connect.graphframe_client import GraphFrameConnect
-else:
-
-    class GraphFrameConnect:
-        def __init__(self, *args, **kwargs) -> None:
-            raise ValueError("Unreachable error happened!")
-
-
 if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
+    from graphframes.connect.graphframe_client import GraphFrameConnect
 
 
 class GraphFrame:
@@ -67,11 +59,13 @@ class GraphFrame:
     """
 
     @staticmethod
-    def _from_impl(impl: GraphFrameClassic | GraphFrameConnect) -> "GraphFrame":
+    def _from_impl(impl: GraphFrameClassic | 'GraphFrameConnect') -> "GraphFrame":
         return GraphFrame(impl.vertices, impl.edges)
 
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
+        self._impl: GraphFrameClassic | 'GraphFrameConnect'
         if is_remote():
+            from graphframes.connect.graphframe_client import GraphFrameConnect
             self._impl = GraphFrameConnect(v, e)
         else:
             self._impl = GraphFrameClassic(v, e)
