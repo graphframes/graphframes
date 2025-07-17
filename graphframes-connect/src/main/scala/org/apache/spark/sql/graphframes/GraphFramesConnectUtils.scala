@@ -102,6 +102,7 @@ object GraphFramesConnectUtils {
           .setAlgorithm(cc.getAlgorithm)
           .setCheckpointInterval(cc.getCheckpointInterval)
           .setBroadcastThreshold(cc.getBroadcastThreshold)
+          .setUseLabelsAsComponents(cc.getUseLabelsAsComponents)
           .run()
       }
       case MethodCase.DROP_ISOLATED_VERTICES => {

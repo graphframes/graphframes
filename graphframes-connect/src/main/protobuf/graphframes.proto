@@ -63,6 +63,7 @@ message ConnectedComponents {
   string algorithm = 1;
   int32 checkpoint_interval = 2;
   int32 broadcast_threshold = 3;
+  bool use_labels_as_components = 4;
 }
 
 message DropIsolatedVertices {}

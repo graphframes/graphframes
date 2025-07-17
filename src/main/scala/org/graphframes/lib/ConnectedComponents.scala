@@ -31,6 +31,7 @@ import org.graphframes.WithBroadcastThreshold
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithMaxIter
+import org.graphframes.WithUseLabelsAsComponents
 
 import java.io.IOException
 import java.math.BigDecimal
@@ -52,6 +53,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     with WithCheckpointInterval
     with WithBroadcastThreshold
     with WithIntermediateStorageLevel
+    with WithUseLabelsAsComponents
     with WithMaxIter {
 
   setAlgorithm(GraphFramesConf.getConnectedComponentsAlgorithm.getOrElse(ALGO_GRAPHFRAMES))
@@ -61,6 +63,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     GraphFramesConf.getConnectedComponentsBroadcastThreshold.getOrElse(broadcastThreshold))
   setIntermediateStorageLevel(
     GraphFramesConf.getConnectedComponentsStorageLevel.getOrElse(intermediateStorageLevel))
+  setUseLabelsAsComponents(
+    GraphFramesConf.getUseLabelsAsComponents.getOrElse(useLabelsAsComponents))
 
   /**
    * Runs the algorithm.
@@ -72,6 +76,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
       broadcastThreshold = broadcastThreshold,
       checkpointInterval = checkpointInterval,
       intermediateStorageLevel = intermediateStorageLevel,
+      useLabelsAsComponents = useLabelsAsComponents,
       maxIter = maxIter)
   }
 }
@@ -184,6 +189,7 @@ object ConnectedComponents extends Logging {
       broadcastThreshold: Int,
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel,
+      useLabelsAsComponents: Boolean,
       maxIter: Option[Int]): DataFrame = {
     if (runInGraphX) {
       return runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
@@ -340,7 +346,7 @@ object ConnectedComponents extends Logging {
           vv(ATTR),
           when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(COMPONENT),
           col(ATTR + "." + ID).as(ID))
-      val output = if (graph.hasIntegralIdType || !GraphFramesConf.getUseLabelsAsComponents) {
+      val output = if (graph.hasIntegralIdType || !useLabelsAsComponents) {
         indexedLabel
           .select(col(s"$ATTR.*"), col(COMPONENT))
           .persist(intermediateStorageLevel)
