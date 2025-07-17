@@ -504,6 +504,7 @@ class GraphFrameConnect:
         algorithm: str = "graphframes",
         checkpointInterval: int = 2,
         broadcastThreshold: int = 1000000,
+        useLabelsAsComponents: bool = False,
     ) -> DataFrame:
         class ConnectedComponents(LogicalPlan):
             def __init__(
@@ -513,6 +514,7 @@ class GraphFrameConnect:
                 algorithm: str,
                 checkpoint_interval: int,
                 broadcast_threshold: int,
+                use_labels_as_components: bool,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -520,6 +522,7 @@ class GraphFrameConnect:
                 self.algorithm = algorithm
                 self.checkpoint_interval = checkpoint_interval
                 self.broadcast_threshold = broadcast_threshold
+                self.use_labels_as_components = use_labels_as_components
 
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
@@ -530,6 +533,7 @@ class GraphFrameConnect:
                         algorithm=self.algorithm,
                         checkpoint_interval=self.checkpoint_interval,
                         broadcast_threshold=self.broadcast_threshold,
+                        use_labels_as_components=self.use_labels_as_components,
                     )
                 )
                 plan = self._create_proto_relation()
@@ -543,6 +547,7 @@ class GraphFrameConnect:
                 algorithm,
                 checkpointInterval,
                 broadcastThreshold,
+                useLabelsAsComponents,
             ),
             self._spark,
         )

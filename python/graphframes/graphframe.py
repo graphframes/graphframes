@@ -267,6 +267,7 @@ class GraphFrame:
         algorithm: str = "graphframes",
         checkpointInterval: int = 2,
         broadcastThreshold: int = 1000000,
+        useLabelsAsComponents: bool = False,
     ) -> DataFrame:
         """
         Computes the connected components of the graph.
@@ -278,6 +279,8 @@ class GraphFrame:
         :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
         :param broadcastThreshold: broadcast threshold in propagating component assignments
           (default: 1000000)
+        :param useLabelsAsComponents: if True, uses the vertex labels as components, otherwise will
+          use longs
 
         :return: DataFrame with new vertices column "component"
         """
@@ -285,6 +288,7 @@ class GraphFrame:
             algorithm=algorithm,
             checkpointInterval=checkpointInterval,
             broadcastThreshold=broadcastThreshold,
+            useLabelsAsComponents=useLabelsAsComponents,
         )
 
     def labelPropagation(self, maxIter: int) -> DataFrame:

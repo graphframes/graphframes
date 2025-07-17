@@ -40,6 +40,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(cc.getAlgorithm === "graphframes")
     assert(cc.getBroadcastThreshold === 1000000)
     assert(cc.getCheckpointInterval === 2)
+    assert(!cc.getUseLabelsAsComponents)
   }
 
   test("empty graph") {
