@@ -30,7 +30,7 @@ def get_gf_jar_locations() -> Tuple[str, str]:
     this function will raise an exception!
     """
     project_root = pathlib.Path(__file__).parent.parent.parent
-    core_dir = project_root / "target" / f"scala-{scala_version}"
+    core_dir = project_root / "graphframes-core" / "target" / f"scala-{scala_version}"
     connect_dir = project_root / "graphframes-connect" / "target" / f"scala-{scala_version}"
 
     core_jar: Optional[str] = None
