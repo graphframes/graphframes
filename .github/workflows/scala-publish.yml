@@ -38,7 +38,7 @@ jobs:
           distribution: 'zulu'
 
       - name: Run the release of core
-        run: build/sbt -Dspark.version=${{ matrix.spark-version }} +ci-release "project connect" +ci-release
+        run: build/sbt -Dspark.version=${{ matrix.spark-version }} ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
