@@ -25,7 +25,6 @@ lazy val protocVersion = sparkMajorVer match {
 
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "io.graphframes"
-ThisBuild / version := "0.9.1-SNAPSHOT"
 ThisBuild / homepage := Some(url("https://graphframes.io/"))
 ThisBuild / licenses := Seq("Apache-2.0" -> url("https://opensource.org/licenses/Apache-2.0"))
 ThisBuild / scmInfo := Some(
