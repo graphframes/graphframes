@@ -30,7 +30,7 @@ jobs:
           ~/.ivy2/cache
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-java-${{ matrix.java-version }}
     - name: Check scalafmt
-      run: build/sbt -Dspark.version=${{ matrix.spark-version }} core/scalafmtCheckAll connect/scalafmtCheckAll
+      run: build/sbt -Dspark.version=${{ matrix.spark-version }} scalafmtCheckAll
     - name: Check scalastyle
       run: build/sbt -Dspark.version=${{ matrix.spark-version }} core/scalafixAll connect/scalafixAll
     - name: Build and Test
