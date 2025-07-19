@@ -30,19 +30,19 @@ GraphFrames scala core and Spark-Connect plugin are published in the Sonatype Ce
 # Interactive Scala/Java
 
 # For Spark 3.5.x, scala 2.12
-$ spark-shell --packages io.graphframes:graphframes-spark3_2.12:0.9.1
+$ spark-shell --packages io.graphframes:graphframes-spark3_2.12:0.9.2
 
 # For Spark 3.5.x, scala 2.13
-$ spark-shell --packages io.graphframes:graphframes-spark3_2.13:0.9.1
+$ spark-shell --packages io.graphframes:graphframes-spark3_2.13:0.9.2
 
 # For Spark 4.0.x
-$ spark-shell --packages io.graphframes:graphframes-spark4_2.13:0.9.1
+$ spark-shell --packages io.graphframes:graphframes-spark4_2.13:0.9.2
 
 # Interactive Python, Spark 3.5.x
-$ pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.1
+$ pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.2
 
 # Interactive Python, Spark 4.0.x
-$ pyspark --packages io.graphframes:graphframes-spark4_2.13:0.9.1
+$ pyspark --packages io.graphframes:graphframes-spark4_2.13:0.9.2
 ```
 
 ### GraphFrames Python API
@@ -62,7 +62,7 @@ To add GraphFrames to your spark connect server, you need to specify the plugin 
 ```bash
 ./sbin/start-connect-server.sh \
   --conf spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect \
-  --packages io.graphframes.graphframes-connect-spark4_2.13:0.9.1
+  --packages io.graphframes.graphframes-connect-spark4_2.13:0.9.2
   --conf spark.checkpoint.dir=${CHECKPOINT_DIR}
 ```
 
@@ -212,14 +212,14 @@ Maven:
     <dependency>
         <groupId>io.graphframes</groupId>
         <artifactId>graphframes-spark4_2.13</artifactId>
-        <version>0.9.1</version>
+        <version>0.9.2</version>
     </dependency>
 </dependencies>
 ```
 
 SBT:
 ```sbt
-libraryDependencies += "io.graphframes" %% "graphframes-spark4" % "0.9.1"
+libraryDependencies += "io.graphframes" %% "graphframes-spark4" % "0.9.2"
 ```
 
 **WARNING!**

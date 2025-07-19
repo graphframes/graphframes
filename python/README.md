@@ -27,10 +27,10 @@ You should use GraphFrames via the `--packages` argument to `pyspark` or `spark-
 
 ```bash
 # Interactive Python, Spark 3.5.x
-$ pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.1
+$ pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.2
 
 # Interactive Python, Spark 4.0.x
-$ pyspark --packages io.graphframes:graphframes-spark4_2.13:0.9.1
+$ pyspark --packages io.graphframes:graphframes-spark4_2.13:0.9.2
 ```
 
 ## Documentation
