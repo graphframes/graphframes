@@ -148,6 +148,6 @@ lazy val connect = (project in file("connect"))
     Test / packageDoc / publishArtifact := false,
     Test / packageSrc / publishArtifact := false,
     Compile / packageBin / publishArtifact := true,
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
+    Compile / packageDoc / publishArtifact := true,
+    Compile / packageSrc / publishArtifact := true
   )
