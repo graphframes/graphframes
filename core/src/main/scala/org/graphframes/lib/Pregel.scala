@@ -24,6 +24,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.struct
+import org.apache.spark.sql.graphframes.GraphFramesConf
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 import org.graphframes.Logging
@@ -341,8 +342,9 @@ class Pregel(val graph: GraphFrame) extends Logging {
     var iteration = 1
 
     val shouldCheckpoint = checkpointInterval > 0
+    val shouldUseLocalCheckpoint = GraphFramesConf.getUseLocalCheckpoints
 
-    if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
+    if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty && !shouldUseLocalCheckpoint) {
       // Spark Connect workaround
       graph.spark.conf.getOption("spark.checkpoint.dir") match {
         case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
@@ -394,9 +396,13 @@ class Pregel(val graph: GraphFrame) extends Logging {
             updateActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ updateVertexCols): _*)
 
         if (shouldCheckpoint && iteration % checkpointInterval == 0) {
-          // do checkpoint, use lazy checkpoint because later we will materialize this DF.
-          newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
-          // TODO: remove last checkpoint file.
+          if (shouldUseLocalCheckpoint) {
+            newVertexUpdateColDF = newVertexUpdateColDF.localCheckpoint(eager = false)
+          } else {
+            // do checkpoint, use lazy checkpoint because later we will materialize this DF.
+            newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
+            // TODO: remove last checkpoint file.
+          }
         }
         newVertexUpdateColDF.cache()
         newVertexUpdateColDF.count() // materialize it

@@ -6,6 +6,18 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.storage.StorageLevel
 
 object GraphFramesConf {
+  private val USE_LOCAL_CHECKPOINTS =
+    SQLConf
+      .buildConf("spark.graphframes.useLocalCheckpoints")
+      .doc(""" Tells the connected components algorithm to use local checkpoints (default: "false").
+          | If set to "true", iterative algorithm will use the checkpointing mechanism to the persistent storage.
+          | Local checkpoints are faster but can make the whole job less prone to errors.
+          | @note This option may become default "true" in the future.
+          |""".stripMargin)
+      .version("0.9.3")
+      .booleanConf
+      .createWithDefault(false)
+
   private val USE_LABELS_AS_COMPONENTS =
     SQLConf
       .buildConf("spark.graphframes.useLabelsAsComponents")
@@ -108,4 +120,6 @@ object GraphFramesConf {
     case Some(use) => Some(use.toBoolean)
     case _ => None
   }
+
+  def getUseLocalCheckpoints: Boolean = get(USE_LOCAL_CHECKPOINTS).get.toBoolean
 }

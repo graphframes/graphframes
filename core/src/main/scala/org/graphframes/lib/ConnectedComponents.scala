@@ -207,8 +207,10 @@ object ConnectedComponents extends Logging {
       val logPrefix = s"[CC $runId]"
       logInfo(s"$logPrefix Start connected components with run ID $runId.")
 
+      val shouldUseLocalCheckpoints = GraphFramesConf.getUseLocalCheckpoints
       val shouldCheckpoint = checkpointInterval > 0
-      val checkpointDir: Option[String] = if (shouldCheckpoint) {
+      val checkpointDir: Option[String] = if (shouldUseLocalCheckpoints) { None }
+      else if (shouldCheckpoint) {
         val dir = sc.getCheckpointDir
           .map { d =>
             new Path(d, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
@@ -297,19 +299,23 @@ object ConnectedComponents extends Logging {
 
         // checkpointing
         if (shouldCheckpoint && (iteration % checkpointInterval == 0)) {
-          // TODO: remove this after DataFrame.checkpoint is implemented
-          val out = s"${checkpointDir.get}/$iteration"
-          ee.write.parquet(out)
-          // may hit S3 eventually consistent issue
-          ee = spark.read.parquet(out)
+          if (shouldUseLocalCheckpoints) {
+            ee = ee.localCheckpoint(eager = true)
+          } else {
+            // TODO: remove this after DataFrame.checkpoint is implemented
+            val out = s"${checkpointDir.get}/$iteration"
+            ee.write.parquet(out)
+            // may hit S3 eventually consistent issue
+            ee = spark.read.parquet(out)
 
-          // remove previous checkpoint
-          if (iteration > checkpointInterval) {
-            val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
-            path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
+            // remove previous checkpoint
+            if (iteration > checkpointInterval) {
+              val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
+              path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
+            }
+
+            System.gc() // hint Spark to clean shuffle directories
           }
-
-          System.gc() // hint Spark to clean shuffle directories
         }
 
         ee.persist(intermediateStorageLevel)
