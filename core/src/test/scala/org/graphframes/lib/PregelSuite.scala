@@ -143,4 +143,31 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       spark.conf.set("spark.graphframes.useLocalCheckpoints", "false")
     }
   })
+
+  test("new vertex column is based on the nullable column") {
+    val verDF = Seq(1L, 2L, 3L, 4L)
+      .toDF("id")
+      .withColumn(
+        "nullableColumn",
+        when(col("id") % lit(2) === lit(0), lit(null)).otherwise(lit(1)))
+    val edgeDF = Seq((1L, 2L), (2L, 3L), (3L, 4L), (4L, 1L)).toDF("src", "dst")
+    val graph = GraphFrame(verDF, edgeDF)
+    val pregel = graph.pregel
+      .withVertexColumn(
+        "newColumn",
+        when(col("nullableColumn").isNull, lit(0)).otherwise(lit(1)),
+        col("newColumn") + Pregel.msg)
+      .sendMsgToDst(lit(1))
+      .aggMsgs(last(Pregel.msg))
+      .setCheckpointInterval(0)
+      .setMaxIter(1)
+
+    val resultDF = pregel.run()
+    assert(
+      resultDF
+        .select("id", "newColumn")
+        .collect()
+        .map(r => r.getAs[Long]("id") -> r.getAs[Int]("newColumn"))
+        .toMap === Map(1L -> 2, 2L -> 1, 3L -> 2, 4L -> 1))
+  }
 }
