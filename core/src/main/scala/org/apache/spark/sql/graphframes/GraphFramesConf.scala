@@ -16,7 +16,7 @@ object GraphFramesConf {
           |""".stripMargin)
       .version("0.9.3")
       .booleanConf
-      .createWithDefault(false)
+      .createOptional
 
   private val USE_LABELS_AS_COMPONENTS =
     SQLConf
@@ -121,5 +121,5 @@ object GraphFramesConf {
     case _ => None
   }
 
-  def getUseLocalCheckpoints: Boolean = get(USE_LOCAL_CHECKPOINTS).get.toBoolean
+  def getUseLocalCheckpoints: Option[Boolean] = get(USE_LOCAL_CHECKPOINTS).map(_.toBoolean)
 }

@@ -24,10 +24,10 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.struct
-import org.apache.spark.sql.graphframes.GraphFramesConf
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 import org.graphframes.Logging
+import org.graphframes.WithLocalCheckpoints
 
 import java.io.IOException
 import scala.util.control.Breaks.break
@@ -81,7 +81,7 @@ import scala.util.control.Breaks.breakable
  *   <a href="https://doi.org/10.1145/1807167.1807184"> Malewicz et al., Pregel: a system for
  *   large-scale graph processing. </a>
  */
-class Pregel(val graph: GraphFrame) extends Logging {
+class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
 
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
@@ -342,9 +342,8 @@ class Pregel(val graph: GraphFrame) extends Logging {
     var iteration = 1
 
     val shouldCheckpoint = checkpointInterval > 0
-    val shouldUseLocalCheckpoint = GraphFramesConf.getUseLocalCheckpoints
 
-    if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty && !shouldUseLocalCheckpoint) {
+    if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty && !useLocalCheckpoints) {
       // Spark Connect workaround
       graph.spark.conf.getOption("spark.checkpoint.dir") match {
         case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
@@ -396,7 +395,7 @@ class Pregel(val graph: GraphFrame) extends Logging {
             updateActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ updateVertexCols): _*)
 
         if (shouldCheckpoint && iteration % checkpointInterval == 0) {
-          if (shouldUseLocalCheckpoint) {
+          if (useLocalCheckpoints) {
             newVertexUpdateColDF = newVertexUpdateColDF.localCheckpoint(eager = false)
           } else {
             // do checkpoint, use lazy checkpoint because later we will materialize this DF.

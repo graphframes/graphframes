@@ -30,6 +30,7 @@ import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithBroadcastThreshold
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
 import org.graphframes.WithUseLabelsAsComponents
 
@@ -54,7 +55,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     with WithBroadcastThreshold
     with WithIntermediateStorageLevel
     with WithUseLabelsAsComponents
-    with WithMaxIter {
+    with WithMaxIter
+    with WithLocalCheckpoints {
 
   setAlgorithm(GraphFramesConf.getConnectedComponentsAlgorithm.getOrElse(ALGO_GRAPHFRAMES))
   setCheckpointInterval(
@@ -65,6 +67,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     GraphFramesConf.getConnectedComponentsStorageLevel.getOrElse(intermediateStorageLevel))
   setUseLabelsAsComponents(
     GraphFramesConf.getUseLabelsAsComponents.getOrElse(useLabelsAsComponents))
+  setUseLocalCheckpoints(GraphFramesConf.getUseLocalCheckpoints.getOrElse(useLocalCheckpoints))
 
   /**
    * Runs the algorithm.
@@ -77,7 +80,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
       checkpointInterval = checkpointInterval,
       intermediateStorageLevel = intermediateStorageLevel,
       useLabelsAsComponents = useLabelsAsComponents,
-      maxIter = maxIter)
+      maxIter = maxIter,
+      useLocalCheckpoints = useLocalCheckpoints)
   }
 }
 
@@ -190,7 +194,8 @@ object ConnectedComponents extends Logging {
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel,
       useLabelsAsComponents: Boolean,
-      maxIter: Option[Int]): DataFrame = {
+      maxIter: Option[Int],
+      useLocalCheckpoints: Boolean): DataFrame = {
     if (runInGraphX) {
       return runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
     }
@@ -207,9 +212,8 @@ object ConnectedComponents extends Logging {
       val logPrefix = s"[CC $runId]"
       logInfo(s"$logPrefix Start connected components with run ID $runId.")
 
-      val shouldUseLocalCheckpoints = GraphFramesConf.getUseLocalCheckpoints
       val shouldCheckpoint = checkpointInterval > 0
-      val checkpointDir: Option[String] = if (shouldUseLocalCheckpoints) { None }
+      val checkpointDir: Option[String] = if (useLocalCheckpoints) { None }
       else if (shouldCheckpoint) {
         val dir = sc.getCheckpointDir
           .map { d =>
@@ -299,7 +303,7 @@ object ConnectedComponents extends Logging {
 
         // checkpointing
         if (shouldCheckpoint && (iteration % checkpointInterval == 0)) {
-          if (shouldUseLocalCheckpoints) {
+          if (useLocalCheckpoints) {
             ee = ee.localCheckpoint(eager = true)
           } else {
             // TODO: remove this after DataFrame.checkpoint is implemented
