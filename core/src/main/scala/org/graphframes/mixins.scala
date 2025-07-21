@@ -141,3 +141,37 @@ private[graphframes] trait WithUseLabelsAsComponents {
    */
   def getUseLabelsAsComponents: Boolean = useLabelsAsComponents
 }
+
+/**
+ * Provides support for local checkpoints in Spark computations.
+ *
+ * Local checkpoints offer a faster alternative to regular checkpoints as they don't require
+ * configuration of checkpointDir in persistent storage (like HDFS or S3). While being more
+ * performant, local checkpoints are less reliable since they don't survive node failures and the
+ * data is not persisted across multiple nodes.
+ */
+private[graphframes] trait WithLocalCheckpoints {
+  protected var useLocalCheckpoints: Boolean = false
+
+  /**
+   * Sets whether to use local checkpoints instead of regular checkpoints (default: false). Local
+   * checkpoints are faster but less reliable as they don't survive node failures.
+   *
+   * @param value
+   *   true to use local checkpoints, false for regular checkpoints
+   * @return
+   *   this instance
+   */
+  def setUseLocalCheckpoints(value: Boolean): this.type = {
+    useLocalCheckpoints = value
+    this
+  }
+
+  /**
+   * Gets whether local checkpoints are being used instead of regular checkpoints.
+   *
+   * @return
+   *   true if local checkpoints are enabled, false otherwise
+   */
+  def getUseLocalCheckpoints: Boolean = useLocalCheckpoints
+}

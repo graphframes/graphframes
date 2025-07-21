@@ -24,6 +24,7 @@ import org.apache.spark.sql.functions._
 import org.graphframes.GraphFrame
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
 
 /**
@@ -44,14 +45,19 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with WithAlgorithmChoice
     with WithCheckpointInterval
-    with WithMaxIter {
+    with WithMaxIter
+    with WithLocalCheckpoints {
 
   def run(): DataFrame = {
     val maxIterChecked = check(maxIter, "maxIter")
     algorithm match {
       case "graphx" => LabelPropagation.runInGraphX(graph, maxIterChecked)
       case "graphframes" =>
-        LabelPropagation.runInGraphFrames(graph, maxIterChecked, checkpointInterval)
+        LabelPropagation.runInGraphFrames(
+          graph,
+          maxIterChecked,
+          checkpointInterval,
+          useLocalCheckpoints = useLocalCheckpoints)
     }
   }
 }
@@ -74,7 +80,8 @@ private object LabelPropagation {
       graph: GraphFrame,
       maxIter: Int,
       checkpointInterval: Int,
-      isDirected: Boolean = true): DataFrame = {
+      isDirected: Boolean = true,
+      useLocalCheckpoints: Boolean): DataFrame = {
     // Overall:
     // - Initial labels - IDs
     // - Active vertex col (halt voting) - did the label changed?
@@ -88,6 +95,7 @@ private object LabelPropagation {
       .setCheckpointInterval(checkpointInterval)
       .setSkipMessagesFromNonActiveVertices(false)
       .setUpdateActiveVertexExpression(col(LABEL_ID) =!= keyWithMaxValue(Pregel.msg))
+      .setUseLocalCheckpoints(useLocalCheckpoints)
 
     if (isDirected) {
       pregel = pregel.sendMsgToDst(col(LABEL_ID))

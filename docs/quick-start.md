@@ -18,10 +18,6 @@ If you are new to using Apache Spark, refer to the
 [Apache Spark Documentation](http://spark.apache.org/docs/latest/index.html) and its
 [Quick-Start Guide](http://spark.apache.org/docs/latest/quick-start.html) for more information.
 
-If you are new to using [Spark packages](http://spark-packages.org/package/graphframes/graphframes), you can find more information
-in the [Spark User Guide on using the interactive shell](http://spark.apache.org/docs/latest/programming-guide.html#using-the-shell).
-You just need to make sure your Spark shell session has the package as a dependency.
-
 The following example shows how to run the Spark shell with the GraphFrames package.
 We use the `--packages` argument to download the graphframes package and any dependencies automatically.
 
@@ -30,7 +26,7 @@ We use the `--packages` argument to download the graphframes package and any dep
 <div data-lang="scala"  markdown="1">
 
 {% highlight bash %}
-$ ./bin/spark-shell --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
+$ ./bin/spark-shell --packages io.graphframes:graphframes-spark3_2.12:0.9.2
 {% endhighlight %}
 
 </div>
@@ -38,17 +34,12 @@ $ ./bin/spark-shell --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 <div data-lang="python"  markdown="1">
 
 {% highlight bash %}
-$ ./bin/pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
+$ ./bin/pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.2
 {% endhighlight %}
 
 </div>
 
 </div>
-
-The above examples of running the Spark shell with GraphFrames use a specific version of the GraphFrames
-package.  To use a different version, just change the last part of the `--packages` argument;
-for example, to run with version `0.1.0-spark1.6`, pass the argument
-`--packages graphframes:graphframes:0.1.0-spark1.6`.
 
 # Start using GraphFrames
 

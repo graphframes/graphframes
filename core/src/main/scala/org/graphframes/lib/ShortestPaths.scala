@@ -38,6 +38,7 @@ import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithLocalCheckpoints
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -54,7 +55,8 @@ import scala.jdk.CollectionConverters._
 class ShortestPaths private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with WithAlgorithmChoice
-    with WithCheckpointInterval {
+    with WithCheckpointInterval
+    with WithLocalCheckpoints {
   import org.graphframes.lib.ShortestPaths._
 
   private var lmarks: Option[Seq[Any]] = None
@@ -79,7 +81,12 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
     val lmarksChecked = check(lmarks, "landmarks")
     algorithm match {
       case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked)
-      case ALGO_GRAPHFRAMES => runInGraphFrames(graph, lmarksChecked, checkpointInterval)
+      case ALGO_GRAPHFRAMES =>
+        runInGraphFrames(
+          graph,
+          lmarksChecked,
+          checkpointInterval,
+          useLocalCheckpoints = useLocalCheckpoints)
       case _ => throw new GraphFramesUnreachableException()
     }
   }
@@ -109,7 +116,8 @@ private object ShortestPaths extends Logging {
       graph: GraphFrame,
       landmarks: Seq[Any],
       checkpointInterval: Int,
-      isDirected: Boolean = true): DataFrame = {
+      isDirected: Boolean = true,
+      useLocalCheckpoints: Boolean): DataFrame = {
     logWarn("The GraphFrames based implementation is slow and considered experimental!")
     val vertexType = graph.vertices.schema(GraphFrame.ID).dataType
 
@@ -202,6 +210,8 @@ private object ShortestPaths extends Logging {
       .setUpdateActiveVertexExpression(updateActiveVierticesExpr)
       .setStopIfAllNonActiveVertices(true)
       .setSkipMessagesFromNonActiveVertices(true)
+      .setCheckpointInterval(checkpointInterval)
+      .setUseLocalCheckpoints(useLocalCheckpoints)
 
     // Experimental feature
     if (isDirected) {

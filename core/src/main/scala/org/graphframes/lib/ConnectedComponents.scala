@@ -30,6 +30,7 @@ import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithBroadcastThreshold
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
 import org.graphframes.WithUseLabelsAsComponents
 
@@ -54,7 +55,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     with WithBroadcastThreshold
     with WithIntermediateStorageLevel
     with WithUseLabelsAsComponents
-    with WithMaxIter {
+    with WithMaxIter
+    with WithLocalCheckpoints {
 
   setAlgorithm(GraphFramesConf.getConnectedComponentsAlgorithm.getOrElse(ALGO_GRAPHFRAMES))
   setCheckpointInterval(
@@ -65,6 +67,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     GraphFramesConf.getConnectedComponentsStorageLevel.getOrElse(intermediateStorageLevel))
   setUseLabelsAsComponents(
     GraphFramesConf.getUseLabelsAsComponents.getOrElse(useLabelsAsComponents))
+  setUseLocalCheckpoints(GraphFramesConf.getUseLocalCheckpoints.getOrElse(useLocalCheckpoints))
 
   /**
    * Runs the algorithm.
@@ -77,7 +80,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
       checkpointInterval = checkpointInterval,
       intermediateStorageLevel = intermediateStorageLevel,
       useLabelsAsComponents = useLabelsAsComponents,
-      maxIter = maxIter)
+      maxIter = maxIter,
+      useLocalCheckpoints = useLocalCheckpoints)
   }
 }
 
@@ -190,7 +194,8 @@ object ConnectedComponents extends Logging {
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel,
       useLabelsAsComponents: Boolean,
-      maxIter: Option[Int]): DataFrame = {
+      maxIter: Option[Int],
+      useLocalCheckpoints: Boolean): DataFrame = {
     if (runInGraphX) {
       return runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
     }
@@ -208,7 +213,8 @@ object ConnectedComponents extends Logging {
       logInfo(s"$logPrefix Start connected components with run ID $runId.")
 
       val shouldCheckpoint = checkpointInterval > 0
-      val checkpointDir: Option[String] = if (shouldCheckpoint) {
+      val checkpointDir: Option[String] = if (useLocalCheckpoints) { None }
+      else if (shouldCheckpoint) {
         val dir = sc.getCheckpointDir
           .map { d =>
             new Path(d, s"$CHECKPOINT_NAME_PREFIX-$runId").toString
@@ -297,19 +303,23 @@ object ConnectedComponents extends Logging {
 
         // checkpointing
         if (shouldCheckpoint && (iteration % checkpointInterval == 0)) {
-          // TODO: remove this after DataFrame.checkpoint is implemented
-          val out = s"${checkpointDir.get}/$iteration"
-          ee.write.parquet(out)
-          // may hit S3 eventually consistent issue
-          ee = spark.read.parquet(out)
+          if (useLocalCheckpoints) {
+            ee = ee.localCheckpoint(eager = true)
+          } else {
+            // TODO: remove this after DataFrame.checkpoint is implemented
+            val out = s"${checkpointDir.get}/$iteration"
+            ee.write.parquet(out)
+            // may hit S3 eventually consistent issue
+            ee = spark.read.parquet(out)
 
-          // remove previous checkpoint
-          if (iteration > checkpointInterval) {
-            val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
-            path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
+            // remove previous checkpoint
+            if (iteration > checkpointInterval) {
+              val path = new Path(s"${checkpointDir.get}/${iteration - checkpointInterval}")
+              path.getFileSystem(sc.hadoopConfiguration).delete(path, true)
+            }
+
+            System.gc() // hint Spark to clean shuffle directories
           }
-
-          System.gc() // hint Spark to clean shuffle directories
         }
 
         ee.persist(intermediateStorageLevel)
