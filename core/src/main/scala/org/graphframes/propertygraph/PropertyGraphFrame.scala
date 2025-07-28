@@ -101,13 +101,18 @@ case class PropertyGraphFrame(
    *   Name of the vertex property group to project through
    * @param edgeGroup
    *   Name of the edge property group connecting the two parts
+   * @param newEdgeWeight
+   *   Optional function that takes two weight columns (Column objects) of edges as input and
+   *   returns a new weight column. If None, a default weight of 1.0 is used for all projected
+   *   edges.
    * @return
    *   A new PropertyGraphFrame containing the projected graph
    */
   def projectionBy(
       leftBiGraphPart: String,
       rightBiGraphPart: String,
-      edgeGroup: String): PropertyGraphFrame = {
+      edgeGroup: String,
+      newEdgeWeight: Option[(Column, Column) => Column] = None): PropertyGraphFrame = {
     require(
       edgeGroups(edgeGroup).srcPropertyGroup.name == leftBiGraphPart,
       s"Edge Property Group should have $leftBiGraphPart source group but has ${edgeGroups(edgeGroup).srcPropertyGroup.name}")
@@ -116,14 +121,24 @@ case class PropertyGraphFrame(
       s"Edge Property Group should have $rightBiGraphPart destination group but has ${edgeGroups(edgeGroup).dstPropertyGroup.name}")
     val keptVPropertyGroups = vertexPropertyGroups.filterNot(g => g.name == rightBiGraphPart)
     val keptEPropertyGroups = edgesPropertyGroups.filterNot(g => g.name == edgeGroup)
-    val oldEdgesData = edgeGroups(edgeGroup).data
+    val oldGroup = edgeGroups(edgeGroup)
+    val oldEdgesData = oldGroup.data
 
     // Create new edges by joining vertices through their common neighbors
     val projectedEdges = oldEdgesData
       .as("e1")
       .join(oldEdgesData.as("e2"), col("e1.dst") === col("e2.dst"))
       .where("e1.src < e2.src")
-      .select(col("e1.src").alias(GraphFrame.SRC), col("e2.src").alias(GraphFrame.DST))
+      .select(
+        col("e1.src").alias(GraphFrame.SRC),
+        col("e2.src").alias(GraphFrame.DST),
+        newEdgeWeight match {
+          case Some(newEdgeFunc) =>
+            newEdgeFunc(
+              col(s"e1.${oldGroup.weightColumnName}"),
+              col(s"e2.${oldGroup.weightColumnName}")).alias(GraphFrame.WEIGHT)
+          case None => lit(1.0).alias(GraphFrame.WEIGHT)
+        })
 
     val newEdgeGroup = EdgePropertyGroup(
       name = s"projected_$edgeGroup",
@@ -133,7 +148,7 @@ case class PropertyGraphFrame(
       isDirected = false,
       srcColumnName = GraphFrame.SRC,
       dstColumnName = GraphFrame.DST,
-      weightColumn = lit(1.0))
+      weightColumnName = GraphFrame.WEIGHT)
 
     PropertyGraphFrame(keptVPropertyGroups, keptEPropertyGroups :+ newEdgeGroup)
   }

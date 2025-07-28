@@ -1,5 +1,6 @@
 package org.graphframes.propertygraph
 
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions._
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
@@ -219,6 +220,33 @@ class PropertyGraphFrameTest
       likesEdges.exists(e => e.getString(0) == sha256Hash(1L, "people") && e.getString(1) == "1"))
     assert(
       likesEdges.exists(e => e.getString(0) == "1" && e.getString(1) == sha256Hash(1L, "people")))
+  }
+
+  test("projection with custom weight function") {
+    val projectedGraph = peopleMoviesGraph.projectionBy(
+      "people",
+      "movies",
+      "likes",
+      Some((leftWeight: Column, rightWeight: Column) => leftWeight + rightWeight))
+
+    val projectedEdgesGroupOption =
+      projectedGraph.edgesPropertyGroups.find(_.name === "projected_likes")
+    assert(projectedEdgesGroupOption.isDefined)
+
+    val projectedEdges = projectedEdgesGroupOption.get.data
+      .collect()
+      .map(row => (row.getLong(0), row.getLong(1), row.getDouble(2)))
+      .toSet
+
+    // Expected edges between people who like the same movies with sum of their weights
+    val expectedEdges = Set(
+      (1L, 2L, 2.0), // Alice and Bob both like Matrix (1.0 + 1.0)
+      (1L, 3L, 2.0), // Alice and Charlie both like Inception (1.0 + 1.0)
+      (1L, 5L, 2.0), // Alice and Eve both like Inception (1.0 + 1.0)
+      (3L, 5L, 2.0) // Charlie and Eve both like Inception (1.0 + 1.0)
+    )
+
+    assert(projectedEdges === expectedEdges)
   }
 
   test("joinVertices withConnectedComponents") {
