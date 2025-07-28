@@ -1,9 +1,14 @@
-<img src="docs/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="400"/>
+<img src="docs/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="500"/>
 
 [![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
 [![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
 [![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
 [![scala-central-publish](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml)
+[![python-pypi-publish](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml)
+![GitHub Release](https://img.shields.io/github/v/release/graphframes/graphframes)
+![GitHub License](https://img.shields.io/github/license/graphframes/graphframes)
+
+
 
 # GraphFrames: DataFrame-based Graphs
 
@@ -13,22 +18,57 @@ You can find user guide and API docs at <https://graphframes.io>
 
 ## GraphFrames is Back
 
-This projects was in maintenance mode for some time, but we are happy to announce that it is now back in active development! We are working on a new release with many bug fixes and improvements. We are also working on a new website and documentation.
+This project was in maintenance mode for some time, but we are happy to announce that it is now back in active development!
 
 ## Installation and Quick-Start
 
-The easiest way to start using GraphFrames is through the [Spark Packages system](https://spark-packages.org/package/graphframes/graphframes). Just run the following command:
+### GraphFrames core
+
+GraphFrames scala core and Spark-Connect plugin are published in the Sonatype Central. Namespace is `io.graphframes`.
 
 ```bash
 # Interactive Scala/Java
-$ spark-shell --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
 
-# Interactive Python
-$ pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
+# For Spark 3.5.x, scala 2.12
+$ spark-shell --packages io.graphframes:graphframes-spark3_2.12:0.9.2
 
-# Submit a script in Scala/Java/Python
-$ spark-submit --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 script.py
+# For Spark 3.5.x, scala 2.13
+$ spark-shell --packages io.graphframes:graphframes-spark3_2.13:0.9.2
+
+# For Spark 4.0.x
+$ spark-shell --packages io.graphframes:graphframes-spark4_2.13:0.9.2
+
+# Interactive Python, Spark 3.5.x
+$ pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.2
+
+# Interactive Python, Spark 4.0.x
+$ pyspark --packages io.graphframes:graphframes-spark4_2.13:0.9.2
 ```
+
+### GraphFrames Python API
+
+Python API is published in the PyPi:
+
+```bash
+pip install graphframes-py
+```
+
+**NOTE!** *Python distribution does not include JVM-core. You need to add it to your cluster or Spark-Connect server!*
+
+### GraphFrames Spark Connect
+
+To add GraphFrames to your spark connect server, you need to specify the plugin name, for example:
+
+```bash
+./sbin/start-connect-server.sh \
+  --conf spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect \
+  --packages io.graphframes.graphframes-connect-spark4_2.13:0.9.2
+  --conf spark.checkpoint.dir=${CHECKPOINT_DIR}
+```
+
+**NOTE!** *GraphFrames is relying on iterative graph algorithms and uses checkpoints internally to avoid infinite growing of the Spark's Logical Plan. Spark-Connect API does not provide the way to specify the checkpoint dir and it should be specified via `spark.checkpoint.dir` configuration!*
+
+### Quick Start
 
 Now you can create a GraphFrame as follows.
 
@@ -148,7 +188,9 @@ To learn more about GraphFrames, check out these resources:
 * [Graph Operations in Apache Spark Using GraphFrames](https://www.pluralsight.com/courses/apache-spark-graphframes-graph-operations)
 * [Executing Graph Algorithms with GraphFrames on Databricks](https://www.pluralsight.com/courses/executing-graph-algorithms-graphframes-databricks)
 
-## `graphframes-py` is our Official PyPi Package
+## Note about Python API distribution
+
+`graphframes-py` is our Official PyPi Package
 
 We recommend using the Spark Packages system to install the latest version of GraphFrames, but now publish a build of our Python package to PyPi in the [graphframes-py](https://pypi.org/project/graphframes-py/) package. It can be used to provide type hints in IDEs, but does not load the java-side of GraphFrames so will not work without loading the GraphFrames package. See [Installation and Quick-Start](#installation-and-quick-start).
 
@@ -156,27 +198,29 @@ We recommend using the Spark Packages system to install the latest version of Gr
 pip install graphframes-py
 ```
 
+**WARNING!**
+
 This project does not own or control the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.4).
 
-## GraphFrames and sbt
+**WARNING!**
 
-If you use the sbt-spark-package plugin, in your sbt build file, add the following, pulled from [GraphFrames on Spark Packages](https://spark-packages.org/package/graphframes/graphframes):
+## Maven and SBT
 
+Maven:
+```xml
+<dependencies>
+    <dependency>
+        <groupId>io.graphframes</groupId>
+        <artifactId>graphframes-spark4_2.13</artifactId>
+        <version>0.9.2</version>
+    </dependency>
+</dependencies>
 ```
-spDependencies += "graphframes/graphframes:0.8.4-spark3.5-s_2.12"
+
+SBT:
+```sbt
+libraryDependencies += "io.graphframes" %% "graphframes-spark4" % "0.9.2"
 ```
-
-Otherwise,
-
-```
-resolvers += "Spark Packages Repo" at "https://repos.spark-packages.org/"
-
-libraryDependencies += "graphframes" % "graphframes" % "0.8.4-spark3.5-s_2.12"
-```
-
-## GraphFrames and Maven
-
-Please see the section about nightly builds!
 
 **WARNING!**
 
@@ -198,9 +242,7 @@ To compile the Spark Connect Plugin, run `build/sbt connect/package`
 
 ## Spark version compatibility
 
-This project is compatible with Spark 3.4+. Significant speed improvements have been made to DataFrames in recent versions of Spark, so you may see speedups from using the latest Spark version.
-
-Nightly builds of GraphFrames:
+This project is compatible with Spark 3.5.x and Spark 4.0.x. Significant speed improvements have been made to DataFrames in recent versions of Spark, so you may see speedups from using the latest Spark version.
 
 | Component           | Spark 3.x (Scala 2.12) | Spark 3.x (Scala 2.13) | Spark 4.x (Scala 2.13) |
 |---------------------|------------------------|------------------------|------------------------|

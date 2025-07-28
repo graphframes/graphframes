@@ -147,18 +147,26 @@ class BFS(_message.Message):
     ) -> None: ...
 
 class ConnectedComponents(_message.Message):
-    __slots__ = ("algorithm", "checkpoint_interval", "broadcast_threshold")
+    __slots__ = (
+        "algorithm",
+        "checkpoint_interval",
+        "broadcast_threshold",
+        "use_labels_as_components",
+    )
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     BROADCAST_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    USE_LABELS_AS_COMPONENTS_FIELD_NUMBER: _ClassVar[int]
     algorithm: str
     checkpoint_interval: int
     broadcast_threshold: int
+    use_labels_as_components: bool
     def __init__(
         self,
         algorithm: _Optional[str] = ...,
         checkpoint_interval: _Optional[int] = ...,
         broadcast_threshold: _Optional[int] = ...,
+        use_labels_as_components: bool = ...,
     ) -> None: ...
 
 class DropIsolatedVertices(_message.Message):

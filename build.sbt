@@ -9,11 +9,6 @@ lazy val scalaVersions = sparkMajorVer match {
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions(0))
 lazy val defaultScalaTestVer = "3.0.8"
 
-ThisBuild / version := {
-  val baseVersion = (ThisBuild / version).value
-  s"${baseVersion}-spark${sparkBranch}"
-}
-
 // Some vendors are using an own shading rule for protobuf
 lazy val protobufShadingPattern = sys.props.getOrElse("vendor.name", "oss") match {
   case "oss" => "org.sparkproject.connect.protobuf.@1"
@@ -60,6 +55,9 @@ ThisBuild / crossScalaVersions := scalaVersions
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports both 2.13.8 and 2.12.18
 
+// Don't publish the root project
+publishArtifact := false
+
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
     "org.apache.spark" %% "spark-graphx" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
@@ -105,7 +103,7 @@ lazy val commonSetting = Seq(
     else
       "-Wunused:imports"))
 
-lazy val root = (project in file("."))
+lazy val core = (project in file("core"))
   .settings(
     commonSetting,
     name := "graphframes",
@@ -127,8 +125,8 @@ lazy val root = (project in file("."))
     Compile / packageDoc / publishArtifact := true,
     Compile / packageSrc / publishArtifact := true)
 
-lazy val connect = (project in file("graphframes-connect"))
-  .dependsOn(root)
+lazy val connect = (project in file("connect"))
+  .dependsOn(core)
   .settings(
     name := s"graphframes-connect",
     moduleName := s"${name.value}-spark${sparkMajorVer}",
@@ -153,6 +151,6 @@ lazy val connect = (project in file("graphframes-connect"))
     Test / packageDoc / publishArtifact := false,
     Test / packageSrc / publishArtifact := false,
     Compile / packageBin / publishArtifact := true,
-    Compile / packageDoc / publishArtifact := false,
-    Compile / packageSrc / publishArtifact := false
+    Compile / packageDoc / publishArtifact := true,
+    Compile / packageSrc / publishArtifact := true
   )

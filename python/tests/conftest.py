@@ -17,7 +17,7 @@ else:
 
     def is_remote() -> bool:
         return False
-    
+
 spark_major_version = __version__[:1]
 scala_version = os.environ.get("SCALA_VERSION", "2.12" if __version__ < "4" else "2.13")
 
@@ -30,8 +30,8 @@ def get_gf_jar_locations() -> Tuple[str, str]:
     this function will raise an exception!
     """
     project_root = pathlib.Path(__file__).parent.parent.parent
-    core_dir = project_root / "target" / f"scala-{scala_version}"
-    connect_dir = project_root / "graphframes-connect" / "target" / f"scala-{scala_version}"
+    core_dir = project_root / "core" / "target" / f"scala-{scala_version}"
+    connect_dir = project_root / "connect" / "target" / f"scala-{scala_version}"
 
     core_jar: Optional[str] = None
     connect_jar: Optional[str] = None

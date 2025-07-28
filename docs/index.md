@@ -36,7 +36,7 @@ is willing to support this effort by reviewing the relevant pull requests.**
 
 # Downloading
 
-Get GraphFrames from the [Spark Packages website](http://spark-packages.org/package/graphframes/graphframes).
+Get GraphFrames from the [Maven Central](https://central.sonatype.com/namespace/io.graphframes).
 This documentation is for GraphFrames version {{site.GRAPHFRAMES_VERSION}}.
 GraphFrames depends on Apache Spark, which is available for download from the
 [Apache Spark website](http://spark.apache.org).
@@ -44,10 +44,10 @@ GraphFrames depends on Apache Spark, which is available for download from the
 GraphFrames should be compatible with any platform which runs Spark.
 Refer to the [Apache Spark documentation](http://spark.apache.org/docs/latest) for more information.
 
-GraphFrames is compatible with Spark 1.6+.  However, later versions of Spark include major improvements
+GraphFrames is compatible with Spark 3.4+. However, later versions of Spark include major improvements
 to DataFrames, so GraphFrames may be more efficient when running on more recent Spark versions.
 
-GraphFrames is tested with Java 8, Python 2 and 3, and running against Spark 2.2+ (Scala 2.11).
+GraphFrames is tested with Java 8, 11 and 17, Python 3, Spark 3.5 and Spark 4.0 (Scala 2.12 / Scala 2.13).
 
 # Applications, the Apache Spark shell, and clusters
 
@@ -64,6 +64,7 @@ GraphFrames supplied as a package.
 * [GraphFrames User Guide](user-guide.html): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
 * [Motif Finding Tutorial](motif-tutorial.html): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
+* [GraphFrames Configurations](configurations.html): detailed information about GraphFrames configurations, their descriptions, and usage examples
 
 **API Docs:**
 

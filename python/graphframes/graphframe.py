@@ -35,17 +35,10 @@ from pyspark.sql import SparkSession
 from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
 from graphframes.lib import Pregel
 
-if __version__[:3] >= "3.4":
-    from graphframes.connect.graphframe_client import GraphFrameConnect
-else:
-
-    class GraphFrameConnect:
-        def __init__(self, *args, **kwargs) -> None:
-            raise ValueError("Unreachable error happened!")
-
-
 if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
+
+    from graphframes.connect.graphframe_client import GraphFrameConnect
 
 
 class GraphFrame:
@@ -67,11 +60,14 @@ class GraphFrame:
     """
 
     @staticmethod
-    def _from_impl(impl: GraphFrameClassic | GraphFrameConnect) -> "GraphFrame":
+    def _from_impl(impl: GraphFrameClassic | "GraphFrameConnect") -> "GraphFrame":
         return GraphFrame(impl.vertices, impl.edges)
 
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
+        self._impl: GraphFrameClassic | "GraphFrameConnect"
         if is_remote():
+            from graphframes.connect.graphframe_client import GraphFrameConnect
+
             self._impl = GraphFrameConnect(v, e)
         else:
             self._impl = GraphFrameClassic(v, e)
@@ -267,6 +263,7 @@ class GraphFrame:
         algorithm: str = "graphframes",
         checkpointInterval: int = 2,
         broadcastThreshold: int = 1000000,
+        useLabelsAsComponents: bool = False,
     ) -> DataFrame:
         """
         Computes the connected components of the graph.
@@ -278,6 +275,8 @@ class GraphFrame:
         :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
         :param broadcastThreshold: broadcast threshold in propagating component assignments
           (default: 1000000)
+        :param useLabelsAsComponents: if True, uses the vertex labels as components, otherwise will
+          use longs
 
         :return: DataFrame with new vertices column "component"
         """
@@ -285,6 +284,7 @@ class GraphFrame:
             algorithm=algorithm,
             checkpointInterval=checkpointInterval,
             broadcastThreshold=broadcastThreshold,
+            useLabelsAsComponents=useLabelsAsComponents,
         )
 
     def labelPropagation(self, maxIter: int) -> DataFrame:

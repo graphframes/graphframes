@@ -59,4 +59,6 @@ spark-warehouse
 
 # db-connect targets
 graphframes-connect-databricks/*
-/workspace/
+
+# Workspace
+workspace
