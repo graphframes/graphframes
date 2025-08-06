@@ -30,7 +30,6 @@ import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.monotonically_increasing_id
 import org.apache.spark.sql.functions.struct
-import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.lib._
@@ -705,9 +704,7 @@ object GraphFrame extends Serializable with Logging {
       a.join(b, joinCol)
     } else {
       logDebug(s"$logPrefix Skewed join with ${hubs.size} high-degree keys.")
-      val isHub = udf { id: T =>
-        hubs.contains(id)
-      }
+      val isHub = (c: Column) => c.isInCollection(hubs)
       val hashJoined = a
         .filter(!isHub(col(joinCol)))
         .join(b.filter(!isHub(col(joinCol))), joinCol)
