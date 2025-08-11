@@ -23,3 +23,14 @@ class InvalidPatternException() extends Exception()
  */
 class GraphFramesUnreachableException()
     extends Exception("This exception should not be reachable")
+
+/**
+ * Exception thrown when an invalid property group is encountered.
+ *
+ * This exception typically indicates that an operation or configuration is using a property group
+ * that is not supported, invalid, or improperly defined.
+ *
+ * @param message
+ *   A detailed error message describing the issue.
+ */
+class InvalidPropertyGroupException(message: String) extends Exception(message)
