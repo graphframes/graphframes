@@ -66,8 +66,6 @@ case class PropertyGraphFrame(
    * @return
    *   A GraphFrame containing the unified representation of the selected and filtered property
    *   groups
-   * @throws IllegalArgumentException
-   *   if any specified property group name doesn't exist
    */
   def toGraphFrame(
       vertexPropertyGroups: Seq[String],
@@ -167,9 +165,6 @@ case class PropertyGraphFrame(
    * @return
    *   A DataFrame representing the unified vertices data where each group has been appropriately
    *   filtered, joined, and processed based on its configuration.
-   * @throws IllegalArgumentException
-   *   If any of the specified vertex group names do not exist in the PropertyGraphFrame
-   *   configuration.
    */
   def joinVertices(verticesData: DataFrame, vertexGroups: Seq[String]): DataFrame = {
     require(vertexGroups.forall(this.vertexGroups.contains))
