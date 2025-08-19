@@ -8,6 +8,7 @@ lazy val scalaVersions = sparkMajorVer match {
 }
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions(0))
 lazy val defaultScalaTestVer = "3.0.8"
+lazy val jmhVersion = "1.37"
 
 // Some vendors are using an own shading rule for protobuf
 lazy val protobufShadingPattern = sys.props.getOrElse("vendor.name", "oss") match {
@@ -154,3 +155,20 @@ lazy val connect = (project in file("connect"))
     Compile / packageDoc / publishArtifact := true,
     Compile / packageSrc / publishArtifact := true
   )
+
+lazy val benchmarks = (project in file("benchmarks"))
+  .dependsOn(core)
+  .settings(
+    commonSetting,
+    name := "graphframes-benchmarks",
+    publish / skip := true,
+    publishArtifact := false,
+    libraryDependencies ++= Seq(
+      // required for jmh IDEA plugin. Make sure this version matches sbt-jmh version!
+      "org.openjdk.jmh" % "jmh-generator-annprocess" % jmhVersion,
+      // for benchmarks the scope should be runtime
+      "org.apache.spark" %% "spark-graphx" % sparkVer % "runtime" cross CrossVersion.for3Use2_13,
+      "org.apache.spark" %% "spark-sql" % sparkVer % "runtime" cross CrossVersion.for3Use2_13,
+      "org.apache.spark" %% "spark-mllib" % sparkVer % "runtime" cross CrossVersion.for3Use2_13),
+  )
+  .enablePlugins(JmhPlugin)
