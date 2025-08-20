@@ -62,3 +62,6 @@ graphframes-connect-databricks/*
 
 # Workspace
 workspace
+
+# JMH (jmh-result.json, jmh-result.csv, etc.)
+jmh-result.*
