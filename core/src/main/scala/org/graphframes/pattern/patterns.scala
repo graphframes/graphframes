@@ -28,7 +28,7 @@ import scala.util.parsing.combinator._
  */
 private[graphframes] object PatternParser extends RegexParsers {
   private val vertexName: Parser[Vertex] = "[a-zA-Z0-9_]+".r ^^ { NamedVertex }
-  private val anonymousVertex: Parser[Vertex] = "" ^^ { x => AnonymousVertex }
+  private val anonymousVertex: Parser[Vertex] = "" ^^ { _ => AnonymousVertex }
   private val vertex: Parser[Vertex] = "(" ~> (vertexName | anonymousVertex) <~ ")"
   private val namedEdge: Parser[Edge] =
     vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]+".r ~ "]" ~ "->" ~ vertex ^^ {

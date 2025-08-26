@@ -211,7 +211,7 @@ class Graphs private[graphframes] () {
     val seed = 12345
     val vertices = coordinates
       .withColumn("id", vIDcol) // vertex IDs "i,j"
-      .withColumn("a", randn(seed) * vStd) // Ising parameter for vertex
+      .withColumn("a", randn(seed.toLong) * vStd) // Ising parameter for vertex
 
     // Create the edge DataFrame
     //  Create SQL expression for converting coordinates (i,j+1) and (i+1,j) to string IDs
@@ -225,7 +225,8 @@ class Graphs private[graphframes] () {
       .select(vIDcol.as("src"), downIDcol.as("dst"))
     val allEdges = horizontalEdges.union(verticalEdges)
     //  Add random parameters from a normal distribution
-    val edges = allEdges.withColumn("b", randn(seed + 1) * eStd) // Ising parameter for edge
+    val edges =
+      allEdges.withColumn("b", randn(seed.toLong + 1L) * eStd) // Ising parameter for edge
 
     // Create the GraphFrame
     val g = GraphFrame(vertices, edges)

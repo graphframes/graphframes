@@ -12,7 +12,7 @@ object LDBCUtils {
   val TEST_BFS_UNDIRECTED = "test-bfs-undirected"
   val TEST_CDLP_DIRECTED = "test-cdlp-directed"
   val TEST_CDLP_UNDIRECTED = "test-cdlp-undirected"
-  val TEST_PR_DIRECED = "test-pr-directed"
+  val TEST_PR_DIRECTED = "test-pr-directed"
   val TEST_PR_UNDIRECTED = "test-pr-undirected"
   val TEST_WCC_DIRECTED = "test-wcc-directed"
   val TEST_WCC_UNDIRECTED = "test-wcc-undirected"
@@ -24,7 +24,7 @@ object LDBCUtils {
     TEST_BFS_UNDIRECTED,
     TEST_CDLP_DIRECTED,
     TEST_CDLP_UNDIRECTED,
-    TEST_PR_DIRECED,
+    TEST_PR_DIRECTED,
     TEST_PR_UNDIRECTED,
     TEST_WCC_DIRECTED,
     TEST_WCC_UNDIRECTED,
@@ -35,7 +35,8 @@ object LDBCUtils {
 
   private def checkZSTD(): Unit = {
     try {
-      "zstd --version".!
+      val version = "zstd --version".!
+      println(s"found zstd version: $version")
     } catch {
       case e: Exception =>
         throw new RuntimeException(

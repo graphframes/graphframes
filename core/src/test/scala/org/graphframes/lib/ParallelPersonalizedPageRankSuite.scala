@@ -28,7 +28,7 @@ import org.graphframes.examples.Graphs
 
 class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  val n = 100
+  val n = 100L
 
   test("Illegal function call argument setting") {
     val g = Graphs.star(n)

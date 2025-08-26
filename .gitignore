@@ -4,7 +4,8 @@
 build/*.jar
 
 docs/_site
-docs/api
+docs/src/api/python
+docs/src/api/scaladoc
 
 # sbt specific
 .cache/

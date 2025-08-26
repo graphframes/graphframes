@@ -205,7 +205,7 @@ class GraphFrame private (
           case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr)
           case _ => throw new GraphFramesUnreachableException()
         }
-      Graph(vv, ee)
+      Graph[Row, Row](vv, ee)
     } else {
       // Compute Long vertex IDs
       val vv = indexedVertices.select(LONG_ID, ATTR).rdd.map {
@@ -217,7 +217,7 @@ class GraphFrame private (
           Edge(long_src, long_dst, attr)
         case _ => throw new GraphFramesUnreachableException()
       }
-      Graph(vv, ee)
+      Graph[Row, Row](vv, ee)
     }
   }
 
@@ -663,7 +663,7 @@ class GraphFrame private (
    * A cached conversion of this graph to the GraphX structure. All the data is stripped away.
    */
   @transient lazy private[graphframes] val cachedTopologyGraphX: Graph[Unit, Unit] = {
-    cachedGraphX.mapVertices((_, _) => ()).mapEdges(e => ())
+    cachedGraphX.mapVertices((_, _) => ()).mapEdges(_ => ())
   }
 
   /**
@@ -936,7 +936,7 @@ object GraphFrame extends Serializable with Logging {
 
   // ========== Motif finding ==========
 
-  private val random: Random = new Random(classOf[GraphFrame].getName.##)
+  private val random: Random = new Random(classOf[GraphFrame].getName.##.toLong)
 
   private def prefixWithName(name: String, col: String): String = name + "." + col
   private def vId(name: String): String = prefixWithName(name, ID)

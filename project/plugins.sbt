@@ -21,3 +21,10 @@ addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.11.1")
 
 // JMH & benchmarking
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.7")
+
+// Laika
+addSbtPlugin("org.typelevel" % "laika-sbt" % "1.3.2")
+addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.7.2")
+
+// Typelevel helper
+addSbtPlugin("org.typelevel" % "sbt-tpolecat" % "0.5.2")
