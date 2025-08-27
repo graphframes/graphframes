@@ -18,10 +18,11 @@ object LaikaCustomConfig {
   val thisVersionShortRegex: Regex = """^([0-9]+\.[0-9]+\.[0-9]+)(.*)$""".r
   val laikaConfig: LaikaConfig = LaikaConfig.defaults.withRawContent
     .withConfigValue(LaikaKeys.site.apiPath, "api/scaladoc")
-    .withConfigValue(LinkConfig.empty.addSourceLinks(
-      SourceLinks(baseUri = "https://github.com/graphframes/graphframes", suffix = "scala")))
-    .withConfigValue(LinkConfig.empty.addSourceLinks(
-      SourceLinks(baseUri = "https://github.com/graphframes/graphframes", suffix = "py")))
+    .withConfigValue(
+      LinkConfig.empty.addSourceLinks(
+        SourceLinks(
+          baseUri = "https://github.com/graphframes/graphframes/tree/master/core/src/main/scala/",
+          suffix = "scala").withPackagePrefix("org.graphframes")))
 
   def heliumTheme: String => ThemeProvider = (v: String) => {
     Helium.defaults.all

@@ -66,3 +66,9 @@ workspace
 
 # JMH (jmh-result.json, jmh-result.csv, etc.)
 jmh-result.*
+
+# Intellij thing
+connect/project
+
+# Auto-generated doc
+/docs/src/02-quick-start/01-installation.md
