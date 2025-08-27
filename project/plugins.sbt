@@ -5,9 +5,9 @@ ThisBuild / libraryDependencySchemes ++= Seq(
   "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 )
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.10")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.3.1")
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.3.1")
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.4")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.5")
 
 // Protobuf things needed for the Spark Connect
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")

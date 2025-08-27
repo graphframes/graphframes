@@ -21,14 +21,14 @@ repos:
 
       - id: scalafmt
         name: scalafmt
-        entry: build/sbt scalafmtAll
+        entry: build/sbt scalafmtCheckAll
         language: system
         types: [scala]
         pass_filenames: false
 
       - id: scalafix
         name: scalafix
-        entry: build/sbt scalafixAll
+        entry: build/sbt "scalafixAll --check"
         language: system
         types: [scala]
         pass_filenames: false

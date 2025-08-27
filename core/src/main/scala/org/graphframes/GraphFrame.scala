@@ -54,7 +54,7 @@ class GraphFrame private (
     extends Logging
     with Serializable {
 
-  import GraphFrame._
+  import GraphFrame.*
 
   /** Default constructor is provided to support serialization */
   protected def this() = this(null, null)
@@ -693,7 +693,7 @@ object GraphFrame extends Serializable with Logging {
    * @tparam T
    *   DataType for join key
    */
-  private[graphframes] def skewedJoin[T: TypeTag](
+  private[graphframes] def skewedJoin[T](
       a: DataFrame,
       b: DataFrame,
       joinCol: String,
@@ -819,7 +819,6 @@ object GraphFrame extends Serializable with Logging {
    *
    * @group conversions
    */
-  // TODO: Add version which takes explicit schemas.
   def fromGraphX[VD: TypeTag, ED: TypeTag](graph: Graph[VD, ED]): GraphFrame = {
     val spark = SparkSession.builder().getOrCreate()
     val vv = spark.createDataFrame(graph.vertices).toDF(ID, ATTR)

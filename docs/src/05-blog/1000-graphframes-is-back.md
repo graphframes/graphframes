@@ -8,27 +8,21 @@
 
 GraphFrames 0.9.2 is out on [PyPi](https://pypi.org/project/graphframes-py/) as [graphframes-py](https://pypi.org/project/graphframes-py/) and as [io.graphframes](https://central.sonatype.com/namespace/io.graphframes) on [Maven Sonatype Central](https://central.sonatype.com/search?q=io.graphframes)! Documentation is now available on [graphframes.io](https://graphframes.io/)… and we even have a new logo!
 
-<center>
-    <figure>
-        <img src="../img/logo-dark.png" width="600px" alt="The new GraphFrames logo" title="The new GraphFrames logo is new for this release :)" style="margin: 15px" />
-        <figcaption>
-            The new GraphFrames logo is new for this release :)
-        </figcaption>
-    </figure>
-</center>
+@:image(/img/logo-dark.png) {
+  intrinsicWidth = 600
+  alt = "The new GraphFrames logo is new for this release :)"
+  title = The new GraphFrames logo
+}
 
 ## GraphFrames is BACK!
 
 You can see below that GraphFrames is back! It has seen contributions every week for most of the year — we have half a dozen active contributors now. This release is due to the efforts of many people but I need to express our deep gratitude to [Sem Sinchenko](https://www.linkedin.com/in/semyon-a-sinchenko/), who drove this release.
 
-<center>
-    <figure>
-        <img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*xJnVeh6LbQ3gNoPVQ4gwmw.png" width="600px" alt="The new GraphFrames logo" title="The new GraphFrames logo is new for this release" style="margin: 15px" />
-        <figcaption>
-            The new GraphFrames logo is new for this release
-        </figcaption>
-    </figure>
-</center>
+@:image(https://miro.medium.com/v2/resize:fit:1100/format:webp/1*xJnVeh6LbQ3gNoPVQ4gwmw.png) {
+  intrinsicWidth = 600
+  alt = "GraphFrames is back! Semyon Sinchenko deserves the appreciation and respect of all GraphFrames users :)The project has gone from dead to lively since GraphX was deprecated from Spark — prompting us to work on a replacement."
+  title = "GraphFrames commits chart"
+}
 
 The project has gone from *effectively dead* to *vibrant* in the six months since [GraphX was deprecated](https://lists.apache.org/thread/qrvo6xrt8zvp5ss73z5spt9q89r0htwo) from Spark, which prompted us to get to work on an all-DataFrame replacement. You can see in the chart below that there is more frequent contributions than since the project’s inception!
 

@@ -7,7 +7,7 @@ lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.5")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val scalaVersions = sparkMajorVer match {
-  case "4" => Seq("2.13.12")
+  case "4" => Seq("2.13.16")
   case "3" => Seq("2.12.18", "2.13.12")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
@@ -168,6 +168,7 @@ lazy val benchmarks = (project in file("benchmarks"))
   .dependsOn(core)
   .settings(
     commonSetting,
+    coverageEnabled := false,
     name := "graphframes-benchmarks",
     publish / skip := true,
     publishArtifact := false,
@@ -191,8 +192,10 @@ lazy val docs = (project in file("docs"))
   .enablePlugins(MdocPlugin)
   .settings(
     commonSetting,
+    coverageEnabled := false,
     name := "docs",
     publish / skip := true,
+    publishArtifact := false,
     mdocVariables := Map("VERSION" -> (version.value match {
       case LaikaCustomConfig.thisVersionShortRegex(v, _) => v
       case v => v

@@ -37,7 +37,7 @@ class Graphs private[graphframes] () {
    */
   def empty[T: TypeTag]: GraphFrame = {
     val _spark = spark
-    import _spark.implicits._
+    import _spark.implicits.*
     val vertices = Seq.empty[Tuple1[T]].toDF(ID)
     val edges = Seq.empty[(T, T)].toDF(SRC, DST)
     GraphFrame(vertices, edges)
