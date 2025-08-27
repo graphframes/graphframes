@@ -1,6 +1,7 @@
-<meta itemprop="datePublished" content="2025-08-26T12:00:00">
-<meta itemprop="summary" content="GraphFrames is back: new contributors, new logo, new documentation, new Spark Connect support, and more!">
-<meta itemprop="authors" content="Russell Jurney">
+<meta itemprop="blogTitle" content="GraphFrames is back!">
+<meta itemprop="blogDatePublished" content="2025-08-26T12:00:00">
+<meta itemprop="blogSummary" content="GraphFrames is back: new contributors, new logo, new documentation, new Spark Connect support, and more!">
+<meta itemprop="blogAuthors" content="Russell Jurney">
 
 # GraphFrames is back!
 
@@ -26,14 +27,11 @@ You can see below that GraphFrames is back! It has seen contributions every week
 
 The project has gone from *effectively dead* to *vibrant* in the six months since [GraphX was deprecated](https://lists.apache.org/thread/qrvo6xrt8zvp5ss73z5spt9q89r0htwo) from Spark, which prompted us to get to work on an all-DataFrame replacement. You can see in the chart below that there is more frequent contributions than since the project’s inception!
 
-<center>
-    <figure>
-        <img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*GYINCDjQN9LIng9ntA27iQ.png" width="600px" alt="Contributions chart of the GraphFrames project" title="After a six year gap in additions, GraphFrames is back with Spark Connect support!" style="margin: 15px" />
-        <figcaption>
-            After a six year gap in additions, GraphFrames is back with Spark Connect support!
-        </figcaption>
-    </figure>
-</center>
+@:image(https://miro.medium.com/v2/resize:fit:1100/format:webp/1*GYINCDjQN9LIng9ntA27iQ.png) {
+  intrinsicWidth = 600
+  alt = "Contributions chart of the GraphFrames project"
+  title = "After a six year gap in additions, GraphFrames is back with Spark Connect support!"
+}
 
 ## New Features in GraphFrames 0.9.2
 

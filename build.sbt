@@ -65,7 +65,7 @@ ThisBuild / crossScalaVersions := scalaVersions
 
 // Scalafix configuration
 ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := "4.8.10" // The maximal version that supports both 2.13.8 and 2.12.18
+ThisBuild / semanticdbVersion := "4.12.3" // The maximal version that supports both 2.13.12 and 2.12.18
 
 // Don't publish the root project
 publishArtifact := false
