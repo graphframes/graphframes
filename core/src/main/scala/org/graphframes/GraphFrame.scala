@@ -36,6 +36,7 @@ import org.graphframes.lib._
 import org.graphframes.pattern._
 
 import java.util.Random
+import scala.annotation.nowarn
 import scala.reflect.runtime.universe.TypeTag
 
 /**
@@ -98,8 +99,8 @@ class GraphFrame private (
    *   `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc..
    */
   def persist(newLevel: StorageLevel): this.type = {
-    val _ = vertices.persist(newLevel)
-    val _ = edges.persist(newLevel)
+    vertices.persist(newLevel): @nowarn
+    edges.persist(newLevel): @nowarn
     this
   }
 
@@ -108,8 +109,8 @@ class GraphFrame private (
    * remove all blocks for it from memory and disk.
    */
   def unpersist(): this.type = {
-    val _ = vertices.unpersist()
-    val _ = edges.unpersist()
+    vertices.unpersist(): @nowarn
+    edges.unpersist(): @nowarn
     this
   }
 
@@ -120,8 +121,8 @@ class GraphFrame private (
    *   Whether to block until all blocks are deleted.
    */
   def unpersist(blocking: Boolean): this.type = {
-    val _ = vertices.unpersist(blocking)
-    val _ = edges.unpersist(blocking)
+    vertices.unpersist(blocking): @nowarn
+    edges.unpersist(blocking): @nowarn
     this
   }
 
