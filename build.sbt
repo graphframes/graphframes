@@ -8,7 +8,7 @@ lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val scalaVersions = sparkMajorVer match {
   case "4" => Seq("2.13.16")
-  case "3" => Seq("2.13.16", "2.12.18")
+  case "3" => Seq("2.12.18", "2.13.16")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions.head)

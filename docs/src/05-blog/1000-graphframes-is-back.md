@@ -67,4 +67,18 @@ Spark deprecating GraphX was the call to action that led us to revive GraphFrame
 
 ## The Sedona Alliance!
 
-Developers from [Apache Sedona](https://sedona.apache.org/latest/) joined the development of GraphFrames 0.9. Sedona 1.80 [will depend on](https://github.com/apache/sedona/pull/2098) the new version. They’ve been a huge help! James Willis, Adam Binford and the Apache Sedona team gave us new configurations, helped us fix our CI to enable the 0.9 release and drove Spark 4 support. James Willis became an official maintainer of GraphFrames to coordinate efforts between these projects.
+Developers from [Apache Sedona](https://sedona.apache.org/latest/) joined the development of GraphFrames 0.9. Sedona 1.80 [will depend on](https://github.com/apache/sedona/pull/2098) the new version. They’ve been a huge help! [James Willis](https://www.linkedin.com/in/james-willis/), [Adam Binford](https://www.linkedin.com/in/adam-binford-a10b0321/) and the Apache Sedona team gave us new configurations, helped us fix our CI to enable the 0.9 release and drove Spark 4 support. James Willis became an official maintainer of GraphFrames to coordinate efforts between these projects.
+
+## New Contributors
+
+We have a lot of new contributors for this release!
+
+- [@bjornjorgensen](github.com/bjornjorgensen) made their first contribution in [#471](https://github.com/graphframes/graphframes/pull/471)
+- [@Nassizouz](github.com/Nassizouz) made their first contribution in [#474](https://github.com/graphframes/graphframes/pull/474)
+- [@SauronShepherd](github.com/SauronShepherd) made their first contribution in [#495](https://github.com/graphframes/graphframes/pull/495)
+- [@SemyonSinchenko](github.com/SemyonSinchenko) made their first contribution in [#487](https://github.com/graphframes/graphframes/pull/487)
+- [@dmatrix](github.com/dmatrix) made their first contribution in [#535](https://github.com/graphframes/graphframes/pull/535)
+- [@architch](github.com/architch) made their first contribution in [#320](https://github.com/graphframes/graphframes/pull/320)
+- [@james-willis](github.com/james-willis) made their first contribution in [#563](https://github.com/graphframes/graphframes/pull/563)
+- [@Conor0Callaghan](github.com/@Conor0Callaghan) made their first contribution in [#592](https://github.com/graphframes/graphframes/pull/592) 
+- [@Kimahriman](@Kimahriman) made their first contribution in [#608](https://github.com/graphframes/graphframes/pull/608)
