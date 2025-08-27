@@ -81,7 +81,7 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     val prInvalid = pr.vertices
       .select("pageranks")
       .collect()
-      .filter { row: Row =>
+      .filter { (row: Row) =>
         vertexIds.size != row.getAs[SparseVector](0).size
       }
     assert(

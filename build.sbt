@@ -8,7 +8,7 @@ lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val scalaVersions = sparkMajorVer match {
   case "4" => Seq("2.13.16")
-  case "3" => Seq("2.12.18", "2.13.12")
+  case "3" => Seq("2.13.16", "2.12.18")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions.head)
@@ -113,7 +113,12 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnUnusedPrivates,
     ScalacOptions.warnUnusedNoWarn,
     ScalacOptions.source3,
-    ScalacOptions.fatalWarnings))
+    ScalacOptions.fatalWarnings),
+
+  Test / tpolecatExcludeOptions ++= Set(
+    ScalacOptions.warnNonUnitStatement
+  )
+)
 
 lazy val core = (project in file("core"))
   .settings(

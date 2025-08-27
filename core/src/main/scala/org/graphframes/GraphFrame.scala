@@ -85,8 +85,8 @@ class GraphFrame private (
    * storage level.
    */
   def persist(): this.type = {
-    vertices.persist()
-    edges.persist()
+    val _ = vertices.persist()
+    val _ = edges.persist()
     this
   }
 
@@ -98,8 +98,8 @@ class GraphFrame private (
    *   `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc..
    */
   def persist(newLevel: StorageLevel): this.type = {
-    vertices.persist(newLevel)
-    edges.persist(newLevel)
+    val _ = vertices.persist(newLevel)
+    val _ = edges.persist(newLevel)
     this
   }
 
@@ -108,8 +108,8 @@ class GraphFrame private (
    * remove all blocks for it from memory and disk.
    */
   def unpersist(): this.type = {
-    vertices.unpersist()
-    edges.unpersist()
+    val _ = vertices.unpersist()
+    val _ = edges.unpersist()
     this
   }
 
@@ -120,8 +120,8 @@ class GraphFrame private (
    *   Whether to block until all blocks are deleted.
    */
   def unpersist(blocking: Boolean): this.type = {
-    vertices.unpersist(blocking)
-    edges.unpersist(blocking)
+    val _ = vertices.unpersist(blocking)
+    val _ = edges.unpersist(blocking)
     this
   }
 

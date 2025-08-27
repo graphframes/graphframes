@@ -367,6 +367,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         idSet
       }
       .toSet
-    Predef.assert(actualComponents === expected)
+    assert(actualComponents === expected)
   }
 }

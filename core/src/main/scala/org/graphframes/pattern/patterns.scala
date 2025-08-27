@@ -27,7 +27,7 @@ import scala.util.parsing.combinator._
  * Parser for graph patterns for motif finding. Copied from GraphFrames with minor modification.
  */
 private[graphframes] object PatternParser extends RegexParsers {
-  private val vertexName: Parser[Vertex] = "[a-zA-Z0-9_]+".r ^^ { NamedVertex }
+  private val vertexName: Parser[Vertex] = "[a-zA-Z0-9_]+".r ^^ { NamedVertex.apply }
   private val anonymousVertex: Parser[Vertex] = "" ^^ { _ => AnonymousVertex }
   private val vertex: Parser[Vertex] = "(" ~> (vertexName | anonymousVertex) <~ ")"
   private val namedEdge: Parser[Edge] =
