@@ -63,4 +63,8 @@ This is actively debated: it would be a lot of trouble to release with Spark, bu
 
 ## GraphX is Deprecated
 
-Spark deprecating GraphX was the call to action that led us to revive GraphFrames, and we heard it well. We’re building DataFrame implementations of all GraphX components. GraphX has already been removed from ShortestPaths and from LabelPropagation. The rest of the work is being tracked here and is underway. GraphX will be deprecated from GraphFrames as of 1.0. GraphFrames 2.0 will remove GraphX completely. Soon GraphFrames will be entirely built on DataFrames!
+Spark deprecating GraphX was the call to action that led us to revive GraphFrames, and we heard it well. We’re building DataFrame implementations of all GraphX components. GraphX has already been removed [from ShortestPaths](https://github.com/graphframes/graphframes/pull/587) and [from LabelPropagation](https://graphframes.io/api/python/graphframes.html#graphframes.GraphFrame.labelPropagation). The rest of the work is being tracked [here](https://github.com/graphframes/graphframes/issues/556) and is underway. **GraphX will be deprecated from GraphFrames** as of 1.0. GraphFrames 2.0 will remove GraphX completely. Soon GraphFrames will be entirely built on DataFrames!
+
+## The Sedona Alliance!
+
+Developers from [Apache Sedona](https://sedona.apache.org/latest/) joined the development of GraphFrames 0.9. Sedona 1.80 [will depend on](https://github.com/apache/sedona/pull/2098) the new version. They’ve been a huge help! James Willis, Adam Binford and the Apache Sedona team gave us new configurations, helped us fix our CI to enable the 0.9 release and drove Spark 4 support. James Willis became an official maintainer of GraphFrames to coordinate efforts between these projects.

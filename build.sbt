@@ -115,7 +115,11 @@ lazy val commonSetting = Seq(
     ScalacOptions.fatalWarnings),
 
   tpolecatExcludeOptions ++= Set(
-    ScalacOptions.warnNonUnitStatement
+    ScalacOptions.warnNonUnitStatement,
+  ),
+
+  Test / tpolecatExcludeOptions ++= Set(
+    ScalacOptions.warnValueDiscard,
   )
 )
 

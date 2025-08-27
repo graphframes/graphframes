@@ -75,15 +75,15 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         assert(localEdges((src, dst)) === action)
       case _: Row => throw new GraphFramesUnreachableException()
     }
-    val _ = intercept[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       val badVertices = vertices.select(col("id").as("uid"), col("name"))
       GraphFrame(badVertices, edges)
     }
-    val _ = intercept[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       val badEdges = edges.select(col("src").as("srcId"), col("dst"), col("action"))
       GraphFrame(vertices, badEdges)
     }
-    val _ = intercept[IllegalArgumentException] {
+    intercept[IllegalArgumentException] {
       val badEdges = edges.select(col("src"), col("dst").as("dstId"), col("action"))
       GraphFrame(vertices, badEdges)
     }
