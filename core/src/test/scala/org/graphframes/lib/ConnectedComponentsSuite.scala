@@ -368,5 +368,6 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       }
       .toSet
     assert(actualComponents === expected)
+    ()
   }
 }
