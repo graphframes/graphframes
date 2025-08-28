@@ -113,15 +113,8 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnUnusedNoWarn,
     ScalacOptions.source3,
     ScalacOptions.fatalWarnings),
-
-  tpolecatExcludeOptions ++= Set(
-    ScalacOptions.warnNonUnitStatement,
-  ),
-
-  Test / tpolecatExcludeOptions ++= Set(
-    ScalacOptions.warnValueDiscard,
-  )
-)
+  tpolecatExcludeOptions ++= Set(ScalacOptions.warnNonUnitStatement),
+  Test / tpolecatExcludeOptions ++= Set(ScalacOptions.warnValueDiscard))
 
 lazy val core = (project in file("core"))
   .settings(
@@ -192,7 +185,6 @@ lazy val benchmarks = (project in file("benchmarks"))
 // Laika things
 lazy val buildAndCopyScalaDoc = taskKey[Unit]("Build and copy ScalaDoc to docs/api")
 lazy val buildAndCopyPythonDoc = taskKey[Unit]("Build and copy PythonDoc to docs/api")
-lazy val copyAndModifyBenchmarkResults = taskKey[Unit]("Copy and modify benchmark results")
 
 lazy val docs = (project in file("docs"))
   .dependsOn(core)
@@ -205,19 +197,20 @@ lazy val docs = (project in file("docs"))
     publish / skip := true,
     publishArtifact := false,
     mdocVariables := Map("VERSION" -> (version.value match {
-      case LaikaCustomConfig.thisVersionShortRegex(v, _) => v
+      case LaikaCustoms.thisVersionShortRegex(v, _) => v
       case v => v
     })),
     mdocIn := baseDirectory.value / "mdoc",
     mdocOut := baseDirectory.value / "src" / "02-quick-start",
     mdocExtraArguments := Seq("--no-link-hygiene"),
-    buildAndCopyPythonDoc := LaikaCustomConfig.copyAll(
+    buildAndCopyPythonDoc := LaikaCustoms.copyAll(
       baseDirectory.value.toPath.resolve("src/api/python"),
       baseDirectory.value.toPath.getParent.resolve("python/docs/_build/html")),
-    buildAndCopyScalaDoc := LaikaCustomConfig.copyAll(
+    buildAndCopyScalaDoc := LaikaCustoms.copyAll(
       baseDirectory.value.toPath.resolve("src/api/scaladoc"),
       (core / Compile / doc).value.toPath),
-    laikaConfig := LaikaCustomConfig.laikaConfig
+    laikaConfig := LaikaCustoms
+      .laikaConfig((benchmarks / baseDirectory).value.toPath.resolve("jmh-result.json"))
       .withConfigValue(LaikaKeys.siteBaseURL, siteBaseUri)
       .withConfigValue("pydoc.baseUri", s"$siteBaseUri/api/python")
       .withConfigValue("scaladoc.baseUri", s"$siteBaseUri/api/scaladoc"),
@@ -226,5 +219,5 @@ lazy val docs = (project in file("docs"))
       "") dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
     laikaPreview := (laikaPreview dependsOn mdoc.toTask(
       "") dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
-    laikaTheme := LaikaCustomConfig.heliumTheme(version.value),
+    laikaTheme := LaikaCustoms.heliumTheme(version.value),
     Laika / sourceDirectories := Seq((ThisBuild / baseDirectory).value / "docs" / "src"))

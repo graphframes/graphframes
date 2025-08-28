@@ -1,19 +1,14 @@
 package org.graphframes.benchmarks
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.examples.LDBCUtils
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.BenchmarkMode
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
-import org.openjdk.jmh.annotations.Mode
-import org.openjdk.jmh.annotations.OutputTimeUnit
-import org.openjdk.jmh.annotations.Warmup
+import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
 import java.io.File
@@ -22,63 +17,75 @@ import java.nio.file.Path
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
+@State(Scope.Benchmark)
+@Warmup(iterations = 5)
+@Measurement(iterations = 15)
+@BenchmarkMode(Array(Mode.AverageTime))
+@OutputTimeUnit(TimeUnit.SECONDS)
+@Fork(
+  value = 1,
+  jvmArgs = Array(
+    "-Xmx10g",
+    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.nio=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED"))
 class LDBCBenchmarkSuite {
-  private def spark: SparkSession = {
-    SparkSession.getActiveSession match {
-      case Some(session) => session
-      case None =>
-        val spark = SparkSession
-          .builder()
-          .master("local[*]")
-          .appName("GraphFramesBenchmarks")
-          .config("spark.sql.shuffle.partitions", s"${Runtime.getRuntime.availableProcessors()}")
-          .config("spark.driver.memory", "8g")
-          .config("spark.executor.memory", "8g")
-          .getOrCreate()
+  val benchmarkGraphName: String = LDBCUtils.GRAPH500_24
+  var graph: GraphFrame = _
 
-        spark.sparkContext.setLogLevel("ERROR")
-        spark
-    }
-  }
+  @Setup(Level.Trial)
+  def setup(): Unit = {
+    println()
+    println(s"Spark Defaults Location: ${System.getenv("SPARK_CONF_DIR")}")
+    val sparkConf = new SparkConf()
+      .setMaster("local[*]")
+      .setAppName("GraphFramesBenchmarks")
+      .set("spark.sql.shuffle.partitions", s"${Runtime.getRuntime.availableProcessors()}")
 
-  private def resourcesPath = Path.of(new File("target").toURI())
-  private def unreachableID = 9223372036854775807L
+    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
+    val context = spark.sparkContext
+    context.setLogLevel("ERROR")
 
-  @Benchmark
-  @Fork(value = 1)
-  @Warmup(iterations = 1)
-  @Measurement(iterations = 2)
-  @BenchmarkMode(Array(Mode.AverageTime))
-  @OutputTimeUnit(TimeUnit.SECONDS)
-  def benchmarkSP(blackhole: Blackhole): Unit = {
-    LDBCUtils.downloadLDBCIfNotExists(resourcesPath, LDBCUtils.GRAPH500_22)
-    val caseRoot = resourcesPath.resolve(LDBCUtils.GRAPH500_22)
-
-    val expectedResults = spark.read
-      .format("csv")
-      .option("header", "false")
-      .schema(StructType(Seq(StructField("id", LongType), StructField("distance", LongType))))
-      .csv(caseRoot.resolve(s"${LDBCUtils.GRAPH500_22}-BFS").toString)
-
-    val props = new Properties()
-    val stream = Files.newInputStream(caseRoot.resolve(s"${LDBCUtils.GRAPH500_22}.properties"))
-    props.load(stream)
-    stream.close()
-
-    val sourceVertex =
-      props.getProperty(s"graph.${LDBCUtils.GRAPH500_22}.bfs.source-vertex").toLong
+    LDBCUtils.downloadLDBCIfNotExists(resourcesPath, benchmarkGraphName)
 
     val edges = spark.read
       .format("csv")
       .option("header", "false")
       .schema(StructType(Seq(StructField("src", LongType), StructField("dst", LongType))))
-      .load(caseRoot.resolve(s"${LDBCUtils.GRAPH500_22}.e").toString)
+      .load(caseRoot.resolve(s"${benchmarkGraphName}.e").toString)
+      .persist(StorageLevel.MEMORY_AND_DISK_SER)
+    println()
+    println(s"Read edges: ${edges.count()}")
+
     val vertices = spark.read
       .format("csv")
       .option("header", "false")
       .schema(StructType(Seq(StructField("id", LongType))))
-      .load(caseRoot.resolve(s"${LDBCUtils.GRAPH500_22}.v").toString)
-    val graph = GraphFrame(vertices, edges)
+      .load(caseRoot.resolve(s"${benchmarkGraphName}.v").toString)
+      .persist(StorageLevel.MEMORY_AND_DISK_SER)
+    println(s"Read vertices: ${vertices.count()}")
+
+    graph = GraphFrame(vertices, edges)
+  }
+
+  private def caseRoot: Path = resourcesPath.resolve(benchmarkGraphName)
+
+  val props: Properties = {
+    val props = new Properties()
+    val stream = Files.newInputStream(caseRoot.resolve(s"${benchmarkGraphName}.properties"))
+    props.load(stream)
+    stream.close()
+    props
+  }
+
+  private def resourcesPath = Path.of(new File("target").toURI)
+
+  @Benchmark
+  def benchmarkSP(blackhole: Blackhole): Unit = {
+    val sourceVertex =
+      props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
 
     val spResults = graph.shortestPaths
       .setUseLocalCheckpoints(true)
@@ -86,53 +93,16 @@ class LDBCBenchmarkSuite {
       .setCheckpointInterval(1)
       .setAlgorithm("graphframes")
       .run()
-      .select(
-        col(GraphFrame.ID),
-        col("distances").getItem(sourceVertex).cast(LongType).alias("got_distance"))
-      .na
-      .fill(Map("got_distance" -> unreachableID))
 
-    val cntOfMismatches = spResults
-      .join(expectedResults, Seq("id"))
-      .filter(col("got_distance") =!= col("distance"))
-      .count()
-    blackhole.consume(assert(cntOfMismatches == 0))
+    val res: Unit = spResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
   }
 
   @Benchmark
-  @Fork(value = 1)
-  @Warmup(iterations = 1)
-  @Measurement(iterations = 2)
-  @BenchmarkMode(Array(Mode.AverageTime))
-  @OutputTimeUnit(TimeUnit.SECONDS)
   def benchmarkCC(blackhole: Blackhole): Unit = {
-    LDBCUtils.downloadLDBCIfNotExists(resourcesPath, LDBCUtils.GRAPH500_22)
-    val caseRoot = resourcesPath.resolve(LDBCUtils.GRAPH500_22)
-
-    val expectedResults = spark.read
-      .format("csv")
-      .option("header", "false")
-      .schema(StructType(Seq(StructField("id", LongType), StructField("wcomp", LongType))))
-      .csv(caseRoot.resolve(s"${LDBCUtils.GRAPH500_22}-WCC").toString)
-
-    val edges = spark.read
-      .format("csv")
-      .option("header", "false")
-      .schema(StructType(Seq(StructField("src", LongType), StructField("dst", LongType))))
-      .load(caseRoot.resolve(s"${LDBCUtils.GRAPH500_22}.e").toString)
-    val vertices = spark.read
-      .format("csv")
-      .option("header", "false")
-      .schema(StructType(Seq(StructField("id", LongType))))
-      .load(caseRoot.resolve(s"${LDBCUtils.GRAPH500_22}.v").toString)
-    val graph = GraphFrame(vertices, edges)
-
     val ccResults =
       graph.connectedComponents.setUseLocalCheckpoints(true).setAlgorithm("graphframes").run()
-    val cntOfMismatches = ccResults
-      .join(expectedResults, Seq("id"))
-      .filter(col("wcomp") =!= col("component"))
-      .count()
-    blackhole.consume(assert(cntOfMismatches == 0))
+    val res: Unit = ccResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
   }
 }

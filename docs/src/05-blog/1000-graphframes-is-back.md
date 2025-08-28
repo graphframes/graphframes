@@ -73,15 +73,15 @@ Developers from [Apache Sedona](https://sedona.apache.org/latest/) joined the de
 
 We have a lot of new contributors for this release!
 
-- [@bjornjorgensen](github.com/bjornjorgensen) made their first contribution in [#471](https://github.com/graphframes/graphframes/pull/471)
-- [@Nassizouz](github.com/Nassizouz) made their first contribution in [#474](https://github.com/graphframes/graphframes/pull/474)
-- [@SauronShepherd](github.com/SauronShepherd) made their first contribution in [#495](https://github.com/graphframes/graphframes/pull/495)
-- [@SemyonSinchenko](github.com/SemyonSinchenko) made their first contribution in [#487](https://github.com/graphframes/graphframes/pull/487)
-- [@dmatrix](github.com/dmatrix) made their first contribution in [#535](https://github.com/graphframes/graphframes/pull/535)
-- [@architch](github.com/architch) made their first contribution in [#320](https://github.com/graphframes/graphframes/pull/320)
-- [@james-willis](github.com/james-willis) made their first contribution in [#563](https://github.com/graphframes/graphframes/pull/563)
-- [@Conor0Callaghan](github.com/@Conor0Callaghan) made their first contribution in [#592](https://github.com/graphframes/graphframes/pull/592) 
-- [@Kimahriman](@Kimahriman) made their first contribution in [#608](https://github.com/graphframes/graphframes/pull/608)
+- [@bjornjorgensen](https://github.com/bjornjorgensen) made their first contribution in [#471](https://github.com/graphframes/graphframes/pull/471)
+- [@Nassizouz](https://github.com/Nassizouz) made their first contribution in [#474](https://github.com/graphframes/graphframes/pull/474)
+- [@SauronShepherd](https://github.com/SauronShepherd) made their first contribution in [#495](https://github.com/graphframes/graphframes/pull/495)
+- [@SemyonSinchenko](https://github.com/SemyonSinchenko) made their first contribution in [#487](https://github.com/graphframes/graphframes/pull/487)
+- [@dmatrix](https://github.com/dmatrix) made their first contribution in [#535](https://github.com/graphframes/graphframes/pull/535)
+- [@architch](https://github.com/architch) made their first contribution in [#320](https://github.com/graphframes/graphframes/pull/320)
+- [@james-willis](https://github.com/james-willis) made their first contribution in [#563](https://github.com/graphframes/graphframes/pull/563)
+- [@Conor0Callaghan](https://github.com/@Conor0Callaghan) made their first contribution in [#592](https://github.com/graphframes/graphframes/pull/592) 
+- [@Kimahriman](https://github.com/Kimahriman) made their first contribution in [#608](https://github.com/graphframes/graphframes/pull/608)
 
 ## A Call for Help
 

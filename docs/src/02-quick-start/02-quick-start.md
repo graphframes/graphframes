@@ -1,4 +1,4 @@
-# Quick-Start Guide
+# Quick-Start
 
 This quick-start guide shows how to get started using GraphFrames. After you work through this guide, move on to the [User Guide](/04-user-guide/01-creating-graphframes.md) to learn more about the many queries and algorithms supported by GraphFrames.
 
@@ -67,3 +67,21 @@ g.edges.filter("relationship = 'follow'").count()
 results = g.pageRank(resetProbability=0.01, maxIter=20)
 results.vertices.select("id", "pagerank").show()
 ```
+
+## Graph Algorithms
+
+GraphFrames provides the same suite of standard graph algorithms as GraphX, plus some new ones. We provide the brief descriptions and code snippets below.
+
+Some algorithms are currently wrappers around GraphX implementations, so they may not be more scalable than GraphX. More algorithms will be migrated to native GraphFrames implementations in the future.
+
+| Algorithm                      | GraphX Wrapper | GraphFrames Implementation |
+|--------------------------------|----------------|----------------------------|
+| BFS                            | Yes            | Yes                        |
+| Connected Components           | Yes            | Yes                        |
+| Strongly Connected Components  | Yes            | No                         |
+| Label Propagation Algorithm    | Yes            | Yes                        |
+| PageRank                       | Yes            | No                         |
+| Parallel Personalized PageRank | Yes            | No                         |
+| Shortest Paths                 | Yes            | Yes                        |
+| Triangle Count                 | Yes            | Yes                        |
+| SVD++                          | Yes            | No                         |

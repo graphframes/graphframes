@@ -1,3 +1,5 @@
+import io.circe.Json
+import io.circe.parser.parse
 import laika.ast.*
 import laika.ast.Path.Root
 import laika.config.LaikaKeys
@@ -11,18 +13,80 @@ import laika.theme.ThemeProvider
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import scala.util.Try
+import scala.util.Using
 import scala.util.matching.Regex
 
-object LaikaCustomConfig {
-  val gfDescription: String = "Scalable Graph Processing on top of Apache Spark"
+object LaikaCustoms {
+  private val gfDescription: String = "Scalable Graph Processing on top of Apache Spark"
   val thisVersionShortRegex: Regex = """^([0-9]+\.[0-9]+\.[0-9]+)(.*)$""".r
-  val laikaConfig: LaikaConfig = LaikaConfig.defaults.withRawContent
-    .withConfigValue(LaikaKeys.site.apiPath, "api/scaladoc")
-    .withConfigValue(
-      LinkConfig.empty.addSourceLinks(
-        SourceLinks(
+
+  def laikaConfig(benchmarksFile: Path): LaikaConfig = {
+    val baseConfig = LaikaConfig.defaults.withRawContent
+      .withConfigValue(LaikaKeys.site.apiPath, "api/scaladoc")
+      .withConfigValue(
+        LinkConfig.empty.addSourceLinks(SourceLinks(
           baseUri = "https://github.com/graphframes/graphframes/tree/master/core/src/main/scala/",
           suffix = "scala").withPackagePrefix("org.graphframes")))
+
+    Using(scala.io.Source.fromFile(benchmarksFile.toFile)) { source =>
+      {
+        parse(source.mkString)
+          .getOrElse(Json.Null)
+          .asArray
+          .map(array =>
+            array.foldLeft(baseConfig) { (config, bench) =>
+              {
+                val name =
+                  bench.hcursor.downField("benchmark").as[String].getOrElse("").split("\\.").last
+                val measurements =
+                  bench.hcursor.downField("measurementIterations").as[Int].getOrElse(-1)
+                val metric = bench.hcursor
+                  .downField("primaryMetric")
+                  .downField("score")
+                  .as[Double]
+                  .getOrElse(0.0)
+                val stdErr = bench.hcursor
+                  .downField("primaryMetric")
+                  .downField("scoreError")
+                  .as[Double]
+                  .getOrElse(0.0)
+                val quantiles = bench.hcursor
+                  .downField("primaryMetric")
+                  .downField("scorePercentiles")
+                  .as[Map[String, Double]]
+                  .getOrElse(Map.empty)
+
+                val confidence = bench.hcursor
+                  .downField("primaryMetric")
+                  .downField("scoreConfidence")
+                  .as[Array[Double]]
+                  .getOrElse(Array.empty)
+
+                quantiles.foldLeft(
+                  config
+                    .withConfigValue(s"benchmarks.$name.metric", f"$metric%.4f")
+                    .withConfigValue(s"benchmarks.$name.measurements", measurements)
+                    .withConfigValue(
+                      s"benchmarks.$name.ciLeft",
+                      f"${Try(confidence(0)).getOrElse(0.0)}%.4f")
+                    .withConfigValue(
+                      s"benchmarks.$name.ciRight",
+                      f"${Try(confidence(1)).getOrElse(0.0)}%.4f")
+                    .withConfigValue(s"benchmarks.$name.stdErr", f"$stdErr%.4f")) {
+                  (conf, quantile) =>
+                    {
+                      conf
+                        .withConfigValue(
+                          s"benchmarks.$name.quantiles.${quantile._1}",
+                          f"${quantile._2}.4f")
+                    }
+                }
+              }
+            })
+      }
+    }.toOption.flatten.getOrElse(baseConfig)
+  }
 
   def heliumTheme: String => ThemeProvider = (v: String) => {
     Helium.defaults.all
@@ -61,6 +125,7 @@ object LaikaCustomConfig {
             TextLink
               .internal(Root / "04-user-guide" / "01-creating-graphframes.md", "User Guide"),
             TextLink.internal(Root / "05-blog" / "01-index.md", "Blog"),
+            TextLink.internal(Root / "06-contributing" / "01-contributing-guide.md", "Contributing"),
             TextLink.internal(Root / "api" / "scaladoc" / "index.html", "API (Scaladoc)"),
             TextLink.internal(Root / "api" / "python" / "index.html", "API (Python)"))),
         projectLinks = Seq(

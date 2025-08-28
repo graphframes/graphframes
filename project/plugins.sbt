@@ -28,3 +28,12 @@ addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.7.2")
 
 // Typelevel helper
 addSbtPlugin("org.typelevel" % "sbt-tpolecat" % "0.5.2")
+
+// JSONs processing for benchmarks
+val circeVersion = "0.13.0"
+
+libraryDependencies ++= Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
