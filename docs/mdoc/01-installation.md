@@ -54,7 +54,8 @@ For Spark 4.x:
 
 ```shell
 ./sbin/start-connect-server.sh \
-  --conf spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect \
+  --conf spark.connect.extensions.relation.classes=\
+  org.apache.spark.sql.graphframes.GraphFramesConnect \
   --packages io.graphframes.graphframes-connect-spark4_2.13:@VERSION@
 ```
 
@@ -62,7 +63,8 @@ For Spark 3.x:
 
 ```shell
 ./sbin/start-connect-server.sh \
-  --conf spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect \
+  --conf spark.connect.extensions.relation.classes=\
+  org.apache.spark.sql.graphframes.GraphFramesConnect \
   --packages io.graphframes.graphframes-connect-spark3_2.12:@VERSION@
 ```
 
@@ -75,6 +77,36 @@ For Spark 3.x:
 ### Spark Connect Clients
 
 At the moment GraphFrames has only PySpark client bundled with the package: `pip install graphframes-py==@VERSION@`. In Runtime GraphFrames PySpark client will automatically handle the connection to the GraphFrames Connect Server Extension in case it is Spark Connect environment.
+
+### Messages
+
+At the moment, the following APIs are exposed:
+
+```protobuf
+message GraphFramesAPI {
+  bytes vertices = 1;
+  bytes edges = 2;
+  oneof method {
+    AggregateMessages aggregate_messages = 3;
+    BFS bfs = 4;
+    ConnectedComponents connected_components = 5;
+    DropIsolatedVertices drop_isolated_vertices = 6;
+    FilterEdges filter_edges = 7;
+    FilterVertices filter_vertices = 8;
+    Find find = 9;
+    LabelPropagation label_propagation = 10;
+    PageRank page_rank = 11;
+    ParallelPersonalizedPageRank parallel_personalized_page_rank = 12;
+    PowerIterationClustering power_iteration_clustering = 13;
+    Pregel pregel = 14;
+    ShortestPaths shortest_paths = 15;
+    StronglyConnectedComponents strongly_connected_components = 16;
+    SVDPlusPlus svd_plus_plus = 17;
+    TriangleCount triangle_count = 18;
+    Triplets triplets = 19;
+  }
+}
+```
 
 ## Building GraphFrames from Source
 

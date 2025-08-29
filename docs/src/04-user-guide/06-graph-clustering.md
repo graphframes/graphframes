@@ -2,17 +2,13 @@
 
 ## Label Propagation (LPA)
 
-Run a static Label Propagation Algorithm for detecting communities in networks.
-
-Each node in the network is initially assigned to its own community. At every superstep, nodes send their community affiliation to all neighbors and update their state to the mode community affiliation of incoming messages.
-
-LPA is a standard community detection algorithm for graphs. It is very inexpensive computationally, although (1) convergence is not guaranteed and (2) one can end up with trivial solutions (all nodes are identified into a single community).
+Run a static Label Propagation Algorithm for detecting communities in networks. Each node in the network is initially assigned to its own community. At every superstep, nodes send their community affiliation to all neighbors and update their state to the mode community affiliation of incoming messages. LPA is a standard community detection algorithm for graphs. It is very inexpensive computationally, although (1) convergence is not guaranteed and (2) one can end up with trivial solutions (all nodes are identified into a single community).
 
 See [Wikipedia](https://en.wikipedia.org/wiki/Label_Propagation_Algorithm) for the background.
 
 ### Scala API
 
-For API details, refer to the @:scaladoc(org.graphframes.lib.LabelPropagation).
+For API details, refer to the @:scaladoc(org.grapimport org.graphframes.lib.LabelPropagation).
 
 ```scala
 import org.graphframes.{examples,GraphFrame}
@@ -34,4 +30,23 @@ g = Graphs(spark).friends()  # Get example graph
 
 result = g.labelPropagation(maxIter=5)
 result.select("id", "label").show()
+```
+
+## Power Iteration Clustering (PIC)
+
+GraphFrames provides a wrapper for the [Power Iteration Clustering](https://www.cs.cmu.edu/~frank/papers/icml2010-pic-final.pdf) algorithm from the SparkML library.
+
+### Scala API
+
+```scala
+val gf = GraphFrame(vertices, edges)
+val clusters = gf
+  .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
+```
+
+### Python API
+
+```python
+g = GraphFrame(vertices, edges)
+g.powerIterationClustering(k=2, maxIter=40, weightCol="weight")
 ```

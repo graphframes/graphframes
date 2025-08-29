@@ -24,11 +24,16 @@ object LaikaCustoms {
   def laikaConfig(benchmarksFile: Path): LaikaConfig = {
     val baseConfig = LaikaConfig.defaults.withRawContent
       .withConfigValue(LaikaKeys.site.apiPath, "api/scaladoc")
+      .withConfigValue("github.baseUri", "https://github.com/graphframes/graphframes")
       .withConfigValue(
         LinkConfig.empty.addSourceLinks(SourceLinks(
           baseUri = "https://github.com/graphframes/graphframes/tree/master/core/src/main/scala/",
           suffix = "scala").withPackagePrefix("org.graphframes")))
 
+    if (!Files.exists(benchmarksFile)) {
+      println(s"File $benchmarksFile does not exist. Skipping.")
+      return baseConfig
+    }
     Using(scala.io.Source.fromFile(benchmarksFile.toFile)) { source =>
       {
         parse(source.mkString)
@@ -125,7 +130,8 @@ object LaikaCustoms {
             TextLink
               .internal(Root / "04-user-guide" / "01-creating-graphframes.md", "User Guide"),
             TextLink.internal(Root / "05-blog" / "01-index.md", "Blog"),
-            TextLink.internal(Root / "06-contributing" / "01-contributing-guide.md", "Contributing"),
+            TextLink
+              .internal(Root / "06-contributing" / "01-contributing-guide.md", "Contributing"),
             TextLink.internal(Root / "api" / "scaladoc" / "index.html", "API (Scaladoc)"),
             TextLink.internal(Root / "api" / "python" / "index.html", "API (Python)"))),
         projectLinks = Seq(
@@ -153,6 +159,10 @@ object LaikaCustoms {
   }
 
   def copyAll(targetDir: Path, sourceDir: Path): Unit = {
+    if (!Files.exists(sourceDir)) {
+      println(s"Directory $sourceDir does not exist. Skipping.")
+      return
+    }
     val directoryConf = targetDir.resolve("directory.conf")
 
     if (Files.exists(targetDir)) {

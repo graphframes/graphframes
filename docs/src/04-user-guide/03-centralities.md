@@ -2,6 +2,24 @@
 
 ## Degrees
 
+GraphFrames provides three main APIs for computing degrees:
+
+- `inDegrees`
+- `outDegrees`
+- `degrees`
+
+### Scala API
+
+```scala
+import org.graphframes.{examples,GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends
+
+val inDegrees: DataFrame = g.inDegrees
+val outDegrees: DataFrame = g.outDegrees
+val degrees: DataFrame = g.degrees
+```
+
 ## PageRank
 
 There are two implementations of PageRank.

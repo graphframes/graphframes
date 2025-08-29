@@ -12,8 +12,7 @@ GraphFrames also provide powerful tools for running queries and standard graph a
 
 __Will GraphFrames be part of Apache Spark?__
 
-The GraphX component of Apache Spark has no DataFrames - or Dataset-based equivalent, so it is
-natural to ask this question.
+The GraphX component of Apache Spark has no DataFrames - or Dataset-based equivalent, so it is natural to ask this question.
 
 **The new plan is to merge GraphFrames with Apache Spark to make it a component of core Spark. [Spark committer Holden Karau](https://spark.apache.org/committers.html#:~:text=Holden%20Karau,Netflix) is willing to support this effort by reviewing the relevant pull requests.**
 
@@ -39,7 +38,7 @@ See the [Apache Spark User Guide](http://spark.apache.org/docs/latest/) for more
 * [GraphFrames User Guide](/04-user-guide/01-creating-graphframes.md): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
 * [Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
-* [GraphFrames Configurations](/04-user-guide/09-configurations.md): detailed information about GraphFrames configurations, their descriptions, and usage examples
+* [GraphFrames Configurations](/04-user-guide/12-configurations.md): detailed information about GraphFrames configurations, their descriptions, and usage examples
 
 **Community Forums:**
 

@@ -27,7 +27,7 @@ object LaikaCustomDirectives extends DirectiveRegistry {
           })
     }
   }
-  val scalaDirective: SpanDirectives.Directive = SpanDirectives.create("scaladoc") {
+  val scaladocDirective: SpanDirectives.Directive = SpanDirectives.create("scaladoc") {
     (attribute(0).as[String], cursor, source).mapN { (className, cursor, source) =>
       cursor.config
         .get[String]("scaladoc.baseUri")
@@ -47,7 +47,7 @@ object LaikaCustomDirectives extends DirectiveRegistry {
           baseUri => SpanLink.external(s"$baseUri/blob/main/$path")(""))
     }
   }
-  val spanDirectives = Seq(pydocDirective, scalaDirective, sourceCodeLinkDirective)
+  val spanDirectives = Seq(pydocDirective, scaladocDirective, sourceCodeLinkDirective)
   val blockDirectives: Seq[BlockDirectives.Directive] = Seq()
   val templateDirectives: Seq[TemplateDirectives.Directive] = Seq()
   val linkDirectives: Seq[LinkDirectives.Directive] = Seq()

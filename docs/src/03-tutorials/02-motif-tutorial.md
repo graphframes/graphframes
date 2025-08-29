@@ -1,6 +1,6 @@
 # Motif Tutorial
 
-This tutorial covers GraphFrames' motif finding feature. We perform pattern matching on a property graph representing a Stack Exchange site using Apache Spark and [GraphFrames' motif finding](/04-user-guide/03-motif-finding.md) feature. We will download the `stats.meta` archive from the [Stack Exchange Data Dump at the Internet Archive](https://archive.org/details/stackexchange), use PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
+This tutorial covers GraphFrames' motif finding feature. We perform pattern matching on a property graph representing a Stack Exchange site using Apache Spark and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md) feature. We will download the `stats.meta` archive from the [Stack Exchange Data Dump at the Internet Archive](https://archive.org/details/stackexchange), use PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
 
 
 # What are graphlets and network motifs?
@@ -47,7 +47,7 @@ Extraction complete: stats.meta.stackexchange.com
 
 # Build the Graph
 
-We will build a property graph from the Stack Exchange data dump using PySpark in the [python/graphframes/tutorials/stackexchange.py](../../../python/graphframes/tutorials/stackexchange.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
+We will build a property graph from the Stack Exchange data dump using PySpark in the @:srcLink(python/graphframes/tutorials/stackexchange.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
 
 ```bash
 $ spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/tutorials/stackexchange.py
@@ -57,7 +57,7 @@ The script will output the nodes and edges of the graph in the `python/graphfram
 
 # Motif Finding
 
-We will use GraphFrames to find motifs in the Stack Exchange property graph. The script [python/graphframes/tutorials/motif.py](../../../python/graphframes/tutorials/motif.py) demonstrates how to load the graph, define various motifs and find all instances of the motif in the graph.
+We will use GraphFrames to find motifs in the Stack Exchange property graph. The script @:srcLink(python/graphframes/tutorials/motif.py) demonstrates how to load the graph, define various motifs and find all instances of the motif in the graph.
 
 NOTE: I use the terms `node` as interchangeable with `vertex` and `edge` with `link` or `relationship`. The API is @:pydoc(graphframes.GraphFrame.vertices) and @:pydoc(graphframes.GraphFrame.edges) but some documentation says `relationships`. We need to add an alias from `g.vertices` to `g.nodes` and `g.edges` to both `g.relationships` and `g.links`.
 
@@ -67,7 +67,7 @@ For a quick run-through of the script, use the following command:
 spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
 ```
 
-Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/03-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
+Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/04-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
 
 ```python
 import pyspark.sql.functions as F
@@ -230,7 +230,7 @@ assert (
 
 Now we create a @pydoc(graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
 
-Back to our motifs :) It is time to create our <a href="https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame">GraphFrame</a> object. It has a number of powerful APIs, including the [GraphFrame.find()](https://graphframes.github.io/graphframes/docs/_site/api/python/graphframes.html#graphframes.GraphFrame.find) method for finding motifs in the graph.
+Back to our motifs :) It is time to create our @:pydoc(graphframes.GraphFrame) object. It has a number of powerful APIs, including the @:srcLink(python/graphframes.html#graphframes.GraphFrame.find) method for finding motifs in the graph.
 
 ```python
 g = GraphFrame(nodes_df, edges_df)  
@@ -297,7 +297,7 @@ Let's look for a simple motif: a directed triangle. We will find all instances o
 
 The `g.find()` method returns a `DataFrame` with fields fo each of the node and edge labels in the pattern. To further express the motif you're interested in, you can now use relational `DataFrame` operations to filter, group, and aggregate the results. This makes the network motif finding in GraphFrames very powerful, and this type of property graph motif was originally defined in the [graphframes paper](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
 
-A complete description of the graph query language is in the [GraphFrames User Guide](/04-user-guide/03-motif-finding.md). Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
+A complete description of the graph query language is in the [GraphFrames User Guide](/04-user-guide/04-motif-finding.md). Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
 
 <center>
     <figure>

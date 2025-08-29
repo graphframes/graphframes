@@ -37,12 +37,11 @@ class LDBCBenchmarkSuite {
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    println()
-    println(s"Spark Defaults Location: ${System.getenv("SPARK_CONF_DIR")}")
     val sparkConf = new SparkConf()
       .setMaster("local[*]")
       .setAppName("GraphFramesBenchmarks")
       .set("spark.sql.shuffle.partitions", s"${Runtime.getRuntime.availableProcessors()}")
+      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
     val context = spark.sparkContext
