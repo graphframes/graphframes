@@ -40,7 +40,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     v2.select("id", "count", "a")
       .collect()
       .foreach {
-        case Row(vid: Long, count: Long, _) => assert(count === 1)
+        case Row(_: Long, count: Long, _) => assert(count === 1)
         case _: Row => throw new GraphFramesUnreachableException()
       }
   }
@@ -91,7 +91,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val g = GraphFrame.fromEdges(edges)
     val v2 = g.triangleCount.run()
     v2.select("id", "count").collect().foreach {
-      case Row(id: Long, count: Long) =>
+      case Row(_: Long, count: Long) =>
         assert(count === 1)
       case _: Row => throw new GraphFramesUnreachableException()
     }
@@ -109,7 +109,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     v2.select("id", "count", quote("a.column"))
       .collect()
       .foreach {
-        case Row(vid: Long, count: Long, _) => assert(count === 1)
+        case Row(_: Long, count: Long, _) => assert(count === 1)
         case _: Row => throw new GraphFramesUnreachableException()
       }
   }
@@ -126,7 +126,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     v2.select("id", "count", quote("a `column`"))
       .collect()
       .foreach {
-        case Row(vid: Long, count: Long, _) => assert(count === 1)
+        case Row(_: Long, count: Long, _) => assert(count === 1)
         case _: Row => throw new GraphFramesUnreachableException()
       }
   }

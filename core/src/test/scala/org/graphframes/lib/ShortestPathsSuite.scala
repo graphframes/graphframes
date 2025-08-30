@@ -69,6 +69,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       DataTypes.createMapType(v2.schema("id").dataType, DataTypes.IntegerType, false))
     val results = v2.collect().toSet
     assert(results === expected)
+    ()
   }
 
   test("Simple test with GraphFrames") {

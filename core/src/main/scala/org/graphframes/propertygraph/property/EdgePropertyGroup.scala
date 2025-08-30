@@ -49,7 +49,7 @@ import org.graphframes.InvalidPropertyGroupException
  *   hashed with the group name to prevent collisions in the same way as ID of the corresponded
  *   vertex group is hashed.
  */
-case class EdgePropertyGroup private (
+case class EdgePropertyGroup(
     name: String,
     data: DataFrame,
     srcPropertyGroup: VertexPropertyGroup,

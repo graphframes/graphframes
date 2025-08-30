@@ -26,7 +26,7 @@ import org.graphframes.examples.Graphs
 
 class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  val n = 100
+  val n = 100L
 
   test("Star example") {
     val g = Graphs.star(n)

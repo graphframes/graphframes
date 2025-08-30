@@ -153,7 +153,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         Edge(src, dst, action)
       case _: Row => throw new GraphFramesUnreachableException()
     }
-    val g = Graph(vv, ee)
+    val g = Graph[String, String](vv, ee)
     val gf = GraphFrame.fromGraphX(g)
     gf.vertices.select("id", "attr").collect().foreach {
       case Row(id: Long, name: String) =>
@@ -240,7 +240,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         val id1 = attr.getString(vCols("id"))
         val name = attr.getString(vCols("name"))
         assert(new2oldID(id0) === id1)
-        assert(localVertices(new2oldID(id0).toInt) === name)
+        assert(localVertices(new2oldID(id0).toLong) === name)
       }
       g.edges.collect().foreach { case Edge(src0: Long, dst0: Long, attr: Row) =>
         val src1 = attr.getString(eCols("src"))
@@ -248,7 +248,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         val action = attr.getString(eCols("action"))
         assert(new2oldID(src0) === src1)
         assert(new2oldID(dst0) === dst1)
-        assert(localEdges((new2oldID(src0).toInt, new2oldID(dst0).toInt)) === action)
+        assert(localEdges((new2oldID(src0).toLong, new2oldID(dst0).toLong)) === action)
       }
     } catch {
       case e: Exception =>
@@ -367,7 +367,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("skewed long ID assignments") {
     val spark = this.spark
     import spark.implicits._
-    val n = 5
+    val n = 5L
     // union a star graph and a chain graph and cast integral IDs to strings
     val star = Graphs.star(n)
     val chain = Graphs.chain(n + 1)

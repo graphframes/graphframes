@@ -157,7 +157,7 @@ object BeliefPropagation {
     var gx: Graph[VertexAttr, EdgeAttr] = gx1.mapEdges(extractEdgeAttr)
 
     // Run BP for numIter iterations.
-    for (iter <- Range(0, numIter)) {
+    for (_ <- Range(0, numIter)) {
       // For each color, have that color receive messages from neighbors.
       for (color <- Range(0, numColors)) {
         // Send messages to vertices of the current color.
@@ -175,7 +175,7 @@ object BeliefPropagation {
             },
           _ + _)
         // Receive messages, and update beliefs for vertices of the current color.
-        gx = gx.outerJoinVertices(msgs) { case (vID, vAttr, optMsg) =>
+        gx = gx.outerJoinVertices(msgs) { case (_, vAttr, optMsg) =>
           if (vAttr.color == color) {
             val x = vAttr.a + optMsg.getOrElse(0.0)
             val newBelief = math.exp(-log1pExp(-x))
@@ -225,7 +225,7 @@ object BeliefPropagation {
     var gx = GraphFrame(colorG.vertices.withColumn("belief", lit(0.0)), colorG.edges)
 
     // Run BP for numIter iterations.
-    for (iter <- Range(0, numIter)) {
+    for (_ <- Range(0, numIter)) {
       // For each color, have that color receive messages from neighbors.
       for (color <- Range(0, numColors)) {
         // Define "AM" for shorthand for referring to the src, dst, edge, and msg fields.

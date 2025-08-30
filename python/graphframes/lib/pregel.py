@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class Pregel(JavaWrapper):
-    r"""
+    """
     Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
 
     See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
