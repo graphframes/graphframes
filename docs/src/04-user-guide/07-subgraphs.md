@@ -75,3 +75,7 @@ e2 = paths.select("e.src", "e.dst", "e.relationship")
 # Construct the subgraph
 g2 = GraphFrame(g.vertices, e2)
 ```
+
+## Property Graphs
+
+For more advanced subgraph selection, see the [Property Graphs](/04-user-guide/11-property-graphs.md) section.

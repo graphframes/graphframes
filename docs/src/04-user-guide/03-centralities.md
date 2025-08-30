@@ -20,6 +20,17 @@ val outDegrees: DataFrame = g.outDegrees
 val degrees: DataFrame = g.degrees
 ```
 
+### Python API
+
+```python
+from graphframes.examples import Graphs
+
+g = Graphs(spark).friends()
+in_degrees = g.inDegrees()
+out_degrees = g.outDegrees()
+degrees = g.degrees()
+```
+
 ## PageRank
 
 There are two implementations of PageRank.
