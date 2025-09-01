@@ -59,7 +59,7 @@ jobs:
 
       - name: Build with Laika
         run: |
-          ./build/sbt -Dspark.version=4.0.0 "docs/laikaHTML"
+          ./build/sbt -Dspark.version=4.0.0 -Ddocs.mode=production "docs/laikaHTML"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
