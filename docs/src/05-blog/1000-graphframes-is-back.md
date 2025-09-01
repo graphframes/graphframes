@@ -1,9 +1,8 @@
-<meta itemprop="blogTitle" content="GraphFrames is back!">
-<meta itemprop="blogDatePublished" content="2025-08-26T12:00:00">
-<meta itemprop="blogSummary" content="GraphFrames is back: new contributors, new logo, new documentation, new Spark Connect support, and more!">
-<meta itemprop="blogAuthors" content="Russell Jurney">
-
 # GraphFrames is back!
+
+- **Published:** 2025-08-01T00:00:00Z
+- **Title:** GraphFrames is back!
+- **Summary:** GraphFrames 0.9.2 is out on PyPi as graphframes-py and as io.graphframes on Maven Sonatype Central! Documentation is now available on graphframes.io… and we even have a new logo!
 
 *Originally published in the [Graphlet Ai Blog](https://blog.graphlet.ai/graphframes-is-back-with-v0-9-2-5773d55d3291)*
 

@@ -52,10 +52,18 @@ graph
   .run()
 ```
 
+### Aggregation
+
+GraphFrames Pregel API requires the user to specify the aggregation function for the messages. It is called over all the messages sent to the vertex no matter the direction.
+
+```scala
+graph.pregel.aggMsgs(sum(Pregel.msg))
+```
+
 ### Termination Conditions
 
 GraphFrames Pregel API provides the following termination conditions:
 
-- By a number of iterations. Users can specify the maximum number of iterations with `setMaxIter(value: Int)`.
-- In case of no new messages are sent. User can say GF to terminate the computations if all the messages sent on the iteration are empty (`null`). To do this, user should specify `setEarlyStopping(value: Boolean)`. Be careful, because the checking of nullity is a not free operation, but Apache Spark action. So, for example, if messages cannot be empty, this condition should be set to `false`. For example, in algorithms like `ShortestPaths`, this condition should be set to `true`, but for algorithms like `PageRank`, this condition should be set to `false`  because the messages cannot be empty.
-- By vertex voting. Users can specify the participation condition per vertex with `setInitialActiveVertexExpression(expression: Column` and `setUpdateActiveVertexExpression(expression: Column)`. In the case if `stopIfAllNonActiveVertices(value: Boolean)` is set to `true`, the computation will stop if all the vertices are inactive. This is useful for algorithms like `LabelPropagation`, when messages are always not `null`, but if no vertex changed a label on the last iteration, the computation should stop.
+- **By a number of iterations.** Users can specify the maximum number of iterations with `setMaxIter(value: Int)`.
+- **In case of no new messages are sent.** User can say GF to terminate the computations if all the messages sent on the iteration are empty (`null`). To do this, user should specify `setEarlyStopping(value: Boolean)`. **Be careful, because the checking of nullity is a not free operation, but Apache Spark action!** So, for example, if messages cannot be empty, this condition should be set to `false`. For example, in algorithms like `ShortestPaths`, this condition should be set to `true`, but for algorithms like `PageRank`, this condition should be set to `false`  because the messages cannot be empty.
+- **By vertex voting.** Users can specify the participation condition per vertex with `setInitialActiveVertexExpression(expression: Column` and `setUpdateActiveVertexExpression(expression: Column)`. In the case if `stopIfAllNonActiveVertices(value: Boolean)` is set to `true`, the computation will stop if all the vertices are inactive. This is useful for algorithms like `LabelPropagation`, when messages are always not `null`, but if no vertex changed a label on the last iteration, the computation should stop. **Be careful, because the checking of vertex status is a not free operation, but Apache Spark action!**

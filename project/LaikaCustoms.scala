@@ -17,9 +17,76 @@ import scala.util.Try
 import scala.util.Using
 import scala.util.matching.Regex
 
+import scala.collection.JavaConverters.*
+
 object LaikaCustoms {
   private val gfDescription: String = "Scalable Graph Processing on top of Apache Spark"
   val thisVersionShortRegex: Regex = """^([0-9]+\.[0-9]+\.[0-9]+)(.*)$""".r
+
+  def generateAtomFeed(blogDir: Path, baseUrl: String): Unit = {
+    val posts = Files
+      .walk(blogDir)
+      .iterator()
+      .asScala
+      .filter(_.getFileName.toString.endsWith(".md"))
+      .filter(_.getFileName.toString != "01-index.md")
+      .toSeq
+
+    val titleRegex = """(?m)^-\s\*\*Title:\*\*\s(.+)$""".r
+    val publishedRegex = """(?m)^-\s\*\*Published:\*\*\s(.+)$""".r
+    val summaryRegex = """(?m)^-\s\*\*Summary:\*\*\s(.+)$""".r
+
+    val header =
+      """<?xml version="1.0" encoding="utf-8"?>
+        |<feed xmlns="http://www.w3.org/2005/Atom">
+        |""".stripMargin
+
+    def genEntry(
+        title: String,
+        link: String,
+        updated: String,
+        id: String,
+        summary: String): String = {
+      s"""
+         |\t<title>$title</title>
+         |\t<link href="$link"/>
+         |\t<id>$id</id>
+         |\t<updated>$updated</updated>
+         |\t<summary>$summary</summary>
+         |
+         |""".stripMargin
+    }
+
+    val feed =
+      posts.sortBy(_.getFileName.toString).foldLeft(new StringBuilder(header)) { (builder, post) =>
+        {
+          println(s"Generating feed entry for ${post.getFileName}")
+          val content = Using(scala.io.Source.fromFile(post.toFile)) { source => source.mkString }
+            .getOrElse("")
+
+          val id =
+            java.util.UUID.nameUUIDFromBytes(post.getFileName.toString.getBytes("UTF-8")).toString
+          val title = titleRegex.findAllMatchIn(content) match {
+            case titleMatch if titleMatch.hasNext => titleMatch.next().group(1)
+            case _ => "No title"
+          }
+          val link = s"$baseUrl/05-blog/${post.getFileName.toString.replaceAll("\\.md", "\\.html")}"
+          val updated = publishedRegex.findAllMatchIn(content) match {
+            case publishedMatch if publishedMatch.hasNext => publishedMatch.next().group(1)
+            case _ => "1970-01-01"
+          }
+          val summary = summaryRegex.findAllMatchIn(content) match {
+            case summaryMatch if summaryMatch.hasNext => summaryMatch.next().group(1)
+            case _ => "No summary"
+          }
+          builder.append(genEntry(title, link, updated, id, summary))
+        }
+      }
+
+    val feedContent = feed.append("</feed>").mkString
+    val feedFile = blogDir.resolve("feed.xml")
+    Files.write(feedFile, feedContent.getBytes)
+  }
 
   def laikaConfig(benchmarksFile: Path): LaikaConfig = {
     val baseConfig = LaikaConfig.defaults.withRawContent
