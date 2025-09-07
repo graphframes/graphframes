@@ -7,6 +7,28 @@ Like GraphX, GraphFrames provides primitives for developing graph algorithms. Th
 
 The below code snippets show how to use `aggregateMessages` to compute the sum of the ages of adjacent users.
 
+## Python API
+
+For API details, refer to the @:pydoc(graphframes.GraphFrame.aggregateMessages).
+
+```python
+from graphframes.lib import AggregateMessages as AM
+from graphframes.examples import Graphs
+from pyspark.sql.functions import sum as sqlsum
+
+
+g = Graphs(spark).friends()  # Get example graph
+
+# For each user, sum the ages of the adjacent users
+msgToSrc = AM.dst["age"]
+msgToDst = AM.src["age"]
+agg = g.aggregateMessages(
+    sqlsum(AM.msg).alias("summedAges"),
+    sendToSrc=msgToSrc,
+    sendToDst=msgToDst)
+agg.show()
+```
+
 ## Scala API
 
 For API details, refer to the @:scaladoc(org.graphframes.lib.AggregateMessages).
@@ -27,30 +49,6 @@ val agg = { g.aggregateMessages
   .sendToSrc(msgToSrc)  // send destination user's age to source
   .sendToDst(msgToDst)  // send source user's age to destination
   .agg(sum(AM.msg).as("summedAges")) } // sum up ages, stored in AM.msg column
-agg.show()
-```
-
-For a more complex example, look at the code used to implement the @:scaladoc(graphframes.examples.BeliefPropagation).
-
-## Python API
-
-For API details, refer to the @:pydoc(graphframes.GraphFrame.aggregateMessages).
-
-```python
-from graphframes.lib import AggregateMessages as AM
-from graphframes.examples import Graphs
-from pyspark.sql.functions import sum as sqlsum
-
-
-g = Graphs(spark).friends()  # Get example graph
-
-# For each user, sum the ages of the adjacent users
-msgToSrc = AM.dst["age"]
-msgToDst = AM.src["age"]
-agg = g.aggregateMessages(
-    sqlsum(AM.msg).alias("summedAges"),
-    sendToSrc=msgToSrc,
-    sendToDst=msgToDst)
 agg.show()
 ```
 

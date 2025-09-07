@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 1)
-@Measurement(iterations = 5)
+@Measurement(iterations = 3)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Fork(
@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
     "--add-opens=java.base/java.util=ALL-UNNAMED"))
 class LDBCBenchmarkSuite {
-  val benchmarkGraphName: String = LDBCUtils.KGS
+  val benchmarkGraphName: String = LDBCUtils.WIKI_TALKS
   var graph: GraphFrame = _
   var props: Properties = _
 
@@ -132,6 +132,17 @@ class LDBCBenchmarkSuite {
   def benchmarkCCGraphX(blackhole: Blackhole): Unit = {
     val ccResults = graph.connectedComponents.setAlgorithm("graphx").run()
     val res: Unit = ccResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
+  }
+
+  @Benchmark
+  def benchmarkCDLP(blackhole: Blackhole): Unit = {
+    val cdlpResults = graph.labelPropagation
+      .setAlgorithm("graphframes")
+      .maxIter(10)
+      .setUseLocalCheckpoints(true)
+      .run()
+    val res: Unit = cdlpResults.write.format("noop").mode("overwrite").save()
     blackhole.consume(res)
   }
 }

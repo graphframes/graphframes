@@ -7,18 +7,6 @@ GraphFrames provide an even more powerful way to select subgraphs based on a com
 ## Simple subgraph
 The following example shows how to select a subgraph based upon vertex and edge filters.
 
-### Scala API
-
-```scala
-import org.graphframes.{examples,GraphFrame}
-
-val g: GraphFrame = examples.Graphs.friends
-
-// Select subgraph of users older than 30, and relationships of type "friend".
-// Drop isolated vertices (users) which are not contained in any edges (relationships).
-val g1 = g.filterVertices("age > 30").filterEdges("relationship = 'friend'").dropIsolatedVertices()
-```
-
 ### Python API
 
 ```python
@@ -31,28 +19,21 @@ g = Graphs(spark).friends()  # Get example graph
 g1 = g.filterVertices("age > 30").filterEdges("relationship = 'friend'").dropIsolatedVertices()
 ```
 
-## Complex subgraph: triplet filters
-
-The following example shows how to select a subgraph based upon triplet filters which operate on an edge and its src and dst vertices.  This example could be extended to go beyond triplets by using more complex motifs.
-
 ### Scala API
 
 ```scala
 import org.graphframes.{examples,GraphFrame}
 
-val g: GraphFrame = examples.Graphs.friends  // get example graph
+val g: GraphFrame = examples.Graphs.friends
 
-// Select subgraph based on edges "e" of type "follow"
-// pointing from a younger user "a" to an older user "b".
-val paths = { g.find("(a)-[e]->(b)")
-  .filter("e.relationship = 'follow'")
-  .filter("a.age < b.age") }
-// "paths" contains vertex info. Extract the edges.
-val e2 = paths.select("e.*")
-
-// Construct the subgraph
-val g2 = GraphFrame(g.vertices, e2)
+// Select subgraph of users older than 30, and relationships of type "friend".
+// Drop isolated vertices (users) which are not contained in any edges (relationships).
+val g1 = g.filterVertices("age > 30").filterEdges("relationship = 'friend'").dropIsolatedVertices()
 ```
+
+## Complex subgraph: triplet filters
+
+The following example shows how to select a subgraph based upon triplet filters which operate on an edge and its src and dst vertices.  This example could be extended to go beyond triplets by using more complex motifs.
 
 ### Python API
 
@@ -74,6 +55,25 @@ e2 = paths.select("e.src", "e.dst", "e.relationship")
 # val e2 = paths.select("e.*")
 # Construct the subgraph
 g2 = GraphFrame(g.vertices, e2)
+```
+
+### Scala API
+
+```scala
+import org.graphframes.{examples,GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends  // get example graph
+
+// Select subgraph based on edges "e" of type "follow"
+// pointing from a younger user "a" to an older user "b".
+val paths = { g.find("(a)-[e]->(b)")
+  .filter("e.relationship = 'follow'")
+  .filter("a.age < b.age") }
+// "paths" contains vertex info. Extract the edges.
+val e2 = paths.select("e.*")
+
+// Construct the subgraph
+val g2 = GraphFrame(g.vertices, e2)
 ```
 
 ## Property Graphs

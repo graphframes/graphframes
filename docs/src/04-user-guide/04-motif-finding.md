@@ -49,6 +49,23 @@ can be expressed by applying filters to the result `DataFrame`.
 This can return duplicate rows.  E.g., a query `"(u)-[]->()"` will return a result for each
 matching edge, even if those edges share the same vertex `u`.
 
+## Python API
+
+For API details, refer to the @:pydoc(graphframes.GraphFrame.find).
+
+```python
+from graphframes.examples import Graphs
+
+g = Graphs(spark).friends()  # Get example graph
+
+# Search for pairs of vertices with edges in both directions between them
+motifs = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
+motifs.show()
+
+# More complex queries can be expressed by applying filters
+motifs.filter("b.age > 30").show()
+```
+
 ## Scala API
 
 For API details, refer to the @:scaladoc(org.graphframes.GraphFrame).
@@ -64,23 +81,6 @@ val motifs: DataFrame = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
 motifs.show()
 
 // More complex queries can be expressed by applying filters.
-motifs.filter("b.age > 30").show()
-```
-
-## Python API
-
-For API details, refer to the @:pydoc(graphframes.GraphFrame.find).
-
-```python
-from graphframes.examples import Graphs
-
-g = Graphs(spark).friends()  # Get example graph
-
-# Search for pairs of vertices with edges in both directions between them
-motifs = g.find("(a)-[e]->(b); (b)-[e2]->(a)")
-motifs.show()
-
-# More complex queries can be expressed by applying filters
 motifs.filter("b.age > 30").show()
 ```
 
@@ -100,33 +100,6 @@ The below code snippets demonstrate this process, where we identify chains of 4 
 such that at least 2 of the 3 edges are "friend" relationships.
 In this example, the state is the current count of "friend" edges; in general, it could be any
 `DataFrame Column`.
-
-### Scala API
-
-```scala
-import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{col, when}
-import org.graphframes.{examples,GraphFrame}
-
-val g: GraphFrame = examples.Graphs.friends  // get example graph
-
-// Find chains of 4 vertices.
-val chain4: DataFrame = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
-chain4.show()
-
-// Query on sequence, with state (cnt)
-//  (a) Define method for updating state given the next element of the motif.
-def sumFriends(cnt: Column, relationship: Column): Column = {
-  when(relationship === "friend", cnt + 1).otherwise(cnt)
-}
-//  (b) Use sequence operation to apply method to sequence of elements in motif.
-//      In this case, the elements are the 3 edges.
-val condition = { Seq("ab", "bc", "cd")
-  .foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship"))) }
-//  (c) Apply filter to DataFrame.
-val chainWith2Friends2 = chain4.where(condition >= 2)
-chainWith2Friends2.show()
-```
 
 ### Python API
 
@@ -152,6 +125,33 @@ condition =\
 
 # (c) Apply filter to DataFrame
 chainWith2Friends2 = chain4.where(condition >= 2)
+chainWith2Friends2.show()
+```
+
+### Scala API
+
+```scala
+import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.functions.{col, when}
+import org.graphframes.{examples,GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends  // get example graph
+
+// Find chains of 4 vertices.
+val chain4: DataFrame = g.find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
+chain4.show()
+
+// Query on sequence, with state (cnt)
+//  (a) Define method for updating state given the next element of the motif.
+def sumFriends(cnt: Column, relationship: Column): Column = {
+  when(relationship === "friend", cnt + 1).otherwise(cnt)
+}
+//  (b) Use sequence operation to apply method to sequence of elements in motif.
+//      In this case, the elements are the 3 edges.
+val condition = { Seq("ab", "bc", "cd")
+  .foldLeft(lit(0))((cnt, e) => sumFriends(cnt, col(e)("relationship"))) }
+//  (c) Apply filter to DataFrame.
+val chainWith2Friends2 = chain4.where(condition >= 2)
 chainWith2Friends2.show()
 ```
 

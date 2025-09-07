@@ -6,19 +6,6 @@ Run a static Label Propagation Algorithm for detecting communities in networks. 
 
 See [Wikipedia](https://en.wikipedia.org/wiki/Label_Propagation_Algorithm) for the background.
 
-### Scala API
-
-For API details, refer to the @:scaladoc(org.grapimport org.graphframes.lib.LabelPropagation).
-
-```scala
-import org.graphframes.{examples,GraphFrame}
-
-val g: GraphFrame = examples.Graphs.friends // get example graph
-
-val result = g.labelPropagation.maxIter(5).run()
-result.select("id", "label").show()
-```
-
 ### Python API
 
 For API details, refer to the @:pydoc(graphframes.GraphFrame.labelPropagation).
@@ -32,9 +19,29 @@ result = g.labelPropagation(maxIter=5)
 result.select("id", "label").show()
 ```
 
+### Scala API
+
+For API details, refer to the @:scaladoc(org.grapimport org.graphframes.lib.LabelPropagation).
+
+```scala
+import org.graphframes.{examples,GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends // get example graph
+
+val result = g.labelPropagation.maxIter(5).run()
+result.select("id", "label").show()
+```
+
 ## Power Iteration Clustering (PIC)
 
 GraphFrames provides a wrapper for the [Power Iteration Clustering](https://www.cs.cmu.edu/~frank/papers/icml2010-pic-final.pdf) algorithm from the SparkML library.
+
+### Python API
+
+```python
+g = GraphFrame(vertices, edges)
+g.powerIterationClustering(k=2, maxIter=40, weightCol="weight")
+```
 
 ### Scala API
 
@@ -42,11 +49,4 @@ GraphFrames provides a wrapper for the [Power Iteration Clustering](https://www.
 val gf = GraphFrame(vertices, edges)
 val clusters = gf
   .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
-```
-
-### Python API
-
-```python
-g = GraphFrame(vertices, edges)
-g.powerIterationClustering(k=2, maxIter=40, weightCol="weight")
 ```

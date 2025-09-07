@@ -216,7 +216,9 @@ lazy val docs = (project in file("docs"))
       .laikaConfig((benchmarks / baseDirectory).value.toPath.resolve("jmh-result.json"))
       .withConfigValue(LaikaKeys.siteBaseURL, siteBaseUri)
       .withConfigValue("pydoc.baseUri", s"$siteBaseUri/api/python")
-      .withConfigValue("scaladoc.baseUri", s"$siteBaseUri/api/scaladoc"),
+      .withConfigValue("scaladoc.baseUri", s"$siteBaseUri/api/scaladoc")
+    .withConfigValue("spark.version", sparkVer)
+    .withConfigValue("scala.version", scalaVer),
     laikaExtensions := Seq(GitHubFlavor, SyntaxHighlighting, LaikaCustomDirectives),
     laikaHTML := (laikaHTML dependsOn mdoc.toTask(
       "") dependsOn generateAtomFeed dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
