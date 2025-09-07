@@ -72,10 +72,13 @@ private object LabelPropagation {
 
   private def keyWithMaxValue(column: Column): Column = {
     // Get the key with the highest value, using the key to break a tie. To do this, simply get
-    // map entries, swap the value and key columns to create the natural ordering, and then
-    // take the key from the max entry
-    array_max(transform(map_entries(column), x => struct(x.getField("value"), x.getField("key"))))
-      .getField("key")
+    // map entries, swap the value and key columns to create the natural ordering, multiply key by -1 and then
+    // take the key from the max entry (multiply it by -1 again to get the original key).
+    array_max(
+      transform(
+        map_entries(column),
+        x => struct(x.getField("value"), (lit(-1) * x.getField("key")).alias("key"))))
+      .getField("key") * lit(-1)
   }
 
   private def runInGraphFrames(
