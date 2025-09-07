@@ -18,8 +18,8 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 @State(Scope.Benchmark)
-@Warmup(iterations = 5)
-@Measurement(iterations = 15)
+@Warmup(iterations = 1)
+@Measurement(iterations = 5)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Fork(
@@ -32,26 +32,29 @@ import java.util.concurrent.TimeUnit
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
     "--add-opens=java.base/java.util=ALL-UNNAMED"))
 class LDBCBenchmarkSuite {
-  val benchmarkGraphName: String = LDBCUtils.GRAPH500_24
+  val benchmarkGraphName: String = LDBCUtils.KGS
   var graph: GraphFrame = _
+  var props: Properties = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
     val sparkConf = new SparkConf()
       .setMaster("local[*]")
       .setAppName("GraphFramesBenchmarks")
-      .set("spark.sql.shuffle.partitions", s"${Runtime.getRuntime.availableProcessors()}")
+      .set("spark.sql.shuffle.partitions", s"${Runtime.getRuntime.availableProcessors() * 2}")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
     val context = spark.sparkContext
     context.setLogLevel("ERROR")
+    context.setCheckpointDir("/tmp/graphframes-checkpoints")
 
     LDBCUtils.downloadLDBCIfNotExists(resourcesPath, benchmarkGraphName)
 
     val edges = spark.read
       .format("csv")
       .option("header", "false")
+      .option("delimiter", " ")
       .schema(StructType(Seq(StructField("src", LongType), StructField("dst", LongType))))
       .load(caseRoot.resolve(s"${benchmarkGraphName}.e").toString)
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
@@ -67,22 +70,18 @@ class LDBCBenchmarkSuite {
     println(s"Read vertices: ${vertices.count()}")
 
     graph = GraphFrame(vertices, edges)
+    props = new Properties()
+    val stream = Files.newInputStream(caseRoot.resolve(s"${benchmarkGraphName}.properties"))
+    props.load(stream)
+    stream.close()
   }
 
   private def caseRoot: Path = resourcesPath.resolve(benchmarkGraphName)
 
-  val props: Properties = {
-    val props = new Properties()
-    val stream = Files.newInputStream(caseRoot.resolve(s"${benchmarkGraphName}.properties"))
-    props.load(stream)
-    stream.close()
-    props
-  }
-
   private def resourcesPath = Path.of(new File("target").toURI)
 
   @Benchmark
-  def benchmarkSP(blackhole: Blackhole): Unit = {
+  def benchmarkSPlocalCheckpoints(blackhole: Blackhole): Unit = {
     val sourceVertex =
       props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
 
@@ -98,9 +97,40 @@ class LDBCBenchmarkSuite {
   }
 
   @Benchmark
+  def benchmarkSP(blackhole: Blackhole): Unit = {
+    val sourceVertex =
+      props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
+
+    val spResults = graph.shortestPaths
+      .setAlgorithm("graphframes")
+      .landmarks(Seq(sourceVertex))
+      .run()
+
+    val res: Unit = spResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
+  }
+
+  @Benchmark
+  def benchmarkSPGraphX(blackhole: Blackhole): Unit = {
+    val sourceVertex =
+      props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
+
+    val spResults = graph.shortestPaths.setAlgorithm("graphx").landmarks(Seq(sourceVertex)).run()
+    val res: Unit = spResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
+  }
+
+  @Benchmark
   def benchmarkCC(blackhole: Blackhole): Unit = {
     val ccResults =
       graph.connectedComponents.setUseLocalCheckpoints(true).setAlgorithm("graphframes").run()
+    val res: Unit = ccResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
+  }
+
+  @Benchmark
+  def benchmarkCCGraphX(blackhole: Blackhole): Unit = {
+    val ccResults = graph.connectedComponents.setAlgorithm("graphx").run()
     val res: Unit = ccResults.write.format("noop").mode("overwrite").save()
     blackhole.consume(res)
   }

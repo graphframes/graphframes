@@ -21,6 +21,8 @@ import org.apache.spark.graphx.{lib => graphxlib}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.MapType
 import org.graphframes.GraphFrame
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
@@ -98,16 +100,20 @@ private object LabelPropagation {
       .setUseLocalCheckpoints(useLocalCheckpoints)
 
     if (isDirected) {
-      pregel = pregel.sendMsgToDst(col(LABEL_ID))
+      pregel = pregel.sendMsgToDst(Pregel.src(LABEL_ID))
     } else {
-      pregel = pregel.sendMsgToDst(col(LABEL_ID)).sendMsgToSrc(col(LABEL_ID))
+      pregel = pregel.sendMsgToDst(Pregel.src(LABEL_ID)).sendMsgToSrc(Pregel.dst(LABEL_ID))
     }
 
     pregel = pregel.aggMsgs(
       reduce(
         collect_list(Pregel.msg),
-        lit(Map.empty[Long, Int]),
-        (acc, x) => map_concat(acc, map(coalesce(acc.getItem(x) + lit(1), lit(1))))))
+        map().cast(MapType(graph.vertices.schema(GraphFrame.ID).dataType, IntegerType)),
+        (acc, x) =>
+          map_zip_with(
+            acc,
+            map(x, lit(1)),
+            (_, left, right) => coalesce(left, lit(0)) + coalesce(right, lit(0)))))
 
     pregel.run()
   }

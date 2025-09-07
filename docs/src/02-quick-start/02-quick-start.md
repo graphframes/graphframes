@@ -70,9 +70,7 @@ results.vertices.select("id", "pagerank").show()
 
 ## Graph Algorithms
 
-GraphFrames provides the same suite of standard graph algorithms as GraphX, plus some new ones. We provide the brief descriptions and code snippets below.
-
-Some algorithms are currently wrappers around GraphX implementations, so they may not be more scalable than GraphX. More algorithms will be migrated to native GraphFrames implementations in the future.
+Historically, Apache Spark had a built-in graph processing tool named `GraphX`, that was based on `RDD` (pre Spark 2.x way of doing things). GraphX provided a set of graph algorithms, like `PageRank`, `LabelPropagation`, etc. In Spark 4.0.x GraphX was deprecated and is not recommended for usage. Opposite, `GraphFrames` represent graphs using Spark's `Dataset` / `Dataframe`. `GraphFrames` also provides the set of standard graph algorithms, and this set is growing. For algorithms implemented in `GraphX` but currently not supported natively in `GraphFrames`, the library also provides a conversion method (see [user guide](/04-user-guide/12-graphx-coversion.md)). The following table shows the currently supported algorithms:
 
 | Algorithm                      | GraphX Wrapper | GraphFrames Implementation |
 |--------------------------------|----------------|----------------------------|

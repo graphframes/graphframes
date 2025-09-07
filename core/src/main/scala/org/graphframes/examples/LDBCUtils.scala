@@ -19,6 +19,8 @@ object LDBCUtils {
   val KGS = "kgs"
   val GRAPH500_22 = "graph500-22"
   val GRAPH500_24 = "graph500-24"
+  val CIT_PATENTS = "cit-Patents"
+  val WIKI_TALKS = "wiki-Talk"
 
   private val possibleCaseNames = Set(
     TEST_BFS_DIRECTED,
@@ -31,7 +33,9 @@ object LDBCUtils {
     TEST_WCC_UNDIRECTED,
     KGS,
     GRAPH500_22,
-    GRAPH500_24)
+    GRAPH500_24,
+    CIT_PATENTS,
+    WIKI_TALKS)
 
   private def ldbcURL(caseName: String): URL = new URL(s"${LDBC_URL_PREFIX}${caseName}.tar.zst")
 
