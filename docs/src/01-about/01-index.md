@@ -30,7 +30,7 @@ See the [Apache Spark User Guide](http://spark.apache.org/docs/latest/) for more
 * [GraphFrames User Guide](/04-user-guide/01-creating-graphframes.md): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
 * [Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
-* [GraphFrames Configurations](/04-user-guide/12-configurations.md): detailed information about GraphFrames configurations, their descriptions, and usage examples
+* [GraphFrames Configurations](/04-user-guide/13-configurations.md): detailed information about GraphFrames configurations, their descriptions, and usage examples
 
 **Community Forums:**
 

@@ -82,7 +82,7 @@ way of doing things). GraphX provided a set of graph algorithms, like `PageRank`
 4.0.x GraphX was deprecated and is not recommended for usage. Opposite, `GraphFrames` represent graphs using Spark's
 `Dataset` / `Dataframe`. `GraphFrames`. It also provides the set of standard graph algorithms, and this set is growing.
 For algorithms implemented in `GraphX` but currently not supported natively in `GraphFrames`, the library also provides
-a conversion method (see [user guide](/04-user-guide/12-graphx-coversion.md)). The following table shows the currently
+a conversion method (see [user guide](/04-user-guide/12-graphx-conversion.md)). The following table shows the currently
 supported algorithms:
 
 | Algorithm                      | GraphX Wrapper | GraphFrames Implementation | Recommendations                                              |
