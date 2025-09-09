@@ -169,7 +169,7 @@ case class PropertyGraphFrame(
   def joinVertices(verticesData: DataFrame, vertexGroups: Seq[String]): DataFrame = {
     require(vertexGroups.forall(this.vertexGroups.contains))
     vertexGroups
-      .map { vg: String =>
+      .map { (vg: String) =>
         {
           val associatedGroup = this.vertexGroups(vg)
           val filteredForGroup = verticesData.filter(col(PROPERTY_GROUP_COL_NAME) === lit(vg))

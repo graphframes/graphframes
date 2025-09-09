@@ -28,7 +28,7 @@ import org.graphframes.examples.Graphs
 
 class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  val n = 100
+  val n = 100L
 
   test("Illegal function call argument setting") {
     val g = Graphs.star(n)
@@ -81,7 +81,7 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     val prInvalid = pr.vertices
       .select("pageranks")
       .collect()
-      .filter { row: Row =>
+      .filter { (row: Row) =>
         vertexIds.size != row.getAs[SparseVector](0).size
       }
     assert(

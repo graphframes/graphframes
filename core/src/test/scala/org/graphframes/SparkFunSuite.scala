@@ -17,13 +17,13 @@
 
 package org.graphframes
 
-import org.scalatest.FunSuite
 import org.scalatest.Outcome
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Base abstract class for all unit tests in Spark for handling common functionality.
  */
-private[graphframes] abstract class SparkFunSuite extends FunSuite with Logging {
+private[graphframes] abstract class SparkFunSuite extends AnyFunSuite with Logging {
 
   /**
    * Log the suite name and the test name before and after each test.

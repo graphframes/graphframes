@@ -58,7 +58,7 @@ private[graphframes] object GraphXConversions {
     val spark = originalGraph.spark
     // catalyst does not like the unit type, make sure to filter it first.
     val vertexDF: DataFrame = if (isUnitType[V]) {
-      val vertexData = graph.vertices.map { case (vid, data) => Tuple1(vid) }
+      val vertexData = graph.vertices.map { case (vid, _) => Tuple1(vid) }
       spark.createDataFrame(vertexData).toDF(LONG_ID)
     } else if (isProductType[V]) {
       val vertexData = graph.vertices.map { case (vid, data) => (vid, data) }
@@ -123,7 +123,7 @@ private[graphframes] object GraphXConversions {
   /** Unpacks all struct fields and leaves other fields alone */
   private def unpackStructFields(df: DataFrame): DataFrame = {
     val cols = df.schema.flatMap {
-      case StructField(fname, dt: StructType, nullable, meta) =>
+      case StructField(fname, dt: StructType, nullable @ _, meta @ _) =>
         dt.iterator.map(sub => col(quote(fname, sub.name)).as(sub.name))
       case f => Seq(col(quote(f.name)))
     }

@@ -1,15 +1,8 @@
-# This file is inspired by:
-# https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml
-# MIT License
-#
-# Copyright (c) 2020 GitHub
-
 name: Deploy Docs
 
 on:
-  push:
-    branches:
-      - master
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -28,22 +21,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.1'
-          bundler-cache: true
-          cache-version: 0
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "zulu"
-          java-version: "11"
-
-      - name: Setup Jekyll
-        run: |
-          gem install jekyll jekyll-redirect-from bundler
+          java-version: "17"
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -71,18 +53,18 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Build with Jekyll
-        working-directory: ./docs
-        run: jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
-        env:
-          SKIP_SCALADOC: 0
-          SKIP_PYTHONDOC: 0
-          PRODUCTION: 1
+      - name: Run benchmarks
+        run: |
+          ./build/sbt -Dspark.version=4.0.0 "benchmarks/Jmh/run -rf json"
+
+      - name: Build with Laika
+        run: |
+          ./build/sbt -Dspark.version=4.0.0 -Ddocs.mode=production "docs/laikaHTML"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs/_site
+          path: ./docs/target/docs/site
 
   deploy:
     environment:

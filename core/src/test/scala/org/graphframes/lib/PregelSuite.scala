@@ -23,7 +23,7 @@ import org.scalactic.Tolerance._
 
 class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  import sqlImplicits._
+  import sqlImplicits.*
 
   Seq(true, false).foreach(useLocalCheckpoint => {
     test(s"page rank${if (useLocalCheckpoint) " with local checkpoint" else ""}") {

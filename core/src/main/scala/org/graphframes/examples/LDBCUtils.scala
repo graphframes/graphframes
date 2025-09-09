@@ -12,30 +12,37 @@ object LDBCUtils {
   val TEST_BFS_UNDIRECTED = "test-bfs-undirected"
   val TEST_CDLP_DIRECTED = "test-cdlp-directed"
   val TEST_CDLP_UNDIRECTED = "test-cdlp-undirected"
-  val TEST_PR_DIRECED = "test-pr-directed"
+  val TEST_PR_DIRECTED = "test-pr-directed"
   val TEST_PR_UNDIRECTED = "test-pr-undirected"
   val TEST_WCC_DIRECTED = "test-wcc-directed"
   val TEST_WCC_UNDIRECTED = "test-wcc-undirected"
   val KGS = "kgs"
   val GRAPH500_22 = "graph500-22"
+  val GRAPH500_24 = "graph500-24"
+  val CIT_PATENTS = "cit-Patents"
+  val WIKI_TALKS = "wiki-Talk"
 
   private val possibleCaseNames = Set(
     TEST_BFS_DIRECTED,
     TEST_BFS_UNDIRECTED,
     TEST_CDLP_DIRECTED,
     TEST_CDLP_UNDIRECTED,
-    TEST_PR_DIRECED,
+    TEST_PR_DIRECTED,
     TEST_PR_UNDIRECTED,
     TEST_WCC_DIRECTED,
     TEST_WCC_UNDIRECTED,
     KGS,
-    GRAPH500_22)
+    GRAPH500_22,
+    GRAPH500_24,
+    CIT_PATENTS,
+    WIKI_TALKS)
 
   private def ldbcURL(caseName: String): URL = new URL(s"${LDBC_URL_PREFIX}${caseName}.tar.zst")
 
   private def checkZSTD(): Unit = {
     try {
-      "zstd --version".!
+      val version = "zstd --version".!
+      println(s"found zstd version: $version")
     } catch {
       case e: Exception =>
         throw new RuntimeException(

@@ -25,6 +25,8 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
+import scala.annotation.nowarn
+
 object SparkShims {
 
   /**
@@ -38,6 +40,7 @@ object SparkShims {
    * @return
    *   SQL expression applied to the column fields, such as `myVertex.id = 3`
    */
+  @nowarn
   def applyExprToCol(spark: SparkSession, expr: Column, colName: String): Column = {
     new Column(expr.expr.transform { case UnresolvedAttribute(nameParts) =>
       UnresolvedAttribute(colName +: nameParts)
