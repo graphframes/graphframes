@@ -5,9 +5,9 @@ ThisBuild / libraryDependencySchemes ++= Seq(
   "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 )
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.10")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.3.1")
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.3.1")
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.4")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.5")
 
 // Protobuf things needed for the Spark Connect
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")
@@ -18,3 +18,22 @@ addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.3")
 
 // SBT CI Release
 addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.11.1")
+
+// JMH & benchmarking
+addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.7")
+
+// Laika
+addSbtPlugin("org.typelevel" % "laika-sbt" % "1.3.2")
+addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.7.2")
+
+// Typelevel helper
+addSbtPlugin("org.typelevel" % "sbt-tpolecat" % "0.5.2")
+
+// JSONs processing for benchmarks
+val circeVersion = "0.13.0"
+
+libraryDependencies ++= Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)

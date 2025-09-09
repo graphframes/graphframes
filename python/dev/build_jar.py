@@ -15,10 +15,7 @@ def build(spark_versions: Sequence[str] = ["3.5.5"]):
         sbt_build_command = [
             sbt_executable,
             f"-Dspark.version={spark_version}",
-            "clean",
-            "package",
-            "connect/clean",
-            "connect/package"
+            "package"
         ]
         sbt_build = subprocess.Popen(
             sbt_build_command,

@@ -4,7 +4,8 @@
 build/*.jar
 
 docs/_site
-docs/api
+docs/src/api/python
+docs/src/api/scaladoc
 
 # sbt specific
 .cache/
@@ -62,3 +63,13 @@ graphframes-connect-databricks/*
 
 # Workspace
 workspace
+
+# JMH (jmh-result.json, jmh-result.csv, etc.)
+jmh-result.*
+
+# Intellij thing
+connect/project
+
+# Auto-generated doc
+/docs/src/02-quick-start/01-installation.md
+/docs/src/05-blog/feed.xml
