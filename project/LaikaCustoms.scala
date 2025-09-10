@@ -36,11 +36,6 @@ object LaikaCustoms {
     val publishedRegex = """(?m)^-\s\*\*Published:\*\*\s(.+)$""".r
     val summaryRegex = """(?m)^-\s\*\*Summary:\*\*\s(.+)$""".r
 
-    val header =
-      """<?xml version="1.0" encoding="utf-8"?>
-        |<feed xmlns="http://www.w3.org/2005/Atom">
-        |""".stripMargin
-
     def genEntry(
         title: String,
         link: String,
@@ -48,42 +43,67 @@ object LaikaCustoms {
         id: String,
         summary: String): String = {
       s"""
-         |\t<title>$title</title>
-         |\t<link href="$link"/>
-         |\t<id>$id</id>
-         |\t<updated>$updated</updated>
-         |\t<summary>$summary</summary>
+         |\t<entry>
+         |\t\t<title>$title</title>
+         |\t\t<link href="$link"/>
+         |\t\t<id>$id</id>
+         |\t\t<updated>$updated</updated>
+         |\t\t<summary>$summary</summary>
+         |\t</entry>
          |
          |""".stripMargin
     }
 
-    val feed =
-      posts.sortBy(_.getFileName.toString).foldLeft(new StringBuilder(header)) { (builder, post) =>
-        {
-          println(s"Generating feed entry for ${post.getFileName}")
-          val content = Using(scala.io.Source.fromFile(post.toFile)) { source => source.mkString }
-            .getOrElse("")
+    val collected =
+      posts
+        .sortBy(_.getFileName.toString)
+        .foldLeft((new StringBuilder(), "1970-01-01:T00:00:00Z")) { (acc, post) =>
+          {
+            println(s"Generating feed entry for ${post.getFileName}")
+            val content = Using(scala.io.Source.fromFile(post.toFile)) { source =>
+              source.mkString
+            }
+              .getOrElse("")
 
-          val id =
-            java.util.UUID.nameUUIDFromBytes(post.getFileName.toString.getBytes("UTF-8")).toString
-          val title = titleRegex.findAllMatchIn(content) match {
-            case titleMatch if titleMatch.hasNext => titleMatch.next().group(1)
-            case _ => "No title"
+            val id =
+              java.util.UUID
+                .nameUUIDFromBytes(post.getFileName.toString.getBytes("UTF-8"))
+                .toString
+            val title = titleRegex.findAllMatchIn(content) match {
+              case titleMatch if titleMatch.hasNext => titleMatch.next().group(1)
+              case _ => "No title"
+            }
+            val link =
+              s"$baseUrl/05-blog/${post.getFileName.toString.replaceAll("\\.md", "\\.html")}"
+            val updated = publishedRegex.findAllMatchIn(content) match {
+              case publishedMatch if publishedMatch.hasNext => publishedMatch.next().group(1)
+              case _ => "1970-01-01:T00:00:00Z"
+            }
+            val summary = summaryRegex.findAllMatchIn(content) match {
+              case summaryMatch if summaryMatch.hasNext => summaryMatch.next().group(1)
+              case _ => "No summary"
+            }
+            val builderWithPost = acc._1.append(genEntry(title, link, updated, id, summary))
+            if (updated > acc._2) {
+              (builderWithPost, updated)
+            } else {
+              (builderWithPost, acc._2)
+            }
           }
-          val link = s"$baseUrl/05-blog/${post.getFileName.toString.replaceAll("\\.md", "\\.html")}"
-          val updated = publishedRegex.findAllMatchIn(content) match {
-            case publishedMatch if publishedMatch.hasNext => publishedMatch.next().group(1)
-            case _ => "1970-01-01"
-          }
-          val summary = summaryRegex.findAllMatchIn(content) match {
-            case summaryMatch if summaryMatch.hasNext => summaryMatch.next().group(1)
-            case _ => "No summary"
-          }
-          builder.append(genEntry(title, link, updated, id, summary))
         }
-      }
 
-    val feedContent = feed.append("</feed>").mkString
+    val header =
+      s"""<?xml version="1.0" encoding="utf-8"?>
+        |<feed xmlns="http://www.w3.org/2005/Atom">
+        |
+        |\t<title>GraphFrames Blog</title>
+        |\t<id>${baseUrl}</id>
+        |\t<link href="${baseUrl}/05-blog/}/"/>
+        |\t<updated>${collected._2}</updated>
+        |
+        |""".stripMargin
+
+    val feedContent = header + collected._1.append("</feed>").mkString
     val feedFile = blogDir.resolve("feed.xml")
     Files.write(feedFile, feedContent.getBytes)
   }

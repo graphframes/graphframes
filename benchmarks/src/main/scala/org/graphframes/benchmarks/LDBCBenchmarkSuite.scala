@@ -97,20 +97,6 @@ class LDBCBenchmarkSuite {
   }
 
   @Benchmark
-  def benchmarkSP(blackhole: Blackhole): Unit = {
-    val sourceVertex =
-      props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
-
-    val spResults = graph.shortestPaths
-      .setAlgorithm("graphframes")
-      .landmarks(Seq(sourceVertex))
-      .run()
-
-    val res: Unit = spResults.write.format("noop").mode("overwrite").save()
-    blackhole.consume(res)
-  }
-
-  @Benchmark
   def benchmarkSPGraphX(blackhole: Blackhole): Unit = {
     val sourceVertex =
       props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
@@ -141,6 +127,16 @@ class LDBCBenchmarkSuite {
       .setAlgorithm("graphframes")
       .maxIter(10)
       .setUseLocalCheckpoints(true)
+      .run()
+    val res: Unit = cdlpResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
+  }
+
+  @Benchmark
+  def benchmarkCDLPGrapHX(blackhole: Blackhole): Unit = {
+    val cdlpResults = graph.labelPropagation
+      .setAlgorithm("graphx")
+      .maxIter(10)
       .run()
     val res: Unit = cdlpResults.write.format("noop").mode("overwrite").save()
     blackhole.consume(res)
