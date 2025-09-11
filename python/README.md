@@ -21,6 +21,8 @@ pip install graphframes-py
 
 **NOTE!** *Python distribution does not include JVM-core. You need to add it to your cluster or Spark-Connect server!*
 
+**NOTE!** *GraphFrames depends on its own version of GraphX. While in case of installation from the Maven Central repository, all the runtime dependencies will be resolved automatically, you may need to add them manually in case of installation from the local repository.*
+
 ## Running `graphframes-py`
 
 You should use GraphFrames via the `--packages` argument to `pyspark` or `spark-submit`, but this package is helpful in development environments.
