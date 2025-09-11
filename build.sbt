@@ -72,13 +72,11 @@ publishArtifact := false
 
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
-    "org.apache.spark" %% "spark-graphx" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.slf4j" % "slf4j-api" % "2.0.17" % "provided",
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
-  Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
   Compile / doc / scalacOptions ++= Seq(
     "-groups",
     "-implicits",
@@ -114,9 +112,43 @@ lazy val commonSetting = Seq(
     ScalacOptions.source3,
     ScalacOptions.fatalWarnings),
   tpolecatExcludeOptions ++= Set(ScalacOptions.warnNonUnitStatement),
-  Test / tpolecatExcludeOptions ++= Set(ScalacOptions.warnValueDiscard))
+  Test / tpolecatExcludeOptions ++= Set(
+    ScalacOptions.warnValueDiscard,
+    ScalacOptions.warnUnusedLocals,
+    ScalacOptions.warnUnusedExplicits,
+    ScalacOptions.warnUnusedImplicits,
+    ScalacOptions.warnUnusedParams,
+    ScalacOptions.warnUnusedPrivates,
+    ScalacOptions.warnNumericWiden,
+    ScalacOptions.privateWarnNumericWiden,
+  ))
+
+lazy val graphx = (project in file("graphx"))
+  .settings(
+    commonSetting,
+    name := "graphframes-graphx",
+    moduleName := s"${name.value}-spark$sparkMajorVer",
+    // Export the JAR so that this can be excluded from shading in connect
+    exportJars := true,
+
+    // for scala 2.13 we should mark "unused" class tags by @nowarn,
+    // for scala 2.12 we shouldn't
+    // the only way at the moment is to not check unused @nowarn for GraphX
+    tpolecatExcludeOptions ++= Set(ScalacOptions.warnUnusedNoWarn, ScalacOptions.privateWarnUnusedNoWarn),
+
+    // Global settings
+    Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
+    autoAPIMappings := true,
+    coverageHighlighting := false,
+    Test / packageBin / publishArtifact := false,
+    Test / packageDoc / publishArtifact := false,
+    Test / packageSrc / publishArtifact := false,
+    Compile / packageBin / publishArtifact := true,
+    Compile / packageDoc / publishArtifact := true,
+    Compile / packageSrc / publishArtifact := true)
 
 lazy val core = (project in file("core"))
+  .dependsOn(graphx)
   .settings(
     commonSetting,
     name := "graphframes",
@@ -217,8 +249,8 @@ lazy val docs = (project in file("docs"))
       .withConfigValue(LaikaKeys.siteBaseURL, siteBaseUri)
       .withConfigValue("pydoc.baseUri", s"$siteBaseUri/api/python")
       .withConfigValue("scaladoc.baseUri", s"$siteBaseUri/api/scaladoc")
-    .withConfigValue("spark.version", sparkVer)
-    .withConfigValue("scala.version", scalaVer),
+      .withConfigValue("spark.version", sparkVer)
+      .withConfigValue("scala.version", scalaVer),
     laikaExtensions := Seq(GitHubFlavor, SyntaxHighlighting, LaikaCustomDirectives),
     laikaHTML := (laikaHTML dependsOn mdoc.toTask(
       "") dependsOn generateAtomFeed dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,

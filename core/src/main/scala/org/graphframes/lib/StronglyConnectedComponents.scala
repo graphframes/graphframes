@@ -17,7 +17,7 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
 import org.graphframes.GraphFrame
 import org.graphframes.WithMaxIter

@@ -19,8 +19,8 @@ package org.graphframes
 
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphframes.graphx.Edge
+import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row

@@ -1,4 +1,10 @@
 This project uses the LDBC datasets, which are licensed under the Apache Software License, Version 2.0.
-The LDBC datasets are used for testing and evaluation purposes only.
+The LDBC datasets are used for testing and evaluation purposes only. The LDBC project has the following NOTICE:
 Note that the LDBC benchmark results should not be referred to using the words 'LDBC benchmark' or any equivalent phrase,
 as per the LDBC fair use policy.
+
+This project contains the code of Apache Spark GraphX that has the following NOTICE:
+Copyright 2014-2025 The Apache Software Foundation.
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).

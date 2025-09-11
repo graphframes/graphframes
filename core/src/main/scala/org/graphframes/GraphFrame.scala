@@ -17,8 +17,8 @@
 
 package org.graphframes
 
-import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphframes.graphx.Edge
+import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.ml.clustering.PowerIterationClustering
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.array

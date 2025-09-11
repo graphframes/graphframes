@@ -42,5 +42,4 @@ private[graphframes] abstract class SparkFunSuite extends AnyFunSuite with Loggi
       logInfo(s"\n\n===== FINISHED $shortSuiteName: '$testName' =====\n")
     }
   }
-
 }
