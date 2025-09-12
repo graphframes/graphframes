@@ -2,7 +2,7 @@
 
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/graphframes-py) ![PyPI - License](https://img.shields.io/pypi/l/graphframes-py) ![PyPI - Version](https://img.shields.io/pypi/v/graphframes-py)
 
-<img src=https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/img/GraphFrames-Logo-Large.png width=500>
+<img src=https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/src/img/GraphFrames-Logo-Large.png width=500>
 
 https://graphframes.io/
 
