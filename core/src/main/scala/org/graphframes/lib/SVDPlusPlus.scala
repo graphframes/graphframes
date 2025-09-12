@@ -17,8 +17,8 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx.Edge
+import org.apache.spark.graphframes.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.graphframes.GraphFrame

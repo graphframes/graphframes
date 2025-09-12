@@ -18,6 +18,7 @@
 package org.graphframes.lib
 
 import org.apache.hadoop.fs.Path
+import org.apache.spark.graphframes.graphx
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
@@ -183,7 +184,7 @@ object ConnectedComponents extends Logging {
 
   private def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
     val components =
-      org.apache.spark.graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
+      graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
     GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
   }
 
