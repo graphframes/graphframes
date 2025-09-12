@@ -117,10 +117,6 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
 
   Seq("graphx", "graphframes").foreach { algo =>
     test(s"test undirected CDLP with LDBC for algo ${algo}") {
-      // I have no idea how to write it so it will work
-      if (scala.util.Properties.versionNumberString.startsWith("2.12") && algo == "graphx") {
-        cancel("CDLP implementations are broken in 2.12, see #571")
-      }
       val testCase = ldbcTestCDLPUndirected
       val cdlpResults = testCase._1.labelPropagation.setAlgorithm(algo).maxIter(testCase._3).run()
       assert(cdlpResults.count() == testCase._1.vertices.count())
