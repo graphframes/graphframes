@@ -54,8 +54,10 @@ private[graphframes] object PatternParser extends RegexParsers {
           val vertices = src +: midVertices :+ dst
           vertices
             .sliding(2)
-            .map { case Seq(v1, v2) =>
-              AnonymousEdge(v1, v2)
+            .map {
+              case Seq(v1, v2) =>
+                AnonymousEdge(v1, v2)
+              case _ => throw new GraphFramesUnreachableException()
             }
             .toList
         } else {
