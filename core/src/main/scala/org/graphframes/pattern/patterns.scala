@@ -52,9 +52,12 @@ private[graphframes] object PatternParser extends RegexParsers {
         if (hop > 1) {
           val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
           val vertices = src +: midVertices :+ dst
-          vertices.sliding(2).map {
-            case Seq(v1, v2) => AnonymousEdge(v1, v2)
-          }.toList
+          vertices
+            .sliding(2)
+            .map { case Seq(v1, v2) =>
+              AnonymousEdge(v1, v2)
+            }
+            .toList
         } else {
           List(AnonymousEdge(src, dst))
         }

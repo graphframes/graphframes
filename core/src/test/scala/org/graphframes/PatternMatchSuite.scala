@@ -554,7 +554,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .select("u.id", "_v1.id", "_v2.id", "v.id")
 
     val res = varEdge.collect().toSet
-    compareResultToExpected(res, Set(Row(0,1,2,0), Row(0,1,2,3), Row(0,1,0,1)))
+    compareResultToExpected(res, Set(Row(0, 1, 2, 0), Row(0, 1, 2, 3), Row(0, 1, 0, 1)))
   }
 
   test("stateful predicates via UDFs") {
