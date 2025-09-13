@@ -45,8 +45,24 @@ private[graphframes] object PatternParser extends RegexParsers {
     "!" ~ edge ^^ { case _ ~ e =>
       Negation(e)
     }
+  private val varLengthEdge: Parser[List[Edge]] =
+    vertex ~ "-" ~ "[" ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
+      case src ~ "-" ~ "[" ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
+        val hop = num.toInt
+        if (hop > 1) {
+          val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
+          val vertices = src +: midVertices :+ dst
+          vertices.sliding(2).map {
+            case Seq(v1, v2) => AnonymousEdge(v1, v2)
+          }.toList
+        } else {
+          List(AnonymousEdge(src, dst))
+        }
+      }
+      case _ => throw new GraphFramesUnreachableException()
+    }
   private val pattern: Parser[Pattern] = edge | vertex | negatedEdge
-  val patterns: Parser[List[Pattern]] = repsep(pattern, ";")
+  val patterns: Parser[List[Pattern]] = varLengthEdge | repsep(pattern, ";")
 }
 
 private[graphframes] object Pattern {

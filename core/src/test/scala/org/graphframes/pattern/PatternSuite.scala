@@ -51,6 +51,13 @@ class PatternSuite extends SparkFunSuite {
           AnonymousEdge(NamedVertex("u"), NamedVertex("v")),
           AnonymousEdge(NamedVertex("v"), NamedVertex("w")),
           Negation(AnonymousEdge(NamedVertex("u"), NamedVertex("w")))))
+
+    assert(
+      Pattern.parse("(u)-[*3]->(v)") ===
+        Seq(
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
+          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
+          AnonymousEdge(NamedVertex("_v2"), NamedVertex("v"))))
   }
 
   test("bad parses") {
