@@ -58,6 +58,15 @@ class PatternSuite extends SparkFunSuite {
           AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
           AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
           AnonymousEdge(NamedVertex("_v2"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[*5]->(v)") ===
+        Seq(
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
+          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
+          AnonymousEdge(NamedVertex("_v2"), NamedVertex("_v3")),
+          AnonymousEdge(NamedVertex("_v3"), NamedVertex("_v4")),
+          AnonymousEdge(NamedVertex("_v4"), NamedVertex("v"))))
   }
 
   test("bad parses") {
@@ -128,6 +137,27 @@ class PatternSuite extends SparkFunSuite {
         Pattern.parse("(a)-[e]->(b); ()-[e]->()")
       }
     }
+    withClue("Failed to catch parse error with unsupported variable length pattern") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(u)-[*]->(v)")
+      }
+    }
+    withClue("Failed to catch parse error with unsupported variable length pattern") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(u)-[*2..]->(v)")
+      }
+    }
+    withClue("Failed to catch parse error with unsupported variable length pattern") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(u)-[*2..5]->(v)")
+      }
+    }
+    withClue("Failed to catch parse error with chaining long length pattern") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(u)-[*2]->(v);(v)-[e]->(w)")
+      }
+    }
+
   }
 
   test("empty pattern should be parsable") {

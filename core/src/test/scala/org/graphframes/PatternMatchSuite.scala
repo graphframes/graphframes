@@ -547,14 +547,31 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, Set(Row(0L, 1L, 2L), Row(2L, 0L, 1L), Row(1L, 2L, 0L)))
   }
 
-  test("variable length pattern") {
+  test("a path of length 3") {
     val varEdge = g
       .find("(u)-[*3]->(v)")
       .where("u.id == 0")
       .select("u.id", "_v1.id", "_v2.id", "v.id")
 
     val res = varEdge.collect().toSet
-    compareResultToExpected(res, Set(Row(0, 1, 2, 0), Row(0, 1, 2, 3), Row(0, 1, 0, 1)))
+    val expected = Set(Row(0, 1, 2, 0), Row(0, 1, 2, 3), Row(0, 1, 0, 1))
+    compareResultToExpected(res, expected)
+  }
+
+  test("a path of length 5") {
+    val varEdge = g
+      .find("(u)-[*5]->(v)")
+      .where("u.id == 0")
+      .select("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
+
+    val res = varEdge.collect().toSet
+    val expected = Set(
+      Row(0, 1, 2, 0, 1, 0),
+      Row(0, 1, 0, 1, 0, 1),
+      Row(0, 1, 2, 0, 1, 2),
+      Row(0, 1, 0, 1, 2, 0),
+      Row(0, 1, 0, 1, 2, 3))
+    compareResultToExpected(res, expected)
   }
 
   test("stateful predicates via UDFs") {
