@@ -554,7 +554,10 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .select("u.id", "_v1.id", "_v2.id", "v.id")
 
     val res = varEdge.collect().toSet
-    val expected = Set(Row(0, 1, 2, 0), Row(0, 1, 2, 3), Row(0, 1, 0, 1))
+    val expected = Set(
+      Row(0L, 1L, 2L, 0L),
+      Row(0L, 1L, 2L, 3L),
+      Row(0L, 1L, 0L, 1L))
     compareResultToExpected(res, expected)
   }
 
@@ -566,11 +569,11 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     val res = varEdge.collect().toSet
     val expected = Set(
-      Row(0, 1, 2, 0, 1, 0),
-      Row(0, 1, 0, 1, 0, 1),
-      Row(0, 1, 2, 0, 1, 2),
-      Row(0, 1, 0, 1, 2, 0),
-      Row(0, 1, 0, 1, 2, 3))
+      Row(0L, 1L, 2L, 0L, 1L, 0L),
+      Row(0L, 1L, 0L, 1L, 0L, 1L),
+      Row(0L, 1L, 2L, 0L, 1L, 2L),
+      Row(0L, 1L, 0L, 1L, 2L, 0L),
+      Row(0L, 1L, 0L, 1L, 2L, 3L))
     compareResultToExpected(res, expected)
   }
 
