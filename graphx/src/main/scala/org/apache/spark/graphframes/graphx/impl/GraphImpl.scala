@@ -200,7 +200,6 @@ class GraphImpl[VD: ClassTag, ED: ClassTag] protected (
       mergeMsg: (A, A) => A,
       tripletFields: TripletFields,
       activeSetOpt: Option[(VertexRDD[_], EdgeDirection)]): VertexRDD[A] = {
-
     vertices.cache()
     // For each vertex, replicate its attribute only to partitions where it is
     // in the relevant position in an edge.
@@ -337,14 +336,10 @@ object GraphImpl {
   def apply[VD: ClassTag, ED: ClassTag](
       vertices: VertexRDD[VD],
       edges: EdgeRDD[ED]): GraphImpl[VD, ED] = {
-
-    vertices.cache()
-
     // Convert the vertex partitions in edges to the correct type
     val newEdges = edges
       .asInstanceOf[EdgeRDDImpl[ED, _]]
       .mapEdgePartitions((_, part) => part.withoutVertexAttributes[VD]())
-      .cache()
 
     GraphImpl.fromExistingRDDs(vertices, newEdges)
   }
@@ -369,7 +364,7 @@ object GraphImpl {
       defaultVertexAttr: VD,
       edgeStorageLevel: StorageLevel,
       vertexStorageLevel: StorageLevel): GraphImpl[VD, ED] = {
-    val edgesCached = edges.withTargetStorageLevel(edgeStorageLevel).cache()
+    val edgesCached = edges.withTargetStorageLevel(edgeStorageLevel)
     val vertices =
       VertexRDD
         .fromEdges(edgesCached, edgesCached.partitions.length, defaultVertexAttr)
