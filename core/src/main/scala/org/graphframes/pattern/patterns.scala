@@ -45,29 +45,49 @@ private[graphframes] object PatternParser extends RegexParsers {
     "!" ~ edge ^^ { case _ ~ e =>
       Negation(e)
     }
-  private val varLengthEdge: Parser[List[Edge]] =
-    vertex ~ "-" ~ "[" ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
+  private def createFixedNumberOfEdges(src: Vertex, dst: Vertex, hop: Int): List[Edge] = {
+    if (hop == 1) {
+      List(AnonymousEdge(src, dst))
+    } else if (hop > 1) {
+      val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
+      val vertices = src +: midVertices :+ dst
+      vertices
+        .sliding(2)
+        .map {
+          case Seq(v1, v2) =>
+            AnonymousEdge(v1, v2)
+          case _ => throw new GraphFramesUnreachableException()
+        }
+        .toList
+    } else {
+      throw new GraphFramesUnreachableException()
+    }
+  }
+  private val fixedLengthPattern: Parser[List[Edge]] =
+    vertex ~ "-" ~ "[" ~ "*" ~ "[1-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
-        val hop = num.toInt
-        if (hop > 1) {
-          val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
-          val vertices = src +: midVertices :+ dst
-          vertices
-            .sliding(2)
-            .map {
-              case Seq(v1, v2) =>
-                AnonymousEdge(v1, v2)
-              case _ => throw new GraphFramesUnreachableException()
-            }
-            .toList
+        val hop: Int = num.toInt
+        createFixedNumberOfEdges(src, dst, hop)
+      }
+      case _ => throw new GraphFramesUnreachableException()
+    }
+  private val varLengthPattern: Parser[List[Edge]] =
+    vertex ~ "-" ~ "[" ~ "*" ~ "[1-9]*".r ~ ".." ~ "[1-9]*".r ~ "]" ~ "->" ~ vertex ^^ {
+      case src ~ "-" ~ "[" ~ "*" ~ min ~ ".." ~ max ~ "]" ~ "->" ~ dst => {
+        val min_hop: Int = if (min.isEmpty) 0 else min.toInt
+        val max_hop: Int = if (max.isEmpty) 0 else max.toInt
+        if (min_hop == max_hop && min_hop > 0) {
+          createFixedNumberOfEdges(src, dst, min_hop)
         } else {
-          List(AnonymousEdge(src, dst))
+          throw new InvalidParseException(
+            s"Variable-length edge patterns are not supported. Use a fixed-length pattern instead, e.g. (u)-[*${max}]->(v)")
         }
       }
       case _ => throw new GraphFramesUnreachableException()
     }
   private val pattern: Parser[Pattern] = edge | vertex | negatedEdge
-  val patterns: Parser[List[Pattern]] = varLengthEdge | repsep(pattern, ";")
+  private val quantifiedPathPattern: Parser[List[Edge]] = fixedLengthPattern | varLengthPattern
+  val patterns: Parser[List[Pattern]] = quantifiedPathPattern | repsep(pattern, ";")
 }
 
 private[graphframes] object Pattern {
