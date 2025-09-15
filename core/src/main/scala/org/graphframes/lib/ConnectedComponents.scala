@@ -185,7 +185,12 @@ object ConnectedComponents extends Logging {
   private def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
     val components =
       graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
-    GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
+    val res =
+      GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(COMPONENT)).vertices
+    res.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    res.count()
+    components.unpersist()
+    res
   }
 
   private def run(

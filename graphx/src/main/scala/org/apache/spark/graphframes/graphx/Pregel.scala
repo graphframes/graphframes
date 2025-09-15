@@ -135,8 +135,9 @@ object Pregel extends Logging {
 
     // compute the messages
     var messages = GraphXUtils.mapReduceTriplets(g, sendMsg, mergeMsg)
+    // It is absolutely enough to checkpoint only graph itself.
     val messageCheckpointer =
-      new PeriodicRDDCheckpointer[(VertexId, A)](checkpointInterval, graph.vertices.sparkContext)
+      new PeriodicRDDCheckpointer[(VertexId, A)](-1, graph.vertices.sparkContext)
     messageCheckpointer.update(messages.asInstanceOf[RDD[(VertexId, A)]])
     var isActiveMessagesNonEmpty = !messages.isEmpty()
 

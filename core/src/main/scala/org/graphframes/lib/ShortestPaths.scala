@@ -32,6 +32,7 @@ import org.apache.spark.sql.functions.transform_values
 import org.apache.spark.sql.functions.when
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.MapType
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.quote
 import org.graphframes.GraphFramesUnreachableException
@@ -109,7 +110,11 @@ private object ShortestPaths extends Logging {
       transform_keys(col(DISTANCE_ID), (longId: Column, _) => longIdToLandmarkColumn(longId))
     }
     val cols = graph.vertices.columns.map(quote).map(col) :+ distanceCol.as(DISTANCE_ID)
-    g.vertices.select(cols.toSeq: _*)
+    val res = g.vertices.select(cols.toSeq: _*)
+    res.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    res.count()
+    gx.unpersist()
+    res
   }
 
   private def runInGraphFrames(

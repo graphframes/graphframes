@@ -23,6 +23,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.MapType
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
@@ -67,7 +68,11 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame)
 private object LabelPropagation {
   private def runInGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
     val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxIter)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
+    val res = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
+    res.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    res.count()
+    gx.unpersist()
+    res
   }
 
   private def keyWithMaxValue(column: Column): Column = {
