@@ -200,7 +200,6 @@ class GraphImpl[VD: ClassTag, ED: ClassTag] protected (
       mergeMsg: (A, A) => A,
       tripletFields: TripletFields,
       activeSetOpt: Option[(VertexRDD[_], EdgeDirection)]): VertexRDD[A] = {
-    vertices.cache()
     // For each vertex, replicate its attribute only to partitions where it is
     // in the relevant position in an edge.
     replicatedVertexView.upgrade(vertices, tripletFields.useSrc, tripletFields.useDst)
@@ -266,7 +265,6 @@ class GraphImpl[VD: ClassTag, ED: ClassTag] protected (
     // The implicit parameter eq will be populated by the compiler if VD and VD2 are equal, and left
     // null if not
     if (eq != null) {
-      vertices.cache()
       // updateF preserves type, so we can use incremental replication
       val newVerts = vertices.leftJoin(other)(updateF).cache()
       val changedVerts = vertices.asInstanceOf[VertexRDD[VD2]].diff(newVerts)
