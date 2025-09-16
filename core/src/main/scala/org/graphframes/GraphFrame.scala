@@ -374,6 +374,10 @@ class GraphFrame private (
     if (names.isEmpty) df else df.select(quote(names.head), names.tail.map(quote): _*)
   }
 
+  def find(patterns: Seq[String]): DataFrame = {
+    patterns.map(find).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+  }
+
   // ======================== Other queries ===================================
 
   /**

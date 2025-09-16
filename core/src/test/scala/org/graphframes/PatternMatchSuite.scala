@@ -574,6 +574,16 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, expected)
   }
 
+  test("var-length pattern") {
+    val varEdge = g
+      .find(Seq("(u)-[*5]->(v)", "(u)-[*4]->(v)", "(u)-[*3]->(v)", "(u)-[*2]->(v)"))
+      .where("u.id == 0")
+      .select("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
+      .orderBy("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
+
+    varEdge.show
+  }
+
   test("stateful predicates via UDFs") {
     val chain4 = g
       .find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
