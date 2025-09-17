@@ -21,6 +21,7 @@ import org.apache.spark.graphframes.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.Logging
 import org.graphframes.WithMaxIter
 
 /**
@@ -32,10 +33,13 @@ import org.graphframes.WithMaxIter
  */
 class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with WithMaxIter {
+    with WithMaxIter
+    with Logging {
 
   def run(): DataFrame = {
-    StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
+    val res = StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
+    resultIsPersistent()
+    res
   }
 }
 

@@ -25,6 +25,7 @@ import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.MapType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithLocalCheckpoints
@@ -49,11 +50,12 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame)
     with WithAlgorithmChoice
     with WithCheckpointInterval
     with WithMaxIter
-    with WithLocalCheckpoints {
+    with WithLocalCheckpoints
+    with Logging {
 
   def run(): DataFrame = {
     val maxIterChecked = check(maxIter, "maxIter")
-    algorithm match {
+    val res = algorithm match {
       case "graphx" => LabelPropagation.runInGraphX(graph, maxIterChecked)
       case "graphframes" =>
         LabelPropagation.runInGraphFrames(
@@ -62,6 +64,8 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame)
           checkpointInterval,
           useLocalCheckpoints = useLocalCheckpoints)
     }
+    resultIsPersistent()
+    res
   }
 }
 
@@ -127,5 +131,4 @@ private object LabelPropagation {
   }
 
   private val LABEL_ID = "label"
-
 }
