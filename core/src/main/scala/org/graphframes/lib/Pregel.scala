@@ -334,10 +334,11 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
     var lastRoundPersistent: scala.collection.mutable.Queue[DataFrame] =
       scala.collection.mutable.Queue[DataFrame]()
 
+    val initialAttributes = graph.vertices.columns.map(col).toSeq
+
     var currentVertices = graph.vertices.select(
-      (Seq(
-        col("*"),
-        initialActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ initVertexCols): _*)
+      ((initialAttributes :+ initialActiveVertexExpression.alias(
+        Pregel.ACTIVE_FLAG_COL)) ++ initVertexCols): _*)
 
     val edges = graph.edges
       .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), struct(col("*")).as(EDGE))
@@ -399,9 +400,8 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
         val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
 
         currentVertices = verticesWithMsg.select(
-          (Seq(
-            col(ID),
-            updateActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ updateVertexCols): _*)
+          ((initialAttributes :+ updateActiveVertexExpression.alias(
+            Pregel.ACTIVE_FLAG_COL)) ++ updateVertexCols): _*)
 
         if (shouldCheckpoint && iteration % checkpointInterval == 0) {
           if (useLocalCheckpoints) {

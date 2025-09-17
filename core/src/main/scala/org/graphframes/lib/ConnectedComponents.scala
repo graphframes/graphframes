@@ -119,11 +119,8 @@ object ConnectedComponents extends Logging {
    *     `dst`.
    */
   private def prepare(graph: GraphFrame): GraphFrame = {
-    // TODO: This assignment job might fail if the graph is skewed.
     val vertices = graph.indexedVertices
       .select(col(LONG_ID).as(ID), col(ATTR))
-    // TODO: confirm the contract for a graph and decide whether we need distinct here
-    // .distinct()
     val edges = graph.indexedEdges
       .select(col(LONG_SRC).as(SRC), col(LONG_DST).as(DST))
     val orderedEdges = edges
@@ -327,12 +324,10 @@ object ConnectedComponents extends Logging {
           } else {
             ee = ee.checkpoint(eager = true)
           }
-          currRoundPersistedDFs = currRoundPersistedDFs :+ ee
-        } else {
-          // Checkpointing includes persist under the hood, no needs to do it again
-          ee = ee.persist(intermediateStorageLevel)
-          currRoundPersistedDFs = currRoundPersistedDFs :+ ee
         }
+
+        ee = ee.persist(intermediateStorageLevel)
+        currRoundPersistedDFs = currRoundPersistedDFs :+ ee
 
         minNbrs1 = minNbrs(
           ee,
