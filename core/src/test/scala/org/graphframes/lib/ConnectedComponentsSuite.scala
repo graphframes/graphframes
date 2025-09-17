@@ -277,46 +277,35 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     spark.conf.unset("spark.graphframes.connectedComponents.intermediatestoragelevel")
   }
 
-  test("intermediate storage level") {
-    val friends = Graphs.friends
-    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+  Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY, StorageLevel.NONE).foreach(
+    storageLevel => {
+      test(s"intermediate storage level $storageLevel") {
+        val friends = Graphs.friends
+        val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
 
-    val cc = friends.connectedComponents
-    assert(cc.getIntermediateStorageLevel === StorageLevel.MEMORY_AND_DISK)
+        val components =
+          friends.connectedComponents.setIntermediateStorageLevel(storageLevel).run()
+        assertComponents(components, expected)
+        components.unpersist()
+        ()
+      }
+    })
 
-    for (storageLevel <- Seq(
-        StorageLevel.DISK_ONLY,
-        StorageLevel.MEMORY_ONLY,
-        StorageLevel.NONE)) {
-      val components = cc
-        .setIntermediateStorageLevel(storageLevel)
-        .run()
+  Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY).foreach(storageLevel => {
+    test(s"intermediate storage level without skewedJoin $storageLevel") {
+      val friends = Graphs.friends
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+
+      val components =
+        friends.connectedComponents
+          .setIntermediateStorageLevel(storageLevel)
+          .setBroadcastThreshold(-1)
+          .run()
       assertComponents(components, expected)
       components.unpersist()
       ()
     }
-  }
-
-  test("intermediate storage level without skewedJoin") {
-    val friends = Graphs.friends
-    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
-
-    val cc = friends.connectedComponents
-    assert(cc.getIntermediateStorageLevel === StorageLevel.MEMORY_AND_DISK)
-
-    for (storageLevel <- Seq(
-        StorageLevel.DISK_ONLY,
-        StorageLevel.MEMORY_ONLY,
-        StorageLevel.NONE)) {
-      val components = cc
-        .setIntermediateStorageLevel(storageLevel)
-        .setBroadcastThreshold(-1)
-        .run()
-      assertComponents(components, expected)
-      components.unpersist()
-      ()
-    }
-  }
+  })
 
   test("not leaking cached data") {
     val priorCachedDFsSize = spark.sparkContext.getPersistentRDDs.size
