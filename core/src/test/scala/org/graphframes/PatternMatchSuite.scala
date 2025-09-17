@@ -535,6 +535,12 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
+  test("Unbound variable-length pattern (u)->[*..5]->(v)") {
+    intercept[InvalidParseException] {
+      g.find("(u)-[*..5]->(v)")
+    }
+  }
+
   /* ============================= More complex use case examples ============================== */
 
   test("triangles via post-hoc filter") {
@@ -547,24 +553,24 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, Set(Row(0L, 1L, 2L), Row(2L, 0L, 1L), Row(1L, 2L, 0L)))
   }
 
-  test("a path of length 3") {
-    val varEdge = g
+  test("fixed-length 3") {
+    val fixedLengthEdge = g
       .find("(u)-[*3]->(v)")
       .where("u.id == 0")
       .select("u.id", "_v1.id", "_v2.id", "v.id")
 
-    val res = varEdge.collect().toSet
+    val res = fixedLengthEdge.collect().toSet
     val expected = Set(Row(0L, 1L, 2L, 0L), Row(0L, 1L, 2L, 3L), Row(0L, 1L, 0L, 1L))
     compareResultToExpected(res, expected)
   }
 
-  test("a path of length 5") {
-    val varEdge = g
+  test("fixed-length 5") {
+    val fixedLengthEdge = g
       .find("(u)-[*5]->(v)")
       .where("u.id == 0")
       .select("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
 
-    val res = varEdge.collect().toSet
+    val res = fixedLengthEdge.collect().toSet
     val expected = Set(
       Row(0L, 1L, 2L, 0L, 1L, 0L),
       Row(0L, 1L, 0L, 1L, 0L, 1L),
@@ -574,14 +580,62 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, expected)
   }
 
-  test("var-length pattern") {
+  test("var-length pattern 2..2") {
     val varEdge = g
-      .find(Seq("(u)-[*5]->(v)", "(u)-[*4]->(v)", "(u)-[*3]->(v)", "(u)-[*2]->(v)"))
+      .find("(u)-[*2..2]->(v)")
       .where("u.id == 0")
-      .select("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
-      .orderBy("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
 
-    varEdge.show
+    val fixedEdge = g
+      .find("(u)-[*2]->(v)")
+      .where("u.id == 0")
+
+    assert(varEdge.schema == fixedEdge.schema)
+    assert(varEdge.except(fixedEdge).isEmpty && fixedEdge.except(varEdge).isEmpty)
+  }
+
+  test("var-length pattern 2..3") {
+    val varEdge = g
+      .find("(u)-[*2..3]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge2 = g
+      .find("(u)-[*2]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge3 = g
+      .find("(u)-[*3]->(v)")
+      .where("u.id == 0")
+
+    val unionEdge = fixedEdge3
+      .unionByName(fixedEdge2, allowMissingColumns = true)
+
+    assert(varEdge.schema == unionEdge.schema)
+    assert(varEdge.except(unionEdge).isEmpty && unionEdge.except(varEdge).isEmpty)
+  }
+
+  test("var-length pattern 3..5") {
+    val varEdge = g
+      .find("(u)-[*3..5]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge3 = g
+      .find("(u)-[*3]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge4 = g
+      .find("(u)-[*4]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge5 = g
+      .find("(u)-[*5]->(v)")
+      .where("u.id == 0")
+
+    val unionEdge = fixedEdge5
+      .unionByName(fixedEdge4, allowMissingColumns = true)
+      .unionByName(fixedEdge3, allowMissingColumns = true)
+
+    assert(varEdge.schema == unionEdge.schema)
+    assert(varEdge.except(unionEdge).isEmpty && unionEdge.except(varEdge).isEmpty)
   }
 
   test("stateful predicates via UDFs") {
