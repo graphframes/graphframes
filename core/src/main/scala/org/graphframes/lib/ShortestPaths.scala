@@ -80,7 +80,7 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
 
   def run(): DataFrame = {
     val lmarksChecked = check(lmarks, "landmarks")
-    algorithm match {
+    val res = algorithm match {
       case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked)
       case ALGO_GRAPHFRAMES =>
         runInGraphFrames(
@@ -90,6 +90,8 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
           useLocalCheckpoints = useLocalCheckpoints)
       case _ => throw new GraphFramesUnreachableException()
     }
+    resultIsPersistent()
+    res
   }
 }
 
