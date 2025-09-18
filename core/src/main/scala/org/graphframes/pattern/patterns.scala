@@ -46,7 +46,7 @@ private[graphframes] object PatternParser extends RegexParsers {
       Negation(e)
     }
   private val fixedLengthPattern: Parser[List[Edge]] =
-    vertex ~ "-" ~ "[" ~ "*" ~ "[1-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
+    vertex ~ "-" ~ "[" ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
         val hop: Int = num.toInt
         if (hop == 1) {

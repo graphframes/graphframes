@@ -363,10 +363,10 @@ class GraphFrame private (
     val VarLengthPattern = """\((\w+)\)-\[\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
     pattern match {
       case VarLengthPattern(src, min, max, dst) =>
-        if (min.isEmpty() || max.isEmpty()) {
+        if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
             s"Unbounded length patten ${pattern} is not supported! " +
-              s"Please a pattern of defined length, e.g. ($src-[*$min..$max]-$dst).")
+              s"Please a pattern of defined length.")
         }
         val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
           s"($src)-[*$hop]->($dst)"

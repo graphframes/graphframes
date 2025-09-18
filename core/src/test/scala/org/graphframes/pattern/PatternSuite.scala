@@ -18,6 +18,7 @@
 package org.graphframes.pattern
 
 import org.graphframes.InvalidParseException
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.SparkFunSuite
 
 class PatternSuite extends SparkFunSuite {
@@ -67,6 +68,20 @@ class PatternSuite extends SparkFunSuite {
           AnonymousEdge(NamedVertex("_v2"), NamedVertex("_v3")),
           AnonymousEdge(NamedVertex("_v3"), NamedVertex("_v4")),
           AnonymousEdge(NamedVertex("_v4"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[*10]->(v)") ===
+        Seq(
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
+          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
+          AnonymousEdge(NamedVertex("_v2"), NamedVertex("_v3")),
+          AnonymousEdge(NamedVertex("_v3"), NamedVertex("_v4")),
+          AnonymousEdge(NamedVertex("_v4"), NamedVertex("_v5")),
+          AnonymousEdge(NamedVertex("_v5"), NamedVertex("_v6")),
+          AnonymousEdge(NamedVertex("_v6"), NamedVertex("_v7")),
+          AnonymousEdge(NamedVertex("_v7"), NamedVertex("_v8")),
+          AnonymousEdge(NamedVertex("_v8"), NamedVertex("_v9")),
+          AnonymousEdge(NamedVertex("_v9"), NamedVertex("v"))))
   }
 
   test("bad parses") {
@@ -137,11 +152,21 @@ class PatternSuite extends SparkFunSuite {
         Pattern.parse("(a)-[e]->(b); ()-[e]->()")
       }
     }
-    withClue("Failed to catch parse error with unsupported variable length pattern") {
+  }
+
+  test("unsupported parse on the fixed length patterns") {
+    withClue("Failed to catch parse error with graph frame unreachable") {
+      intercept[GraphFramesUnreachableException] {
+        Pattern.parse("(u)-[*0]->(v)")
+      }
+    }
+
+    withClue("Failed to catch parse error with bad motif string") {
       intercept[InvalidParseException] {
         Pattern.parse("(u)-[*]->(v)")
       }
     }
+
     withClue("Failed to catch parse error with chaining quantified length pattern") {
       intercept[InvalidParseException] {
         Pattern.parse("(u)-[*2]->(v);(v)-[e]->(w)")
