@@ -360,16 +360,16 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val VarLengthPattern = """\((\w+)\)-\[\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
+    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
     pattern match {
-      case VarLengthPattern(src, min, max, dst) =>
+      case VarLengthPattern(src, name, min, max, dst) =>
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
             s"Unbounded length patten ${pattern} is not supported! " +
               "Please a pattern of defined length.")
         }
         val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
-          s"($src)-[*$hop]->($dst)"
+          s"($src)-[$name*$hop]->($dst)"
         }
         strToSeq
           .map(findAugmentedPatterns)

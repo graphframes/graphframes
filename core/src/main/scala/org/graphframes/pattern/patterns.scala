@@ -46,19 +46,20 @@ private[graphframes] object PatternParser extends RegexParsers {
       Negation(e)
     }
   private val fixedLengthPattern: Parser[List[Edge]] =
-    vertex ~ "-" ~ "[" ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
-      case src ~ "-" ~ "[" ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
+    vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]*".r ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
+      case src ~ "-" ~ "[" ~ name ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
         val hop: Int = num.toInt
         if (hop == 1) {
-          List(AnonymousEdge(src, dst))
+          List(if (name.isEmpty) AnonymousEdge(src, dst) else NamedEdge(name, src, dst))
         } else if (hop > 1) {
           val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
           val vertices = src +: midVertices :+ dst
           vertices
             .sliding(2)
+            .zipWithIndex
             .map {
-              case Seq(v1, v2) =>
-                AnonymousEdge(v1, v2)
+              case (Seq(v1, v2), i) =>
+                if (name.isEmpty) AnonymousEdge(v1, v2) else NamedEdge(s"_$name${i + 1}", v1, v2)
               case _ => throw new GraphFramesUnreachableException()
             }
             .toList

@@ -564,6 +564,16 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, expected)
   }
 
+  test("fixed-length 3 with named edge") {
+    val fixedLengthNamedEdge = g
+      .find("(u)-[e*3]->(v)")
+      .where("u.id == 0")
+
+    val expectedCols = Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v")
+
+    assert(fixedLengthNamedEdge.schema.map(_.name) == expectedCols)
+  }
+
   test("fixed-length 5") {
     val fixedLengthEdge = g
       .find("(u)-[*5]->(v)")
@@ -611,6 +621,16 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     assert(varEdge.schema == unionEdge.schema)
     assert(varEdge.except(unionEdge).isEmpty && unionEdge.except(varEdge).isEmpty)
+  }
+
+  test("var-length pattern 2..3 with named edge") {
+    val varEdge = g
+      .find("(u)-[e*2..3]->(v)")
+      .where("u.id == 0")
+
+    val expectedCols = Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v")
+
+    assert(varEdge.schema.map(_.name) == expectedCols)
   }
 
   test("var-length pattern 3..5") {
