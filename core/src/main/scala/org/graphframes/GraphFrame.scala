@@ -366,7 +366,7 @@ class GraphFrame private (
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
             s"Unbounded length patten ${pattern} is not supported! " +
-              s"Please a pattern of defined length.")
+              "Please a pattern of defined length.")
         }
         val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
           s"($src)-[*$hop]->($dst)"
