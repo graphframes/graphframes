@@ -64,7 +64,7 @@ object LDBCUtils {
       println(s"LDBC data for the case ${name} not found. Downloading...")
       checkZSTD()
       if (Files.notExists(dir)) {
-        Files.createDirectory(dir)
+        Files.createDirectories(dir)
       }
       val archivePath = path.resolve(s"${name}.tar.zst")
       val connection = ldbcURL(name).openConnection()
