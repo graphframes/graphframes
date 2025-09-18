@@ -9,14 +9,13 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 
-import java.nio.file.Files
-import java.nio.file.Path
+import java.nio.file._
 import java.util.Properties
 
 object ConnectedComponentsLDBC {
   def main(args: Array[String]): Unit = {
     val benchmarkGraphName = args.headOption.getOrElse("kgs")
-    val resourcesPath = Path.of(args.lift(1).getOrElse("/tmp/ldbc_graphalitics_datesets"))
+    val resourcesPath = Paths.get(args.lift(1).getOrElse("/tmp/ldbc_graphalitics_datesets"))
     val caseRoot: Path = resourcesPath.resolve(benchmarkGraphName)
 
     val sparkConf = new SparkConf()

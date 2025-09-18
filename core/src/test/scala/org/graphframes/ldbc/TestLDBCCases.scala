@@ -20,7 +20,7 @@ import java.nio.file._
 import java.util.Properties
 
 class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
-  private val resourcesPath = Path.of(new File("target").toURI)
+  private val resourcesPath = Paths.get(new File("target").toURI)
   private val unreachableID = 9223372036854775807L
 
   private def readUndirectedUnweighted(pathPrefix: String): GraphFrame = {
