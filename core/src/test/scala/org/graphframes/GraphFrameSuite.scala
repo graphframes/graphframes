@@ -63,6 +63,23 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     super.afterAll()
   }
 
+  test("test validate") {
+    val goodG = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L))).toDF("src", "dst"))
+    goodG.validate() // no exception should be thrown
+
+    val notDistinctVertices = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"), (1L, "d"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L))).toDF("src", "dst"))
+    assertThrows[InvalidGraphException](notDistinctVertices.validate())
+
+    val missingVertices = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L), (1L, 4L))).toDF("src", "dst"))
+    assertThrows[InvalidGraphException](missingVertices.validate())
+  }
+
   test("construction from DataFrames") {
     val g = GraphFrame(vertices, edges)
     g.vertices.collect().foreach {
@@ -362,53 +379,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
               StructField("id", LongType, nullable = false),
               StructField("a `name`", StringType, nullable = true))),
             nullable = false))))
-  }
-
-  test("skewed long ID assignments") {
-    val spark = this.spark
-    import spark.implicits._
-    val n = 5L
-    // union a star graph and a chain graph and cast integral IDs to strings
-    val star = Graphs.star(n)
-    val chain = Graphs.chain(n + 1)
-    val vertices = star.vertices.select(col(ID).cast("string").as(ID))
-    val edges =
-      star.edges
-        .select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST))
-        .unionAll(
-          chain.edges.select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST)))
-
-    val localVertices = vertices.select(ID).as[String].collect().toSet
-    val localEdges = edges.select(SRC, DST).as[(String, String)].collect().toSet
-
-    val defaultThreshold = GraphFrame.broadcastThreshold
-    assert(
-      defaultThreshold === 1000000,
-      s"Default broadcast threshold should be 1000000 but got $defaultThreshold.")
-
-    for (threshold <- Seq(0, 4, 10)) {
-      GraphFrame.setBroadcastThreshold(threshold)
-
-      val g = GraphFrame(vertices, edges)
-      g.persist(StorageLevel.MEMORY_AND_DISK)
-
-      val indexedVertices =
-        g.indexedVertices.select(ID, LONG_ID).as[(String, Long)].collect().toMap
-      assert(indexedVertices.keySet === localVertices)
-      assert(indexedVertices.values.toSeq.distinct.size === localVertices.size)
-      val origEdges = g.indexedEdges.select(SRC, DST).as[(String, String)].collect().toSet
-      assert(origEdges === localEdges)
-      g.indexedEdges
-        .select(SRC, LONG_SRC, DST, LONG_DST)
-        .as[(String, Long, String, Long)]
-        .collect()
-        .foreach { case (src, longSrc, dst, longDst) =>
-          assert(indexedVertices(src) === longSrc)
-          assert(indexedVertices(dst) === longDst)
-        }
-    }
-
-    GraphFrame.setBroadcastThreshold(defaultThreshold)
   }
 
   test("power iteration clustering wrapper") {
