@@ -1,8 +1,10 @@
 # Basic Graph Operations
 
+## Basics
+
 GraphFrames provide several simple graph queries, such as node degree. Also, since GraphFrames represent graphs as pairs of vertex and edge DataFrames, it is easy to make powerful queries directly on the vertex and edge DataFrames.  Those DataFrames are made available as `vertices` and `edges` fields in the GraphFrame.
 
-## Python API
+### Python API
 
 ```python
 from graphframes.examples import Graphs
@@ -52,7 +54,7 @@ g.vertices.groupBy().min("age").show()
 numFollows = g.edges.filter("relationship = 'follow'").count()
 ```
 
-## Scala API
+### Scala API
 
 ```scala
 import org.graphframes.{examples,GraphFrame}
@@ -101,4 +103,32 @@ g.vertices.groupBy().min("age").show()
 // Count the number of "follows" in the graph.
 // This queries the edge DataFrame.
 val numFollows = g.edges.filter("relationship = 'follow'").count()
+```
+
+## Filtering edges or vertices
+
+GraphFrames provides an API for filtering edges and vertices based on their attributes.
+
+**NOTE:** *This API is for simple filtering. For the more complex use cases, it is recommended to use [`PropertyGraphFrame` model](/04-user-guide/11-property-graphs.md). `PropertyGraphFrame` handles the logical schema of the whole graph and provides a more powerful API for selecting any subgraph based on required properties and filters.*
+
+### Python API
+
+```python
+from pyspark.sql import functions as F
+from graphframes.examples import Graphs
+
+g = Graphs(spark).friends()  # Get example graph
+g.filterVertices(F.col("name") == F.lit("Alice"))
+g.filterEdges(F.col("relationship") == F.lit("follow"))
+```
+
+### Scala API
+
+```scala
+import org.apache.spark.sql.functions._
+import org.graphframes.{examples,GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends
+g.filterVertices(col("name") === lit("Alice"))
+g.filterEdges(col("relationship") === lit("follow"))
 ```
