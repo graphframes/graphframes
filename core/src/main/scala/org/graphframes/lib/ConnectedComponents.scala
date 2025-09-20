@@ -87,7 +87,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
 
 object ConnectedComponents extends Logging {
 
-  import org.graphframes.GraphFrame._
+  import org.graphframes.GraphFrame.*
 
   private val COMPONENT = "component"
   private val ORIG_ID = "orig_id"
@@ -176,7 +176,7 @@ object ConnectedComponents extends Logging {
       minNbrs: DataFrame,
       broadcastThreshold: Int,
       logPrefix: String): DataFrame = {
-    import edges.sparkSession.implicits._
+    import edges.sparkSession.implicits.*
     val hubs = minNbrs
       .filter(col(CNT) > broadcastThreshold)
       .select(SRC)

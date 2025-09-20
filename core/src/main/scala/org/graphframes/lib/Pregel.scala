@@ -27,6 +27,7 @@ import org.apache.spark.sql.functions.struct
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 import org.graphframes.Logging
+import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 
 import java.io.IOException
@@ -81,7 +82,10 @@ import scala.util.control.Breaks.breakable
  *   <a href="https://doi.org/10.1145/1807167.1807184"> Malewicz et al., Pregel: a system for
  *   large-scale graph processing. </a>
  */
-class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
+class Pregel(val graph: GraphFrame)
+    extends Logging
+    with WithLocalCheckpoints
+    with WithIntermediateStorageLevel {
 
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
@@ -343,7 +347,7 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
     val edges = graph.edges
       .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), struct(col("*")).as(EDGE))
       .repartition(col("edge_src"), col("edge_dst"))
-      .persist()
+      .persist(intermediateStorageLevel)
 
     var iteration = 1
 
@@ -364,7 +368,7 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
       while (iteration <= maxIter) {
         logInfo(s"start Pregel iteration $iteration / $maxIter")
         val currRoundPersistent = scala.collection.mutable.Queue[DataFrame]()
-        currRoundPersistent.enqueue(currentVertices.persist())
+        currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
         var tripletsDF = currentVertices
           .select(struct(col("*")).as(SRC))
           .join(edges, Pregel.src(ID) === col("edge_src"))
@@ -406,14 +410,12 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
         if (shouldCheckpoint && iteration % checkpointInterval == 0) {
           if (useLocalCheckpoints) {
             currentVertices = currentVertices.localCheckpoint(eager = false)
-            currRoundPersistent.enqueue(currentVertices)
           } else {
             currentVertices = currentVertices.checkpoint(eager = false)
-            currRoundPersistent.enqueue(currentVertices)
           }
         } else {
           // checkpointing do persistence and we do not need to do it again
-          currRoundPersistent.enqueue(currentVertices.persist())
+          currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
         }
 
         if (stopIfAllNonActiveVertices) {
@@ -442,7 +444,7 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
       }
     }
 
-    val res = currentVertices.persist()
+    val res = currentVertices.persist(intermediateStorageLevel)
     res.count()
     while (lastRoundPersistent.nonEmpty) {
       lastRoundPersistent.dequeue().unpersist()

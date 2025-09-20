@@ -117,7 +117,7 @@ class BeliefPropagation:
                     .withColumnRenamed("newBelief", "belief")
                 )
                 # cache new vertices using workaround for SPARK-1334
-                cachedNewVertices = AM.getCachedDataFrame(newVertices)
+                cachedNewVertices = newVertices.localCheckpoint()
                 gx = GraphFrame(cachedNewVertices, gx.edges)
 
         # Drop the "color" column from vertices

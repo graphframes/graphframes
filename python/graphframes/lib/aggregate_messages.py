@@ -18,7 +18,7 @@
 from typing import Any
 
 from pyspark import SparkContext
-from pyspark.sql import Column, DataFrame, SparkSession
+from pyspark.sql import Column
 from pyspark.sql import functions as sqlfunctions
 
 
@@ -72,19 +72,3 @@ class AggregateMessages:
         """Reference for message column, used for specifying aggregation function."""
         jvm_gf_api = _java_api(SparkContext)
         return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
-
-    @staticmethod
-    def getCachedDataFrame(df: DataFrame) -> DataFrame:
-        """
-        Create a new cached copy of a DataFrame.
-
-        This utility method is useful for iterative DataFrame-based algorithms. See Scala
-        documentation for more details.
-
-        WARNING: This is NOT the same as `DataFrame.cache()`.
-                 The original DataFrame will NOT be cached.
-        """
-        spark = SparkSession.getActiveSession()
-        jvm_gf_api = _java_api(spark._sc)
-        jdf = jvm_gf_api.aggregateMessages().getCachedDataFrame(df._jdf)
-        return DataFrame(jdf, spark)
