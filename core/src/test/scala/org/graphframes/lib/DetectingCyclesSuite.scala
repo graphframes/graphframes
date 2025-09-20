@@ -4,6 +4,7 @@ import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.SparkFunSuite
 
+import scala.annotation.nowarn
 import scala.collection.mutable
 
 class DetectingCyclesSuite extends SparkFunSuite with GraphFrameTestSparkContext {
@@ -17,12 +18,12 @@ class DetectingCyclesSuite extends SparkFunSuite with GraphFrameTestSparkContext
         .toDF("src", "dst"))
     val res = graph.detectingCycles.setUseLocalCheckpoints(true).run()
     assert(res.count() == 3)
-    val collected =
+    @nowarn val collected =
       res
         .sort(GraphFrame.ID)
         .select(DetectingCycles.foundSeqCol)
         .collect()
-        .map(r => r.getAs[mutable.ArraySeq[Long]](0))
+        .map(r => r.getAs[mutable.WrappedArray[Long]](0))
 
     assert(collected(0) == Seq(1, 2, 3, 1))
     assert(collected(1) == Seq(2, 3, 1, 2))
@@ -51,12 +52,12 @@ class DetectingCyclesSuite extends SparkFunSuite with GraphFrameTestSparkContext
         .toDF("src", "dst"))
     val res = graph.detectingCycles.setUseLocalCheckpoints(true).run()
     assert(res.count() == 7)
-    val collected =
+    @nowarn val collected =
       res
         .sort(GraphFrame.ID, DetectingCycles.foundSeqCol)
         .select(DetectingCycles.foundSeqCol)
         .collect()
-        .map(r => r.getAs[mutable.ArraySeq[Long]](0))
+        .map(r => r.getAs[mutable.WrappedArray[Long]](0))
     assert(collected(0) == Seq(1, 2, 1))
     assert(collected(1) == Seq(1, 2, 5, 1))
     assert(collected(2) == Seq(1, 3, 1))
