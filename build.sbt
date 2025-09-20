@@ -121,6 +121,8 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnUnusedPrivates,
     ScalacOptions.warnNumericWiden,
     ScalacOptions.privateWarnNumericWiden,
+    ScalacOptions.warnUnusedNoWarn,
+    ScalacOptions.privateWarnUnusedNoWarn,
   ))
 
 lazy val graphx = (project in file("graphx"))
