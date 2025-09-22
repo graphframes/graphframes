@@ -77,6 +77,16 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
     this
   }
 
+  // Python API compatibility
+  def sendToSrc(value: Column): this.type = {
+    msgToSrc :+= value
+    this
+  }
+  def sendToSrc(value: String): this.type = {
+    msgToSrc :+= expr(value)
+    this
+  }
+
   /** Send message to source vertex, specifying SQL expression as a String */
   def sendToSrc(value: String, values: String*): this.type =
     sendToSrc(expr(value), values.map(expr): _*)
@@ -86,6 +96,16 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
   /** Send message to destination vertex */
   def sendToDst(value: Column, values: Column*): this.type = {
     msgToDst = value +: values
+    this
+  }
+
+  // Python API compatibility
+  def sendToDst(value: String): this.type = {
+    msgToDst :+= expr(value)
+    this
+  }
+  def sendToDst(value: Column): this.type = {
+    msgToDst :+= value
     this
   }
 
@@ -155,6 +175,10 @@ class AggregateMessages private[graphframes] (private val g: GraphFrame)
     resultIsPersistent()
     cachedResult
   }
+
+  // Python compatibility
+  def agg(aggCol: Column): DataFrame = agg(aggCol, Seq.empty[Column]: _*)
+  def agg(aggCol: String): DataFrame = agg(expr(aggCol), Seq.empty[Column]: _*)
 
   /**
    * Run the aggregation, specifying SQL expression as a String
