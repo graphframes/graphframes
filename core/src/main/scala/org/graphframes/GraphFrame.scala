@@ -361,6 +361,26 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
+    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
+    pattern match {
+      case VarLengthPattern(src, name, min, max, dst) =>
+        if (min.isEmpty || max.isEmpty) {
+          throw new InvalidParseException(
+            s"Unbounded length patten ${pattern} is not supported! " +
+              "Please a pattern of defined length.")
+        }
+        val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
+          s"($src)-[$name*$hop]->($dst)"
+        }
+        strToSeq
+          .map(findAugmentedPatterns)
+          .reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+      case _ =>
+        findAugmentedPatterns(pattern)
+    }
+  }
+
+  def findAugmentedPatterns(pattern: String): DataFrame = {
     val patterns = Pattern.parse(pattern)
 
     // For each named vertex appearing only in a negated term, we augment the positive terms
