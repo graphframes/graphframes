@@ -253,8 +253,7 @@ object BeliefPropagation {
           .drop("aggMess") // drop messages
           .drop("belief") // drop old beliefs
           .withColumnRenamed("newBelief", "belief")
-        // Cache new vertices using workaround for SPARK-13346
-        val cachedNewVertices = AM.getCachedDataFrame(newVertices)
+        val cachedNewVertices = newVertices.localCheckpoint()
         gx = GraphFrame(cachedNewVertices, gx.edges)
       }
     }
