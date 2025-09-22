@@ -713,7 +713,6 @@ class GraphFrame private (
       val withLongIds = vertices
         .select(ID)
         .repartition(col(ID))
-        .distinct()
         .sortWithinPartitions(ID)
         .withColumn(LONG_ID, monotonically_increasing_id())
         .persist(StorageLevel.MEMORY_AND_DISK)
@@ -742,25 +741,11 @@ class GraphFrame private (
         col(DST).cast("long").as(LONG_DST),
         col(ATTR))
     } else {
-      val threshold = broadcastThreshold
-      val hubs: Set[Any] = degrees
-        .filter(col("degree") >= threshold)
-        .select(ID)
-        .collect()
-        .map(_.get(0))
-        .toSet
-      val indexedSourceEdges = GraphFrame.skewedJoin(
-        packedEdges,
-        indexedVertices.select(col(ID).as(SRC), col(LONG_ID).as(LONG_SRC)),
-        SRC,
-        hubs,
-        "GraphFrame.indexedEdges:")
-      val indexedEdges = GraphFrame.skewedJoin(
-        indexedSourceEdges,
+      val indexedSourceEdges =
+        packedEdges.join(indexedVertices.select(col(ID).as(SRC), col(LONG_ID).as(LONG_SRC)), SRC)
+      val indexedEdges = indexedSourceEdges.join(
         indexedVertices.select(col(ID).as(DST), col(LONG_ID).as(LONG_DST)),
-        DST,
-        hubs,
-        "GraphFrame.indexedEdges:")
+        DST)
       indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
     }
   }

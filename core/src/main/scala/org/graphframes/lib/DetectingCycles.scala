@@ -24,7 +24,7 @@ class DetectingCycles private[graphframes] (private val graph: GraphFrame)
       useLocalCheckpoints,
       checkpointInterval,
       intermediateStorageLevel)
-    val distinctRes = rawRes
+    val explodedRes = rawRes
       .select(
         col(GraphFrame.ID),
         filter(col(foundSeqCol), x => size(x) > lit(0)).alias(foundSeqCol))
@@ -34,12 +34,11 @@ class DetectingCycles private[graphframes] (private val graph: GraphFrame)
         // from vid -> [[cycle1, cycle2, ...]]
         // to vid -> [cycle1], vid -> [cycle2], ...
         explode(col(foundSeqCol)).alias(foundSeqCol))
-      .distinct()
       .persist(intermediateStorageLevel)
-    distinctRes.count()
+    explodedRes.count()
     resultIsPersistent()
     rawRes.unpersist()
-    distinctRes
+    explodedRes
   }
 }
 
