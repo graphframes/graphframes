@@ -1212,21 +1212,4 @@ object GraphFrame extends Serializable with Logging {
         }
     }
   }
-
-  /**
-   * Controls broadcast threshold in skewed joins. Use normal joins for vertices with degrees less
-   * than the threshold, and broadcast joins otherwise. The default value is 1000000. If we have
-   * less than 100 billion edges, this would collect at most 2e11 / 1000000 = 200000 hubs, which
-   * could be handled by the driver.
-   */
-  private[this] var _broadcastThreshold: Int = 1000000
-
-  private[graphframes] def broadcastThreshold: Int = _broadcastThreshold
-
-  // for unit testing only
-  private[graphframes] def setBroadcastThreshold(value: Int): this.type = {
-    require(value >= 0)
-    _broadcastThreshold = value
-    this
-  }
 }
