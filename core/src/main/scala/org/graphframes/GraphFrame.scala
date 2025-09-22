@@ -618,7 +618,7 @@ class GraphFrame private (
         .distinct()
         .persist(intermediateStorageLevel)
       val countVerticesFromEdges = verticesSetFromEdges.count()
-      if (countVerticesFromEdges != countDistinctVertices) {
+      if (countVerticesFromEdges > countDistinctVertices) {
         throw new InvalidGraphException(
           s"Graph is inconsistent: edges has ${countVerticesFromEdges} " +
             s"vertices, but vertices has ${countDistinctVertices} vertices.")
