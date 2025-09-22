@@ -3,6 +3,7 @@ package org.graphframes.lib
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.Logging
 import org.graphframes.WithCheckpointInterval
@@ -18,7 +19,11 @@ class DetectingCycles private[graphframes] (private val graph: GraphFrame)
     with WithCheckpointInterval {
   import DetectingCycles._
   def run(): DataFrame = {
-    val rawRes = DetectingCycles.run(graph, useLocalCheckpoints, checkpointInterval)
+    val rawRes = DetectingCycles.run(
+      graph,
+      useLocalCheckpoints,
+      checkpointInterval,
+      intermediateStorageLevel)
     val distinctRes = rawRes
       .select(
         col(GraphFrame.ID),
@@ -42,7 +47,11 @@ object DetectingCycles {
   private val storedSeqCol: String = "sequences"
   val foundSeqCol: String = "found_cycles"
 
-  def run(graph: GraphFrame, useLocalCheckpoints: Boolean, checkpointInterval: Int): DataFrame = {
+  def run(
+      graph: GraphFrame,
+      useLocalCheckpoints: Boolean,
+      checkpointInterval: Int,
+      intermediateStorageLevel: StorageLevel): DataFrame = {
     val preparedGraph = GraphFrame(
       graph.vertices.select(GraphFrame.ID),
       graph.edges.select(GraphFrame.SRC, GraphFrame.DST))
@@ -76,6 +85,7 @@ object DetectingCycles {
     preparedGraph.pregel
       .setCheckpointInterval(checkpointInterval)
       .setUseLocalCheckpoints(useLocalCheckpoints)
+      .setIntermediateStorageLevel(intermediateStorageLevel)
       .setEarlyStopping(false)
       .setSkipMessagesFromNonActiveVertices(true)
       .setInitialActiveVertexExpression(lit(true))
