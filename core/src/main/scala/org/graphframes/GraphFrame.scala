@@ -25,6 +25,7 @@ import org.apache.spark.sql.functions.array
 import org.apache.spark.sql.functions.broadcast
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.count
+import org.apache.spark.sql.functions.countDistinct
 import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.functions.lit
@@ -570,6 +571,72 @@ class GraphFrame private (
     }
   }
 
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   */
+  def validate(): Unit =
+    validate(checkVertices = true, intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK)
+
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @param checkVertices
+   *   a flag to indicate whether additional vertex consistency checks should be performed. If
+   *   true, the method will verify that all vertices in the vertex DataFrame are represented in
+   *   the edge DataFrame and vice versa. It is slow on big graphs.
+   * @param intermediateStorageLevel
+   *   the storage level to be used when persisting intermediate DataFrame computations during the
+   *   validation process.
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   */
+  def validate(checkVertices: Boolean, intermediateStorageLevel: StorageLevel): Unit = {
+    val persistedVertices = vertices.persist(intermediateStorageLevel)
+    val countDistinctVertices = persistedVertices.select(countDistinct(ID)).first().getLong(0)
+    val verticesCount = persistedVertices.count()
+    if (countDistinctVertices != verticesCount) {
+      throw new InvalidGraphException(
+        s"Graph contains (${verticesCount - countDistinctVertices}) duplicate vertices.")
+    }
+    if (checkVertices) {
+      val verticesSetFromEdges = edges
+        .select(col(SRC).alias(ID))
+        .union(edges.select(col(DST).alias(ID)))
+        .distinct()
+        .persist(intermediateStorageLevel)
+      val countVerticesFromEdges = verticesSetFromEdges.count()
+      if (countVerticesFromEdges > countDistinctVertices) {
+        throw new InvalidGraphException(
+          s"Graph is inconsistent: edges has ${countVerticesFromEdges} " +
+            s"vertices, but vertices has ${countDistinctVertices} vertices.")
+      }
+
+      val combined = verticesSetFromEdges.join(vertices, ID, "left_anti")
+      val countOfBadVertices = combined.count()
+      if (countOfBadVertices > 0) {
+        throw new InvalidGraphException(
+          "Vertices DataFrame does not contain all edges src/dst. " +
+            s"Found ${countOfBadVertices} edges src/dst that are not in the vertices DataFrame.")
+      }
+      persistedVertices.unpersist()
+      verticesSetFromEdges.unpersist()
+      ()
+    }
+  }
+
   // ========= Motif finding (private) =========
 
   /**
@@ -627,7 +694,6 @@ class GraphFrame private (
       val withLongIds = vertices
         .select(ID)
         .repartition(col(ID))
-        .distinct()
         .sortWithinPartitions(ID)
         .withColumn(LONG_ID, monotonically_increasing_id())
         .persist(StorageLevel.MEMORY_AND_DISK)
@@ -656,25 +722,11 @@ class GraphFrame private (
         col(DST).cast("long").as(LONG_DST),
         col(ATTR))
     } else {
-      val threshold = broadcastThreshold
-      val hubs: Set[Any] = degrees
-        .filter(col("degree") >= threshold)
-        .select(ID)
-        .collect()
-        .map(_.get(0))
-        .toSet
-      val indexedSourceEdges = GraphFrame.skewedJoin(
-        packedEdges,
-        indexedVertices.select(col(ID).as(SRC), col(LONG_ID).as(LONG_SRC)),
-        SRC,
-        hubs,
-        "GraphFrame.indexedEdges:")
-      val indexedEdges = GraphFrame.skewedJoin(
-        indexedSourceEdges,
+      val indexedSourceEdges =
+        packedEdges.join(indexedVertices.select(col(ID).as(SRC), col(LONG_ID).as(LONG_SRC)), SRC)
+      val indexedEdges = indexedSourceEdges.join(
         indexedVertices.select(col(ID).as(DST), col(LONG_ID).as(LONG_DST)),
-        DST,
-        hubs,
-        "GraphFrame.indexedEdges:")
+        DST)
       indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
     }
   }
@@ -1140,22 +1192,5 @@ object GraphFrame extends Serializable with Logging {
             throw new InvalidPatternException
         }
     }
-  }
-
-  /**
-   * Controls broadcast threshold in skewed joins. Use normal joins for vertices with degrees less
-   * than the threshold, and broadcast joins otherwise. The default value is 1000000. If we have
-   * less than 100 billion edges, this would collect at most 2e11 / 1000000 = 200000 hubs, which
-   * could be handled by the driver.
-   */
-  private[this] var _broadcastThreshold: Int = 1000000
-
-  private[graphframes] def broadcastThreshold: Int = _broadcastThreshold
-
-  // for unit testing only
-  private[graphframes] def setBroadcastThreshold(value: Int): this.type = {
-    require(value >= 0)
-    _broadcastThreshold = value
-    this
   }
 }

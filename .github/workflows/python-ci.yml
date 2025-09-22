@@ -21,6 +21,7 @@ jobs:
       JVM_OPTS:  -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       SPARK_VERSION: ${{ matrix.spark-version }}
       SCALA_VERSION: ${{ matrix.scala-version }}
+      PIP_REQUESTS_TIMEOUT: 100
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-java@v4
