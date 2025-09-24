@@ -3,7 +3,7 @@ name: python-pypi-publish
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - "*.*.*"
 
