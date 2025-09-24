@@ -656,6 +656,26 @@ class GraphFrame private (
    */
   def detectingCycles: DetectingCycles = new DetectingCycles(this)
 
+  /**
+   * Converts the directed graph into an undirected graph by ensuring that all directed edges are
+   * bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
+   *
+   * @return
+   *   a new GraphFrame representing the undirected graph.
+   */
+  def asUndirected(): GraphFrame = {
+    val newEdges = edges
+      .select(col(SRC), col(DST), nestAsCol(edges, ATTR))
+      .union(edges
+        .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR)))
+      .select(SRC, DST, ATTR)
+    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
+      .filter(c => (c != SRC) && (c != DST))
+      .map(c => col(ATTR).getField(c).alias(c))
+      .toSeq
+    GraphFrame(vertices, newEdges.select(newColumns: _*))
+  }
+
   // ========= Motif finding (private) =========
 
   /**
