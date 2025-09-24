@@ -48,8 +48,7 @@ import org.graphframes.WithIntermediateStorageLevel
  *   - [[AggregateMessages.msg]]: message sent to vertex (for aggregation function)
  *
  * Note: If you use this operation to write an iterative algorithm, you may want to use
- * [[AggregateMessages$.getCachedDataFrame getCachedDataFrame()]] as a workaround for caching
- * issues.
+ * `checkpoint()` (`localCheckpoint()`) as a workaround for caching issues.
  *
  * @example
  *   We can use this function to compute the in-degree of each vertex
