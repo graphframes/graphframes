@@ -6,13 +6,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.5
+          - spark-version: 3.5.6
             java-version: 11
-          - spark-version: 3.5.5
+          - spark-version: 3.5.6
             java-version: 17
-          - spark-version: 4.0.0
+          - spark-version: 4.0.1
             java-version: 17
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       # fixing this error after tests success: sbt.ForkMain failed with exit code 134
       # https://stackoverflow.com/questions/33287424/strange-exception-in-sbt-test
@@ -33,6 +33,8 @@ jobs:
       run: build/sbt -Dspark.version=${{ matrix.spark-version }} scalafmtCheckAll
     - name: Check scalastyle
       run: build/sbt -Dspark.version=${{ matrix.spark-version }} "scalafixAll --check"
+    - name: Check docs build
+      run: build/sbt -Dspark.version=${{ matrix.spark-version }} doc
     - name: Build and Test
       run: build/sbt -v -Dspark.version=${{ matrix.spark-version }} coverage +test coverageReport
     - uses: codecov/codecov-action@v3
