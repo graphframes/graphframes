@@ -170,12 +170,24 @@ class GraphFrame private (
   /**
    * Returns triplets: (source vertex)-[edge]->(destination vertex) for all edges in the graph.
    * The DataFrame returned has 3 columns, with names: [[GraphFrame.SRC]], [[GraphFrame.EDGE]],
-   * and [[GraphFrame.DST]]. The 2 vertex columns have schema matching [[GraphFrame.vertices]],
-   * and the edge column has a schema matching [[GraphFrame.edges]].
+   * and [[GraphFrame.DST]]. Each column is a struct. The 2 vertex columns have schema matching
+   * [[GraphFrame.vertices]], and the edge column has a schema matching [[GraphFrame.edges]]. For
+   * example, `triplets.select(col(SRC)(ID))` selects ID of the source column.
    *
    * @group structure
    */
-  lazy val triplets: DataFrame = find(s"($SRC)-[$EDGE]->($DST)")
+  lazy val triplets: DataFrame = {
+    vertices
+      .select(col(ID).alias("src_id"), nestAsCol(vertices, SRC))
+      .join(
+        edges
+          .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), nestAsCol(edges, EDGE)),
+        col("src_id") === col("edge_src"))
+      .join(
+        vertices.select(col(ID).alias("dst_id"), nestAsCol(vertices, DST)),
+        col("dst_id") === col("edge_dst"))
+      .drop("src_id", "edge_src", "dst_id", "edge_dst")
+  }
 
   // ============================ Conversions ========================================
 

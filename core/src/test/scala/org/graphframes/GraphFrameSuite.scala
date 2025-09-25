@@ -353,6 +353,44 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
+  test("test triplets") {
+    // Basic triplets test
+    val g = GraphFrame(vertices, edges)
+    val triplets = g.triplets.collect()
+    assert(triplets.length === localEdges.size)
+    triplets.foreach {
+      case Row(src: Row, edge: Row, dst: Row) =>
+        assert(src.getLong(0) === edge.getLong(0)) // src.id === edge.src
+        assert(dst.getLong(0) === edge.getLong(1)) // dst.id === edge.dst
+        assert(localEdges((edge.getLong(0), edge.getLong(1))) === edge.getString(2))
+      case _ => throw new GraphFramesUnreachableException()
+    }
+
+    // Test with attributes
+    val v2 = vertices.withColumn("age", lit(10))
+    val e2 = edges.withColumn("weight", lit(2.0))
+    val g2 = GraphFrame(v2, e2)
+    val triplets2 = g2.triplets.collect()
+    triplets2.foreach {
+      case Row(src: Row, edge: Row, _: Row) =>
+        assert(src.getInt(2) === 10) // Check vertex attribute
+        assert(edge.getDouble(3) === 2.0) // Check edge attribute
+      case _ => throw new GraphFramesUnreachableException()
+    }
+
+    // Test with dots in column names
+    val v3 = v2.withColumnRenamed("age", "person.age")
+    val e3 = e2.withColumnRenamed("weight", "edge.weight")
+    val g3 = GraphFrame(v3, e3)
+    val triplets3 = g3.triplets.collect()
+    triplets3.foreach {
+      case Row(src: Row, edge: Row, _: Row) =>
+        assert(src.getInt(2) === 10) // Check vertex attribute
+        assert(edge.getDouble(3) === 2.0) // Check edge attribute
+      case _ => throw new GraphFramesUnreachableException()
+    }
+  }
+
   test("nestAsCol with dots in column names") {
     val df = vertices.withColumnRenamed("name", "a.name")
     val col = nestAsCol(df, "attr")
