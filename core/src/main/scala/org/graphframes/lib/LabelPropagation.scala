@@ -17,15 +17,18 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.MapType
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
 
@@ -48,26 +51,35 @@ class LabelPropagation private[graphframes] (private val graph: GraphFrame)
     with WithAlgorithmChoice
     with WithCheckpointInterval
     with WithMaxIter
-    with WithLocalCheckpoints {
+    with WithLocalCheckpoints
+    with WithIntermediateStorageLevel
+    with Logging {
 
   def run(): DataFrame = {
     val maxIterChecked = check(maxIter, "maxIter")
-    algorithm match {
+    val res = algorithm match {
       case "graphx" => LabelPropagation.runInGraphX(graph, maxIterChecked)
       case "graphframes" =>
         LabelPropagation.runInGraphFrames(
           graph,
           maxIterChecked,
           checkpointInterval,
-          useLocalCheckpoints = useLocalCheckpoints)
+          useLocalCheckpoints = useLocalCheckpoints,
+          intermediateStorageLevel = intermediateStorageLevel)
     }
+    resultIsPersistent()
+    res
   }
 }
 
 private object LabelPropagation {
   private def runInGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
-    val gx = graphxlib.LabelPropagation.run(graph.cachedTopologyGraphX, maxIter)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
+    val gx = graphx.lib.LabelPropagation.run(graph.cachedTopologyGraphX, maxIter)
+    val res = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(LABEL_ID)).vertices
+    res.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    res.count()
+    gx.unpersist()
+    res
   }
 
   private def keyWithMaxValue(column: Column): Column = {
@@ -86,13 +98,18 @@ private object LabelPropagation {
       maxIter: Int,
       checkpointInterval: Int,
       isDirected: Boolean = true,
-      useLocalCheckpoints: Boolean): DataFrame = {
+      useLocalCheckpoints: Boolean,
+      intermediateStorageLevel: StorageLevel): DataFrame = {
     // Overall:
     // - Initial labels - IDs
     // - Active vertex col (halt voting) - did the label changed?
     // - Choosing a new label - top across neighbours (tie-braking is determenistic)
 
-    var pregel = graph.pregel
+    val preparedGraph = GraphFrame(
+      graph.vertices.select(GraphFrame.ID),
+      graph.edges.select(GraphFrame.SRC, GraphFrame.DST))
+
+    var pregel = preparedGraph.pregel
       .withVertexColumn(LABEL_ID, col(GraphFrame.ID).alias(LABEL_ID), keyWithMaxValue(Pregel.msg))
       .setMaxIter(maxIter)
       .setStopIfAllNonActiveVertices(true)
@@ -101,6 +118,7 @@ private object LabelPropagation {
       .setSkipMessagesFromNonActiveVertices(false)
       .setUpdateActiveVertexExpression(col(LABEL_ID) =!= keyWithMaxValue(Pregel.msg))
       .setUseLocalCheckpoints(useLocalCheckpoints)
+      .setIntermediateStorageLevel(intermediateStorageLevel)
 
     if (isDirected) {
       pregel = pregel.sendMsgToDst(Pregel.src(LABEL_ID))
@@ -122,5 +140,4 @@ private object LabelPropagation {
   }
 
   private val LABEL_ID = "label"
-
 }

@@ -17,9 +17,11 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.Logging
 import org.graphframes.WithMaxIter
 
 /**
@@ -31,10 +33,13 @@ import org.graphframes.WithMaxIter
  */
 class StronglyConnectedComponents private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with WithMaxIter {
+    with WithMaxIter
+    with Logging {
 
   def run(): DataFrame = {
-    StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
+    val res = StronglyConnectedComponents.run(graph, check(maxIter, "maxIter"))
+    resultIsPersistent()
+    res
   }
 }
 
@@ -42,7 +47,11 @@ class StronglyConnectedComponents private[graphframes] (private val graph: Graph
 private object StronglyConnectedComponents {
   private def run(graph: GraphFrame, numIter: Int): DataFrame = {
     val gx = graphxlib.StronglyConnectedComponents.run(graph.cachedTopologyGraphX, numIter)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID)).vertices
+    val res = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(COMPONENT_ID)).vertices
+    res.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    res.count()
+    gx.unpersist()
+    res
   }
 
   private[graphframes] val COMPONENT_ID = "component"

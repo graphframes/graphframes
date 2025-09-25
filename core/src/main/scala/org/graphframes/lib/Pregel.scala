@@ -27,6 +27,7 @@ import org.apache.spark.sql.functions.struct
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame._
 import org.graphframes.Logging
+import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 
 import java.io.IOException
@@ -81,7 +82,10 @@ import scala.util.control.Breaks.breakable
  *   <a href="https://doi.org/10.1145/1807167.1807184"> Malewicz et al., Pregel: a system for
  *   large-scale graph processing. </a>
  */
-class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
+class Pregel(val graph: GraphFrame)
+    extends Logging
+    with WithLocalCheckpoints
+    with WithIntermediateStorageLevel {
 
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
@@ -331,13 +335,19 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
       updateExpr.as(colName)
     }
 
+    var lastRoundPersistent: scala.collection.mutable.Queue[DataFrame] =
+      scala.collection.mutable.Queue[DataFrame]()
+
+    val initialAttributes = graph.vertices.columns.map(col).toSeq
+
     var currentVertices = graph.vertices.select(
-      (Seq(
-        col("*"),
-        initialActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ initVertexCols): _*)
-    var vertexUpdateColDF: DataFrame = null
+      ((initialAttributes :+ initialActiveVertexExpression.alias(
+        Pregel.ACTIVE_FLAG_COL)) ++ initVertexCols): _*)
 
     val edges = graph.edges
+      .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), struct(col("*")).as(EDGE))
+      .repartition(col("edge_src"), col("edge_dst"))
+      .persist(intermediateStorageLevel)
 
     var iteration = 1
 
@@ -357,12 +367,15 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
     breakable {
       while (iteration <= maxIter) {
         logInfo(s"start Pregel iteration $iteration / $maxIter")
+        val currRoundPersistent = scala.collection.mutable.Queue[DataFrame]()
+        currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
         var tripletsDF = currentVertices
           .select(struct(col("*")).as(SRC))
-          .join(edges.select(struct(col("*")).as(EDGE)), Pregel.src(ID) === Pregel.edge(SRC))
+          .join(edges, Pregel.src(ID) === col("edge_src"))
           .join(
             currentVertices.select(struct(col("*")).as(DST)),
-            Pregel.edge(DST) === Pregel.dst(ID))
+            col("edge_dst") === Pregel.dst(ID))
+          .drop(col("edge_src"), col("edge_dst"))
 
         if (skipMessagesFromNonActiveVertices) {
           tripletsDF = tripletsDF.filter(
@@ -377,9 +390,10 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
         if (earlyStopping && msgDF.isEmpty) {
           logInfo(
             s"there are no more non-null messages; Pregel stops earlier at iteration $iteration")
-          if (vertexUpdateColDF != null) {
-            vertexUpdateColDF.unpersist()
+          while (lastRoundPersistent.nonEmpty) {
+            lastRoundPersistent.dequeue().unpersist()
           }
+          lastRoundPersistent = currRoundPersistent
           break()
         }
 
@@ -389,43 +403,55 @@ class Pregel(val graph: GraphFrame) extends Logging with WithLocalCheckpoints {
 
         val verticesWithMsg = currentVertices.join(newAggMsgDF, Seq(ID), "left_outer")
 
-        var newVertexUpdateColDF = verticesWithMsg.select(
-          (Seq(
-            col(ID),
-            updateActiveVertexExpression.alias(Pregel.ACTIVE_FLAG_COL)) ++ updateVertexCols): _*)
+        currentVertices = verticesWithMsg.select(
+          ((initialAttributes :+ updateActiveVertexExpression.alias(
+            Pregel.ACTIVE_FLAG_COL)) ++ updateVertexCols): _*)
 
         if (shouldCheckpoint && iteration % checkpointInterval == 0) {
           if (useLocalCheckpoints) {
-            newVertexUpdateColDF = newVertexUpdateColDF.localCheckpoint(eager = false)
+            currentVertices = currentVertices.localCheckpoint(eager = false)
           } else {
-            // do checkpoint, use lazy checkpoint because later we will materialize this DF.
-            newVertexUpdateColDF = newVertexUpdateColDF.checkpoint(eager = false)
-            // TODO: remove last checkpoint file.
+            currentVertices = currentVertices.checkpoint(eager = false)
           }
+        } else {
+          // checkpointing do persistence and we do not need to do it again
+          currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
         }
-        newVertexUpdateColDF.cache()
-        newVertexUpdateColDF.count() // materialize it
-
-        if (vertexUpdateColDF != null) {
-          vertexUpdateColDF.unpersist()
-        }
-        vertexUpdateColDF = newVertexUpdateColDF
-
-        currentVertices = graph.vertices.join(vertexUpdateColDF, ID)
 
         if (stopIfAllNonActiveVertices) {
           if (currentVertices.filter(col(Pregel.ACTIVE_FLAG_COL)).isEmpty) {
             logInfo(
               s"all the verties are non-active; Pregel stops earlier at iteration $iteration")
+            while (lastRoundPersistent.nonEmpty) {
+              lastRoundPersistent.dequeue().unpersist()
+            }
+            lastRoundPersistent = currRoundPersistent
             break()
           }
         }
+
+        if (!earlyStopping && !stopIfAllNonActiveVertices) {
+          // we need to call materialize
+          currentVertices.count()
+        }
+
+        while (lastRoundPersistent.nonEmpty) {
+          lastRoundPersistent.dequeue().unpersist()
+        }
+        lastRoundPersistent = currRoundPersistent
 
         iteration += 1
       }
     }
 
-    currentVertices
+    val res = currentVertices.persist(intermediateStorageLevel)
+    res.count()
+    while (lastRoundPersistent.nonEmpty) {
+      lastRoundPersistent.dequeue().unpersist()
+    }
+    edges.unpersist()
+    System.gc()
+    res
   }
 
 }

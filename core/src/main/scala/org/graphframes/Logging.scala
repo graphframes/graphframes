@@ -40,4 +40,8 @@ private[org] trait Logging {
   protected def logTrace(s: => String): Unit = {
     if (logger.isTraceEnabled) logger.trace(s)
   }
+
+  protected def resultIsPersistent(): Unit = {
+    logWarn("Returned DataFrame is persistent and materialized!")
+  }
 }

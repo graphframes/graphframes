@@ -17,12 +17,13 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx.Edge
+import org.apache.spark.graphframes.graphx.{lib => graphxlib}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFramesUnreachableException
+import org.graphframes.Logging
 import org.graphframes.WithMaxIter
 
 /**
@@ -42,7 +43,8 @@ import org.graphframes.WithMaxIter
  */
 class SVDPlusPlus private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with WithMaxIter {
+    with WithMaxIter
+    with Logging {
   private var _rank: Int = 10
   private var _minVal: Double = 0.0
   private var _maxVal: Double = 5.0
@@ -101,6 +103,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame)
 
     val (df, l) = SVDPlusPlus.run(graph, conf)
     _loss = Some(l)
+    resultIsPersistent()
     df
   }
 
@@ -122,7 +125,10 @@ object SVDPlusPlus {
       graph,
       gx,
       vertexNames = Seq(COLUMN1, COLUMN2, COLUMN3, COLUMN4))
-    (gf.vertices, res)
+    val vertices = gf.vertices.persist()
+    vertices.count()
+    gx.unpersist()
+    (vertices, res)
   }
 
   /**

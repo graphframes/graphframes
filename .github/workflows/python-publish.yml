@@ -3,13 +3,15 @@ name: python-pypi-publish
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - "*.*.*"
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      PIP_REQUESTS_TIMEOUT: 100
     environment:
       name: pypi
       url: https://pypi.org/p/graphframes-py

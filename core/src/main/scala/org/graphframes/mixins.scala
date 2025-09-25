@@ -66,14 +66,23 @@ private[graphframes] trait WithBroadcastThreshold extends Logging {
   protected var broadcastThreshold: Int = 1000000
 
   /**
-   * Sets broadcast threshold in propagating component assignments (default: 1000000). If a node
-   * degree is greater than this threshold at some iteration, its component assignment will be
-   * collected and then broadcasted back to propagate the assignment to its neighbors. Otherwise,
-   * the assignment propagation is done by a normal Spark join. This parameter is only used when
-   * the algorithm is set to "graphframes".
+   * Sets a broadcast threshold in propagating component assignments (default: 1,000,000). If a
+   * node degree is greater than this threshold at some iteration, its component assignment will
+   * be collected and then broadcasted back to propagate the assignment to its neighbors.
+   * Otherwise, the assignment propagation is done by a normal Spark join. This parameter is only
+   * used when the algorithm is set to "graphframes". If the value is -1, then the skewness
+   * problem is left to the Apache Spark AQE optimizer.
+   *
+   * **WARNING** using a broadcast threshold is non-free! Under the hood it is calling an action,
+   * and if a broadcast threshold is set, then AQE is disabled to avoid wrong results! If your
+   * graph does not contain gigantic components, it is strongly recommended to set this value to
+   * -1. On benchmarks setting it to -1 gains about x5 better results in performance.
+   *
+   * **WARNING** the current default value is 1,000,000. It is left for backward compatibility
+   * only. In the future versions it may be set to -1 as more reasonable for the most real-world
+   * cases (e.g., the data deduplication problem).
    */
   def setBroadcastThreshold(value: Int): this.type = {
-    require(value >= 0, s"Broadcast threshold must be non-negative but got $value.")
     broadcastThreshold = value
     this
   }

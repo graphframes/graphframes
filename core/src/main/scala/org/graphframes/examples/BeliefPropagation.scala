@@ -17,9 +17,9 @@
 
 package org.graphframes.examples
 
-import org.apache.spark.graphx.Graph
-import org.apache.spark.graphx.VertexRDD
-import org.apache.spark.graphx.{Edge => GXEdge}
+import org.apache.spark.graphframes.graphx.Graph
+import org.apache.spark.graphframes.graphx.VertexRDD
+import org.apache.spark.graphframes.graphx.{Edge => GXEdge}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
@@ -253,8 +253,7 @@ object BeliefPropagation {
           .drop("aggMess") // drop messages
           .drop("belief") // drop old beliefs
           .withColumnRenamed("newBelief", "belief")
-        // Cache new vertices using workaround for SPARK-13346
-        val cachedNewVertices = AM.getCachedDataFrame(newVertices)
+        val cachedNewVertices = newVertices.localCheckpoint()
         gx = GraphFrame(cachedNewVertices, gx.edges)
       }
     }

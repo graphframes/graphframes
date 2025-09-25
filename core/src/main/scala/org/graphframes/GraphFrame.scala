@@ -17,14 +17,15 @@
 
 package org.graphframes
 
-import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphframes.graphx.Edge
+import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.ml.clustering.PowerIterationClustering
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions.array
 import org.apache.spark.sql.functions.broadcast
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.count
+import org.apache.spark.sql.functions.countDistinct
 import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.functions.lit
@@ -360,6 +361,26 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
+    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
+    pattern match {
+      case VarLengthPattern(src, name, min, max, dst) =>
+        if (min.isEmpty || max.isEmpty) {
+          throw new InvalidParseException(
+            s"Unbounded length patten ${pattern} is not supported! " +
+              "Please a pattern of defined length.")
+        }
+        val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
+          s"($src)-[$name*$hop]->($dst)"
+        }
+        strToSeq
+          .map(findAugmentedPatterns)
+          .reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+      case _ =>
+        findAugmentedPatterns(pattern)
+    }
+  }
+
+  def findAugmentedPatterns(pattern: String): DataFrame = {
     val patterns = Pattern.parse(pattern)
 
     // For each named vertex appearing only in a negated term, we augment the positive terms
@@ -550,6 +571,111 @@ class GraphFrame private (
     }
   }
 
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   */
+  def validate(): Unit =
+    validate(checkVertices = true, intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK)
+
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @param checkVertices
+   *   a flag to indicate whether additional vertex consistency checks should be performed. If
+   *   true, the method will verify that all vertices in the vertex DataFrame are represented in
+   *   the edge DataFrame and vice versa. It is slow on big graphs.
+   * @param intermediateStorageLevel
+   *   the storage level to be used when persisting intermediate DataFrame computations during the
+   *   validation process.
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   */
+  def validate(checkVertices: Boolean, intermediateStorageLevel: StorageLevel): Unit = {
+    val persistedVertices = vertices.persist(intermediateStorageLevel)
+    val countDistinctVertices = persistedVertices.select(countDistinct(ID)).first().getLong(0)
+    val verticesCount = persistedVertices.count()
+    if (countDistinctVertices != verticesCount) {
+      throw new InvalidGraphException(
+        s"Graph contains (${verticesCount - countDistinctVertices}) duplicate vertices.")
+    }
+    if (checkVertices) {
+      val verticesSetFromEdges = edges
+        .select(col(SRC).alias(ID))
+        .union(edges.select(col(DST).alias(ID)))
+        .distinct()
+        .persist(intermediateStorageLevel)
+      val countVerticesFromEdges = verticesSetFromEdges.count()
+      if (countVerticesFromEdges > countDistinctVertices) {
+        throw new InvalidGraphException(
+          s"Graph is inconsistent: edges has ${countVerticesFromEdges} " +
+            s"vertices, but vertices has ${countDistinctVertices} vertices.")
+      }
+
+      val combined = verticesSetFromEdges.join(vertices, ID, "left_anti")
+      val countOfBadVertices = combined.count()
+      if (countOfBadVertices > 0) {
+        throw new InvalidGraphException(
+          "Vertices DataFrame does not contain all edges src/dst. " +
+            s"Found ${countOfBadVertices} edges src/dst that are not in the vertices DataFrame.")
+      }
+      persistedVertices.unpersist()
+      verticesSetFromEdges.unpersist()
+      ()
+    }
+  }
+
+  /**
+   * Find all cycles in the graph. An implementation of the Rocha–Thatte cycle detection
+   * algorithm.
+   *
+   * Rocha, Rodrigo Caetano, and Bhalchandra D. Thatte. "Distributed cycle detection in
+   * large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
+   * (SBPO’15) (2015): 1-11.
+   *
+   * Returns a DataFrame with ID and cycles, ID are not unique if there are multiple cycles
+   * starting from this ID. For the case of cycle 1 -> 2 -> 3 -> 1 all the vertices will have the
+   * same cycle! E.g.: 1 -> [1, 2, 3, 1] 2 -> [2, 3, 1, 2] 3 -> [3, 1, 2, 3]
+   *
+   * Deduplication of cycles should be done by the user!
+   *
+   * @return
+   *   an instance of DetectingCycles initialized with the current context
+   */
+  def detectingCycles: DetectingCycles = new DetectingCycles(this)
+
+  /**
+   * Converts the directed graph into an undirected graph by ensuring that all directed edges are
+   * bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
+   *
+   * @return
+   *   a new GraphFrame representing the undirected graph.
+   */
+  def asUndirected(): GraphFrame = {
+    val newEdges = edges
+      .select(col(SRC), col(DST), nestAsCol(edges, ATTR))
+      .union(edges
+        .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR)))
+      .select(SRC, DST, ATTR)
+    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
+      .filter(c => (c != SRC) && (c != DST))
+      .map(c => col(ATTR).getField(c).alias(c))
+      .toSeq
+    GraphFrame(vertices, newEdges.select(newColumns: _*))
+  }
+
   // ========= Motif finding (private) =========
 
   /**
@@ -607,7 +733,6 @@ class GraphFrame private (
       val withLongIds = vertices
         .select(ID)
         .repartition(col(ID))
-        .distinct()
         .sortWithinPartitions(ID)
         .withColumn(LONG_ID, monotonically_increasing_id())
         .persist(StorageLevel.MEMORY_AND_DISK)
@@ -636,25 +761,11 @@ class GraphFrame private (
         col(DST).cast("long").as(LONG_DST),
         col(ATTR))
     } else {
-      val threshold = broadcastThreshold
-      val hubs: Set[Any] = degrees
-        .filter(col("degree") >= threshold)
-        .select(ID)
-        .collect()
-        .map(_.get(0))
-        .toSet
-      val indexedSourceEdges = GraphFrame.skewedJoin(
-        packedEdges,
-        indexedVertices.select(col(ID).as(SRC), col(LONG_ID).as(LONG_SRC)),
-        SRC,
-        hubs,
-        "GraphFrame.indexedEdges:")
-      val indexedEdges = GraphFrame.skewedJoin(
-        indexedSourceEdges,
+      val indexedSourceEdges =
+        packedEdges.join(indexedVertices.select(col(ID).as(SRC), col(LONG_ID).as(LONG_SRC)), SRC)
+      val indexedEdges = indexedSourceEdges.join(
         indexedVertices.select(col(ID).as(DST), col(LONG_ID).as(LONG_DST)),
-        DST,
-        hubs,
-        "GraphFrame.indexedEdges:")
+        DST)
       indexedEdges.select(SRC, LONG_SRC, DST, LONG_DST, ATTR)
     }
   }
@@ -1120,22 +1231,5 @@ object GraphFrame extends Serializable with Logging {
             throw new InvalidPatternException
         }
     }
-  }
-
-  /**
-   * Controls broadcast threshold in skewed joins. Use normal joins for vertices with degrees less
-   * than the threshold, and broadcast joins otherwise. The default value is 1000000. If we have
-   * less than 100 billion edges, this would collect at most 2e11 / 1000000 = 200000 hubs, which
-   * could be handled by the driver.
-   */
-  private[this] var _broadcastThreshold: Int = 1000000
-
-  private[graphframes] def broadcastThreshold: Int = _broadcastThreshold
-
-  // for unit testing only
-  private[graphframes] def setBroadcastThreshold(value: Int): this.type = {
-    require(value >= 0)
-    _broadcastThreshold = value
-    this
   }
 }

@@ -22,7 +22,7 @@ spark_major_version = __version__[:1]
 scala_version = os.environ.get("SCALA_VERSION", "2.12" if __version__ < "4" else "2.13")
 
 
-def get_gf_jar_locations() -> Tuple[str, str]:
+def get_gf_jar_locations() -> Tuple[str, str, str]:
     """
     Returns a location of the GraphFrames JAR and GraphFrames Connect JAR.
 
@@ -30,11 +30,22 @@ def get_gf_jar_locations() -> Tuple[str, str]:
     this function will raise an exception!
     """
     project_root = pathlib.Path(__file__).parent.parent.parent
+    graphx_dir = project_root / "graphx" / "target" / f"scala-{scala_version}"
     core_dir = project_root / "core" / "target" / f"scala-{scala_version}"
     connect_dir = project_root / "connect" / "target" / f"scala-{scala_version}"
 
+    graphx_jar: Optional[str] = None
     core_jar: Optional[str] = None
     connect_jar: Optional[str] = None
+
+    for pp in graphx_dir.glob(f"graphframes-graphx-spark{spark_major_version}*.jar"):
+        assert isinstance(pp, pathlib.PosixPath)  # type checking
+        graphx_jar = str(pp.absolute())
+
+    if graphx_jar is None:
+        raise ValueError(
+            f"Failed to find graphframes jar for Spark {spark_major_version} in {graphx_dir}"
+        )
 
     for pp in core_dir.glob(f"graphframes-spark{spark_major_version}*.jar"):
         assert isinstance(pp, pathlib.PosixPath)  # type checking
@@ -54,7 +65,7 @@ def get_gf_jar_locations() -> Tuple[str, str]:
             f"Failed to find graphframes connect jar for Spark {spark_major_version} in {connect_dir}"
         )
     
-    return (core_jar, connect_jar)
+    return core_jar, connect_jar, graphx_jar
 
 
 @pytest.fixture(scope="module")
@@ -62,14 +73,14 @@ def spark():
     warnings.filterwarnings("ignore", category=ResourceWarning)
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-    (core_jar, connect_jar) = get_gf_jar_locations()
+    (core_jar, connect_jar, graphx_jar) = get_gf_jar_locations()
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         builder = (SparkSession.Builder()
             .appName("GraphFramesTest")
             .config("spark.sql.shuffle.partitions", 4)
             .config("spark.checkpoint.dir", tmp_dir)
-            .config("spark.jars", f"{core_jar},{connect_jar}")
+            .config("spark.jars", f"{core_jar},{connect_jar},{graphx_jar}")
         )
 
         if spark_major_version == "3":

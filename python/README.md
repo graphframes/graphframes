@@ -2,7 +2,7 @@
 
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/graphframes-py) ![PyPI - License](https://img.shields.io/pypi/l/graphframes-py) ![PyPI - Version](https://img.shields.io/pypi/v/graphframes-py)
 
-<img src=https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/img/GraphFrames-Logo-Large.png width=500>
+<img src=https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/src/img/GraphFrames-Logo-Large.png width=500>
 
 https://graphframes.io/
 
@@ -20,6 +20,8 @@ pip install graphframes-py
 ```
 
 **NOTE!** *Python distribution does not include JVM-core. You need to add it to your cluster or Spark-Connect server!*
+
+**NOTE!** *GraphFrames depends on its own version of GraphX. While in case of installation from the Maven Central repository, all the runtime dependencies will be resolved automatically, you may need to add them manually in case of installation from the local repository.*
 
 ## Running `graphframes-py`
 

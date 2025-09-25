@@ -19,8 +19,8 @@ package org.graphframes
 
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphframes.graphx.Edge
+import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
@@ -61,6 +61,23 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   override def afterAll(): Unit = {
     FileUtils.deleteQuietly(tempDir)
     super.afterAll()
+  }
+
+  test("test validate") {
+    val goodG = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L))).toDF("src", "dst"))
+    goodG.validate() // no exception should be thrown
+
+    val notDistinctVertices = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"), (1L, "d"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L))).toDF("src", "dst"))
+    assertThrows[InvalidGraphException](notDistinctVertices.validate())
+
+    val missingVertices = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L), (1L, 4L))).toDF("src", "dst"))
+    assertThrows[InvalidGraphException](missingVertices.validate())
   }
 
   test("construction from DataFrames") {
@@ -364,53 +381,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
             nullable = false))))
   }
 
-  test("skewed long ID assignments") {
-    val spark = this.spark
-    import spark.implicits._
-    val n = 5L
-    // union a star graph and a chain graph and cast integral IDs to strings
-    val star = Graphs.star(n)
-    val chain = Graphs.chain(n + 1)
-    val vertices = star.vertices.select(col(ID).cast("string").as(ID))
-    val edges =
-      star.edges
-        .select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST))
-        .unionAll(
-          chain.edges.select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST)))
-
-    val localVertices = vertices.select(ID).as[String].collect().toSet
-    val localEdges = edges.select(SRC, DST).as[(String, String)].collect().toSet
-
-    val defaultThreshold = GraphFrame.broadcastThreshold
-    assert(
-      defaultThreshold === 1000000,
-      s"Default broadcast threshold should be 1000000 but got $defaultThreshold.")
-
-    for (threshold <- Seq(0, 4, 10)) {
-      GraphFrame.setBroadcastThreshold(threshold)
-
-      val g = GraphFrame(vertices, edges)
-      g.persist(StorageLevel.MEMORY_AND_DISK)
-
-      val indexedVertices =
-        g.indexedVertices.select(ID, LONG_ID).as[(String, Long)].collect().toMap
-      assert(indexedVertices.keySet === localVertices)
-      assert(indexedVertices.values.toSeq.distinct.size === localVertices.size)
-      val origEdges = g.indexedEdges.select(SRC, DST).as[(String, String)].collect().toSet
-      assert(origEdges === localEdges)
-      g.indexedEdges
-        .select(SRC, LONG_SRC, DST, LONG_DST)
-        .as[(String, Long, String, Long)]
-        .collect()
-        .foreach { case (src, longSrc, dst, longDst) =>
-          assert(indexedVertices(src) === longSrc)
-          assert(indexedVertices(dst) === longDst)
-        }
-    }
-
-    GraphFrame.setBroadcastThreshold(defaultThreshold)
-  }
-
   test("power iteration clustering wrapper") {
     val spark = this.spark
     import spark.implicits._
@@ -442,5 +412,41 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .map(_.getAs[Int]("cluster"))
       .toSeq
     assert(Seq(0, 0, 0, 0, 1, 0) == clusters)
+  }
+
+  test("convert directed graph to undirected") {
+    val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "name")
+    val e = spark.createDataFrame(Seq((1L, 2L), (2L, 3L))).toDF("src", "dst")
+    val g = GraphFrame(v, e)
+    val undirected = g.asUndirected()
+
+    // Check edge count doubled
+    assert(undirected.edges.count() === 2 * g.edges.count())
+
+    // Verify reverse edges exist
+    val edges = undirected.edges.sort("src", "dst").collect()
+    assert(edges.length === 4)
+    assert(edges(0).getLong(0) === 1L)
+    assert(edges(0).getLong(1) === 2L)
+    assert(edges(1).getLong(0) === 2L)
+    assert(edges(1).getLong(1) === 1L)
+    assert(edges(2).getLong(0) === 2L)
+    assert(edges(2).getLong(1) === 3L)
+    assert(edges(3).getLong(0) === 3L)
+    assert(edges(3).getLong(1) === 2L)
+  }
+
+  test("convert directed graph with edge attributes to undirected") {
+    val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"))).toDF("id", "name")
+    val e = spark.createDataFrame(Seq((1L, 2L, "edge1"))).toDF("src", "dst", "attr")
+    val g = GraphFrame(v, e)
+    val undirected = g.asUndirected()
+
+    val edges = undirected.edges.collect()
+    assert(edges.length === 2)
+    assert(
+      edges.exists(r => r.getLong(0) == 1L && r.getLong(1) == 2L && r.getString(2) == "edge1"))
+    assert(
+      edges.exists(r => r.getLong(0) == 2L && r.getLong(1) == 1L && r.getString(2) == "edge1"))
   }
 }

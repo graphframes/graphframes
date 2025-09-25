@@ -17,7 +17,7 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions._
