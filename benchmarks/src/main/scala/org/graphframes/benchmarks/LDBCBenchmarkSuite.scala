@@ -8,7 +8,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.examples.LDBCUtils
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.infra.Blackhole
 
 import java.io.File

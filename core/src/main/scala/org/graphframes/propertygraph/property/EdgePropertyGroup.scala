@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.sha2
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.*
 import org.graphframes.GraphFrame
 import org.graphframes.InvalidPropertyGroupException
 

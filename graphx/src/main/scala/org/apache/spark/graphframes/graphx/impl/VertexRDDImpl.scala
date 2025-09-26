@@ -17,9 +17,9 @@
 
 package org.apache.spark.graphframes.graphx.impl
 
-import org.apache.spark._
-import org.apache.spark.graphframes.graphx._
-import org.apache.spark.rdd._
+import org.apache.spark.*
+import org.apache.spark.graphframes.graphx.*
+import org.apache.spark.rdd.*
 import org.apache.spark.storage.StorageLevel
 
 import scala.reflect.ClassTag

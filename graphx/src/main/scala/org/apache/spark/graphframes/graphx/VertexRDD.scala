@@ -17,12 +17,12 @@
 
 package org.apache.spark.graphframes.graphx
 
-import org.apache.spark._
+import org.apache.spark.*
 import org.apache.spark.graphframes.graphx.impl.RoutingTablePartition
 import org.apache.spark.graphframes.graphx.impl.ShippableVertexPartition
 import org.apache.spark.graphframes.graphx.impl.VertexAttributeBlock
 import org.apache.spark.graphframes.graphx.impl.VertexRDDImpl
-import org.apache.spark.rdd._
+import org.apache.spark.rdd.*
 import org.apache.spark.storage.StorageLevel
 
 import scala.reflect.ClassTag

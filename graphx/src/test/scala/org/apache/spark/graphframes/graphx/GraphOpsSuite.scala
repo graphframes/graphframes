@@ -18,7 +18,7 @@
 package org.apache.spark.graphframes.graphx
 
 import org.apache.spark.SparkContext
-import org.apache.spark.graphframes.graphx.Graph._
+import org.apache.spark.graphframes.graphx.Graph.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class GraphOpsSuite extends AnyFunSuite with LocalSparkContext {

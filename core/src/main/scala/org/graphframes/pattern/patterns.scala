@@ -21,7 +21,7 @@ import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.InvalidParseException
 
 import scala.collection.mutable
-import scala.util.parsing.combinator._
+import scala.util.parsing.combinator.*
 
 /**
  * Parser for graph patterns for motif finding. Copied from GraphFrames with minor modification.

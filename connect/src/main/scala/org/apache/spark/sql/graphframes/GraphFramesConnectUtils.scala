@@ -17,7 +17,7 @@ import org.graphframes.connect.proto.GraphFramesAPI.MethodCase
 import org.graphframes.connect.proto.StringOrLongID
 import org.graphframes.connect.proto.StringOrLongID.IdCase
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 object GraphFramesConnectUtils {
   private[graphframes] def parseColumnOrExpression(

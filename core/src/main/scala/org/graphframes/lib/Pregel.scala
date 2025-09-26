@@ -25,7 +25,7 @@ import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.struct
 import org.graphframes.GraphFrame
-import org.graphframes.GraphFrame._
+import org.graphframes.GraphFrame.*
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints

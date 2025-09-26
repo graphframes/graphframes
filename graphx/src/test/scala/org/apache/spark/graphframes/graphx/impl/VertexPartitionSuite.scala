@@ -18,7 +18,7 @@
 package org.apache.spark.graphframes.graphx.impl
 
 import org.apache.spark.SparkConf
-import org.apache.spark.graphframes.graphx._
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.serializer.KryoSerializer
 import org.scalatest.funsuite.AnyFunSuite

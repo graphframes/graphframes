@@ -17,8 +17,8 @@
 
 package org.apache.spark.graphframes.graphx.lib
 
-import breeze.linalg.{Vector => BV}
-import org.apache.spark.graphframes.graphx._
+import breeze.linalg.Vector as BV
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.internal.Logging
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.linalg.Vectors

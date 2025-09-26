@@ -3,7 +3,7 @@ package org.graphframes
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.StructType
-import org.graphframes.GraphFrame._
+import org.graphframes.GraphFrame.*
 
 object TestUtils {
 

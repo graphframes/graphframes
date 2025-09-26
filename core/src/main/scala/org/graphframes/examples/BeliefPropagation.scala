@@ -17,9 +17,9 @@
 
 package org.graphframes.examples
 
+import org.apache.spark.graphframes.graphx.Edge as GXEdge
 import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.graphframes.graphx.VertexRDD
-import org.apache.spark.graphframes.graphx.{Edge => GXEdge}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
