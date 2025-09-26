@@ -1,14 +1,41 @@
 # About
 
-GraphFrames is a package for Apache Spark which provides DataFrame-based Graphs. It provides high-level APIs in Scala, Java, and Python. It aims to provide both the functionality of GraphX and extended functionality taking advantage of Spark DataFrames.  This extended functionality includes motif finding, DataFrame-based serialization, and highly expressive graph queries.
+GraphFrames is a package for Apache Spark which provides DataFrame-based Graphs. It provides high-level APIs in Scala, Java, and Python. It aims to provide both the functionality of GraphX and extended functionality taking advantage of Spark DataFrames. This extended functionality includes motif finding, DataFrame-based serialization, and highly expressive graph queries.
 
 # What are GraphFrames?
 
-GraphFrames represent graphs: vertices (e.g., users) and edges (e.g., relationships between users). If you are familiar with [GraphX](http://spark.apache.org/docs/latest/graphx-programming-guide.html), then GraphFrames will be easy to learn.  The key difference is that GraphFrames are based upon [Spark DataFrames](http://spark.apache.org/docs/latest/sql-programming-guide.html), rather than [RDDs](http://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds).
+GraphFrames represent graphs: vertices (e.g., users) and edges (e.g., relationships between users) in the form of Apache Spark DataFrame objects. On top of this, GraphFrames provides not only basic APIs like `filterVertices` or `outDegrees`, but also a set of powerful APIs for graph algorithms and complex graph processing.
 
-GraphFrames also provide powerful tools for running queries and standard graph algorithms. With GraphFrames, you can easily search for patterns within graphs, find important vertices, and more. Refer to the [User Guide](/04-user-guide/01-creating-graphframes.md) for a full list of queries and algorithms.
+## GraphFrames vs GraphX
+
+GraphFrames provides most of the algorithm and routines in two ways:
+
+- Native DataFrame based implementation;
+- Wrapper over GraphX implementation.
+
+**NOTE:** GraphX is deprecated in the upstream Apache Spark and is not maintained anymore. GraphFrames project come with it's own fork of GraphX: `org.apache.spark.graphframes.graphx`. While we are trying do not make any breaking changes in GraphFrames' GraphX, it is still considered as a part of the internal API. The best way to use it is via GraphFrame-GraphX conversion utils, instead of directly manipulate GraphX structures.
+
+### Graph Representation
+
+- GraphX represents graphs by the pair of `RDD`: `VertexRDD` and `EdgeRDD`.
+- GraphFrames represent graphs by the pair of `DataFrame`: `vertices` and `edges`.
+
+While `RDD` may provide slightly more flexible API and, in theory, processing of RDDs may be faster, they requires much more memory to process them. For example, `VertexRDD[Unit]` that contains de-facto only `Long` vertex IDs will require much more memory to store and process compared to the `DataFrame` of vertices with a single `Long` column. The reason is serialization of `RDD` are done by serializing the underlying JVM objects, but serialization of data in `DataFrame` rely on the `Thungsten` with it's own serialization format. On bechmarks, memory overhead of serializing Java objects may be up to five times, while the compute overhead of creating JVM objects from thungsten format is less than 10-15%.
+
+### Optimizations
+
+- GraphX rely on it's own partitioning strategy and building and maintaining partitions index.
+- GraphFrames rely on the Apache Spark Catalyst optimizer and Adaptive Query Execution.
+
+In most of the cases that include real-world complex tranformations, especially on really big data, Catalyst + AQE will provide better results compared to manual index of partitions.
+
+### If DataFrames are better, why GraphFrames still provides conversion methods?
+
+Our [benhmarks](03-benchmarks.md) shows that on small and medium graphs GraphX may be better choice. With GraphX users can sacrifice memory consumption if favor of better running time without query optimization overhead. That may be suitable, for example, for Spark Structured Streaming scenarios.
 
 # Use-cases of GraphFrames
+
+Refer to the [User Guide](/04-user-guide/01-creating-graphframes.md) for a full list of queries and algorithms.
 
 ## Ranking in search systems
 
@@ -60,7 +87,7 @@ Get GraphFrames from the [Maven Central](https://central.sonatype.com/namespace/
 
 GraphFrames should be compatible with any platform that runs the open-source Spark. Refer to the [Apache Spark documentation](http://spark.apache.org/docs/latest) for more information.
 
-**WARNING:** *Some vendors are maintain their own internal forks of the Apache Spark that may be not fully compatible with an OSS version. While GraphFrames project is trying to rely only on public and stable APIs of the Apache Spark, some incompatibility is still possible. Fell free to open an issue in case you are facing problems in modified Spark environments like Databricks Platform.*
+**WARNING:** Some vendors are maintain their own internal forks of the Apache Spark that may be not fully compatible with an OSS version. While GraphFrames project is trying to rely only on public and stable APIs of the Apache Spark, some incompatibility is still possible. Fell free to open an issue in case you are facing problems in modified Spark environments like Databricks Platform.
 
 GraphFrames is compatible with Spark 3.4+. However, later versions of Spark include major improvements to DataFrames, so GraphFrames may be more efficient when running on more recent Spark versions.
 
@@ -74,20 +101,20 @@ See the [Apache Spark User Guide](http://spark.apache.org/docs/latest/) for more
 
 **User Guides:**
 
-* [Quick Start](/02-quick-start/02-quick-start.md): a quick introduction to the GraphFrames API; start here!
-* [GraphFrames User Guide](/04-user-guide/01-creating-graphframes.md): detailed overview of GraphFrames
+- [Quick Start](/02-quick-start/02-quick-start.md): a quick introduction to the GraphFrames API; start here!
+- [GraphFrames User Guide](/04-user-guide/01-creating-graphframes.md): detailed overview of GraphFrames
   in all supported languages (Scala, Java, Python)
-* [Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
-* [GraphFrames Configurations](/04-user-guide/13-configurations.md): detailed information about GraphFrames configurations, their descriptions, and usage examples
+- [Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md): learn to perform pattern recognition with GraphFrames using a technique called network motif finding over the knowledge graph for the `stackexchange.com` subdomain [data dump](https://archive.org/details/stackexchange)
+- [GraphFrames Configurations](/04-user-guide/13-configurations.md): detailed information about GraphFrames configurations, their descriptions, and usage examples
 
 **Community Forums:**
 
-* [GraphFrames Mailing List](https://groups.google.com/g/graphframes/): ask questions about GraphFrames here
-* [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
+- [GraphFrames Mailing List](https://groups.google.com/g/graphframes/): ask questions about GraphFrames here
+- [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
 
 **External Resources:**
 
-* [Apache Spark Homepage](http://spark.apache.org)
-* [Apache Spark Wiki](https://cwiki.apache.org/confluence/display/SPARK)
-* [Apache Spark Mailing Lists](http://spark.apache.org/mailing-lists.html)
-* [GraphFrames on Stack Overflow](https://stackoverflow.com/questions/tagged/graphframes)
+- [Apache Spark Homepage](http://spark.apache.org)
+- [Apache Spark Wiki](https://cwiki.apache.org/confluence/display/SPARK)
+- [Apache Spark Mailing Lists](http://spark.apache.org/mailing-lists.html)
+- [GraphFrames on Stack Overflow](https://stackoverflow.com/questions/tagged/graphframes)
