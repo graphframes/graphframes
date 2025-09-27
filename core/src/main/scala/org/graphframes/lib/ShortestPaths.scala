@@ -43,7 +43,7 @@ import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 
 import java.util
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 /**
  * Computes shortest paths from every vertex to the given set of landmark vertices. Note that this

@@ -1,7 +1,7 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame

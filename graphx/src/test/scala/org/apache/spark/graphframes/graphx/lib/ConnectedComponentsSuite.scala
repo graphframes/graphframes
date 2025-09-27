@@ -17,10 +17,10 @@
 
 package org.apache.spark.graphframes.graphx.lib
 
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.graphframes.graphx.LocalSparkContext
-import org.apache.spark.graphframes.graphx._
 import org.apache.spark.graphframes.graphx.util.GraphGenerators
-import org.apache.spark.rdd._
+import org.apache.spark.rdd.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConnectedComponentsSuite extends AnyFunSuite with LocalSparkContext {

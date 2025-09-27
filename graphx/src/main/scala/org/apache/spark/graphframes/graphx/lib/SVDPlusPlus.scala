@@ -17,9 +17,9 @@
 
 package org.apache.spark.graphframes.graphx.lib
 
-import org.apache.spark.graphframes.graphx._
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.ml.linalg.BLAS
-import org.apache.spark.rdd._
+import org.apache.spark.rdd.*
 
 import scala.util.Random
 

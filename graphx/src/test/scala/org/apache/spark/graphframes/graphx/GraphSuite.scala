@@ -18,9 +18,9 @@
 package org.apache.spark.graphframes.graphx
 
 import org.apache.spark.SparkContext
-import org.apache.spark.graphframes.graphx.Graph._
-import org.apache.spark.graphframes.graphx.PartitionStrategy._
-import org.apache.spark.rdd._
+import org.apache.spark.graphframes.graphx.Graph.*
+import org.apache.spark.graphframes.graphx.PartitionStrategy.*
+import org.apache.spark.rdd.*
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
 import org.scalatest.funsuite.AnyFunSuite
