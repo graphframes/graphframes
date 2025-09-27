@@ -17,9 +17,7 @@
 
 package org.graphframes.examples
 
-import org.apache.spark.graphframes.graphx.Edge as GXEdge
-import org.apache.spark.graphframes.graphx.Graph
-import org.apache.spark.graphframes.graphx.VertexRDD
+import org.apache.spark.graphframes.graphx
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
@@ -146,22 +144,22 @@ object BeliefPropagation {
     val vColsMap = colorG.vertexColumnMap
     val eColsMap = colorG.edgeColumnMap
     // Convert vertex attributes to nice case classes.
-    val gx1: Graph[VertexAttr, Row] = gx0.mapVertices { case (_, attr) =>
+    val gx1: graphx.Graph[VertexAttr, Row] = gx0.mapVertices { case (_, attr) =>
       // Initialize belief at 0.0
       VertexAttr(attr.getDouble(vColsMap("a")), 0.0, attr.getInt(vColsMap("color")))
     }
     // Convert edge attributes to nice case classes.
-    val extractEdgeAttr: (GXEdge[Row] => EdgeAttr) = { e =>
+    val extractEdgeAttr: (graphx.Edge[Row] => EdgeAttr) = { e =>
       EdgeAttr(e.attr.getDouble(eColsMap("b")))
     }
-    var gx: Graph[VertexAttr, EdgeAttr] = gx1.mapEdges(extractEdgeAttr)
+    var gx: graphx.Graph[VertexAttr, EdgeAttr] = gx1.mapEdges(extractEdgeAttr)
 
     // Run BP for numIter iterations.
     for (_ <- Range(0, numIter)) {
       // For each color, have that color receive messages from neighbors.
       for (color <- Range(0, numColors)) {
         // Send messages to vertices of the current color.
-        val msgs: VertexRDD[Double] = gx.aggregateMessages(
+        val msgs: graphx.VertexRDD[Double] = gx.aggregateMessages(
           ctx =>
             // Can send to source or destination since edges are treated as undirected.
             if (ctx.dstAttr.color == color) {
@@ -188,7 +186,8 @@ object BeliefPropagation {
     }
 
     // Convert back to GraphFrame with a new column "belief" for vertices DataFrame.
-    val gxFinal: Graph[Double, Unit] = gx.mapVertices((_, attr) => attr.belief).mapEdges(_ => ())
+    val gxFinal: graphx.Graph[Double, Unit] =
+      gx.mapVertices((_, attr) => attr.belief).mapEdges(_ => ())
     GraphFrame.fromGraphX(colorG, gxFinal, vertexNames = Seq("belief"))
   }
 
