@@ -15,7 +15,12 @@ except ImportError:
     from typing_extensions import Self
 
 from .proto import graphframes_pb2 as pb
-from .utils import dataframe_to_proto, make_column_or_expr, make_str_or_long_id
+from .utils import (
+    dataframe_to_proto,
+    make_column_or_expr,
+    make_str_or_long_id,
+    storage_level_to_proto,
+)
 
 
 # Spark 4 removed the withPlan method in favor of the constructor, but Spark 3
@@ -31,6 +36,31 @@ def _dataframe_from_plan(plan: LogicalPlan, session: SparkSession) -> DataFrame:
 
 
 class PregelConnect:
+    """Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
+
+    See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
+    for a detailed description of the Pregel algorithm.
+
+    You can construct a Pregel instance using either this constructor or :attr:`graphframes.GraphFrame.pregel`,
+    then use builder pattern to describe the operations, and then call :func:`run` to start a run.
+    It returns a DataFrame of vertices from the last iteration.
+
+    When a run starts, it expands the vertices DataFrame using column expressions defined by :func:`withVertexColumn`.
+    Those additional vertex properties can be changed during Pregel iterations.
+    In each Pregel iteration, there are three phases:
+      - Given each edge triplet, generate messages and specify target vertices to send,
+        described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
+      - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
+      - Update additional vertex properties based on aggregated messages and states from previous iteration,
+        described by :func:`withVertexColumn`.
+
+    Please find what columns you can reference at each phase in the method API docs.
+
+    You can control the number of iterations by :func:`setMaxIter` and check API docs for advanced controls.
+
+    :param graph: a :class:`graphframes.GraphFrame` object holding a graph with vertices and edges stored as DataFrames.
+    """  # noqa: E501
+
     def __init__(self, graph: "GraphFrameConnect") -> None:
         self.graph = graph
         self._max_iter = 10
@@ -42,16 +72,42 @@ class PregelConnect:
         self._send_msg_to_dst = []
         self._agg_msg = None
         self._early_stopping = False
+        self._use_local_checkpoints = False
+        self._storage_level = StorageLevel.MEMORY_AND_DISK_DESER
+        self._initial_active_expr: Column | str | None = None
+        self._update_active_expr: Column | str | None = None
+        self._stop_if_all_non_active = False
+        self._skip_messages_from_non_active = False
 
     def setMaxIter(self, value: int) -> Self:
+        """Sets the max number of iterations (default: 2)."""
         self._max_iter = value
         return self
 
     def setCheckpointInterval(self, value: int) -> Self:
+        """Sets the number of iterations between two checkpoints (default: 2).
+
+        This is an advanced control to balance query plan optimization and checkpoint data I/O cost.
+        In most cases, you should keep the default value.
+
+        Checkpoint is disabled if this is set to 0.
+        """
         self._checkpoint_interval = value
         return self
 
     def setEarlyStopping(self, value: bool) -> Self:
+        """Set should Pregel stop earlier in case of no new messages to send or not.
+
+        Early stopping allows to terminate Pregel before reaching maxIter by checking if there are any non-null messages.
+        While in some cases it may gain significant performance boost, in other cases it can lead to performance degradation,
+        because checking if the messages DataFrame is empty or not is an action and requires materialization of the Spark Plan
+        with some additional computations.
+
+        In the case when the user can assume a good value of maxIter, it is recommended to leave this value to the default "false".
+        In the case when it is hard to estimate the number of iterations required for convergence,
+        it is recommended to set this value to "false" to avoid iterating over convergence until reaching maxIter.
+        When this value is "true", maxIter can be set to a bigger value without risks.
+        """  # noqa: E501
         self._early_stopping = value
         return self
 
@@ -61,21 +117,136 @@ class PregelConnect:
         initialExpr: Column | str,
         updateAfterAggMsgsExpr: Column | str,
     ) -> Self:
+        """Defines an additional vertex column at the start of run and how to update it in each iteration.
+
+        You can call it multiple times to add more than one additional vertex columns.
+
+        :param colName: the name of the additional vertex column.
+                        It cannot be an existing vertex column in the graph.
+        :param initialExpr: the expression to initialize the additional vertex column.
+                            You can reference all original vertex columns in this expression.
+        :param updateAfterAggMsgsExpr: the expression to update the additional vertex column after messages aggregation.
+                                       You can reference all original vertex columns, additional vertex columns, and the
+                                       aggregated message column using :func:`msg`.
+                                       If the vertex received no messages, the message column would be null.
+        """  # noqa: E501
         self._col_name = colName
         self._initial_expr = initialExpr
         self._update_after_agg_msgs_expr = updateAfterAggMsgsExpr
         return self
 
     def sendMsgToSrc(self, msgExpr: Column | str) -> Self:
+        """Defines a message to send to the source vertex of each edge triplet.
+
+        You can call it multiple times to send more than one messages.
+
+        See method :func:`sendMsgToDst`.
+
+        :param msgExpr: the expression of the message to send to the source vertex given a (src, edge, dst) triplet.
+                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
+                        and `edge`, respectively.
+                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
+                        Null messages are not included in message aggregation.
+        """  # noqa: E501
         self._send_msg_to_src.append(msgExpr)
         return self
 
     def sendMsgToDst(self, msgExpr: Column | str) -> Self:
+        """Defines a message to send to the destination vertex of each edge triplet.
+
+        You can call it multiple times to send more than one messages.
+
+        See method :func:`sendMsgToSrc`.
+
+        :param msgExpr: the message expression to send to the destination vertex given a (`src`, `edge`, `dst`) triplet.
+                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
+                        and `edge`, respectively.
+                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
+                        Null messages are not included in message aggregation.
+        """  # noqa: E501
         self._send_msg_to_dst.append(msgExpr)
         return self
 
     def aggMsgs(self, aggExpr: Column) -> Self:
+        """Defines how messages are aggregated after grouped by target vertex IDs.
+
+        :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg())`.
+                        You can reference the message column by :func:`msg` and the vertex ID by `col("id")`,
+                        while the latter is usually not used.
+        """  # noqa: E501
         self._agg_msg = aggExpr
+        return self
+
+    def setStopIfAllNonActiveVertices(self, value: bool) -> Self:
+        """Set should Pregel stop if all the vertices voted to halt.
+
+        Activity (or vote) is determined based on the activity_col.
+        See methods :func:`setInitialActiveVertexExpression` and :func:`setUpdateActiveVertexExpression` for details
+        how to set and update activity_col.
+
+        Be aware that checking of the vote is not free but a Spark Action. In case the
+        condition is not realistically reachable but set, it will just slow down the algorithm.
+
+        :param value: the boolean value.
+        """  # noqa: E501
+        self._stop_if_all_non_active = value
+        return self
+
+    def setInitialActiveVertexExpression(self, value: Column | str) -> Self:
+        """Sets the initial expression for the active vertex column.
+
+        The active vertex column is used to determine if a vertices voting result on each iteration of Pregel.
+        This expression is evaluated on the initial vertices DataFrame to set the initial state of the activity column.
+
+        :param value: expression to compute the initial active state of vertices.
+                      You can reference all original vertex columns in this expression.
+        """  # noqa: E501
+        self._initial_active_expr = value
+        return self
+
+    def setUpdateActiveVertexExpression(self, value: Column | str) -> Self:
+        """Sets the expression to update the active vertex column.
+
+        The active vertex column is used to determine if a vertices voting result on each iteration of Pregel.
+        This expression is evaluated on the updated vertices DataFrame to set the new state of the activity column.
+
+        :param value: expression to compute the new active state of vertices.
+                      You can reference all original vertex columns and additional vertex columns in this expression.
+        """  # noqa: E501
+        self._update_active_expr = value
+        return self
+
+    def setSkipMessagesFromNonActiveVertices(self, value: bool) -> Self:
+        """Set should Pregel skip sending messages from non-active vertices.
+
+        When this option is enabled, messages will not be sent from vertices that are marked as inactive.
+        This can help optimize performance by avoiding unnecessary message propagation from inactive vertices.
+
+        :param value: boolean value.
+        """  # noqa: E501
+        self._skip_messages_from_non_active = value
+        return self
+
+    def setUseLocalCheckpoints(self, value: bool) -> Self:
+        """Set should Pregel use local checkpoints.
+
+        Local checkpoints are faster and do not require configuring a persistent storage.
+        At the same time, local checkpoints are less reliable and may create a big load on local disks of executors.
+
+        :param value: boolean value.
+        """  # noqa: E501
+        self._use_local_checkpoints = value
+        return self
+
+    def setIntermediateStorageLevel(self, storage_level: StorageLevel) -> Self:
+        """Set the intermediate storage level.
+        On each iteration, Pregel cache results with a requested storage level.
+
+        For very big graphs it is recommended to use DISK_ONLY.
+
+        :param storage_level: storage level to use.
+        """  # noqa: E501
+        self._storage_level = storage_level
         return self
 
     def run(self) -> DataFrame:
@@ -91,6 +262,12 @@ class PregelConnect:
                 send2src: list[Column | str],
                 vertex_col_init: Column | str,
                 vertex_col_upd: Column | str,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+                initial_active_col: Column | str | None,
+                update_active_col: Column | str | None,
+                stop_if_all_non_active: bool,
+                skip_message_from_non_active: bool,
                 vertices: DataFrame,
                 edges: DataFrame,
             ) -> None:
@@ -104,6 +281,12 @@ class PregelConnect:
                 self.send2src = send2src
                 self.vertex_col_init = vertex_col_init
                 self.vertex_col_upd = vertex_col_upd
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+                self.initial_active_expr = initial_active_col
+                self.update_active_expr = update_active_col
+                self.stop_if_all_non_active = stop_if_all_non_active
+                self.skip_message_from_non_active = skip_message_from_non_active
                 self.vertices = vertices
                 self.edges = edges
 
@@ -122,6 +305,16 @@ class PregelConnect:
                     additional_col_initial=make_column_or_expr(self.vertex_col_init, session),
                     additional_col_upd=make_column_or_expr(self.vertex_col_upd, session),
                     early_stopping=self.early_stopping,
+                    use_local_checkpoints=self.use_local_checkpoints,
+                    storage_level=storage_level_to_proto(self.storage_level),
+                    stop_if_all_non_active=self.stop_if_all_non_active,
+                    skip_messages_from_non_active=self.skip_message_from_non_active,
+                    initial_active_expr=make_column_or_expr(self.initial_active_expr, session)
+                    if self.initial_active_expr is not None
+                    else None,
+                    update_active_expr=make_column_or_expr(self.update_active_expr, session)
+                    if self.update_active_expr is not None
+                    else None,
                 )
                 pb_message = pb.GraphFramesAPI(
                     vertices=dataframe_to_proto(self.vertices, session),
@@ -152,9 +345,15 @@ class PregelConnect:
                 agg_msg=self._agg_msg,
                 send2dst=self._send_msg_to_dst,
                 send2src=self._send_msg_to_src,
+                early_stopping=self._early_stopping,
+                use_local_checkpoints=self._use_local_checkpoints,
+                initial_active_col=self._initial_active_expr,
+                update_active_col=self._update_active_expr,
+                stop_if_all_non_active=self._stop_if_all_non_active,
+                skip_message_from_non_active=self._skip_messages_from_non_active,
+                storage_level=self._storage_level,
                 vertices=self.graph._vertices,
                 edges=self.graph._edges,
-                early_stopping=self._early_stopping,
             ),
             session=self.graph._spark,
         )
@@ -432,7 +631,7 @@ class GraphFrameConnect:
                 return plan
 
         if edgeFilter is None:
-            edgeFilter = F.lit(True)
+            edgeFilter: Column = F.lit(True)
 
         return _dataframe_from_plan(
             BFS(
@@ -448,18 +647,20 @@ class GraphFrameConnect:
 
     def aggregateMessages(
         self,
-        aggCol: Column | str,
-        sendToSrc: Column | str | None = None,
-        sendToDst: Column | str | None = None,
+        aggCol: list[Column | str],
+        sendToSrc: list[Column | str],
+        sendToDst: list[Column | str],
+        intermediate_storage_level: StorageLevel,
     ) -> DataFrame:
         class AggregateMessages(LogicalPlan):
             def __init__(
                 self,
                 v: DataFrame,
                 e: DataFrame,
-                agg_col: Column | str,
-                send2src: Column | str | None,
-                send2dst: Column | str | None,
+                agg_col: list[Column | str],
+                send2src: list[Column | str],
+                send2dst: list[Column | str],
+                storage_level: StorageLevel,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -467,6 +668,7 @@ class GraphFrameConnect:
                 self.agg_col = agg_col
                 self.send2src = send2src
                 self.send2dst = send2dst
+                self.storage_level = storage_level
 
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
@@ -474,17 +676,10 @@ class GraphFrameConnect:
                 )
                 graphframes_api_call.aggregate_messages.CopyFrom(
                     pb.AggregateMessages(
-                        agg_col=make_column_or_expr(self.agg_col, session),
-                        send_to_src=(
-                            None
-                            if self.send2src is None
-                            else make_column_or_expr(self.send2src, session)
-                        ),
-                        send_to_dst=(
-                            None
-                            if self.send2dst is None
-                            else make_column_or_expr(self.send2dst, session)
-                        ),
+                        agg_col=[make_column_or_expr(x, session) for x in self.agg_col],
+                        send_to_src=[make_column_or_expr(x, session) for x in self.send2src],
+                        send_to_dst=[make_column_or_expr(x, session) for x in self.send2dst],
+                        storage_level=storage_level_to_proto(self.storage_level),
                     )
                 )
                 plan = self._create_proto_relation()
@@ -495,7 +690,14 @@ class GraphFrameConnect:
             raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
 
         return _dataframe_from_plan(
-            AggregateMessages(self._vertices, self._edges, aggCol, sendToSrc, sendToDst),
+            AggregateMessages(
+                self._vertices,
+                self._edges,
+                aggCol,
+                sendToSrc,
+                sendToDst,
+                intermediate_storage_level,
+            ),
             self._spark,
         )
 

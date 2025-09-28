@@ -17,10 +17,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+import warnings
+from typing import TYPE_CHECKING, Any
 
 from pyspark.storagelevel import StorageLevel
 from pyspark.version import __version__
+from typing_extensions import override
 
 if __version__[:3] >= "3.4":
     from pyspark.sql.utils import is_remote
@@ -89,6 +91,12 @@ class GraphFrame:
         """
         return self._impl.edges
 
+    @property
+    def nodes(self) -> DataFrame:
+        """Alias to vertices."""
+        return self.vertices
+
+    @override
     def __repr__(self) -> str:
         return self._impl.__repr__()
 
@@ -233,9 +241,10 @@ class GraphFrame:
 
     def aggregateMessages(
         self,
-        aggCol: Column | str,
-        sendToSrc: Column | str | None = None,
-        sendToDst: Column | str | None = None,
+        aggCol: list[Column | str] | Column,
+        sendToSrc: list[Column | str] | Column | str = list(),
+        sendToDst: list[Column | str] | Column | str = list(),
+        intermediate_storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK,
     ) -> DataFrame:
         """
         Aggregates messages from the neighbours.
@@ -245,16 +254,59 @@ class GraphFrame:
 
         See Scala documentation for more details.
 
-        :param aggCol: the requested aggregation output either as
+        Warning! The result of this method is persisted DataFrame object! Users should handle unpersist
+        to avoid possible memory leaks!
+
+        :param aggCol: the requested aggregation output either as a collection of
             :class:`pyspark.sql.Column` or SQL expression string
         :param sendToSrc: message sent to the source vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            a collection of :class:`pyspark.sql.Column` or SQL expression string (default: None)
         :param sendToDst: message sent to the destination vertex of each triplet either as
-            :class:`pyspark.sql.Column` or SQL expression string (default: None)
+            collection of :class:`pyspark.sql.Column` or SQL expression string (default: None)
+        :param intermediate_storage_level: the level of intermediate storage that will be used
+            for both intermediate result and the output.
 
-        :return: DataFrame with columns for the vertex ID and the resulting aggregated message
-        """
-        return self._impl.aggregateMessages(aggCol=aggCol, sendToSrc=sendToSrc, sendToDst=sendToDst)
+        :return: DataFrame with columns for the vertex ID and the resulting aggregated message.
+            The name of the resulted message column is based on the alias of the provided aggCol!
+        """  # noqa: E501
+
+        # Back-compatibility workaround
+        if not isinstance(aggCol, list):
+            warnings.warn(
+                "Passing single column to aggCol is deprecated, use list",
+                DeprecationWarning,
+            )
+            return self.aggregateMessages(
+                [aggCol], sendToSrc, sendToDst, intermediate_storage_level
+            )
+        if not isinstance(sendToSrc, list):
+            warnings.warn(
+                "Passing single column to sendToSrc is deprecated, use list",
+                DeprecationWarning,
+            )
+            return self.aggregateMessages(
+                aggCol, [sendToSrc], sendToDst, intermediate_storage_level
+            )
+        if not isinstance(sendToDst, list):
+            warnings.warn(
+                "Passing single column to sendToDst is deprecated, use list",
+                DeprecationWarning,
+            )
+            return self.aggregateMessages(
+                aggCol, sendToSrc, [sendToDst], intermediate_storage_level
+            )
+
+        if len(aggCol) == 0:
+            raise TypeError("At least one aggregation column should be provided!")
+
+        if (len(sendToSrc) == 0) and (len(sendToDst) == 0):
+            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
+        return self._impl.aggregateMessages(
+            aggCol=aggCol,
+            sendToSrc=sendToSrc,
+            sendToDst=sendToDst,
+            intermediate_storage_level=intermediate_storage_level,
+        )
 
     # Standard algorithms
 
@@ -301,9 +353,9 @@ class GraphFrame:
     def pageRank(
         self,
         resetProbability: float = 0.15,
-        sourceId: Optional[Any] = None,
-        maxIter: Optional[int] = None,
-        tol: Optional[float] = None,
+        sourceId: Any | None = None,
+        maxIter: int | None = None,
+        tol: float | None = None,
     ) -> "GraphFrame":
         """
         Runs the PageRank algorithm on the graph.
@@ -331,8 +383,8 @@ class GraphFrame:
     def parallelPersonalizedPageRank(
         self,
         resetProbability: float = 0.15,
-        sourceIds: Optional[list[Any]] = None,
-        maxIter: Optional[int] = None,
+        sourceIds: list[Any] | None = None,
+        maxIter: int | None = None,
     ) -> "GraphFrame":
         """
         Run the personalized PageRank algorithm on the graph,
@@ -413,7 +465,7 @@ class GraphFrame:
         return self._impl.triangleCount()
 
     def powerIterationClustering(
-        self, k: int, maxIter: int, weightCol: Optional[str] = None
+        self, k: int, maxIter: int, weightCol: str | None = None
     ) -> DataFrame:
         """
         Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen.

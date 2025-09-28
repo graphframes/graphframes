@@ -10,28 +10,28 @@ GraphFrames represent graphs: vertices (e.g., users) and edges (e.g., relationsh
 
 GraphFrames provides most of the algorithm and routines in two ways:
 
-- Native DataFrame based implementation;
+- Native DataFrame-based implementation;
 - Wrapper over GraphX implementation.
 
-**NOTE:** GraphX is deprecated in the upstream Apache Spark and is not maintained anymore. GraphFrames project come with it's own fork of GraphX: `org.apache.spark.graphframes.graphx`. While we are trying do not make any breaking changes in GraphFrames' GraphX, it is still considered as a part of the internal API. The best way to use it is via GraphFrame-GraphX conversion utils, instead of directly manipulate GraphX structures.
+**NOTE:** GraphX is deprecated in the upstream Apache Spark and is not maintained anymore. GraphFrames project comes with its own fork of GraphX: `org.apache.spark.graphframes.graphx`. While we are trying to not make any breaking changes in GraphFrames' GraphX, it is still considered as a part of the internal API. The best way to use it is via GraphFrame-GraphX conversion utils, instead of directly manipulate GraphX structures.
 
 ### Graph Representation
 
 - GraphX represents graphs by the pair of `RDD`: `VertexRDD` and `EdgeRDD`.
 - GraphFrames represent graphs by the pair of `DataFrame`: `vertices` and `edges`.
 
-While `RDD` may provide slightly more flexible API and, in theory, processing of RDDs may be faster, they requires much more memory to process them. For example, `VertexRDD[Unit]` that contains de-facto only `Long` vertex IDs will require much more memory to store and process compared to the `DataFrame` of vertices with a single `Long` column. The reason is serialization of `RDD` are done by serializing the underlying JVM objects, but serialization of data in `DataFrame` rely on the `Thungsten` with it's own serialization format. On bechmarks, memory overhead of serializing Java objects may be up to five times, while the compute overhead of creating JVM objects from thungsten format is less than 10-15%.
+While `RDD` may provide slightly more flexible API and, in theory, processing of RDDs may be faster, they require much more memory to process them. For example, `VertexRDD[Unit]` that contains de-facto only `Long` vertex IDs will require much more memory to store and process compared to the `DataFrame` of vertices with a single `Long` column. The reason is serialization of `RDD` are done by serializing the underlying JVM objects, but serialization of data in `DataFrame` rely on the `Tungsten` with its own serialization format. On benchmarks, memory overhead of serializing Java objects may be up to five times, while the compute overhead of creating JVM objects from tungsten format is less than 10–15%.
 
 ### Optimizations
 
-- GraphX rely on it's own partitioning strategy and building and maintaining partitions index.
+- GraphX relies on its own partitioning strategy and building and maintaining partition index.
 - GraphFrames rely on the Apache Spark Catalyst optimizer and Adaptive Query Execution.
 
-In most of the cases that include real-world complex tranformations, especially on really big data, Catalyst + AQE will provide better results compared to manual index of partitions.
+In most of the cases that include real-world complex transformations, especially on huge data, Catalyst + AQE will provide better results compared to the manual index of partitions.
 
-### If DataFrames are better, why GraphFrames still provides conversion methods?
+### If DataFrames are better, why do GraphFrames still provide conversion methods?
 
-Our [benhmarks](03-benchmarks.md) shows that on small and medium graphs GraphX may be better choice. With GraphX users can sacrifice memory consumption if favor of better running time without query optimization overhead. That may be suitable, for example, for Spark Structured Streaming scenarios.
+Our [benchmarks](03-benchmarks.md) show that on small and medium graphs GraphX may be a better choice. With GraphX users can sacrifice memory consumption in favor of better running time without query optimization overhead. That may be suitable, for example, for Spark Structured Streaming scenarios.
 
 # Use-cases of GraphFrames
 
@@ -39,7 +39,7 @@ Refer to the [User Guide](/04-user-guide/01-creating-graphframes.md) for a full 
 
 ## Ranking in search systems
 
-`PageRank` is a fundamental algorithm originally developed by Google for ranking web pages in search results. It works by measuring the importance of nodes in a graph based on the link structure, where links from highly-ranked pages contribute more to the rank of target pages. This principle can be extended to ranking documents in search systems, where documents are treated as nodes and hyperlinks or semantic relationships as edges.
+`PageRank` is a fundamental algorithm originally developed by Google for ranking web pages in search results. It works by measuring the importance of nodes in a graph based on the link structure, where links from highly ranked pages contribute more to the rank of target pages. This principle can be extended to ranking documents in search systems, where documents are treated as nodes and hyperlinks or semantic relationships as edges.
 
 GraphFrames provides a fully distributed Spark-based implementation of the `PageRank` algorithm, enabling efficient computation of document rankings at scale. This implementation leverages the power of Apache Spark's distributed computing model, allowing organizations to analyze large-scale document networks without sacrificing performance.
 

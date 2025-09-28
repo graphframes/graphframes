@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
 
 import sys
 from typing import Any, Optional, Union
@@ -21,11 +22,12 @@ from typing import Any, Optional, Union
 if sys.version > "3":
     basestring = str
 
-from pyspark import SparkContext
-from pyspark.sql import Column, DataFrame, SparkSession
+from pyspark.sql.classic.column import Column, _to_seq
+from pyspark.sql.classic.dataframe import DataFrame, SparkContext, SparkSession
 from pyspark.storagelevel import StorageLevel
 
-from graphframes.lib import Pregel
+from graphframes.classic.pregel import Pregel
+from graphframes.classic.utils import storage_level_to_jvm
 
 
 def _from_java_gf(jgf: Any, spark: SparkSession) -> "GraphFrame":
@@ -41,6 +43,10 @@ def _from_java_gf(jgf: Any, spark: SparkSession) -> "GraphFrame":
 
 def _java_api(jsc: SparkContext) -> Any:
     javaClassName = "org.graphframes.GraphFramePythonAPI"
+    if jsc._jvm is None:
+        raise RuntimeError(
+            "Spark Driver's JVM is dead or did not start properly. See driver logs for details."
+        )
     return (
         jsc._jvm.Thread.currentThread()
         .getContextClassLoader()
@@ -159,7 +165,11 @@ class GraphFrame:
         return _from_java_gf(jdf, self._spark)
 
     def bfs(
-        self, fromExpr: str, toExpr: str, edgeFilter: Optional[str] = None, maxPathLength: int = 10
+        self,
+        fromExpr: str,
+        toExpr: str,
+        edgeFilter: Optional[str] = None,
+        maxPathLength: int = 10,
     ) -> DataFrame:
         builder = (
             self._jvm_graph.bfs().fromExpr(fromExpr).toExpr(toExpr).maxPathLength(maxPathLength)
@@ -171,35 +181,66 @@ class GraphFrame:
 
     def aggregateMessages(
         self,
-        aggCol: Union[Column, str],
-        sendToSrc: Union[Column, str, None] = None,
-        sendToDst: Union[Column, str, None] = None,
+        aggCol: list[Column | str],
+        sendToSrc: list[Column | str],
+        sendToDst: list[Column | str],
+        intermediate_storage_level: StorageLevel,
     ) -> DataFrame:
-        # Check that either sendToSrc, sendToDst, or both are provided
-        if sendToSrc is None and sendToDst is None:
-            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
         builder = self._jvm_graph.aggregateMessages()
-        if sendToSrc is not None:
-            if isinstance(sendToSrc, Column):
-                builder.sendToSrc(sendToSrc._jc)
-            elif isinstance(sendToSrc, basestring):
-                builder.sendToSrc(sendToSrc)
+        builder = builder.setIntermediateStorageLevel(
+            storage_level_to_jvm(intermediate_storage_level, self._spark)
+        )
+        if len(sendToSrc) == 1:
+            if isinstance(sendToSrc[0], Column):
+                builder.sendToSrc(sendToSrc[0]._jc)
+            elif isinstance(sendToSrc[0], basestring):
+                builder.sendToSrc(sendToSrc[0])
             else:
                 raise TypeError("Provide message either as `Column` or `str`")
-        if sendToDst is not None:
-            if isinstance(sendToDst, Column):
-                builder.sendToDst(sendToDst._jc)
-            elif isinstance(sendToDst, basestring):
-                builder.sendToDst(sendToDst)
+        elif len(sendToSrc) > 1:
+            if all(isinstance(x, Column) for x in sendToSrc):
+                send2src = [x._jc for x in sendToSrc]
+                builder.sendToSrc(send2src[0], _to_seq(self._sc, send2src[1:]))
+            elif all(isinstance(x, basestring) for x in sendToSrc):
+                builder.sendToSrc(sendToSrc[0], _to_seq(self._sc, sendToSrc[1:]))
             else:
-                raise TypeError("Provide message either as `Column` or `str`")
-        if isinstance(aggCol, Column):
-            jdf = builder.agg(aggCol._jc)
-        else:
-            jdf = builder.agg(aggCol)
-        return DataFrame(jdf, self._spark)
+                raise TypeError(
+                    "Multiple messages should all be `Column` or `str`, not a mix of them."
+                )
 
-    # Standard algorithms
+        if len(sendToDst) == 1:
+            if isinstance(sendToDst[0], Column):
+                builder.sendToDst(sendToDst[0]._jc)
+            elif isinstance(sendToDst[0], basestring):
+                builder.sendToDst(sendToDst[0])
+            else:
+                raise TypeError("Provide message either as `Column` or `str`")
+        elif len(sendToDst) > 1:
+            if all(isinstance(x, Column) for x in sendToDst):
+                send2dst = [x._jc for x in sendToDst]
+                builder.sendToDst(send2dst[0], _to_seq(self._sc, send2dst[1:]))
+            elif all(isinstance(x, basestring) for x in sendToDst):
+                builder.sendToDst(sendToDst[0], _to_seq(self._sc, sendToDst[1:]))
+            else:
+                raise TypeError(
+                    "Multiple messages should all be `Column` or `str`, not a mix of them."
+                )
+
+        if len(aggCol) == 1:
+            if isinstance(aggCol[0], Column):
+                jdf = builder.aggCol(aggCol[0]._jc)
+            elif isinstance(aggCol[0], basestring):
+                jdf = builder.aggCol(aggCol[0])
+        elif len(aggCol) > 1:
+            if all(isinstance(x, Column) for x in aggCol):
+                jdf = builder.aggCol(aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol]))
+            elif all(isinstance(x, basestring) for x in aggCol):
+                jdf = builder.aggCol(aggCol[0], _to_seq(self._sc, aggCol))
+            else:
+                raise TypeError(
+                    "Multiple agg cols should all be `Column` or `str`, not a mix of them."
+                )
+        return DataFrame(jdf, self._spark)
 
     def connectedComponents(
         self,
