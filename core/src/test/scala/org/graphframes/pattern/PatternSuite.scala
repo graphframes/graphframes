@@ -84,6 +84,16 @@ class PatternSuite extends SparkFunSuite {
           AnonymousEdge(NamedVertex("_v9"), NamedVertex("v"))))
   }
 
+  test("good parses - reverse edge pattern") {
+    assert(Pattern.parse("(u)-[e]->(v)") === Pattern.parse("(v)<-[e]-(u)"))
+    assert(Pattern.parse("(u)-[]->(v)") === Pattern.parse("(v)<-[]-(u)"))
+    assert(Pattern.parse("(u)-[*5]->(v)") === Pattern.parse("(v)<-[*5]-(u)"))
+    assert(Pattern.parse("()-[e]->()") === Pattern.parse("()<-[e]-()"))
+    assert(
+      Pattern.parse("(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)") === Pattern.parse(
+        "(u)-[]->(v); (w)<-[]-(v); !(w)<-[]-(u)"))
+  }
+
   test("bad parses") {
     withClue("Failed to catch parse error with lone anonymous vertex") {
       intercept[InvalidParseException] {
