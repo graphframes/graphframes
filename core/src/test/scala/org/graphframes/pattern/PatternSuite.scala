@@ -85,16 +85,16 @@ class PatternSuite extends SparkFunSuite {
   }
 
   test("rewrite incomming edges") {
-    assert(Pattern.rewriteIncommingEdges("(u)<-[e]-(v);") === "(v)-[e]->(u)")
-    assert(Pattern.rewriteIncommingEdges("!(u)<-[e]-(v);") === "!(v)-[e]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]-(v);") === "(v)-[e]->(u)")
+    assert(Pattern.rewriteIncomingEdges("!(u)<-[e]-(v);") === "!(v)-[e]->(u)")
     assert(
-      Pattern.rewriteIncommingEdges("(u)<-[]-(v);(u)-[e]->(v)") === "(v)-[]->(u);(u)-[e]->(v)")
-    assert(Pattern.rewriteIncommingEdges("(u)<-[]->(v)") === "(u)-[]->(v);(v)-[]->(u)")
-    assert(Pattern.rewriteIncommingEdges("(u)<-[e]->(v)") === "(u)-[e]->(v);(v)-[e]->(u)")
-    assert(Pattern.rewriteIncommingEdges("(u)<-[*5]-(v)") === "(v)-[*5]->(u)")
-    assert(Pattern.rewriteIncommingEdges("(u)<-[*5]->(v)") === "(u)-[*5]->(v);(v)-[*5]->(u)")
+      Pattern.rewriteIncomingEdges("(u)<-[]-(v);(u)-[e]->(v)") === "(v)-[]->(u);(u)-[e]->(v)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[]->(v)") === "(u)-[]->(v);(v)-[]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]->(v)") === "(u)-[e]->(v);(v)-[e]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[*5]-(v)") === "(v)-[*5]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[*5]->(v)") === "(u)-[*5]->(v);(v)-[*5]->(u)")
     assert(
-      Pattern.rewriteIncommingEdges(
+      Pattern.rewriteIncomingEdges(
         "(v1)<-[e*1..2]->(v2)") === "(v1)-[e*1..2]->(v2);(v2)-[e*1..2]->(v1)")
   }
 

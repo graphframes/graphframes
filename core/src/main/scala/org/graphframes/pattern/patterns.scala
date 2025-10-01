@@ -76,7 +76,7 @@ private[graphframes] object PatternParser extends RegexParsers {
 private[graphframes] object Pattern {
   def parse(s: String): Seq[Pattern] = {
     import PatternParser._
-    val rewrittenStr: String = rewriteIncommingEdges(s)
+    val rewrittenStr: String = rewriteIncomingEdges(s)
     val result = parseAll(patterns, rewrittenStr) match {
       case result: Success[_] =>
         result.asInstanceOf[Success[Seq[Pattern]]].get
@@ -91,7 +91,7 @@ private[graphframes] object Pattern {
   /**
    * Rewirte a motif string if there are incomming edges
    */
-  private[graphframes] def rewriteIncommingEdges(patterns: String): String = {
+  private[graphframes] def rewriteIncomingEdges(patterns: String): String = {
     val reversedEdge =
       """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
     val bidirectionalEdge =
