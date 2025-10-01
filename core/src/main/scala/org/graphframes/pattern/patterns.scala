@@ -89,7 +89,7 @@ private[graphframes] object Pattern {
   }
 
   /**
-   * Rewirte a motif string if there are incomming edges Return updated motif string
+   * Rewirte a motif string if there are incomming edges
    */
   private[graphframes] def rewriteIncommingEdges(patterns: String): String = {
     val reversedEdge =
@@ -97,7 +97,7 @@ private[graphframes] object Pattern {
     val bidirectionalEdge =
       """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
 
-    val outgoingEdges: Seq[String] = patterns.split(";").map { pattern =>
+    val outgoingEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
       pattern.trim match {
         case reversedEdge(negation, dst, edge, src) =>
           s"$negation($src)-[$edge]->($dst)"
