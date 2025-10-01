@@ -76,7 +76,8 @@ private[graphframes] object PatternParser extends RegexParsers {
 private[graphframes] object Pattern {
   def parse(s: String): Seq[Pattern] = {
     import PatternParser._
-    val result = parseAll(patterns, s) match {
+    val rewrittenStr: String = rewriteIncommingEdges(s)
+    val result = parseAll(patterns, rewrittenStr) match {
       case result: Success[_] =>
         result.asInstanceOf[Success[Seq[Pattern]]].get
       case result: NoSuccess =>
@@ -85,6 +86,28 @@ private[graphframes] object Pattern {
     }
     assertValidPatterns(result)
     result
+  }
+
+  /**
+   * Rewirte a motif string if there are incomming edges Return updated motif string
+   */
+  private[graphframes] def rewriteIncommingEdges(patterns: String): String = {
+    val reversedEdge =
+      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
+    val bidirectionalEdge =
+      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
+
+    val outgoingEdges: Seq[String] = patterns.split(";").map { pattern =>
+      pattern.trim match {
+        case reversedEdge(negation, dst, edge, src) =>
+          s"$negation($src)-[$edge]->($dst)"
+        case bidirectionalEdge(negation, src, edge, dst) =>
+          s"$negation($src)-[$edge]->($dst);($dst)-[$edge]->($src)"
+        case original => original
+      }
+    }
+
+    outgoingEdges.mkString(";")
   }
 
   /**

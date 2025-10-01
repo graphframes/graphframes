@@ -84,6 +84,30 @@ class PatternSuite extends SparkFunSuite {
           AnonymousEdge(NamedVertex("_v9"), NamedVertex("v"))))
   }
 
+  test("rewrite incomming edges") {
+    assert(Pattern.rewriteIncommingEdges("(u)<-[e]-(v);") === "(v)-[e]->(u)")
+    assert(Pattern.rewriteIncommingEdges("!(u)<-[e]-(v);") === "!(v)-[e]->(u)")
+    assert(
+      Pattern.rewriteIncommingEdges("(u)<-[]-(v);(u)-[e]->(v)") === "(v)-[]->(u);(u)-[e]->(v)")
+    assert(Pattern.rewriteIncommingEdges("(u)<-[]->(v)") === "(u)-[]->(v);(v)-[]->(u)")
+    assert(Pattern.rewriteIncommingEdges("(u)<-[e]->(v)") === "(u)-[e]->(v);(v)-[e]->(u)")
+    assert(Pattern.rewriteIncommingEdges("(u)<-[*5]-(v)") === "(v)-[*5]->(u)")
+    assert(Pattern.rewriteIncommingEdges("(u)<-[*5]->(v)") === "(u)-[*5]->(v);(v)-[*5]->(u)")
+    assert(
+      Pattern.rewriteIncommingEdges(
+        "(v1)<-[e*1..2]->(v2)") === "(v1)-[e*1..2]->(v2);(v2)-[e*1..2]->(v1)")
+  }
+
+  test("rewrite incomming edges and parse") {
+    Pattern.parse("(v)<-[e]-(u)") === Pattern.parse("(u)-[e]->(v)")
+    Pattern.parse("(v)<-[]-(u)") === Pattern.parse("(u)-[]->(v)")
+    Pattern.parse("!(v)<-[]-(u)") === Pattern.parse("!(u)-[]->(v)")
+    Pattern.parse("()<-[e]-()") === Pattern.parse("()-[e]->()")
+    Pattern.parse("(u)-[]->(v); (w)<-[]-(v); !(w)<-[]-(u)") === Pattern.parse(
+      "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)")
+    Pattern.parse("(v)<-[*5]-(u)") === Pattern.parse("(u)-[*5]->(v)")
+  }
+
   test("bad parses") {
     withClue("Failed to catch parse error with lone anonymous vertex") {
       intercept[InvalidParseException] {
