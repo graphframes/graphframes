@@ -1,4 +1,6 @@
 from __future__ import annotations
+from typing import final
+from typing_extensions import override
 
 from pyspark.sql.connect import functions as F
 from pyspark.sql.connect import proto
@@ -35,32 +37,8 @@ def _dataframe_from_plan(plan: LogicalPlan, session: SparkSession) -> DataFrame:
     return DataFrame(plan, session)
 
 
+@final
 class PregelConnect:
-    """Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
-
-    See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
-    for a detailed description of the Pregel algorithm.
-
-    You can construct a Pregel instance using either this constructor or :attr:`graphframes.GraphFrame.pregel`,
-    then use builder pattern to describe the operations, and then call :func:`run` to start a run.
-    It returns a DataFrame of vertices from the last iteration.
-
-    When a run starts, it expands the vertices DataFrame using column expressions defined by :func:`withVertexColumn`.
-    Those additional vertex properties can be changed during Pregel iterations.
-    In each Pregel iteration, there are three phases:
-      - Given each edge triplet, generate messages and specify target vertices to send,
-        described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
-      - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
-      - Update additional vertex properties based on aggregated messages and states from previous iteration,
-        described by :func:`withVertexColumn`.
-
-    Please find what columns you can reference at each phase in the method API docs.
-
-    You can control the number of iterations by :func:`setMaxIter` and check API docs for advanced controls.
-
-    :param graph: a :class:`graphframes.GraphFrame` object holding a graph with vertices and edges stored as DataFrames.
-    """  # noqa: E501
-
     def __init__(self, graph: "GraphFrameConnect") -> None:
         self.graph = graph
         self._max_iter = 10
@@ -68,8 +46,8 @@ class PregelConnect:
         self._col_name = None
         self._initial_expr = None
         self._update_after_agg_msgs_expr = None
-        self._send_msg_to_src = []
-        self._send_msg_to_dst = []
+        self._send_msg_to_src: list[Column | str] = []
+        self._send_msg_to_dst: list[Column | str] = []
         self._agg_msg = None
         self._early_stopping = False
         self._use_local_checkpoints = False
@@ -80,34 +58,14 @@ class PregelConnect:
         self._skip_messages_from_non_active = False
 
     def setMaxIter(self, value: int) -> Self:
-        """Sets the max number of iterations (default: 2)."""
         self._max_iter = value
         return self
 
     def setCheckpointInterval(self, value: int) -> Self:
-        """Sets the number of iterations between two checkpoints (default: 2).
-
-        This is an advanced control to balance query plan optimization and checkpoint data I/O cost.
-        In most cases, you should keep the default value.
-
-        Checkpoint is disabled if this is set to 0.
-        """
         self._checkpoint_interval = value
         return self
 
     def setEarlyStopping(self, value: bool) -> Self:
-        """Set should Pregel stop earlier in case of no new messages to send or not.
-
-        Early stopping allows to terminate Pregel before reaching maxIter by checking if there are any non-null messages.
-        While in some cases it may gain significant performance boost, in other cases it can lead to performance degradation,
-        because checking if the messages DataFrame is empty or not is an action and requires materialization of the Spark Plan
-        with some additional computations.
-
-        In the case when the user can assume a good value of maxIter, it is recommended to leave this value to the default "false".
-        In the case when it is hard to estimate the number of iterations required for convergence,
-        it is recommended to set this value to "false" to avoid iterating over convergence until reaching maxIter.
-        When this value is "true", maxIter can be set to a bigger value without risks.
-        """  # noqa: E501
         self._early_stopping = value
         return self
 
@@ -117,139 +75,49 @@ class PregelConnect:
         initialExpr: Column | str,
         updateAfterAggMsgsExpr: Column | str,
     ) -> Self:
-        """Defines an additional vertex column at the start of run and how to update it in each iteration.
-
-        You can call it multiple times to add more than one additional vertex columns.
-
-        :param colName: the name of the additional vertex column.
-                        It cannot be an existing vertex column in the graph.
-        :param initialExpr: the expression to initialize the additional vertex column.
-                            You can reference all original vertex columns in this expression.
-        :param updateAfterAggMsgsExpr: the expression to update the additional vertex column after messages aggregation.
-                                       You can reference all original vertex columns, additional vertex columns, and the
-                                       aggregated message column using :func:`msg`.
-                                       If the vertex received no messages, the message column would be null.
-        """  # noqa: E501
         self._col_name = colName
         self._initial_expr = initialExpr
         self._update_after_agg_msgs_expr = updateAfterAggMsgsExpr
         return self
 
     def sendMsgToSrc(self, msgExpr: Column | str) -> Self:
-        """Defines a message to send to the source vertex of each edge triplet.
-
-        You can call it multiple times to send more than one messages.
-
-        See method :func:`sendMsgToDst`.
-
-        :param msgExpr: the expression of the message to send to the source vertex given a (src, edge, dst) triplet.
-                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
-                        and `edge`, respectively.
-                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
-                        Null messages are not included in message aggregation.
-        """  # noqa: E501
         self._send_msg_to_src.append(msgExpr)
         return self
 
     def sendMsgToDst(self, msgExpr: Column | str) -> Self:
-        """Defines a message to send to the destination vertex of each edge triplet.
-
-        You can call it multiple times to send more than one messages.
-
-        See method :func:`sendMsgToSrc`.
-
-        :param msgExpr: the message expression to send to the destination vertex given a (`src`, `edge`, `dst`) triplet.
-                        Source/destination vertex properties and edge properties are nested under columns `src`, `dst`,
-                        and `edge`, respectively.
-                        You can reference them using :func:`src`, :func:`dst`, and :func:`edge`.
-                        Null messages are not included in message aggregation.
-        """  # noqa: E501
         self._send_msg_to_dst.append(msgExpr)
         return self
 
     def aggMsgs(self, aggExpr: Column) -> Self:
-        """Defines how messages are aggregated after grouped by target vertex IDs.
-
-        :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg())`.
-                        You can reference the message column by :func:`msg` and the vertex ID by `col("id")`,
-                        while the latter is usually not used.
-        """  # noqa: E501
         self._agg_msg = aggExpr
         return self
 
     def setStopIfAllNonActiveVertices(self, value: bool) -> Self:
-        """Set should Pregel stop if all the vertices voted to halt.
-
-        Activity (or vote) is determined based on the activity_col.
-        See methods :func:`setInitialActiveVertexExpression` and :func:`setUpdateActiveVertexExpression` for details
-        how to set and update activity_col.
-
-        Be aware that checking of the vote is not free but a Spark Action. In case the
-        condition is not realistically reachable but set, it will just slow down the algorithm.
-
-        :param value: the boolean value.
-        """  # noqa: E501
         self._stop_if_all_non_active = value
         return self
 
     def setInitialActiveVertexExpression(self, value: Column | str) -> Self:
-        """Sets the initial expression for the active vertex column.
-
-        The active vertex column is used to determine if a vertices voting result on each iteration of Pregel.
-        This expression is evaluated on the initial vertices DataFrame to set the initial state of the activity column.
-
-        :param value: expression to compute the initial active state of vertices.
-                      You can reference all original vertex columns in this expression.
-        """  # noqa: E501
         self._initial_active_expr = value
         return self
 
     def setUpdateActiveVertexExpression(self, value: Column | str) -> Self:
-        """Sets the expression to update the active vertex column.
-
-        The active vertex column is used to determine if a vertices voting result on each iteration of Pregel.
-        This expression is evaluated on the updated vertices DataFrame to set the new state of the activity column.
-
-        :param value: expression to compute the new active state of vertices.
-                      You can reference all original vertex columns and additional vertex columns in this expression.
-        """  # noqa: E501
         self._update_active_expr = value
         return self
 
     def setSkipMessagesFromNonActiveVertices(self, value: bool) -> Self:
-        """Set should Pregel skip sending messages from non-active vertices.
-
-        When this option is enabled, messages will not be sent from vertices that are marked as inactive.
-        This can help optimize performance by avoiding unnecessary message propagation from inactive vertices.
-
-        :param value: boolean value.
-        """  # noqa: E501
         self._skip_messages_from_non_active = value
         return self
 
     def setUseLocalCheckpoints(self, value: bool) -> Self:
-        """Set should Pregel use local checkpoints.
-
-        Local checkpoints are faster and do not require configuring a persistent storage.
-        At the same time, local checkpoints are less reliable and may create a big load on local disks of executors.
-
-        :param value: boolean value.
-        """  # noqa: E501
         self._use_local_checkpoints = value
         return self
 
     def setIntermediateStorageLevel(self, storage_level: StorageLevel) -> Self:
-        """Set the intermediate storage level.
-        On each iteration, Pregel cache results with a requested storage level.
-
-        For very big graphs it is recommended to use DISK_ONLY.
-
-        :param storage_level: storage level to use.
-        """  # noqa: E501
         self._storage_level = storage_level
         return self
 
     def run(self) -> DataFrame:
+        @final
         class Pregel(LogicalPlan):
             def __init__(
                 self,
@@ -290,6 +158,7 @@ class PregelConnect:
                 self.vertices = vertices
                 self.edges = edges
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 pregel = pb.Pregel(
                     agg_msgs=make_column_or_expr(self.agg_msg, session),
@@ -302,17 +171,25 @@ class PregelConnect:
                     checkpoint_interval=self.checkpoint_interval,
                     max_iter=self.max_iter,
                     additional_col_name=self.vertex_col_name,
-                    additional_col_initial=make_column_or_expr(self.vertex_col_init, session),
-                    additional_col_upd=make_column_or_expr(self.vertex_col_upd, session),
+                    additional_col_initial=make_column_or_expr(
+                        self.vertex_col_init, session
+                    ),
+                    additional_col_upd=make_column_or_expr(
+                        self.vertex_col_upd, session
+                    ),
                     early_stopping=self.early_stopping,
                     use_local_checkpoints=self.use_local_checkpoints,
                     storage_level=storage_level_to_proto(self.storage_level),
                     stop_if_all_non_active=self.stop_if_all_non_active,
                     skip_messages_from_non_active=self.skip_message_from_non_active,
-                    initial_active_expr=make_column_or_expr(self.initial_active_expr, session)
+                    initial_active_expr=make_column_or_expr(
+                        self.initial_active_expr, session
+                    )
                     if self.initial_active_expr is not None
                     else None,
-                    update_active_expr=make_column_or_expr(self.update_active_expr, session)
+                    update_active_expr=make_column_or_expr(
+                        self.update_active_expr, session
+                    )
                     if self.update_active_expr is not None
                     else None,
                 )
@@ -375,11 +252,12 @@ class PregelConnect:
         return F.col("edge." + colName)
 
 
+@final
 class GraphFrameConnect:
-    ID = "id"
-    SRC = "src"
-    DST = "dst"
-    EDGE = "edge"
+    ID: str = "id"
+    SRC: str = "src"
+    DST: str = "dst"
+    EDGE: str = "edge"
 
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
         self._vertices = v
@@ -422,6 +300,7 @@ class GraphFrameConnect:
     def edges(self) -> DataFrame:
         return self._edges
 
+    @override
     def __repr__(self) -> str:
         # Exactly like in the scala core
         v_cols = [self.ID] + [col for col in self.vertices.columns if col != self.ID]
@@ -438,7 +317,9 @@ class GraphFrameConnect:
         new_edges = self._edges.cache()
         return GraphFrameConnect(new_vertices, new_edges)
 
-    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrameConnect":
+    def persist(
+        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+    ) -> "GraphFrameConnect":
         new_vertices = self._vertices.persist(storageLevel=storageLevel)
         new_edges = self._edges.persist(storageLevel=storageLevel)
         return GraphFrameConnect(new_vertices, new_edges)
@@ -463,19 +344,23 @@ class GraphFrameConnect:
     @property
     def degrees(self) -> DataFrame:
         return (
-            self._edges.select(F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID))
+            self._edges.select(
+                F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID)
+            )
             .groupBy(self.ID)
             .agg(F.count("*").alias("degree"))
         )
 
     @property
     def triplets(self) -> DataFrame:
+        @final
         class Triplets(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -492,6 +377,7 @@ class GraphFrameConnect:
         return PregelConnect(self)
 
     def find(self, pattern: str) -> DataFrame:
+        @final
         class Find(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, pattern: str) -> None:
                 super().__init__(None)
@@ -499,6 +385,7 @@ class GraphFrameConnect:
                 self.e = e
                 self.p = pattern
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -508,16 +395,22 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return _dataframe_from_plan(Find(self._vertices, self._edges, pattern), self._spark)
+        return _dataframe_from_plan(
+            Find(self._vertices, self._edges, pattern), self._spark
+        )
 
     def filterVertices(self, condition: str | Column) -> "GraphFrameConnect":
+        @final
         class FilterVertices(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame, condition: str | Column) -> None:
+            def __init__(
+                self, v: DataFrame, e: DataFrame, condition: str | Column
+            ) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
                 self.c = condition
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -546,19 +439,25 @@ class GraphFrameConnect:
         return GraphFrameConnect(new_vertices, new_edges)
 
     def filterEdges(self, condition: str | Column) -> "GraphFrameConnect":
+        @final
         class FilterEdges(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame, condition: str | Column) -> None:
+            def __init__(
+                self, v: DataFrame, e: DataFrame, condition: str | Column
+            ) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
                 self.c = condition
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
                 col_or_expr = make_column_or_expr(self.c, session)
-                graphframes_api_call.filter_edges.CopyFrom(pb.FilterEdges(condition=col_or_expr))
+                graphframes_api_call.filter_edges.CopyFrom(
+                    pb.FilterEdges(condition=col_or_expr)
+                )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -568,18 +467,72 @@ class GraphFrameConnect:
         )
         return GraphFrameConnect(self._vertices, new_edges)
 
+    def detectingCycles(
+        self,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        intermediate_storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
+        class DetectingCycles(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.detecting_cycles.CopyFrom(
+                    pb.DetectingCycles(
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        checkpoint_interval=self.checkpoint_interval,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            DetectingCycles(
+                self._vertices,
+                self._edges,
+                checkpoint_interval,
+                use_local_checkpoints,
+                intermediate_storage_level,
+            ),
+            self._spark,
+        )
+
     def dropIsolatedVertices(self) -> "GraphFrameConnect":
+        @final
         class DropIsolatedVertices(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.drop_isolated_vertices.CopyFrom(pb.DropIsolatedVertices())
+                graphframes_api_call.drop_isolated_vertices.CopyFrom(
+                    pb.DropIsolatedVertices()
+                )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
@@ -596,6 +549,7 @@ class GraphFrameConnect:
         edgeFilter: Column | str | None = None,
         maxPathLength: int = 10,
     ) -> DataFrame:
+        @final
         class BFS(LogicalPlan):
             def __init__(
                 self,
@@ -614,6 +568,7 @@ class GraphFrameConnect:
                 self.edge_filter = edge_filter
                 self.max_path_len = max_path_len
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -652,6 +607,7 @@ class GraphFrameConnect:
         sendToDst: list[Column | str],
         intermediate_storage_level: StorageLevel,
     ) -> DataFrame:
+        @final
         class AggregateMessages(LogicalPlan):
             def __init__(
                 self,
@@ -670,6 +626,7 @@ class GraphFrameConnect:
                 self.send2dst = send2dst
                 self.storage_level = storage_level
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -677,8 +634,12 @@ class GraphFrameConnect:
                 graphframes_api_call.aggregate_messages.CopyFrom(
                     pb.AggregateMessages(
                         agg_col=[make_column_or_expr(x, session) for x in self.agg_col],
-                        send_to_src=[make_column_or_expr(x, session) for x in self.send2src],
-                        send_to_dst=[make_column_or_expr(x, session) for x in self.send2dst],
+                        send_to_src=[
+                            make_column_or_expr(x, session) for x in self.send2src
+                        ],
+                        send_to_dst=[
+                            make_column_or_expr(x, session) for x in self.send2dst
+                        ],
                         storage_level=storage_level_to_proto(self.storage_level),
                     )
                 )
@@ -686,8 +647,10 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        if sendToSrc is None and sendToDst is None:
-            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
+        if (len(sendToSrc) == 0) and (len(sendToDst) == 0):
+            raise ValueError(
+                "Either `sendToSrc`, `sendToDst`, or both have to be provided"
+            )
 
         return _dataframe_from_plan(
             AggregateMessages(
@@ -703,11 +666,15 @@ class GraphFrameConnect:
 
     def connectedComponents(
         self,
-        algorithm: str = "graphframes",
-        checkpointInterval: int = 2,
-        broadcastThreshold: int = 1000000,
-        useLabelsAsComponents: bool = False,
+        algorithm: str,
+        checkpointInterval: int,
+        broadcastThreshold: int,
+        useLabelsAsComponents: bool,
+        use_local_checkpoints: bool,
+        max_iter: int,
+        storage_level: StorageLevel,
     ) -> DataFrame:
+        @final
         class ConnectedComponents(LogicalPlan):
             def __init__(
                 self,
@@ -717,6 +684,9 @@ class GraphFrameConnect:
                 checkpoint_interval: int,
                 broadcast_threshold: int,
                 use_labels_as_components: bool,
+                use_local_checkpoints: bool,
+                max_iter: int,
+                storage_level: StorageLevel,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -725,7 +695,11 @@ class GraphFrameConnect:
                 self.checkpoint_interval = checkpoint_interval
                 self.broadcast_threshold = broadcast_threshold
                 self.use_labels_as_components = use_labels_as_components
+                self.use_local_checkpoints = use_local_checkpoints
+                self.max_iter = max_iter
+                self.storage_level = storage_level
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -736,6 +710,9 @@ class GraphFrameConnect:
                         checkpoint_interval=self.checkpoint_interval,
                         broadcast_threshold=self.broadcast_threshold,
                         use_labels_as_components=self.use_labels_as_components,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        max_iter=self.max_iter,
+                        storage_level=storage_level_to_proto(self.storage_level),
                     )
                 )
                 plan = self._create_proto_relation()
@@ -750,34 +727,76 @@ class GraphFrameConnect:
                 checkpointInterval,
                 broadcastThreshold,
                 useLabelsAsComponents,
+                use_local_checkpoints,
+                max_iter,
+                storage_level,
             ),
             self._spark,
         )
 
-    def labelPropagation(self, maxIter: int) -> DataFrame:
+    def labelPropagation(
+        self,
+        maxIter: int,
+        algorithm: str,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
         class LabelPropagation(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame, max_iter: int) -> None:
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                max_iter: int,
+                algorithm: str,
+                use_local_checkpoints: bool,
+                checkpoint_interval: int,
+                storage_level: StorageLevel,
+            ) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
                 self.max_iter = max_iter
+                self.algorithm = algorithm
+                self.use_local_checkpoints = use_local_checkpoints
+                self.checkpoint_interval = checkpoint_interval
+                self.storage_level = storage_level
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
                 graphframes_api_call.label_propagation.CopyFrom(
-                    pb.LabelPropagation(max_iter=self.max_iter)
+                    pb.LabelPropagation(
+                        algorithm=self.algorithm,
+                        max_iter=self.max_iter,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        checkpoint_interval=self.checkpoint_interval,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
         return _dataframe_from_plan(
-            LabelPropagation(self._vertices, self._edges, maxIter), self._spark
+            LabelPropagation(
+                self._vertices,
+                self._edges,
+                maxIter,
+                algorithm,
+                use_local_checkpoints,
+                checkpoint_interval,
+                storage_level,
+            ),
+            self._spark,
         )
 
-    def _update_page_rank_edge_weights(self, new_vertices: DataFrame) -> "GraphFrameConnect":
+    def _update_page_rank_edge_weights(
+        self, new_vertices: DataFrame
+    ) -> "GraphFrameConnect":
         cols2select = self.edges.columns + ["weight"]
         new_edges = (
             self._edges.join(
@@ -802,6 +821,7 @@ class GraphFrameConnect:
         maxIter: int | None = None,
         tol: float | None = None,
     ) -> "GraphFrameConnect":
+        @final
         class PageRank(LogicalPlan):
             def __init__(
                 self,
@@ -820,6 +840,7 @@ class GraphFrameConnect:
                 self.max_iter = max_iter
                 self.tol = tol
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -828,7 +849,9 @@ class GraphFrameConnect:
                     pb.PageRank(
                         reset_probability=self.reset_prob,
                         source_id=(
-                            None if self.source_id is None else make_str_or_long_id(self.source_id)
+                            None
+                            if self.source_id is None
+                            else make_str_or_long_id(self.source_id)
                         ),
                         max_iter=self.max_iter,
                         tol=self.tol,
@@ -863,6 +886,7 @@ class GraphFrameConnect:
         sourceIds: list[str | int] | None = None,
         maxIter: int | None = None,
     ) -> "GraphFrameConnect":
+        @final
         class ParallelPersonalizedPageRank(LogicalPlan):
             def __init__(
                 self,
@@ -879,6 +903,7 @@ class GraphFrameConnect:
                 self.source_ids = source_ids
                 self.max_iter = max_iter
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -886,7 +911,9 @@ class GraphFrameConnect:
                 graphframes_api_call.parallel_personalized_page_rank.CopyFrom(
                     pb.ParallelPersonalizedPageRank(
                         reset_probability=self.reset_prob,
-                        source_ids=[make_str_or_long_id(raw_id) for raw_id in self.source_ids],
+                        source_ids=[
+                            make_str_or_long_id(raw_id) for raw_id in self.source_ids
+                        ],
                         max_iter=self.max_iter,
                     )
                 )
@@ -894,9 +921,9 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        assert (
-            sourceIds is not None and len(sourceIds) > 0
-        ), "Source vertices Ids sourceIds must be provided"
+        assert sourceIds is not None and len(sourceIds) > 0, (
+            "Source vertices Ids sourceIds must be provided"
+        )
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
 
         new_vertices = _dataframe_from_plan(
@@ -914,6 +941,7 @@ class GraphFrameConnect:
     def powerIterationClustering(
         self, k: int, maxIter: int, weightCol: str | None = None
     ) -> DataFrame:
+        @final
         class PowerIterationClustering(LogicalPlan):
             def __init__(
                 self,
@@ -930,6 +958,7 @@ class GraphFrameConnect:
                 self.max_iter = max_iter
                 self.weight_col = weight_col
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -946,25 +975,55 @@ class GraphFrameConnect:
                 return plan
 
         return _dataframe_from_plan(
-            PowerIterationClustering(self._vertices, self._edges, k, maxIter, weightCol),
+            PowerIterationClustering(
+                self._vertices, self._edges, k, maxIter, weightCol
+            ),
             self._spark,
         )
 
-    def shortestPaths(self, landmarks: list[str | int]) -> DataFrame:
+    def shortestPaths(
+        self,
+        landmarks: list[str | int],
+        algorithm: str,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
         class ShortestPaths(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame, landmarks: list[str | int]) -> None:
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                landmarks: list[str | int],
+                algorithm: str,
+                use_local_checkpoints: bool,
+                checkpoint_interval: int,
+                storage_level: StorageLevel,
+            ) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
                 self.landmarks = landmarks
+                self.algorithm = algorithm
+                self.use_local_checkpoints = use_local_checkpoints
+                self.checkpoint_interval = checkpoint_interval
+                self.storage_level = storage_level
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
                 graphframes_api_call.shortest_paths.CopyFrom(
                     pb.ShortestPaths(
-                        landmarks=[make_str_or_long_id(raw_id) for raw_id in self.landmarks]
+                        landmarks=[
+                            make_str_or_long_id(raw_id) for raw_id in self.landmarks
+                        ],
+                        algorithm=self.algorithm,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        checkpoint_interval=self.checkpoint_interval,
+                        storage_level=storage_level_to_proto(self.storage_level),
                     )
                 )
                 plan = self._create_proto_relation()
@@ -972,10 +1031,20 @@ class GraphFrameConnect:
                 return plan
 
         return _dataframe_from_plan(
-            ShortestPaths(self._vertices, self._edges, landmarks), self._spark
+            ShortestPaths(
+                self._vertices,
+                self._edges,
+                landmarks,
+                algorithm,
+                use_local_checkpoints,
+                checkpoint_interval,
+                storage_level,
+            ),
+            self._spark,
         )
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
+        @final
         class StronglyConnectedComponents(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, max_iter: int) -> None:
                 super().__init__(None)
@@ -983,6 +1052,7 @@ class GraphFrameConnect:
                 self.e = e
                 self.max_iter = max_iter
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -1011,6 +1081,7 @@ class GraphFrameConnect:
         gamma7: float = 0.015,
         return_loss: bool = False,  # TODO: should it be True to mimic the classic API?
     ) -> tuple[DataFrame, float]:
+        @final
         class SVDPlusPlus(LogicalPlan):
             def __init__(
                 self,
@@ -1037,6 +1108,7 @@ class GraphFrameConnect:
                 self.gamma6 = gamma6
                 self.gamma7 = gamma7
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
@@ -1079,20 +1151,31 @@ class GraphFrameConnect:
         else:
             return (output.drop("loss"), -1.0)
 
-    def triangleCount(self) -> DataFrame:
+    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+        @final
         class TriangleCount(LogicalPlan):
-            def __init__(self, v: DataFrame, e: DataFrame) -> None:
+            def __init__(
+                self, v: DataFrame, e: DataFrame, storage_level: StorageLevel
+            ) -> None:
                 super().__init__(None)
                 self.v = v
                 self.e = e
+                self.storage_level = storage_level
 
+            @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
                 graphframes_api_call = GraphFrameConnect._get_pb_api_message(
                     self.v, self.e, session
                 )
-                graphframes_api_call.triangle_count.CopyFrom(pb.TriangleCount())
+                graphframes_api_call.triangle_count.CopyFrom(
+                    pb.TriangleCount(
+                        storage_level=storage_level_to_proto(self.storage_level)
+                    )
+                )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return _dataframe_from_plan(TriangleCount(self._vertices, self._edges), self._spark)
+        return _dataframe_from_plan(
+            TriangleCount(self._vertices, self._edges), self._spark
+        )

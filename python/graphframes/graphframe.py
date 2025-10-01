@@ -21,6 +21,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 from pyspark.storagelevel import StorageLevel
+from pyspark.sql import functions as F
 from pyspark.version import __version__
 from typing_extensions import override
 
@@ -32,15 +33,25 @@ else:
         return False
 
 
-from pyspark.sql import SparkSession
-
 from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
 from graphframes.lib import Pregel
 
 if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
 
-    from graphframes.connect.graphframe_client import GraphFrameConnect
+    from graphframes.connect.graphframes_client import GraphFrameConnect
+
+"""Constant for the vertices ID column name."""
+ID = "id"
+
+"""Constant for the edge src column name."""
+SRC = "src"
+
+"""Constant for the edge dst column name."""
+DST = "dst"
+
+"""Constant for the edge column name."""
+EDGE = "edge"
 
 
 class GraphFrame:
@@ -62,17 +73,27 @@ class GraphFrame:
     """
 
     @staticmethod
-    def _from_impl(impl: GraphFrameClassic | "GraphFrameConnect") -> "GraphFrame":
+    def _from_impl(impl: "GraphFrameClassic | GraphFrameConnect") -> "GraphFrame":
         return GraphFrame(impl.vertices, impl.edges)
 
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
-        self._impl: GraphFrameClassic | "GraphFrameConnect"
-        if is_remote():
-            from graphframes.connect.graphframe_client import GraphFrameConnect
+        """
+        Initialize a GraphFrame from vertex DataFrame and edges DataFrame.
 
-            self._impl = GraphFrameConnect(v, e)
+        :param v: :class:`DataFrame` holding vertex information.
+                Must contain a column named "id" that stores unique
+                vertex IDs.
+        :param e: :class:`DataFrame` holding edge information.
+                Must contain two columns "src" and "dst" storing source
+                vertex IDs and destination vertex IDs of edges, respectively.
+        """
+        self._impl: "GraphFrameClassic | GraphFrameConnect"
+        if is_remote():
+            from graphframes.connect.graphframes_client import GraphFrameConnect
+
+            self._impl = GraphFrameConnect(v, e)  # ty: ignore[invalid-argument-type]
         else:
-            self._impl = GraphFrameClassic(v, e)
+            self._impl = GraphFrameClassic(v, e)  # ty: ignore[invalid-argument-type]
 
     @property
     def vertices(self) -> DataFrame:
@@ -106,7 +127,9 @@ class GraphFrame:
         """
         return GraphFrame._from_impl(self._impl.cache())
 
-    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrame":
+    def persist(
+        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
+    ) -> "GraphFrame":
         """Persist the dataframe representation of vertices and edges of the graph with the given
         storage level.
         """
@@ -174,7 +197,9 @@ class GraphFrame:
     @property
     def pregel(self) -> Pregel:
         """
-        Get the :class:`graphframes.lib.Pregel` object for running pregel.
+        Get the :class:`graphframes.classic.pregel.Pregel`
+        or :class`graphframes.connect.graphframes_client.Pregel`
+        object for running pregel.
 
         See :class:`graphframes.lib.Pregel` for more details.
         """
@@ -218,6 +243,35 @@ class GraphFrame:
         """
         return GraphFrame._from_impl(self._impl.dropIsolatedVertices())
 
+    def detectingCycles(
+        self,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """Find all cycles in the graph.
+
+        An implementation of the Rocha–Thatte cycle detection algorithm.
+        Rocha, Rodrigo Caetano, and Bhalchandra D. Thatte. "Distributed cycle detection in
+        large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
+        (SBPO’15) (2015): 1-11.
+
+        Returns a DataFrame with ID and cycles, ID are not unique if there are multiple cycles
+        starting from this ID. For the case of cycle 1 -> 2 -> 3 -> 1 all the vertices will have the
+        same cycle! E.g.: 1 -> [1, 2, 3, 1] 2 -> [2, 3, 1, 2] 3 -> [3, 1, 2, 3]
+
+        Deduplication of cycles should be done by the user!
+
+        :param checkpoint_interval: Pregel checkpoint interval, default is 2
+        :param use_local_checkpoints: should local checkpoints be used instead of checkpointDir
+        :storage_level: the level of storage for both intermediate results and an output DataFrame
+
+        :return: Persisted DataFrame with all the cycles
+        """
+        return self._impl.detectingCycles(
+            checkpoint_interval, use_local_checkpoints, storage_level
+        )
+
     def bfs(
         self,
         fromExpr: str,
@@ -242,9 +296,9 @@ class GraphFrame:
     def aggregateMessages(
         self,
         aggCol: list[Column | str] | Column,
-        sendToSrc: list[Column | str] | Column | str = list(),
-        sendToDst: list[Column | str] | Column | str = list(),
-        intermediate_storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK,
+        sendToSrc: list[Column | str] | Column | str | None = None,
+        sendToDst: list[Column | str] | Column | str | None = None,
+        intermediate_storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
         """
         Aggregates messages from the neighbours.
@@ -266,9 +320,14 @@ class GraphFrame:
         :param intermediate_storage_level: the level of intermediate storage that will be used
             for both intermediate result and the output.
 
-        :return: DataFrame with columns for the vertex ID and the resulting aggregated message.
+        :return: Persisted DataFrame with columns for the vertex ID and the resulting aggregated message.
             The name of the resulted message column is based on the alias of the provided aggCol!
         """  # noqa: E501
+
+        if sendToDst is None:
+            sendToDst = []
+        if sendToSrc is None:
+            sendToSrc = []
 
         # Back-compatibility workaround
         if not isinstance(aggCol, list):
@@ -300,7 +359,9 @@ class GraphFrame:
             raise TypeError("At least one aggregation column should be provided!")
 
         if (len(sendToSrc) == 0) and (len(sendToDst) == 0):
-            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
+            raise ValueError(
+                "Either `sendToSrc`, `sendToDst`, or both have to be provided"
+            )
         return self._impl.aggregateMessages(
             aggCol=aggCol,
             sendToSrc=sendToSrc,
@@ -316,6 +377,9 @@ class GraphFrame:
         checkpointInterval: int = 2,
         broadcastThreshold: int = 1000000,
         useLabelsAsComponents: bool = False,
+        use_local_checkpoints: bool = False,
+        max_iter: int = 2 ^ 31 - 2,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
         """
         Computes the connected components of the graph.
@@ -337,6 +401,9 @@ class GraphFrame:
             checkpointInterval=checkpointInterval,
             broadcastThreshold=broadcastThreshold,
             useLabelsAsComponents=useLabelsAsComponents,
+            use_local_checkpoints=use_local_checkpoints,
+            max_iter=max_iter,
+            storage_level=storage_level,
         )
 
     def labelPropagation(self, maxIter: int) -> DataFrame:
@@ -480,21 +547,86 @@ class GraphFrame:
         """  # noqa: E501
         return self._impl.powerIterationClustering(k, maxIter, weightCol)
 
+    def validate(
+        self,
+        check_vertices: bool = True,
+        intermediate_storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> None:
+        """
+        Validates the consistency and integrity of a graph by performing checks on the vertices and
+        edges.
 
-def _test():
-    import doctest
+        :param check_vertices: a flag to indicate whether additional vertex consistency checks
+            should be performed. If true, the method will verify that all vertices in the vertex
+            DataFrame are represented in the edge DataFrame and vice versa. It is slow on big graphs.
+        :param intermediate_storage_level: the storage level to be used when persisting
+            intermediate DataFrame computations during the validation process.
+        :return: Unit, as the method performs validation checks and throws an exception if
+            validation fails.
+        :raises ValueError: if there are any inconsistencies in the graph, such as duplicate
+            vertices, mismatched vertices between edges and vertex DataFrames or missing
+            connections.
+        """
+        persisted_vertices = self.vertices.persist(intermediate_storage_level)
+        row = persisted_vertices.select(F.count_distinct(F.col(ID))).first()
+        assert row is not None  # for type checker
+        count_distinct_vertices = row[0]
+        assert isinstance(count_distinct_vertices, int)  # for type checker
+        total_count_vertices = persisted_vertices.count()
+        if count_distinct_vertices != total_count_vertices:
+            raise ValueError(
+                f"Graph contains ({total_count_vertices - count_distinct_vertices}) duplicate vertices."
+            )
+        if check_vertices:
+            vertices_set_from_edges = (
+                self.edges.select(F.col(SRC).alias(ID))
+                .union(self.edges.select(F.col(DST).alias(ID)))
+                .distinct()
+                .persist(intermediate_storage_level)
+            )
+            count_vertices_from_edges = vertices_set_from_edges.count()
+            if count_vertices_from_edges > count_distinct_vertices:
+                raise ValueError(
+                    f"Graph is inconsistent: edges has {count_vertices_from_edges} "
+                    + f"vertices, but vertices has {count_distinct_vertices} vertices."
+                )
 
-    import graphframe
+            combined = vertices_set_from_edges.join(self.vertices, ID, "left_anti")
+            count_of_bad_vertices = combined.count()
+            if count_of_bad_vertices > 0:
+                raise ValueError(
+                    "Vertices DataFrame does not contain all edges src/dst. "
+                    + f"Found {count_of_bad_vertices} edges src/dst that are not in the vertices DataFrame."
+                )
+            _ = persisted_vertices.unpersist()
+            _ = vertices_set_from_edges.unpersist()
 
-    globs = graphframe.__dict__.copy()
-    globs["spark"] = SparkSession.builder.master("local[4]").appName("PythonTest").getOrCreate()
-    (failure_count, test_count) = doctest.testmod(
-        globs=globs, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
-    )
-    globs["spark"].stop()
-    if failure_count:
-        exit(-1)
+    def as_undirected(self) -> "GraphFrame":
+        """
+        Converts the directed graph into an undirected graph by ensuring that all directed edges are
+        bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
 
+        :return: A new GraphFrame representing the undirected graph.
+        """
 
-if __name__ == "__main__":
-    _test()
+        edge_attr_columns = [c for c in self.edges.columns if c not in [SRC, DST]]
+
+        # Create the undirected edges by duplicating each edge in both directions
+        forward_edges = self.edges.select(
+            F.col(SRC), F.col(DST), F.struct(*edge_attr_columns).alias(EDGE)
+        )
+        backward_edges = self.edges.select(
+            F.col(DST).alias(SRC),
+            F.col(SRC).alias(DST),
+            F.struct(*edge_attr_columns).alias(EDGE),
+        )
+        new_edges = forward_edges.union(backward_edges).select(SRC, DST, EDGE)
+
+        # Preserve additional edge attributes
+        edge_columns = [F.col(EDGE).getField(c).alias(c) for c in edge_attr_columns]
+
+        # Select all columns including the new edge attributes
+        selected_columns = [F.col(SRC), F.col(DST)] + edge_columns
+        new_edges = new_edges.select(*selected_columns)
+
+        return GraphFrame(self.vertices, new_edges)
