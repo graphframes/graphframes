@@ -17,6 +17,9 @@ Ensure the following tools are installed before cloning the repository:
 | Python | 3.10 – 3.12 | Required for the Python APIs and tests. |
 | Apache Spark (binary distribution) | 3.5.x (default) or 4.0.x | Needed for the Python test suite. |
 | Poetry | ≥ 1.8 | Dependency manager used by the Python package. Install via [`pipx`](https://pypa.github.io/pipx/) or `pip`. |
+| Protocol Buffers compiler (`protoc`) | ≥ 3.21 | Required for the GraphFrames Connect protobuf build. |
+| Buf CLI | Latest stable | Used to lint and generate protobuf sources. |
+| Apache Spark (optional) | 3.5.x (default) or 4.0.x | Only required if you want the standalone Spark shell outside PySpark. |
 | Docker (optional) | Latest stable | Useful for isolated environments but not mandatory. |
 
 ### 1.1 Install required tooling
@@ -24,7 +27,7 @@ Ensure the following tools are installed before cloning the repository:
 #### macOS (Homebrew)
 ```bash
 brew update
-brew install git openjdk@17 python@3.12 pipx
+brew install git openjdk@17 python@3.12 pipx protobuf bufbuild/buf/buf
 pipx install poetry
 ```
 Add the Java toolchain to your shell profile (for example `~/.zshrc` or `~/.bashrc`):
@@ -36,10 +39,12 @@ export PATH="$JAVA_HOME/bin:$PATH"
 #### Ubuntu / Debian
 ```bash
 sudo apt update
-sudo apt install -y git openjdk-17-jdk python3 python3-venv python3-pip curl
+sudo apt install -y git openjdk-17-jdk python3 python3-venv python3-pip curl protobuf-compiler
 python3 -m pip install --user pipx
 python3 -m pipx ensurepath
 pipx install poetry
+curl -sSL "https://github.com/bufbuild/buf/releases/latest/download/buf-Linux-x86_64.tar.gz" \
+  | sudo tar -xzf - -C /usr/local --strip-components=1
 ```
 Add the Java toolchain to your shell profile (for example `~/.zshrc` or `~/.bashrc`):
 ```bash
@@ -47,22 +52,20 @@ export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
 export PATH="$JAVA_HOME/bin:$PATH"
 ```
 
-#### Download Apache Spark (for Python tests)
-Download the Spark distribution that matches the build’s `spark.version`
-(currently 3.5.6) and expose it via `SPARK_HOME`:
+#### Optional: Standalone Apache Spark distribution
+`poetry install` (described later) already brings in the matching version of PySpark and Spark
+Connect. If you also want the standalone Spark shell or `spark-submit`, download the distribution
+that matches the build’s `spark.version` (currently 3.5.6) and expose it via `SPARK_HOME`:
 ```bash
 curl -O https://downloads.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.tgz
 mkdir -p "$HOME/.local/spark"
 tar -xzf spark-3.5.6-bin-hadoop3.tgz -C "$HOME/.local/spark"
 export SPARK_HOME="$HOME/.local/spark/spark-3.5.6-bin-hadoop3"
-```
-Persist the environment variables in your shell profile:
-```bash
-export SPARK_HOME="$HOME/.local/spark/spark-3.5.6-bin-hadoop3"
 export PATH="$SPARK_HOME/bin:$PATH"
 ```
 
-> **Tip:** To test against Spark 4.x, pass `-Dspark.version=<version>` when invoking `./build/sbt`.
+> **Tip:** To build against Spark 4.x, pass `-Dspark.version=<version>` to `./build/sbt` or to the
+> jar-building helper script referenced in the Python workflow.
 
 ---
 
@@ -104,9 +107,8 @@ can force it with:
 ```
 
 ### 3.2 Format Scala code
-```bash
-./build/sbt scalafmtAll test:scalafmt
-```
+You can use the project’s [pre-commit hooks](#5-pre-commit-hooks) to automatically 
+format all Scala code at once.
 
 ### 3.3 Run Scala tests
 Run the full test suite:
@@ -125,6 +127,10 @@ Focus on a specific suite while iterating:
 | `./build/sbt core/assembly` | Builds the uber-jar required for Python tests. |
 | `./build/sbt doc` | Generates Scala API documentation. |
 | `./build/sbt +package` | Cross-builds artifacts for all supported Scala versions. |
+| `./build/sbt scalafmtAll test:scalafmt scalafixAll` | Formats and lints all Scala code using Scalafmt and Scalafix. |
+| `./build/sbt docs/laikaPreview` | Serves the documentation site locally at <http://localhost:4242>. |
+| `./build/sbt -Dspark.version=4.0.1 compile` | Compiles against Spark 4.x APIs. |
+| `./build/sbt package -Dvendor.name=dbx` | Produces Databricks-compatible Spark Connect jars. |
 
 ---
 
@@ -133,36 +139,38 @@ Focus on a specific suite while iterating:
 The Python package resides under `python/` and uses Poetry for dependency
 management.
 
-1. Build the GraphFrames assembly jar:
+To build the GraphFrames assembly jar and run the Python test suite, you can use the provided helper script and `pytest` directly.
+
+1. Install Python dependencies (from the `python/` directory):
    ```bash
-   ./build/sbt core/assembly
+   poetry install --with dev,tutorials,docs
    ```
-2. Capture the Scala version sbt selected (Spark 3.5.x defaults to 2.12.20):
+
+2. Build the required GraphFrames JAR for your Spark version:
    ```bash
-   ./build/sbt "show core/scalaVersion"
-   export SCALA_VERSION=2.12.20   # adjust to the reported value
+   poetry run python ./dev/build_jar.py
    ```
-3. Install Python dependencies:
+   This script will automatically build the correct JAR for Spark 3.5.x (or 4.x if specified). You do not need to run `sbt` directly.
+
+3. Run the Python test suite:
    ```bash
-   cd python
-   poetry install --with dev
+   poetry run pytest -vvv
    ```
-4. Run the Python test suite (requires `SPARK_HOME` and `SCALA_VERSION`):
+   The test configuration will automatically pick up the correct JAR and Spark version (see [`python/tests/conftest.py`](https://github.com/graphframes/graphframes/blob/main/python/tests/conftest.py) for details).
+   
+   Enable Spark Connect coverage by exporting `SPARK_CONNECT_MODE_ENABLED=1`:
    ```bash
-   export SPARK_HOME=${SPARK_HOME:-$HOME/.local/spark/spark-3.5.6-bin-hadoop3}
-   ./run-tests.sh
+   SPARK_CONNECT_MODE_ENABLED=1 poetry run pytest -vvv
    ```
-   The script invokes `pytest` and fails fast when a test does not pass.
-5. Optionally enforce formatting and linting:
+
+4. Optionally enforce formatting and linting:
    ```bash
    poetry run black graphframes tests
    poetry run isort graphframes tests
    poetry run flake8 graphframes tests
    ```
-6. Return to the repository root when finished:
-   ```bash
-   cd ..
-   ```
+
+You can see this workflow in action in [the CI configuration](https://github.com/graphframes/graphframes/blob/main/.github/workflows/python-ci.yml).
 
 ### 4.1 PySpark smoke tests
 
@@ -206,7 +214,7 @@ PySpark session.
 
 ---
 
-## 5. Pre-commit hooks (optional)
+## 5. Pre-commit hooks
 
 Enable the bundled `pre-commit` hooks to catch formatting and lint issues before
 pushing your branch:
