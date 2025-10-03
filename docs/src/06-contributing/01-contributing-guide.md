@@ -41,7 +41,7 @@ python3 -m pip install --user pipx
 python3 -m pipx ensurepath
 pipx install poetry
 ```
-If necessary, export the Java toolchain:
+Add the Java toolchain to your shell profile (for example `~/.zshrc` or `~/.bashrc`):
 ```bash
 export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
 export PATH="$JAVA_HOME/bin:$PATH"
