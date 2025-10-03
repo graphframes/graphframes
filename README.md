@@ -254,6 +254,9 @@ This project is compatible with Spark 3.5.x and Spark 4.0.x. Significant speed i
 GraphFrames was made as collaborative effort among UC Berkeley, MIT, Databricks and the open source community. At the moment GraphFrames is maintained by the group of individual contributors.
 
 See [contribution guide](./CONTRIBUTING.md)
+and the [local development setup walkthrough](./docs/src/06-contributing/01-contributing-guide.md) for
+step-by-step instructions on preparing your environment, running tests, and
+submitting changes.
 
 ## Releases
 
