@@ -65,6 +65,7 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     TestUtils.testSchemaInvariants(g, pr)
     TestUtils.checkColumnType(pr.vertices.schema, "pageranks", SQLDataTypes.VectorType)
     TestUtils.checkColumnType(pr.edges.schema, "weight", DataTypes.DoubleType)
+    pr.unpersist()
   }
 
   test("friends graph with parallel personalized PageRank") {
@@ -96,5 +97,6 @@ class ParallelPersonalizedPageRankSuite extends SparkFunSuite with GraphFrameTes
     assert(
       gRank.numNonzeros === 0,
       s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got ${gRank.numNonzeros}.")
+    pr.unpersist()
   }
 }

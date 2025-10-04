@@ -37,5 +37,6 @@ class StronglyConnectedComponentsSuite extends SparkFunSuite with GraphFrameTest
     for (Row(id: Long, component: Long, _) <- c.select("id", "component", "value").collect()) {
       assert(id === component)
     }
+    c.unpersist()
   }
 }

@@ -69,6 +69,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       DataTypes.createMapType(v2.schema("id").dataType, DataTypes.IntegerType, false))
     val results = v2.collect().toSet
     assert(results === expected)
+    v2.unpersist()
     ()
   }
 
@@ -105,6 +106,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       case _ => throw new GraphFramesUnreachableException()
     }
     assert(results.toSet === shortestPaths)
+    v2.unpersist()
   }
 
   test("friends graph") {
@@ -128,6 +130,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       }
       .toSet
     assert(results === expected)
+    v.unpersist()
   }
 
   test("friends graph with GraphFrames") {
@@ -151,6 +154,7 @@ class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       }
       .toSet
     assert(results === expected)
+    v.unpersist()
   }
   test("Test vertices with column name") {
     val verticeSeq =

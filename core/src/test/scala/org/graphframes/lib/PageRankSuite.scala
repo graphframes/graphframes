@@ -39,6 +39,7 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     TestUtils.testSchemaInvariants(g, pr)
     TestUtils.checkColumnType(pr.vertices.schema, "pagerank", DataTypes.DoubleType)
     TestUtils.checkColumnType(pr.edges.schema, "weight", DataTypes.DoubleType)
+    pr.unpersist()
   }
 
   test("friends graph with personalized PageRank") {
@@ -48,6 +49,7 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(
       gRank === 0.0,
       s"User g (Gabby) doesn't connect with a. So its pagerank should be 0 but we got $gRank.")
+    results.unpersist()
   }
 
   test("graph with three disconnected components") {
@@ -75,5 +77,6 @@ class PageRankSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val originalIds = v.select("id").collect().map(_.getLong(0)).toSet
     val resultIds = results.vertices.select("id").collect().map(_.getLong(0)).toSet
     assert(originalIds === resultIds, "PageRank results should preserve all vertex IDs")
+    results.unpersist()
   }
 }

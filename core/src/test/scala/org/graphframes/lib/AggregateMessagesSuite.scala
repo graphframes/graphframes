@@ -54,6 +54,7 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
         case _: Row => throw new GraphFramesUnreachableException()
       }
       .toMap
+    agg.unpersist()
     // Compute the truth via brute force for comparison.
     val trueAgg: Map[String, Int] = {
       val user2age = g.vertices
@@ -97,6 +98,7 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
         case _: Row => throw new GraphFramesUnreachableException()
       }
       .toMap
+    agg2.unpersist()
     // Compare to the true values.
     agg2Map.keys.foreach { case user =>
       assert(agg2Map(user) === trueAgg(user), s"Failure on user $user")
@@ -171,5 +173,8 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
     assert(output1 === expectedValues)
     assert(output2 === expectedValues)
     assert(output3 === expectedValues)
+    agg.unpersist()
+    agg2.unpersist()
+    agg3.unpersist()
   }
 }
