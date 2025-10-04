@@ -18,6 +18,7 @@ class GraphFramesAPI(_message.Message):
         "bfs",
         "connected_components",
         "drop_isolated_vertices",
+        "detecting_cycles",
         "filter_edges",
         "filter_vertices",
         "find",
@@ -38,6 +39,7 @@ class GraphFramesAPI(_message.Message):
     BFS_FIELD_NUMBER: _ClassVar[int]
     CONNECTED_COMPONENTS_FIELD_NUMBER: _ClassVar[int]
     DROP_ISOLATED_VERTICES_FIELD_NUMBER: _ClassVar[int]
+    DETECTING_CYCLES_FIELD_NUMBER: _ClassVar[int]
     FILTER_EDGES_FIELD_NUMBER: _ClassVar[int]
     FILTER_VERTICES_FIELD_NUMBER: _ClassVar[int]
     FIND_FIELD_NUMBER: _ClassVar[int]
@@ -57,6 +59,7 @@ class GraphFramesAPI(_message.Message):
     bfs: BFS
     connected_components: ConnectedComponents
     drop_isolated_vertices: DropIsolatedVertices
+    detecting_cycles: DetectingCycles
     filter_edges: FilterEdges
     filter_vertices: FilterVertices
     find: Find
@@ -78,6 +81,7 @@ class GraphFramesAPI(_message.Message):
         bfs: _Optional[_Union[BFS, _Mapping]] = ...,
         connected_components: _Optional[_Union[ConnectedComponents, _Mapping]] = ...,
         drop_isolated_vertices: _Optional[_Union[DropIsolatedVertices, _Mapping]] = ...,
+        detecting_cycles: _Optional[_Union[DetectingCycles, _Mapping]] = ...,
         filter_edges: _Optional[_Union[FilterEdges, _Mapping]] = ...,
         filter_vertices: _Optional[_Union[FilterVertices, _Mapping]] = ...,
         find: _Optional[_Union[Find, _Mapping]] = ...,
@@ -97,6 +101,45 @@ class GraphFramesAPI(_message.Message):
         triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
     ) -> None: ...
 
+class StorageLevel(_message.Message):
+    __slots__ = (
+        "disk_only",
+        "disk_only_2",
+        "disk_only_3",
+        "memory_and_disk",
+        "memory_and_disk_2",
+        "memory_and_disk_deser",
+        "memory_only",
+        "memory_only_2",
+    )
+    DISK_ONLY_FIELD_NUMBER: _ClassVar[int]
+    DISK_ONLY_2_FIELD_NUMBER: _ClassVar[int]
+    DISK_ONLY_3_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_AND_DISK_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_AND_DISK_2_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_AND_DISK_DESER_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_ONLY_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_ONLY_2_FIELD_NUMBER: _ClassVar[int]
+    disk_only: bool
+    disk_only_2: bool
+    disk_only_3: bool
+    memory_and_disk: bool
+    memory_and_disk_2: bool
+    memory_and_disk_deser: bool
+    memory_only: bool
+    memory_only_2: bool
+    def __init__(
+        self,
+        disk_only: _Optional[bool] = ...,
+        disk_only_2: _Optional[bool] = ...,
+        disk_only_3: _Optional[bool] = ...,
+        memory_and_disk: _Optional[bool] = ...,
+        memory_and_disk_2: _Optional[bool] = ...,
+        memory_and_disk_deser: _Optional[bool] = ...,
+        memory_only: _Optional[bool] = ...,
+        memory_only_2: _Optional[bool] = ...,
+    ) -> None: ...
+
 class ColumnOrExpression(_message.Message):
     __slots__ = ("col", "expr")
     COL_FIELD_NUMBER: _ClassVar[int]
@@ -114,18 +157,21 @@ class StringOrLongID(_message.Message):
     def __init__(self, long_id: _Optional[int] = ..., string_id: _Optional[str] = ...) -> None: ...
 
 class AggregateMessages(_message.Message):
-    __slots__ = ("agg_col", "send_to_src", "send_to_dst")
+    __slots__ = ("agg_col", "send_to_src", "send_to_dst", "storage_level")
     AGG_COL_FIELD_NUMBER: _ClassVar[int]
     SEND_TO_SRC_FIELD_NUMBER: _ClassVar[int]
     SEND_TO_DST_FIELD_NUMBER: _ClassVar[int]
-    agg_col: ColumnOrExpression
-    send_to_src: ColumnOrExpression
-    send_to_dst: ColumnOrExpression
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    agg_col: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
+    send_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
+    send_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
+    storage_level: StorageLevel
     def __init__(
         self,
-        agg_col: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        send_to_src: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        send_to_dst: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        agg_col: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        send_to_src: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        send_to_dst: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
     ) -> None: ...
 
 class BFS(_message.Message):
@@ -152,21 +198,48 @@ class ConnectedComponents(_message.Message):
         "checkpoint_interval",
         "broadcast_threshold",
         "use_labels_as_components",
+        "use_local_checkpoints",
+        "max_iter",
+        "storage_level",
     )
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     BROADCAST_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     USE_LABELS_AS_COMPONENTS_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_ITER_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
     algorithm: str
     checkpoint_interval: int
     broadcast_threshold: int
     use_labels_as_components: bool
+    use_local_checkpoints: bool
+    max_iter: int
+    storage_level: StorageLevel
     def __init__(
         self,
         algorithm: _Optional[str] = ...,
         checkpoint_interval: _Optional[int] = ...,
         broadcast_threshold: _Optional[int] = ...,
-        use_labels_as_components: bool = ...,
+        use_labels_as_components: _Optional[bool] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        max_iter: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+    ) -> None: ...
+
+class DetectingCycles(_message.Message):
+    __slots__ = ("use_local_checkpoints", "checkpoint_interval", "storage_level")
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    use_local_checkpoints: bool
+    checkpoint_interval: int
+    storage_level: StorageLevel
+    def __init__(
+        self,
+        use_local_checkpoints: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
     ) -> None: ...
 
 class DropIsolatedVertices(_message.Message):
@@ -196,10 +269,31 @@ class Find(_message.Message):
     def __init__(self, pattern: _Optional[str] = ...) -> None: ...
 
 class LabelPropagation(_message.Message):
-    __slots__ = ("max_iter",)
+    __slots__ = (
+        "algorithm",
+        "max_iter",
+        "use_local_checkpoints",
+        "checkpoint_interval",
+        "storage_level",
+    )
+    ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    algorithm: str
     max_iter: int
-    def __init__(self, max_iter: _Optional[int] = ...) -> None: ...
+    use_local_checkpoints: bool
+    checkpoint_interval: int
+    storage_level: StorageLevel
+    def __init__(
+        self,
+        algorithm: _Optional[str] = ...,
+        max_iter: _Optional[int] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+    ) -> None: ...
 
 class PageRank(_message.Message):
     __slots__ = ("reset_probability", "source_id", "max_iter", "tol")
@@ -260,6 +354,12 @@ class Pregel(_message.Message):
         "additional_col_initial",
         "additional_col_upd",
         "early_stopping",
+        "use_local_checkpoints",
+        "storage_level",
+        "stop_if_all_non_active",
+        "initial_active_expr",
+        "update_active_expr",
+        "skip_messages_from_non_active",
     )
     AGG_MSGS_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_DST_FIELD_NUMBER: _ClassVar[int]
@@ -270,6 +370,12 @@ class Pregel(_message.Message):
     ADDITIONAL_COL_INITIAL_FIELD_NUMBER: _ClassVar[int]
     ADDITIONAL_COL_UPD_FIELD_NUMBER: _ClassVar[int]
     EARLY_STOPPING_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    STOP_IF_ALL_NON_ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_ACTIVE_EXPR_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_ACTIVE_EXPR_FIELD_NUMBER: _ClassVar[int]
+    SKIP_MESSAGES_FROM_NON_ACTIVE_FIELD_NUMBER: _ClassVar[int]
     agg_msgs: ColumnOrExpression
     send_msg_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     send_msg_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
@@ -279,6 +385,12 @@ class Pregel(_message.Message):
     additional_col_initial: ColumnOrExpression
     additional_col_upd: ColumnOrExpression
     early_stopping: bool
+    use_local_checkpoints: bool
+    storage_level: StorageLevel
+    stop_if_all_non_active: bool
+    initial_active_expr: ColumnOrExpression
+    update_active_expr: ColumnOrExpression
+    skip_messages_from_non_active: bool
     def __init__(
         self,
         agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
@@ -289,15 +401,40 @@ class Pregel(_message.Message):
         additional_col_name: _Optional[str] = ...,
         additional_col_initial: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         additional_col_upd: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        early_stopping: bool = ...,
+        early_stopping: _Optional[bool] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        stop_if_all_non_active: _Optional[bool] = ...,
+        initial_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        update_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        skip_messages_from_non_active: _Optional[bool] = ...,
     ) -> None: ...
 
 class ShortestPaths(_message.Message):
-    __slots__ = ("landmarks",)
+    __slots__ = (
+        "landmarks",
+        "algorithm",
+        "use_local_checkpoints",
+        "checkpoint_interval",
+        "storage_level",
+    )
     LANDMARKS_FIELD_NUMBER: _ClassVar[int]
+    ALGORITHM_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
     landmarks: _containers.RepeatedCompositeFieldContainer[StringOrLongID]
+    algorithm: str
+    use_local_checkpoints: bool
+    checkpoint_interval: int
+    storage_level: StorageLevel
     def __init__(
-        self, landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...
+        self,
+        landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...,
+        algorithm: _Optional[str] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
     ) -> None: ...
 
 class StronglyConnectedComponents(_message.Message):
@@ -346,8 +483,10 @@ class SVDPlusPlus(_message.Message):
     ) -> None: ...
 
 class TriangleCount(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("storage_level",)
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    storage_level: StorageLevel
+    def __init__(self, storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class Triplets(_message.Message):
     __slots__ = ()

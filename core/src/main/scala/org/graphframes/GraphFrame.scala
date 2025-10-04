@@ -20,7 +20,7 @@ package org.graphframes
 import org.apache.spark.graphframes.graphx.Edge
 import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.ml.clustering.PowerIterationClustering
-import org.apache.spark.sql._
+import org.apache.spark.sql.*
 import org.apache.spark.sql.functions.array
 import org.apache.spark.sql.functions.broadcast
 import org.apache.spark.sql.functions.col
@@ -31,10 +31,10 @@ import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.monotonically_increasing_id
 import org.apache.spark.sql.functions.struct
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.*
 import org.apache.spark.storage.StorageLevel
-import org.graphframes.lib._
-import org.graphframes.pattern._
+import org.graphframes.lib.*
+import org.graphframes.pattern.*
 
 import java.util.Random
 import scala.reflect.runtime.universe.TypeTag

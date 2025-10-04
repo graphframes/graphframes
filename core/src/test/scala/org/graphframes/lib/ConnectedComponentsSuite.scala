@@ -24,8 +24,8 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.storage.StorageLevel
-import org.graphframes.GraphFrame._
-import org.graphframes._
+import org.graphframes.*
+import org.graphframes.GraphFrame.*
 import org.graphframes.examples.Graphs
 
 import scala.reflect.ClassTag

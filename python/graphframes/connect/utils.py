@@ -5,8 +5,15 @@ from pyspark.sql.connect.column import Column
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.expressions import Expression
 from pyspark.sql.connect.plan import LogicalPlan
+from pyspark.storagelevel import StorageLevel
 
-from .proto.graphframes_pb2 import ColumnOrExpression, StringOrLongID
+from .proto.graphframes_pb2 import (
+    ColumnOrExpression,
+)
+from .proto.graphframes_pb2 import StorageLevel as StorageLevelProto
+from .proto.graphframes_pb2 import (
+    StringOrLongID,
+)
 
 
 def dataframe_to_proto(df: DataFrame, client: SparkConnectClient) -> bytes:
@@ -35,3 +42,24 @@ def make_str_or_long_id(str_or_long: str | int) -> StringOrLongID:
         return StringOrLongID(string_id=str_or_long)
     else:
         return StringOrLongID(long_id=str_or_long)
+
+
+def storage_level_to_proto(storage_level: StorageLevel) -> StorageLevelProto:
+    if storage_level == StorageLevel.DISK_ONLY:
+        return StorageLevelProto(disk_only=True)
+    elif storage_level == StorageLevel.DISK_ONLY_2:
+        return StorageLevelProto(disk_only_2=True)
+    elif storage_level == StorageLevel.DISK_ONLY_3:
+        return StorageLevelProto(disk_only_3=True)
+    elif storage_level == StorageLevel.MEMORY_AND_DISK:
+        return StorageLevelProto(memory_and_disk=True)
+    elif storage_level == StorageLevel.MEMORY_AND_DISK_2:
+        return StorageLevelProto(memory_and_disk_2=True)
+    elif storage_level == StorageLevel.MEMORY_ONLY:
+        return StorageLevelProto(memory_only=True)
+    elif storage_level == StorageLevel.MEMORY_ONLY_2:
+        return StorageLevelProto(memory_only_2=True)
+    elif storage_level == StorageLevel.MEMORY_AND_DISK_DESER:
+        return StorageLevelProto(memory_and_disk_deser=True)
+    else:
+        raise ValueError(f"Unknown storage level: {storage_level}")

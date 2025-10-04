@@ -1,7 +1,7 @@
 package org.graphframes.propertygraph
 
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.SparkFunSuite

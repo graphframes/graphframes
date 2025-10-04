@@ -9,7 +9,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 
-import java.nio.file._
+import java.nio.file.*
 import java.util.Properties
 
 object ConnectedComponentsLDBC {

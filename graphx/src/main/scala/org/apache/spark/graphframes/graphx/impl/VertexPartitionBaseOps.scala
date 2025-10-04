@@ -17,7 +17,7 @@
 
 package org.apache.spark.graphframes.graphx.impl
 
-import org.apache.spark.graphframes.graphx._
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.graphframes.graphx.util.collection.GraphXPrimitiveKeyOpenHashMap
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.collection.BitSet

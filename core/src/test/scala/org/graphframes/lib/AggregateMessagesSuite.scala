@@ -18,8 +18,8 @@
 package org.graphframes.lib
 
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions.*
+import org.apache.spark.sql.types.*
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.GraphFramesUnreachableException
