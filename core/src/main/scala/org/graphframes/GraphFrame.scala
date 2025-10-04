@@ -373,9 +373,11 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
+    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
+    val UndirectedPattern = """\((\w+)\)-\[(\w*)\]-\((\w+)\)""".r
+
     pattern match {
-      case VarLengthPattern(src, name, min, max, dst) =>
+      case VarLengthPattern(src, name, min, max, direction, dst) =>
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
             s"Unbounded length patten ${pattern} is not supported! " +
@@ -384,9 +386,22 @@ class GraphFrame private (
         val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
           s"($src)-[$name*$hop]->($dst)"
         }
-        strToSeq
+        val strToSeqReverse: Seq[String] = if (direction.isEmpty) {
+          (min.toInt to max.toInt).reverse.map(hop => s"($dst)-[$name*$hop]->($src)")
+        } else {
+          Seq.empty[String]
+        }
+
+        (strToSeq ++ strToSeqReverse)
           .map(findAugmentedPatterns)
           .reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+
+      case UndirectedPattern(src, name, dst) =>
+        val out: DataFrame = findAugmentedPatterns(s"($src)-[$name]->($dst)")
+        val in: DataFrame = findAugmentedPatterns(s"($dst)-[$name]->($src)")
+
+        out.unionByName(in)
+
       case _ =>
         findAugmentedPatterns(pattern)
     }

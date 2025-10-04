@@ -658,6 +658,51 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(varEdge.except(unionEdge).isEmpty && unionEdge.except(varEdge).isEmpty)
   }
 
+  test("undirected edge") {
+    val res = g
+      .find("(u)-[]-(v)")
+      .where("u.id == 0")
+      .select("u.id", "v.id")
+      .collect()
+      .toSet
+
+    val expected = Set(Row(0L, 1L), Row(0L, 2L))
+
+    compareResultToExpected(res, expected)
+  }
+
+  test("undirected with edge name") {
+    val res = g
+      .find("(u)-[e]-(v)")
+      .where("u.id == 0")
+      .select("e.src", "e.dst", "e.relationship")
+      .collect()
+      .toSet
+
+    val expected = Set(Row(0L, 1L, "friend"), Row(1L, 0L, "follow"), Row(2L, 0L, "unknown"))
+
+    compareResultToExpected(res, expected)
+  }
+
+  test("undirected var-length pattern") {
+    val res = g
+      .find("(u)-[e*1..3]-(v)")
+      .where("u.id == 2")
+
+    val df1 = g
+      .find("(u)-[e*1..3]->(v)")
+      .where("u.id == 2")
+
+    val df2 = g
+      .find("(v)-[e*1..3]->(u)")
+      .where("u.id == 2")
+
+    val expected = df1.unionByName(df2, allowMissingColumns = true)
+
+    assert(res.schema === expected.schema)
+    assert(res.except(expected).isEmpty && expected.except(res).isEmpty)
+  }
+
   test("stateful predicates via UDFs") {
     val chain4 = g
       .find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
