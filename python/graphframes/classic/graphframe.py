@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import final
 
 from py4j.java_gateway import JavaObject
-from pyspark.core.context import SparkContext
+from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.classic.column import Column, _to_seq
 from pyspark.sql.classic.dataframe import DataFrame
