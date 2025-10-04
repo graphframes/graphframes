@@ -28,6 +28,7 @@ class DetectingCyclesSuite extends SparkFunSuite with GraphFrameTestSparkContext
     assert(collected(0) == Seq(1, 2, 3, 1))
     assert(collected(1) == Seq(2, 3, 1, 2))
     assert(collected(2) == Seq(3, 1, 2, 3))
+    res.unpersist()
   }
 
   test("test no cycles") {
@@ -40,6 +41,7 @@ class DetectingCyclesSuite extends SparkFunSuite with GraphFrameTestSparkContext
         .toDF("src", "dst"))
     val res = graph.detectingCycles.setUseLocalCheckpoints(true).run()
     assert(res.count() == 0)
+    res.unpersist()
   }
 
   test("test multiple cycles from one source") {
@@ -65,5 +67,6 @@ class DetectingCyclesSuite extends SparkFunSuite with GraphFrameTestSparkContext
     assert(collected(4) == Seq(2, 5, 1, 2))
     assert(collected(5) == Seq(3, 1, 3))
     assert(collected(6) == Seq(5, 1, 2, 5))
+    res.unpersist()
   }
 }

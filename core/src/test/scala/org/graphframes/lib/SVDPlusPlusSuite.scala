@@ -53,5 +53,6 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       }
       .reduce(_ + _) / g.edges.count()
     assert(err <= svdppErr)
+    v2.unpersist()
   }
 }
