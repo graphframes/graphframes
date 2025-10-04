@@ -18,16 +18,15 @@ from __future__ import annotations
 
 from typing import final
 
-
 from py4j.java_gateway import JavaObject
+from pyspark.core.context import SparkContext
+from pyspark.sql import SparkSession
 from pyspark.sql.classic.column import Column, _to_seq
 from pyspark.sql.classic.dataframe import DataFrame
-from pyspark.sql import SparkSession
-from pyspark.core.context import SparkContext
 from pyspark.storagelevel import StorageLevel
 
-from graphframes.lib import Pregel
 from graphframes.classic.utils import storage_level_to_jvm
+from graphframes.lib import Pregel
 
 
 def _from_java_gf(jgf: JavaObject, spark: SparkSession) -> "GraphFrame":
@@ -64,73 +63,9 @@ class GraphFrame:
         self._sc = self._spark._sc
         self._jvm_gf_api = _java_api(self._sc)
 
-        self.ID: str = "id"
-        self.SRC: str = "src"
-        self.DST: str = "edge"
         self._ATTR: str = self._jvm_gf_api.ATTR()
 
-        # Check that provided DataFrames contain required columns
-        if self.ID not in v.columns:
-            raise ValueError(
-                "Vertex ID column {} missing from vertex DataFrame, which has columns: {}".format(
-                    self.ID, ",".join(v.columns)
-                )
-            )
-        if self.SRC not in e.columns:
-            raise ValueError(
-                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
-                    self.SRC, ",".join(e.columns)
-                )
-            )
-        if self.DST not in e.columns:
-            raise ValueError(
-                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
-                    self.DST, ",".join(e.columns)
-                )
-            )
-
         self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
-
-    @property
-    def vertices(self) -> DataFrame:
-        return self._vertices
-
-    @property
-    def edges(self) -> DataFrame:
-        return self._edges
-
-    def __repr__(self) -> str:
-        return self._jvm_graph.toString()
-
-    def cache(self) -> "GraphFrame":
-        self._jvm_graph.cache()
-        return self
-
-    def persist(
-        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
-    ) -> "GraphFrame":
-        javaStorageLevel = self._sc._getJavaStorageLevel(storageLevel)
-        self._jvm_graph.persist(javaStorageLevel)
-        return self
-
-    def unpersist(self, blocking: bool = False) -> "GraphFrame":
-        self._jvm_graph.unpersist(blocking)
-        return self
-
-    @property
-    def outDegrees(self) -> DataFrame:
-        jdf = self._jvm_graph.outDegrees()
-        return DataFrame(jdf, self._spark)
-
-    @property
-    def inDegrees(self) -> DataFrame:
-        jdf = self._jvm_graph.inDegrees()
-        return DataFrame(jdf, self._spark)
-
-    @property
-    def degrees(self) -> DataFrame:
-        jdf = self._jvm_graph.degrees()
-        return DataFrame(jdf, self._spark)
 
     @property
     def triplets(self) -> DataFrame:
@@ -191,10 +126,7 @@ class GraphFrame:
         maxPathLength: int = 10,
     ) -> DataFrame:
         builder = (
-            self._jvm_graph.bfs()
-            .fromExpr(fromExpr)
-            .toExpr(toExpr)
-            .maxPathLength(maxPathLength)
+            self._jvm_graph.bfs().fromExpr(fromExpr).toExpr(toExpr).maxPathLength(maxPathLength)
         )
         if edgeFilter is not None:
             builder.edgeFilter(edgeFilter)
@@ -255,9 +187,7 @@ class GraphFrame:
                 jdf = builder.aggCol(aggCol[0])
         elif len(aggCol) > 1:
             if all(isinstance(x, Column) for x in aggCol):
-                jdf = builder.aggCol(
-                    aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol])
-                )
+                jdf = builder.aggCol(aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol]))
             elif all(isinstance(x, str) for x in aggCol):
                 jdf = builder.aggCol(aggCol[0], _to_seq(self._sc, aggCol[1:]))
             else:
@@ -284,9 +214,7 @@ class GraphFrame:
             .setUseLabelsAsComponents(useLabelsAsComponents)
             .setUseLocalCheckpoints(use_local_checkpoints)
             .maxIter(max_iter)
-            .setIntermediateStorageLevel(
-                storage_level_to_jvm(storage_level, self._spark)
-            )
+            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
             .run()
         )
         return DataFrame(jdf, self._spark)
@@ -305,9 +233,7 @@ class GraphFrame:
             .setAlgorithm(algorithm)
             .setUseLocalCheckpoints(use_local_checkpoints)
             .setCheckpointInterval(checkpoint_interval)
-            .setIntermediateStorageLevel(
-                storage_level_to_jvm(storage_level, self._spark)
-            )
+            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
             .run()
         )
         return DataFrame(jdf, self._spark)
@@ -337,9 +263,9 @@ class GraphFrame:
         sourceIds: list[str | int] | None = None,
         maxIter: int | None = None,
     ) -> "GraphFrame":
-        assert sourceIds is not None and len(sourceIds) > 0, (
-            "Source vertices Ids sourceIds must be provided"
-        )
+        assert (
+            sourceIds is not None and len(sourceIds) > 0
+        ), "Source vertices Ids sourceIds must be provided"
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
         sourceIds = self._sc._jvm.PythonUtils.toArray(sourceIds)
         builder = self._jvm_graph.parallelPersonalizedPageRank()
@@ -363,9 +289,7 @@ class GraphFrame:
             .setAlgorithm(algorithm)
             .setUseLocalCheckpoints(use_local_checkpoints)
             .setCheckpointInterval(checkpoint_interval)
-            .setIntermediateStorageLevel(
-                storage_level_to_jvm(storage_level, self._spark)
-            )
+            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
             .run()
         )
         return DataFrame(jdf, self._spark)

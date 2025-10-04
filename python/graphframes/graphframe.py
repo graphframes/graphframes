@@ -20,8 +20,8 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from pyspark.storagelevel import StorageLevel
 from pyspark.sql import functions as F
+from pyspark.storagelevel import StorageLevel
 from pyspark.version import __version__
 from typing_extensions import override
 
@@ -72,6 +72,11 @@ class GraphFrame:
     >>> g = GraphFrame(v, e)
     """
 
+    ID: str = ID
+    SRC: str = SRC
+    DST: str = DST
+    EDGE: str = EDGE
+
     @staticmethod
     def _from_impl(impl: "GraphFrameClassic | GraphFrameConnect") -> "GraphFrame":
         return GraphFrame(impl.vertices, impl.edges)
@@ -88,6 +93,24 @@ class GraphFrame:
                 vertex IDs and destination vertex IDs of edges, respectively.
         """
         self._impl: "GraphFrameClassic | GraphFrameConnect"
+        if self.ID not in v.columns:
+            raise ValueError(
+                "Vertex ID column {} missing from vertex DataFrame, which has columns: {}".format(
+                    self.ID, ",".join(v.columns)
+                )
+            )
+        if self.SRC not in e.columns:
+            raise ValueError(
+                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
+                    self.SRC, ",".join(e.columns)
+                )
+            )
+        if self.DST not in e.columns:
+            raise ValueError(
+                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
+                    self.DST, ",".join(e.columns)
+                )
+            )
         if is_remote():
             from graphframes.connect.graphframes_client import GraphFrameConnect
 
@@ -101,7 +124,7 @@ class GraphFrame:
         :class:`DataFrame` holding vertex information, with unique column "id"
         for vertex IDs.
         """
-        return self._impl.vertices
+        return self._impl._vertices
 
     @property
     def edges(self) -> DataFrame:
@@ -110,7 +133,7 @@ class GraphFrame:
         "dst" storing source vertex IDs and destination vertex IDs of edges,
         respectively.
         """
-        return self._impl.edges
+        return self._impl._edges
 
     @property
     def nodes(self) -> DataFrame:
@@ -119,27 +142,39 @@ class GraphFrame:
 
     @override
     def __repr__(self) -> str:
-        return self._impl.__repr__()
+        # Exactly like in the scala core
+        v_cols = [self.ID] + [col for col in self._impl._vertices.columns if col != self.ID]
+        e_cols = [self.SRC, self.DST] + [
+            col for col in self._impl._edges.columns if col not in {self.SRC, self.DST}
+        ]
+        v = self._impl._vertices.select(*v_cols).__repr__()
+        e = self._impl._edges.select(*e_cols).__repr__()
+
+        return f"GraphFrame(v:{v}, e:{e})"
 
     def cache(self) -> "GraphFrame":
         """Persist the dataframe representation of vertices and edges of the graph with the default
         storage level.
         """
-        return GraphFrame._from_impl(self._impl.cache())
+        new_vertices = self._impl._vertices.cache()
+        new_edges = self._impl._edges.cache()
+        return GraphFrame(new_vertices, new_edges)
 
-    def persist(
-        self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY
-    ) -> "GraphFrame":
+    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrame":
         """Persist the dataframe representation of vertices and edges of the graph with the given
         storage level.
         """
-        return GraphFrame._from_impl(self._impl.persist(storageLevel=storageLevel))
+        new_vertices = self._impl._vertices.persist(storageLevel=storageLevel)
+        new_edges = self._impl._edges.persist(storageLevel=storageLevel)
+        return GraphFrame(new_vertices, new_edges)
 
     def unpersist(self, blocking: bool = False) -> "GraphFrame":
         """Mark the dataframe representation of vertices and edges of the graph as non-persistent,
         and remove all blocks for it from memory and disk.
         """
-        return GraphFrame._from_impl(self._impl.unpersist(blocking=blocking))
+        new_vertices = self._impl._vertices.unpersist(blocking=blocking)
+        new_edges = self._impl._edges.unpersist(blocking=blocking)
+        return GraphFrame(new_vertices, new_edges)
 
     @property
     def outDegrees(self) -> DataFrame:
@@ -152,7 +187,9 @@ class GraphFrame:
 
         :return:  DataFrame with new vertices column "outDegree"
         """
-        return self._impl.outDegrees
+        return self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).agg(
+            F.count("*").alias("outDegree")
+        )
 
     @property
     def inDegrees(self) -> DataFrame:
@@ -165,7 +202,9 @@ class GraphFrame:
 
         :return:  DataFrame with new vertices column "inDegree"
         """
-        return self._impl.inDegrees
+        return self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).agg(
+            F.count("*").alias("inDegree")
+        )
 
     @property
     def degrees(self) -> DataFrame:
@@ -178,7 +217,13 @@ class GraphFrame:
 
         :return:  DataFrame with new vertices column "degree"
         """
-        return self._impl.degrees
+        return (
+            self._impl._edges.select(
+                F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID)
+            )
+            .groupBy(self.ID)
+            .agg(F.count("*").alias("degree"))
+        )
 
     @property
     def triplets(self) -> DataFrame:
@@ -268,9 +313,7 @@ class GraphFrame:
 
         :return: Persisted DataFrame with all the cycles
         """
-        return self._impl.detectingCycles(
-            checkpoint_interval, use_local_checkpoints, storage_level
-        )
+        return self._impl.detectingCycles(checkpoint_interval, use_local_checkpoints, storage_level)
 
     def bfs(
         self,
@@ -359,9 +402,7 @@ class GraphFrame:
             raise TypeError("At least one aggregation column should be provided!")
 
         if (len(sendToSrc) == 0) and (len(sendToDst) == 0):
-            raise ValueError(
-                "Either `sendToSrc`, `sendToDst`, or both have to be provided"
-            )
+            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
         return self._impl.aggregateMessages(
             aggCol=aggCol,
             sendToSrc=sendToSrc,
@@ -566,7 +607,7 @@ class GraphFrame:
         :raises ValueError: if there are any inconsistencies in the graph, such as duplicate
             vertices, mismatched vertices between edges and vertex DataFrames or missing
             connections.
-        """
+        """  # noqa: E501
         persisted_vertices = self.vertices.persist(intermediate_storage_level)
         row = persisted_vertices.select(F.count_distinct(F.col(ID))).first()
         assert row is not None  # for type checker
@@ -574,9 +615,9 @@ class GraphFrame:
         assert isinstance(count_distinct_vertices, int)  # for type checker
         total_count_vertices = persisted_vertices.count()
         if count_distinct_vertices != total_count_vertices:
-            raise ValueError(
-                f"Graph contains ({total_count_vertices - count_distinct_vertices}) duplicate vertices."
-            )
+            _msg = "Graph contains ({}) duplicate vertices."
+
+            raise ValueError(_msg.format(total_count_vertices - count_distinct_vertices))
         if check_vertices:
             vertices_set_from_edges = (
                 self.edges.select(F.col(SRC).alias(ID))
@@ -586,20 +627,18 @@ class GraphFrame:
             )
             count_vertices_from_edges = vertices_set_from_edges.count()
             if count_vertices_from_edges > count_distinct_vertices:
-                raise ValueError(
-                    f"Graph is inconsistent: edges has {count_vertices_from_edges} "
-                    + f"vertices, but vertices has {count_distinct_vertices} vertices."
-                )
+                _msg = "Graph is inconsistent: edges has {count_vertices_from_edges} "
+                _msg += "vertices, but vertices has {} vertices."
+                raise ValueError(_msg.format(count_distinct_vertices))
 
             combined = vertices_set_from_edges.join(self.vertices, ID, "left_anti")
             count_of_bad_vertices = combined.count()
             if count_of_bad_vertices > 0:
-                raise ValueError(
-                    "Vertices DataFrame does not contain all edges src/dst. "
-                    + f"Found {count_of_bad_vertices} edges src/dst that are not in the vertices DataFrame."
-                )
-            _ = persisted_vertices.unpersist()
+                _msg = "Vertices DataFrame does not contain all edges src/dst. "
+                _msg += "Found {} edges src/dst that are not in the vertices DataFrame."
+                raise ValueError(_msg.format(count_of_bad_vertices))
             _ = vertices_set_from_edges.unpersist()
+        _ = persisted_vertices.unpersist()
 
     def as_undirected(self) -> "GraphFrame":
         """

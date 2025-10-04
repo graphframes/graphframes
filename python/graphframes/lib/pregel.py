@@ -17,16 +17,18 @@
 
 from typing import TYPE_CHECKING, final
 
-from graphframes.classic.utils import storage_level_to_jvm
-
 from pyspark.ml.wrapper import JavaWrapper
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col
 
+from graphframes.classic.utils import storage_level_to_jvm
+
 if TYPE_CHECKING:
-    from graphframes.classic.graphframe import GraphFrame
     from pyspark.sql import Column
     from pyspark.storagelevel import StorageLevel
+    from typing_extensions import Self
+
+    from graphframes.classic.graphframe import GraphFrame
 
 
 @final
@@ -60,9 +62,7 @@ class Pregel(JavaWrapper):
         super(Pregel, self).__init__()
 
         self.graph = graph
-        self._java_obj = self._new_java_obj(
-            "org.graphframes.lib.Pregel", graph._jvm_graph
-        )
+        self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", graph._jvm_graph)
 
     def setMaxIter(self, value: int) -> "Pregel":
         """Sets the max number of iterations (default: 10).
@@ -115,9 +115,7 @@ class Pregel(JavaWrapper):
                                        aggregated message column using :func:`msg`.
                                        If the vertex received no messages, the message column would be null.
         """  # noqa: E501
-        self._java_obj.withVertexColumn(
-            colName, initialExpr._jc, updateAfterAggMsgsExpr._jc
-        )
+        self._java_obj.withVertexColumn(colName, initialExpr._jc, updateAfterAggMsgsExpr._jc)
         return self
 
     def sendMsgToSrc(self, msgExpr: Column) -> "Pregel":
@@ -173,7 +171,7 @@ class Pregel(JavaWrapper):
         condition is not realistically reachable but set, it will just slow down the algorithm.
 
         :param value: the boolean value.
-        """
+        """  # noqa: E501
         self._java_obj.setStopIfAllNonActiveVertices(value)
         return self
 
