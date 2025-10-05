@@ -718,14 +718,22 @@ class GraphFrame:
         edge_attr_columns = [c for c in self.edges.columns if c not in [SRC, DST]]
 
         # Create the undirected edges by duplicating each edge in both directions
-        forward_edges = self.edges.select(
-            F.col(SRC), F.col(DST), F.struct(*edge_attr_columns).alias(EDGE)
-        )
-        backward_edges = self.edges.select(
-            F.col(DST).alias(SRC),
-            F.col(SRC).alias(DST),
-            F.struct(*edge_attr_columns).alias(EDGE),
-        )
+
+        # 3.5.x problem: selecting empty struct fails on spark connect
+        # TODO: remove after removing 3.5.x
+
+        if edge_attr_columns:
+            forward_edges = self.edges.select(
+                F.col(SRC), F.col(DST), F.struct(*edge_attr_columns).alias(EDGE)
+            )
+            backward_edges = self.edges.select(
+                F.col(DST).alias(SRC),
+                F.col(SRC).alias(DST),
+                F.struct(*edge_attr_columns).alias(EDGE),
+            )
+        else:
+            forward_edges = self.edges.select(F.col(SRC), F.col(DST))
+            backward_edges = self.edges.select(F.col(DST).alias(SRC), F.col(SRC).alias(DST))
         new_edges = forward_edges.union(backward_edges).select(SRC, DST, EDGE)
 
         # Preserve additional edge attributes
