@@ -428,12 +428,21 @@ class GraphFrame:
         See Scala documentation for more details.
 
         :param algorithm: connected components algorithm to use (default: "graphframes")
-          Supported algorithms are "graphframes" and "graphx".
+                          Supported algorithms are "graphframes" and "graphx".
         :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
         :param broadcastThreshold: broadcast threshold in propagating component assignments
-          (default: 1000000)
+                                   (default: 1000000). Passing -1 disable manual broadcasting and
+                                   allows AQE to handle skewed joins. This mode is much faster
+                                   and is recommended to use. Default value may be changed to -1
+                                   in the future versions of GraphFrames.
         :param useLabelsAsComponents: if True, uses the vertex labels as components, otherwise will
-          use longs
+                                      use longs
+        :param use_local_checkpoints: should local checkpoints be used, default false;
+                                    local checkpoints are faster and does not require to set
+                                    a persistent checkpointDir; from the other side, local
+                                    checkpoints are less reliable and require executors to have
+                                    big enough local disks.
+        :param storage_level: storage level for both intermediate and final dataframes.
 
         :return: DataFrame with new vertices column "component"
         """
