@@ -685,9 +685,9 @@ class GraphFrame:
             )
             count_vertices_from_edges = vertices_set_from_edges.count()
             if count_vertices_from_edges > count_distinct_vertices:
-                _msg = "Graph is inconsistent: edges has {count_vertices_from_edges} "
+                _msg = "Graph is inconsistent: edges has {} "
                 _msg += "vertices, but vertices has {} vertices."
-                raise ValueError(_msg.format(count_distinct_vertices))
+                raise ValueError(_msg.format(count_vertices_from_edges, count_distinct_vertices))
 
             combined = vertices_set_from_edges.join(self.vertices, ID, "left_anti")
             count_of_bad_vertices = combined.count()

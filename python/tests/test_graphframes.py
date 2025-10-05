@@ -58,7 +58,7 @@ STORAGE_LEVELS_IDS = [
 ]
 
 
-def test_construction(spark: SparkSession, local_g: GraphFrame):
+def test_construction(spark: SparkSession, local_g: GraphFrame) -> None:
     vertexIDs = [row[0] for row in local_g.vertices.select("id").collect()]
     assert sorted(vertexIDs) == [1, 2, 3]
 
@@ -83,12 +83,70 @@ def test_construction(spark: SparkSession, local_g: GraphFrame):
         _ = GraphFrame(v_invalid, e_invalid)
 
 
-def test_cache(local_g: GraphFrame):
+def test_validate(spark: SparkSession) -> None:
+    good_g = GraphFrame(
+        spark.createDataFrame([(1, "a"), (2, "b"), (3, "c")]).toDF("id", "attr"),
+        spark.createDataFrame([(1, 2), (2, 1), (2, 3)]).toDF("src", "dst"),
+    )
+    good_g.validate()  # no exception should be thrown
+
+    not_distinct_vertices = GraphFrame(
+        spark.createDataFrame([(1, "a"), (2, "b"), (3, "c"), (1, "d")]).toDF(
+            "id", "attr"
+        ),
+        spark.createDataFrame([(1, 2), (2, 1), (2, 3)]).toDF("src", "dst"),
+    )
+    with pytest.raises(ValueError):
+        not_distinct_vertices.validate()
+
+    missing_vertices = GraphFrame(
+        spark.createDataFrame([(1, "a"), (2, "b"), (3, "c")]).toDF("id", "attr"),
+        spark.createDataFrame([(1, 2), (2, 1), (2, 3), (1, 4)]).toDF("src", "dst"),
+    )
+    with pytest.raises(ValueError):
+        missing_vertices.validate()
+
+
+def test_as_undirected(spark: SparkSession) -> None:
+    # Test without edge attributes
+    v = spark.createDataFrame([(1, "a"), (2, "b"), (3, "c")]).toDF("id", "name")
+    e = spark.createDataFrame([(1, 2), (2, 3)]).toDF("src", "dst")
+    g = GraphFrame(v, e)
+    undirected = g.as_undirected()
+
+    # Check edge count doubled
+    assert undirected.edges.count() == 2 * g.edges.count()
+
+    # Verify reverse edges exist
+    edges = undirected.edges.sort("src", "dst").collect()
+    assert len(edges) == 4
+    assert edges[0][0] == 1
+    assert edges[0][1] == 2
+    assert edges[1][0] == 2
+    assert edges[1][1] == 1
+    assert edges[2][0] == 2
+    assert edges[2][1] == 3
+    assert edges[3][0] == 3
+    assert edges[3][1] == 2
+
+    # Test with edge attributes
+    v2 = spark.createDataFrame([(1, "a"), (2, "b")]).toDF("id", "name")
+    e2 = spark.createDataFrame([(1, 2, "edge1")]).toDF("src", "dst", "attr")
+    g2 = GraphFrame(v2, e2)
+    undirected2 = g2.as_undirected()
+
+    edges2 = undirected2.edges.collect()
+    assert len(edges2) == 2
+    assert any(row[0] == 1 and row[1] == 2 and row[2] == "edge1" for row in edges2)
+    assert any(row[0] == 2 and row[1] == 1 and row[2] == "edge1" for row in edges2)
+
+
+def test_cache(local_g: GraphFrame) -> None:
     _ = local_g.cache()
     _ = local_g.unpersist()
 
 
-def test_degrees(local_g: GraphFrame):
+def test_degrees(local_g: GraphFrame) -> None:
     outDeg = local_g.outDegrees
     assert set(outDeg.columns) == {"id", "outDegree"}
     inDeg = local_g.inDegrees
@@ -97,13 +155,13 @@ def test_degrees(local_g: GraphFrame):
     assert set(deg.columns) == {"id", "degree"}
 
 
-def test_motif_finding(local_g: GraphFrame):
+def test_motif_finding(local_g: GraphFrame) -> None:
     motifs = local_g.find("(a)-[e]->(b)")
     assert motifs.count() == 3
     assert set(motifs.columns) == {"a", "e", "b"}
 
 
-def test_filterVertices(local_g: GraphFrame):
+def test_filterVertices(local_g: GraphFrame) -> None:
     conditions = ["id < 3", local_g.vertices.id < 3]
     expected_v = [(1, "A"), (2, "B")]
     expected_e = [(1, 2, "love"), (2, 1, "hate")]
@@ -117,7 +175,7 @@ def test_filterVertices(local_g: GraphFrame):
         assert set(e2) == set(expected_e)
 
 
-def test_filterEdges(local_g: GraphFrame):
+def test_filterEdges(local_g: GraphFrame) -> None:
     conditions = ["dst > 2", local_g.edges.dst > 2]
     expected_v = [(1, "A"), (2, "B"), (3, "C")]
     expected_e = [(2, 3, "follow")]
@@ -131,7 +189,7 @@ def test_filterEdges(local_g: GraphFrame):
         assert set(e2) == set(expected_e)
 
 
-def test_dropIsolatedVertices(local_g: GraphFrame):
+def test_dropIsolatedVertices(local_g: GraphFrame) -> None:
     g2 = local_g.filterEdges("dst > 2").dropIsolatedVertices()
     v2 = g2.vertices.select("id", "name").collect()
     e2 = g2.edges.select("src", "dst", "action").collect()
@@ -143,7 +201,7 @@ def test_dropIsolatedVertices(local_g: GraphFrame):
     assert set(e2) == set(expected_e)
 
 
-def test_bfs(local_g: GraphFrame):
+def test_bfs(local_g: GraphFrame) -> None:
     paths = local_g.bfs("name='A'", "name='C'")
     assert paths is not None
     assert paths.count() == 1
@@ -159,7 +217,7 @@ def test_bfs(local_g: GraphFrame):
     assert paths3.count() == 0
 
 
-def test_power_iteration_clustering(spark: SparkSession):
+def test_power_iteration_clustering(spark: SparkSession) -> None:
     vertices = [
         (1, 0, 0.5),
         (2, 0, 0.5),
@@ -190,7 +248,8 @@ def test_power_iteration_clustering(spark: SparkSession):
     _ = clusters_df.unpersist()
 
 
-def test_page_rank(spark: SparkSession):
+@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
+def test_page_rank(spark: SparkSession, args: PregelArguments) -> None:
     edges = spark.createDataFrame(
         [
             [0, 1],
@@ -239,7 +298,7 @@ def test_page_rank(spark: SparkSession):
 
 
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
-def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments):
+def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> None:
     edges = spark.createDataFrame(
         [
             [0, 1],
@@ -266,6 +325,9 @@ def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments):
     pregel = graph.pregel
     ranks = (
         graph.pregel.setMaxIter(5)
+        .setUseLocalCheckpoints(args.use_local_checkpoints)
+        .setIntermediateStorageLevel(args.storage_level)
+        .setCheckpointInterval(args.checkpoint_interval)
         .setEarlyStopping(True)
         .setUseLocalCheckpoints(args.use_local_checkpoints)
         .setIntermediateStorageLevel(args.storage_level)
@@ -291,14 +353,14 @@ def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments):
     _ = ranks.unpersist()
 
 
-def _hasCols(graph: GraphFrame, vcols: list[str] = [], ecols: list[str] = []):
+def _hasCols(graph: GraphFrame, vcols: list[str] = [], ecols: list[str] = []) -> None:
     for c in vcols:
         assert c in graph.vertices.columns, f"Vertex DataFrame missing column: {c}"
     for c in ecols:
         assert c in graph.edges.columns, f"Edge DataFrame missing column: {c}"
 
 
-def _df_hasCols(df: DataFrame, vcols: list[str] = []):
+def _df_hasCols(df: DataFrame, vcols: list[str] = []) -> None:
     for c in vcols:
         assert c in df.columns, f"DataFrame missing column: {c}"
 
@@ -311,7 +373,7 @@ def _df_hasCols(df: DataFrame, vcols: list[str] = []):
 )
 def test_connected_components(
     spark: SparkSession, args: PregelArguments, cc_args: tuple[int, bool]
-):
+) -> None:
     v = spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
     e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
     v = spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
@@ -338,7 +400,7 @@ def test_connected_components(
 )
 def test_connected_components2(
     spark: SparkSession, args: PregelArguments, cc_args: tuple[int, bool]
-):
+) -> None:
     v = spark.createDataFrame([(0, "a0", "b0"), (1, "a1", "b1")], ["id", "A", "B"])
     e = spark.createDataFrame([(0, 1, "a01", "b01")], ["src", "dst", "A", "B"])
     g = GraphFrame(v, e)
@@ -356,7 +418,7 @@ def test_connected_components2(
 
 
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
-def test_shortest_paths(spark: SparkSession, args: PregelArguments):
+def test_shortest_paths(spark: SparkSession, args: PregelArguments) -> None:
     edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
     # Create bidirectional edges.
     all_edges = [z for (a, b) in edges for z in [(a, b), (b, a)]]
@@ -377,7 +439,7 @@ def test_shortest_paths(spark: SparkSession, args: PregelArguments):
     _ = v2.unpersist()
 
 
-def test_strongly_connected_components(spark: SparkSession):
+def test_strongly_connected_components(spark: SparkSession) -> None:
     # Simple island test
     vertices = spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
     edges = spark.createDataFrame([(7, 8)], ["src", "dst"])
@@ -391,7 +453,7 @@ def test_strongly_connected_components(spark: SparkSession):
 
 
 @pytest.mark.parametrize("storage_level", STORAGE_LEVELS, ids=STORAGE_LEVELS_IDS)
-def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel):
+def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel) -> None:
     edges = spark.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
     vertices = spark.createDataFrame([(0,), (1,), (2,)], ["id"])
     g = GraphFrame(vertices, edges)
