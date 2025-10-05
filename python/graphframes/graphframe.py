@@ -79,7 +79,7 @@ class GraphFrame:
 
     @staticmethod
     def _from_impl(impl: "GraphFrameClassic | GraphFrameConnect") -> "GraphFrame":
-        return GraphFrame(impl.vertices, impl.edges)
+        return GraphFrame(impl._vertices, impl._edges)
 
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
         """
@@ -447,16 +447,42 @@ class GraphFrame:
             storage_level=storage_level,
         )
 
-    def labelPropagation(self, maxIter: int) -> DataFrame:
+    def labelPropagation(
+        self,
+        maxIter: int,
+        algorithm: str = "graphx",
+        use_local_checkpoints: bool = False,
+        checkpoint_interval: int = 2,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
         """
         Runs static label propagation for detecting communities in networks.
 
         See Scala documentation for more details.
 
         :param maxIter: the number of iterations to be performed
-        :return: DataFrame with new vertices column "label"
+        :param algorithm: implementation to use, posible values are "graphframes" and "graphx";
+                          "graphx" is faster for small-medium sized graphs,
+                          "graphframes" requires less amount of memory
+        :param use_local_checkpoints: should local checkpoints be used, default false;
+                                      local checkpoints are faster and does not require to set
+                                      a persistent checkpointDir; from the other side, local
+                                      checkpoints are less reliable and require executors to have
+                                      big enough local disks.
+        :checkpoint_interval: How often should the intermediate result be checkpointed;
+                              Using big value here may tend to huge logical plan growth due
+                              to the iterative nature of the algorithm.
+        :param storage_level: storage level for both intermediate and final dataframes.
+
+        :return: Persisted DataFrame with new vertices column "label"
         """
-        return self._impl.labelPropagation(maxIter=maxIter)
+        return self._impl.labelPropagation(
+            maxIter=maxIter,
+            algorithm=algorithm,
+            use_local_checkpoints=use_local_checkpoints,
+            checkpoint_interval=checkpoint_interval,
+            storage_level=storage_level,
+        )
 
     def pageRank(
         self,
@@ -511,16 +537,42 @@ class GraphFrame:
             )
         )
 
-    def shortestPaths(self, landmarks: list[Any]) -> DataFrame:
+    def shortestPaths(
+        self,
+        landmarks: list[str | int],
+        algorithm: str = "graphx",
+        use_local_checkpoints: bool = False,
+        checkpoint_interval: int = 2,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
 
         See Scala documentation for more details.
 
         :param landmarks: a set of one or more landmarks
-        :return: DataFrame with new vertices column "distances"
-        """
-        return self._impl.shortestPaths(landmarks=landmarks)
+        :param algorithm: implementation to use, posible values are "graphframes" and "graphx";
+                          "graphx" is faster for small-medium sized graphs,
+                          "graphframes" requires less amount of memory
+        :param use_local_checkpoints: should local checkpoints be used, default false;
+                                      local checkpoints are faster and does not require to set
+                                      a persistent checkpointDir; from the other side, local
+                                      checkpoints are less reliable and require executors to have
+                                      big enough local disks.
+        :checkpoint_interval: How often should the intermediate result be checkpointed;
+                              Using big value here may tend to huge logical plan growth due
+                              to the iterative nature of the algorithm.
+        :param storage_level: storage level for both intermediate and final dataframes.
+
+        :return: persistent DataFrame with new vertices column "distances"
+        """  # noqa: E501
+        return self._impl.shortestPaths(
+            landmarks=landmarks,
+            algorithm=algorithm,
+            use_local_checkpoints=use_local_checkpoints,
+            checkpoint_interval=checkpoint_interval,
+            storage_level=storage_level,
+        )
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
         """
@@ -562,15 +614,21 @@ class GraphFrame:
             gamma7=gamma7,
         )
 
-    def triangleCount(self) -> DataFrame:
+    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
         """
         Counts the number of triangles passing through each vertex in this graph.
+        This impementation is based on the computing the intersection of
+        vertices neighborhoods. It requires to collect the whole neighborhood of
+        each vertex. It may fail because of memory errors on graphs with power law
+        degrees distribution (graphs with a few very high-degree vertices). Consider
+        edges sampling for that case to get an approximate count of trangles.
 
-        See Scala documentation for more details.
+        :param storage_level: storage level that is used for both
+                              intermediate and final dataframes.
 
         :return:  DataFrame with new vertex column "count"
         """
-        return self._impl.triangleCount()
+        return self._impl.triangleCount(storage_level=storage_level)
 
     def powerIterationClustering(
         self, k: int, maxIter: int, weightCol: str | None = None

@@ -15,20 +15,15 @@
 # limitations under the License.
 #
 
-from typing import TYPE_CHECKING, final
+from typing import final
 
 from pyspark.ml.wrapper import JavaWrapper
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.functions import col
+from pyspark.storagelevel import StorageLevel
+from typing_extensions import Self
 
 from graphframes.classic.utils import storage_level_to_jvm
-
-if TYPE_CHECKING:
-    from pyspark.sql import Column
-    from pyspark.storagelevel import StorageLevel
-    from typing_extensions import Self
-
-    from graphframes.classic.graphframe import GraphFrame
 
 
 @final
@@ -58,7 +53,7 @@ class Pregel(JavaWrapper):
     :param graph: a :class:`graphframes.GraphFrame` object holding a graph with vertices and edges stored as DataFrames.
     """  # noqa: E501
 
-    def __init__(self, graph: "GraphFrame") -> None:
+    def __init__(self, graph: "GraphFrame") -> None:  # noqa: F821
         super(Pregel, self).__init__()
 
         self.graph = graph
@@ -230,8 +225,9 @@ class Pregel(JavaWrapper):
         :param storage_level: storage level to use.
         """  # noqa: E501
         self._java_obj.setIntermediateStorageLevel(
-            storage_level_to_jvm(storage_level, self.graph.vertices.sparkSession)
+            storage_level_to_jvm(storage_level, self.graph._spark)
         )
+        return self
 
     def run(self) -> DataFrame:
         """Runs the defined Pregel algorithm.

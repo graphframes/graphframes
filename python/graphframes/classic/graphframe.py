@@ -112,7 +112,7 @@ class GraphFrame:
             .run()
         )
 
-        return _from_java_gf(jdf, self._spark)
+        return DataFrame(jdf, self._spark)
 
     def dropIsolatedVertices(self) -> "GraphFrame":
         jdf = self._jvm_graph.dropIsolatedVertices()
@@ -318,8 +318,12 @@ class GraphFrame:
         v = DataFrame(jdf, self._spark)
         return (v, loss)
 
-    def triangleCount(self) -> DataFrame:
-        jdf = self._jvm_graph.triangleCount().run()
+    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+        jdf = (
+            self._jvm_graph.triangleCount()
+            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+            .run()
+        )
         return DataFrame(jdf, self._spark)
 
     def powerIterationClustering(

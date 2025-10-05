@@ -16,31 +16,45 @@
 #
 
 
+from typing import Any
+
 from pyspark.sql import Column
 from pyspark.sql import functions as F
 
-from graphframes import graphframe
+
+class _ClassProperty:
+    """Custom read-only class property descriptor.
+
+    The underlying method should take the class as the sole argument.
+    """
+
+    def __init__(self, f: Any) -> None:
+        self.f = f
+        self.__doc__ = f.__doc__
+
+    def __get__(self, instance: Any, owner: type) -> Any:
+        return self.f(owner)
 
 
 class AggregateMessages:
     """Collection of utilities usable with :meth:`graphframes.GraphFrame.aggregateMessages()`."""
 
-    @staticmethod
+    @_ClassProperty
     def src() -> Column:
         """Reference for source column, used for specifying messages."""
-        return F.col(graphframe.SRC)
+        return F.col("src")
 
-    @staticmethod
+    @_ClassProperty
     def dst() -> Column:
         """Reference for destination column, used for specifying messages."""
-        return F.col(graphframe.DST)
+        return F.col("dst")
 
-    @staticmethod
+    @_ClassProperty
     def edge() -> Column:
         """Reference for edge column, used for specifying messages."""
-        return F.col(graphframe.EDGE)
+        return F.col("edge")
 
-    @staticmethod
+    @_ClassProperty
     def msg() -> Column:
         """Reference for message column, used for specifying aggregation function."""
         return F.col("MSG")
