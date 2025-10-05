@@ -25,7 +25,7 @@ from graphframes.classic.graphframe import _from_java_gf
 from graphframes.examples import BeliefPropagation, Graphs
 from graphframes.graphframe import GraphFrame
 
-from pyspark.sql import is_remote
+from pyspark.sql.utils import is_remote
 
 
 @dataclass
