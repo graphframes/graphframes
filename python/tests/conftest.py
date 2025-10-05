@@ -84,7 +84,7 @@ def spark():
             .config("spark.sql.shuffle.partitions", 4)
             .config("spark.checkpoint.dir", tmp_dir)
             .config("spark.jars", f"{core_jar},{connect_jar},{graphx_jar}")
-            .config("spark.driver.memory", "4g")
+            .config("spark.driver.memory", "6g")
         )
 
         if spark_major_version == "3":
