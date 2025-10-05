@@ -19,10 +19,16 @@ from __future__ import annotations
 from typing import final
 
 from py4j.java_gateway import JavaObject
-from pyspark import SparkContext
+from pyspark import SparkContext, __version__
 from pyspark.sql import SparkSession
-from pyspark.sql.classic.column import Column, _to_seq
-from pyspark.sql.classic.dataframe import DataFrame
+
+if __version__.startswith("4"):
+    from pyspark.sql.classic.column import Column, _to_seq
+    from pyspark.sql.classic.dataframe import DataFrame
+else:
+    from pyspark.sql.column import Column, _to_seq
+    from pyspark.sql import DataFrame
+
 from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.utils import storage_level_to_jvm

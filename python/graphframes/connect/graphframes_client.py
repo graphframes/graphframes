@@ -1061,4 +1061,6 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return _dataframe_from_plan(TriangleCount(self._vertices, self._edges), self._spark)
+        return _dataframe_from_plan(
+            TriangleCount(self._vertices, self._edges, storage_level), self._spark
+        )
