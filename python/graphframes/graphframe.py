@@ -731,10 +731,11 @@ class GraphFrame:
                 F.col(SRC).alias(DST),
                 F.struct(*edge_attr_columns).alias(EDGE),
             )
+            new_edges = forward_edges.union(backward_edges).select(SRC, DST, EDGE)
         else:
             forward_edges = self.edges.select(F.col(SRC), F.col(DST))
             backward_edges = self.edges.select(F.col(DST).alias(SRC), F.col(SRC).alias(DST))
-        new_edges = forward_edges.union(backward_edges).select(SRC, DST, EDGE)
+            new_edges = forward_edges.union(backward_edges).select(SRC, DST)
 
         # Preserve additional edge attributes
         edge_columns = [F.col(EDGE).getField(c).alias(c) for c in edge_attr_columns]
