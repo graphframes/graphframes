@@ -25,6 +25,8 @@ from graphframes.classic.graphframe import _from_java_gf
 from graphframes.examples import BeliefPropagation, Graphs
 from graphframes.graphframe import GraphFrame
 
+from pyspark.sql import is_remote
+
 
 @dataclass
 class PregelArguments:
@@ -483,3 +485,71 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
     collected = res.sort("id").select("found_cycles").collect()
     assert [row[0] for row in collected] == [[1, 2, 3, 1], [2, 3, 1, 2], [3, 1, 2, 3]]
     _ = res.unpersist()
+
+
+@pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
+def test_svd_plus_plus(examples, spark: SparkSession):
+    g = _from_java_gf(getattr(examples, "ALSSyntheticData")(), spark)
+    (v2, cost) = g.svdPlusPlus()
+    _df_hasCols(v2, vcols=["id", "column1", "column2", "column3", "column4"])
+
+
+@pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
+def test_mutithreaded_sparksession_usage(spark: SparkSession):
+    # Test that the GraphFrame API works correctly from multiple threads.
+    localVertices = [(1, "A"), (2, "B"), (3, "C")]
+    localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
+    v = spark.createDataFrame(localVertices, ["id", "name"])
+    e = spark.createDataFrame(localEdges, ["src", "dst", "action"])
+
+    exc = None
+
+    def run_graphframe() -> None:
+        nonlocal exc
+        try:
+            GraphFrame(v, e)
+        except Exception as _e:
+            exc = _e
+
+    import threading
+
+    thread = threading.Thread(target=run_graphframe)
+    thread.start()
+    thread.join()
+    assert exc is None, f"Exception was raised in thread: {exc}"
+
+
+@pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
+def test_belief_propagation(spark: SparkSession):
+    # Create a graphical model g of size 3x3.
+    g = Graphs(spark).gridIsingModel(3)
+    # Run Belief Propagation (BP) for 5 iterations.
+    numIter = 5
+    results = BeliefPropagation.runBPwithGraphFrames(g, numIter)
+    # Check that each belief is a valid probability in [0, 1].
+    for row in results.vertices.select("belief").collect():
+        belief = row["belief"]
+        assert 0 <= belief <= 1, (
+            f"Expected belief to be probability in [0,1], but found {belief}"
+        )
+
+
+@pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
+def test_graph_friends(spark: SparkSession):
+    # Construct the graph.
+    g = Graphs(spark).friends()
+    # Check that the result is an instance of GraphFrame.
+    assert isinstance(g, GraphFrame)
+
+
+@pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
+def test_graph_grid_ising_model(spark: SparkSession):
+    # Construct a grid Ising model graph.
+    n = 3
+    g = Graphs(spark).gridIsingModel(n)
+    # Collect the vertex ids
+    ids = [v["id"] for v in g.vertices.collect()]
+    # Verify that every expected vertex id appears.
+    for i in range(n):
+        for j in range(n):
+            assert f"{i},{j}" in ids

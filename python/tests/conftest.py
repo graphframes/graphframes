@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 import warnings
 
+from py4j.java_gateway import JavaObject
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.version import __version__
@@ -108,7 +109,7 @@ def spark():
 
 
 @pytest.fixture(scope="module")
-def local_g(spark):
+def local_g(spark: SparkSession):
     localVertices = [(1, "A"), (2, "B"), (3, "C")]
     localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
     v = spark.createDataFrame(localVertices, ["id", "name"])
@@ -117,11 +118,15 @@ def local_g(spark):
 
 
 @pytest.fixture(scope="module")
-def examples(spark):
+def examples(spark: SparkSession):
     if is_remote():
         # TODO: We should update tests to be able to run all of them on Spark Connect
         # At the moment the problem is that examples API is py4j based.
         yield None
     else:
         japi = _java_api(spark._sc)
-        yield japi.examples()
+        assert japi is not None
+        examples = japi.examples()
+        assert examples is not None
+        assert isinstance(examples, JavaObject)
+        yield examples

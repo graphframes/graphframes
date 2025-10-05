@@ -40,21 +40,21 @@ class AggregateMessages:
     """Collection of utilities usable with :meth:`graphframes.GraphFrame.aggregateMessages()`."""
 
     @_ClassProperty
-    def src() -> Column:
+    def src(cls) -> Column:
         """Reference for source column, used for specifying messages."""
         return F.col("src")
 
     @_ClassProperty
-    def dst() -> Column:
+    def dst(cls) -> Column:
         """Reference for destination column, used for specifying messages."""
         return F.col("dst")
 
     @_ClassProperty
-    def edge() -> Column:
+    def edge(cls) -> Column:
         """Reference for edge column, used for specifying messages."""
         return F.col("edge")
 
     @_ClassProperty
-    def msg() -> Column:
+    def msg(cls) -> Column:
         """Reference for message column, used for specifying aggregation function."""
         return F.col("MSG")

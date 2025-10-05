@@ -188,14 +188,14 @@ class GraphFrame:
 
         if len(aggCol) == 1:
             if isinstance(aggCol[0], Column):
-                jdf = builder.aggCol(aggCol[0]._jc)
+                jdf = builder.agg(aggCol[0]._jc)
             elif isinstance(aggCol[0], str):
-                jdf = builder.aggCol(aggCol[0])
+                jdf = builder.agg(aggCol[0])
         elif len(aggCol) > 1:
             if all(isinstance(x, Column) for x in aggCol):
-                jdf = builder.aggCol(aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol]))
+                jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol]))
             elif all(isinstance(x, str) for x in aggCol):
-                jdf = builder.aggCol(aggCol[0], _to_seq(self._sc, aggCol[1:]))
+                jdf = builder.agg(aggCol[0], _to_seq(self._sc, aggCol[1:]))
             else:
                 raise TypeError(
                     "Multiple agg cols should all be `Column` or `str`, not a mix of them."
