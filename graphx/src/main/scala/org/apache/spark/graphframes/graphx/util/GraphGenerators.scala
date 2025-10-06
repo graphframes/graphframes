@@ -17,15 +17,15 @@
 
 package org.apache.spark.graphframes.graphx.util
 
-import org.apache.spark._
-import org.apache.spark.graphframes.graphx._
+import org.apache.spark.*
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.util._
+import scala.util.*
 
 /** A collection of graph generating functions. */
 object GraphGenerators extends Logging {

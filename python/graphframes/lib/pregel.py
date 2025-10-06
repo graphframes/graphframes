@@ -15,23 +15,20 @@
 # limitations under the License.
 #
 
-import sys
-from typing import TYPE_CHECKING, Any
-
-if sys.version > "3":
-    basestring = str
+from typing import final
 
 from pyspark.ml.wrapper import JavaWrapper
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql.functions import col
+from pyspark.storagelevel import StorageLevel
+from typing_extensions import Self
 
-if TYPE_CHECKING:
-    from graphframes import GraphFrame
+from graphframes.classic.utils import storage_level_to_jvm
 
 
+@final
 class Pregel(JavaWrapper):
-    """
-    Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
+    """Implements a Pregel-like bulk-synchronous message-passing API based on DataFrame operations.
 
     See `Malewicz et al., Pregel: a system for large-scale graph processing <https://doi.org/10.1145/1807167.1807184>`_
     for a detailed description of the Pregel algorithm.
@@ -54,49 +51,24 @@ class Pregel(JavaWrapper):
     You can control the number of iterations by :func:`setMaxIter` and check API docs for advanced controls.
 
     :param graph: a :class:`graphframes.GraphFrame` object holding a graph with vertices and edges stored as DataFrames.
-
-    >>> from graphframes import GraphFrame
-    >>> from pyspark.sql.functions import coalesce, col, lit, sum, when
-    >>> from graphframes.lib import Pregel
-    >>> edges = spark.createDataFrame([[0, 1],
-    ...                                [1, 2],
-    ...                                [2, 4],
-    ...                                [2, 0],
-    ...                                [3, 4], # 3 has no in-links
-    ...                                [4, 0],
-    ...                                [4, 2]], ["src", "dst"])
-    >>> edges.cache()
-    >>> vertices = spark.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
-    >>> numVertices = vertices.count()
-    >>> vertices = GraphFrame(vertices, edges).outDegrees
-    >>> vertices.cache()
-    >>> graph = GraphFrame(vertices, edges)
-    >>> alpha = 0.15
-    >>> ranks = graph.pregel \
-    ...     .setMaxIter(5) \
-    ...     .withVertexColumn("rank", lit(1.0 / numVertices), \
-    ...         coalesce(Pregel.msg(), lit(0.0)) * lit(1.0 - alpha) + lit(alpha / numVertices)) \
-    ...     .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree")) \
-    ...     .aggMsgs(sum(Pregel.msg())) \
-    ...     .run()
     """  # noqa: E501
 
-    def __init__(self, graph: "GraphFrame") -> None:
+    def __init__(self, graph: "GraphFrame") -> None:  # noqa: F821
         super(Pregel, self).__init__()
 
         self.graph = graph
         self._java_obj = self._new_java_obj("org.graphframes.lib.Pregel", graph._jvm_graph)
 
     def setMaxIter(self, value: int) -> "Pregel":
-        """
-        Sets the max number of iterations (default: 10).
+        """Sets the max number of iterations (default: 10).
+
+        :param value: the number of Pregel iterations
         """
         self._java_obj.setMaxIter(int(value))
         return self
 
     def setCheckpointInterval(self, value: int) -> "Pregel":
-        """
-        Sets the number of iterations between two checkpoints (default: 2).
+        """Sets the number of iterations between two checkpoints (default: 2).
 
         This is an advanced control to balance query plan optimization and checkpoint data I/O cost.
         In most cases, you should keep the default value.
@@ -107,8 +79,7 @@ class Pregel(JavaWrapper):
         return self
 
     def setEarlyStopping(self, value: bool) -> "Pregel":
-        """
-        Set should Pregel stop earlier in case of no new messages to send or not.
+        """Set should Pregel stop earlier in case of no new messages to send or not.
 
         Early stopping allows to terminate Pregel before reaching maxIter by checking if there are any non-null messages.
         While in some cases it may gain significant performance boost, in other cases it can lead to performance degradation,
@@ -124,10 +95,9 @@ class Pregel(JavaWrapper):
         return self
 
     def withVertexColumn(
-        self, colName: str, initialExpr: Any, updateAfterAggMsgsExpr: Any
+        self, colName: str, initialExpr: Column, updateAfterAggMsgsExpr: Column
     ) -> "Pregel":
-        """
-        Defines an additional vertex column at the start of run and how to update it in each iteration.
+        """Defines an additional vertex column at the start of run and how to update it in each iteration.
 
         You can call it multiple times to add more than one additional vertex columns.
 
@@ -143,9 +113,8 @@ class Pregel(JavaWrapper):
         self._java_obj.withVertexColumn(colName, initialExpr._jc, updateAfterAggMsgsExpr._jc)
         return self
 
-    def sendMsgToSrc(self, msgExpr: Any) -> "Pregel":
-        """
-        Defines a message to send to the source vertex of each edge triplet.
+    def sendMsgToSrc(self, msgExpr: Column) -> "Pregel":
+        """Defines a message to send to the source vertex of each edge triplet.
 
         You can call it multiple times to send more than one messages.
 
@@ -160,9 +129,8 @@ class Pregel(JavaWrapper):
         self._java_obj.sendMsgToSrc(msgExpr._jc)
         return self
 
-    def sendMsgToDst(self, msgExpr: Any) -> "Pregel":
-        """
-        Defines a message to send to the destination vertex of each edge triplet.
+    def sendMsgToDst(self, msgExpr: Column) -> "Pregel":
+        """Defines a message to send to the destination vertex of each edge triplet.
 
         You can call it multiple times to send more than one messages.
 
@@ -177,9 +145,8 @@ class Pregel(JavaWrapper):
         self._java_obj.sendMsgToDst(msgExpr._jc)
         return self
 
-    def aggMsgs(self, aggExpr: Any) -> "Pregel":
-        """
-        Defines how messages are aggregated after grouped by target vertex IDs.
+    def aggMsgs(self, aggExpr: Column) -> "Pregel":
+        """Defines how messages are aggregated after grouped by target vertex IDs.
 
         :param aggExpr: the message aggregation expression, such as `sum(Pregel.msg())`.
                         You can reference the message column by :func:`msg` and the vertex ID by `col("id")`,
@@ -188,27 +155,101 @@ class Pregel(JavaWrapper):
         self._java_obj.aggMsgs(aggExpr._jc)
         return self
 
+    def setStopIfAllNonActiveVertices(self, value: bool) -> Self:
+        """Set should Pregel stop if all the vertices voted to halt.
+
+        Activity (or vote) is determined based on the activity_col.
+        See methods :func:`setInitialActiveVertexExpression` and :func:`setUpdateActiveVertexExpression` for details
+        how to set and update activity_col.
+
+        Be aware that checking of the vote is not free but a Spark Action. In case the
+        condition is not realistically reachable but set, it will just slow down the algorithm.
+
+        :param value: the boolean value.
+        """  # noqa: E501
+        self._java_obj.setStopIfAllNonActiveVertices(value)
+        return self
+
+    def setInitialActiveVertexExpression(self, value: Column) -> Self:
+        """Sets the initial expression for the active vertex column.
+
+        The active vertex column is used to determine if a vertices voting result on each iteration of Pregel.
+        This expression is evaluated on the initial vertices DataFrame to set the initial state of the activity column.
+
+        :param value: expression to compute the initial active state of vertices.
+                      You can reference all original vertex columns in this expression.
+        """  # noqa: E501
+        self._java_obj.setInitialActiveVertexExpression(value._jc)
+        return self
+
+    def setUpdateActiveVertexExpression(self, value: Column) -> Self:
+        """Sets the expression to update the active vertex column.
+
+        The active vertex column is used to determine if a vertices voting result on each iteration of Pregel.
+        This expression is evaluated on the updated vertices DataFrame to set the new state of the activity column.
+
+        :param value: expression to compute the new active state of vertices.
+                      You can reference all original vertex columns and additional vertex columns in this expression.
+        """  # noqa: E501
+        self._java_obj.setUpdateActiveVertexExpression(value._jc)
+        return self
+
+    def setSkipMessagesFromNonActiveVertices(self, value: bool) -> Self:
+        """Set should Pregel skip sending messages from non-active vertices.
+
+        When this option is enabled, messages will not be sent from vertices that are marked as inactive.
+        This can help optimize performance by avoiding unnecessary message propagation from inactive vertices.
+
+        :param value: boolean value.
+        """  # noqa: E501
+        self._java_obj.setSkipMessagesFromNonActiveVertices(value)
+        return self
+
+    def setUseLocalCheckpoints(self, value: bool) -> Self:
+        """Set should Pregel use local checkpoints.
+
+        Local checkpoints are faster and do not require configuring a persistent storage.
+        At the same time, local checkpoints are less reliable and may create a big load on local disks of executors.
+
+        :param value: boolean value.
+        """  # noqa: E501
+        self._java_obj.setUseLocalCheckpoints(value)
+        return self
+
+    def setIntermediateStorageLevel(self, storage_level: StorageLevel) -> Self:
+        """Set the intermediate storage level.
+        On each iteration, Pregel cache results with a requested storage level.
+
+        For very big graphs it is recommended to use DISK_ONLY.
+
+        :param storage_level: storage level to use.
+        """  # noqa: E501
+        self._java_obj.setIntermediateStorageLevel(
+            storage_level_to_jvm(storage_level, self.graph._spark)
+        )
+        return self
+
     def run(self) -> DataFrame:
-        """
-        Runs the defined Pregel algorithm.
+        """Runs the defined Pregel algorithm.
 
         :return: the result vertex DataFrame from the final iteration including both original and additional columns.
         """  # noqa: E501
-        return DataFrame(self._java_obj.run(), SparkSession.getActiveSession())
+        spark = SparkSession.getActiveSession()
+        if spark is None:
+            raise ValueError("SparkSession is dead or did not started.")
+        return DataFrame(self._java_obj.run(), spark)
 
     @staticmethod
-    def msg() -> Any:
-        """
-        References the message column in aggregating messages and updating additional vertex columns.
+    def msg() -> Column:
+        """References the message column in aggregating messages and updating additional vertex columns.
 
         See :func:`aggMsgs` and :func:`withVertexColumn`
         """  # noqa: E501
         return col("_pregel_msg_")
 
     @staticmethod
-    def src(colName: str) -> Any:
-        """
-        References a source vertex column in generating messages to send.
+    def src(colName: str) -> Column:
+        """References a source vertex column in generating messages to send.
 
         See :func:`sendMsgToSrc` and :func:`sendMsgToDst`
 
@@ -217,7 +258,7 @@ class Pregel(JavaWrapper):
         return col("src." + colName)
 
     @staticmethod
-    def dst(colName: str) -> Any:
+    def dst(colName: str) -> Column:
         """
         References a destination vertex column in generating messages to send.
 
@@ -228,7 +269,7 @@ class Pregel(JavaWrapper):
         return col("dst." + colName)
 
     @staticmethod
-    def edge(colName: str) -> Any:
+    def edge(colName: str) -> Column:
         """
         References an edge column in generating messages to send.
 

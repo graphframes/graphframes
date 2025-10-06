@@ -17,7 +17,7 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphframes.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx.lib as graphxlib
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame

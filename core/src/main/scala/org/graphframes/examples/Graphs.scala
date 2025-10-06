@@ -23,7 +23,7 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.randn
 import org.apache.spark.sql.functions.udf
 import org.graphframes.GraphFrame
-import org.graphframes.GraphFrame._
+import org.graphframes.GraphFrame.*
 
 import scala.reflect.runtime.universe.TypeTag
 

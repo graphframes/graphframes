@@ -21,8 +21,8 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.DataTypes
+import org.graphframes.*
 import org.graphframes.GraphFrame.quote
-import org.graphframes._
 
 class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 

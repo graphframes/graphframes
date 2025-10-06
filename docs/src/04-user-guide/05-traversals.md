@@ -222,5 +222,5 @@ res.show(false)
 // +----+--------------+
 ```
 
-**WARNING:** This algorithm returns all the cycles, and users should handle deduplication of [1, 2, 1] and [2, 1, 2] (
-that is the same cycle)
+**WARNING:** This algorithm returns all the cycles, and users should handle deduplication of \[1, 2, 1\] and \[2, 1, 2\] (
+that is the same cycle)!

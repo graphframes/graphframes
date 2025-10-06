@@ -76,7 +76,7 @@ public class TriangleCountExample {
             .persist(StorageLevel.MEMORY_AND_DISK_SER());
         System.out.println("Vertices loaded: " + vertices.count());
 
-        var start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
         GraphFrame graph = GraphFrame.apply(vertices, edges);
         TriangleCount counter = graph.triangleCount();
         Dataset<Row> triangles = counter.run();
@@ -84,7 +84,7 @@ public class TriangleCountExample {
         triangles.show(20, false);
         long triangleCount = triangles.select(functions.sum("count")).first().getLong(0);
         System.out.println("Found triangles: " + triangleCount);
-        var end = System.currentTimeMillis();
+        long end = System.currentTimeMillis();
         System.out.println("Total running time in seconds: " + (end - start) / 1000.0);
     }
 }

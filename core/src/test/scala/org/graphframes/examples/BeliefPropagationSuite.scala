@@ -22,7 +22,7 @@ import org.apache.spark.sql.Row
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.SparkFunSuite
-import org.graphframes.examples.BeliefPropagation._
+import org.graphframes.examples.BeliefPropagation.*
 import org.graphframes.examples.Graphs.gridIsingModel
 
 class BeliefPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {

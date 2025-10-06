@@ -16,7 +16,7 @@ import org.graphframes.SparkFunSuite
 import org.graphframes.examples.LDBCUtils
 
 import java.io.File
-import java.nio.file._
+import java.nio.file.*
 import java.util.Properties
 
 class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {

@@ -20,7 +20,7 @@ package org.graphframes.lib
 import org.apache.spark.graphframes.graphx
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.graphframes.GraphFramesConf
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
