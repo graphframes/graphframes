@@ -107,7 +107,7 @@ can force it with:
 ```
 
 ### 3.2 Format Scala code
-You can use the project’s [pre-commit hooks](#5-pre-commit-hooks) to automatically 
+You can use the project’s [pre-commit hooks](01-contributing-guide.md#_5-pre-commit-hooks) to automatically
 format all Scala code at once.
 
 ### 3.3 Run Scala tests
@@ -157,7 +157,7 @@ To build the GraphFrames assembly jar and run the Python test suite, you can use
    poetry run pytest -vvv
    ```
    The test configuration will automatically pick up the correct JAR and Spark version (see [`python/tests/conftest.py`](https://github.com/graphframes/graphframes/blob/main/python/tests/conftest.py) for details).
-   
+
    Enable Spark Connect coverage by exporting `SPARK_CONNECT_MODE_ENABLED=1`:
    ```bash
    SPARK_CONNECT_MODE_ENABLED=1 poetry run pytest -vvv
@@ -212,6 +212,13 @@ PySpark session.
    cd ..
    ```
 
+### 4.2 PySpark Connect update
+
+PySpark Connect Plugin messages are located in `connect/src/main/protobuf`. After making any changes to messages, for exampple, after adding a new API the following is required:
+
+- re-compile the connect project that will trigger generation of new Java classes: `./build/sbt connect/compile`
+- re-generate Python classes from protobuf via `buf`: `buf generate`
+
 ---
 
 ## 5. Pre-commit hooks
@@ -251,7 +258,41 @@ pre-commit run --all-files
 
 ---
 
-## 7. Quick reference
+## 7. Update documentation
+
+GraphFrames documentation is built with [Typelevel Laika](https://typelevel.org/Laika/). Documentation files in a markdown format are in `docs/src`.
+
+### 7.1 Laika Directives
+
+The following custom Laika directives are provided on top of built-in:
+
+- `@pydoc(class-name)`, for example, `@pydoc(graphframes.GraphFrame)` -- reference PySpark API documentation for the class
+- `@scaladoc(class-name)`, for example, `@scaladoc(org.graphframes.GraphFrame)` -- reference Scala API documentation for the class
+- `@srcLink(sub-path)`, for example, `@srcLink(python/graphframes/tutorials/stackexchange.py)` -- link to the source code in github
+
+The following built-in Laika directives may be useful.
+
+- `@image`
+
+An example is:
+
+```markdown
+@:image(/img/graphframes-internals/graphframes-overview.png) {
+    intrinsicWidth = 600
+    alt = "An overview of GraphFrames and Apache Spark connection"
+    title = "GraphFrames Overview"
+}
+```
+
+A full list of built-in directives may be found in [Laika Documentation](https://typelevel.org/Laika/latest/07-reference/01-standard-directives.html).
+
+### 7.2 Build and preivew
+
+To build documentation and run a preview server run `./build/sbt docs/laikaPreview`.
+
+---
+
+## 8. Quick reference
 
 | Task | Command |
 | --- | --- |
