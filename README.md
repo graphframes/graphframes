@@ -7,8 +7,7 @@
 [![python-pypi-publish](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml)
 ![GitHub Release](https://img.shields.io/github/v/release/graphframes/graphframes)
 ![GitHub License](https://img.shields.io/github/license/graphframes/graphframes)
-
-
+![PyPI - Downloads](https://img.shields.io/pypi/dm/graphframes-py)
 
 # GraphFrames: DataFrame-based Graphs
 
@@ -53,7 +52,7 @@ Python API is published in the PyPi:
 pip install graphframes-py
 ```
 
-**NOTE!** *Python distribution does not include JVM-core. You need to add it to your cluster or Spark-Connect server!*
+**NOTE!** _Python distribution does not include JVM-core. You need to add it to your cluster or Spark-Connect server!_
 
 ### GraphFrames Spark Connect
 
@@ -66,7 +65,7 @@ To add GraphFrames to your spark connect server, you need to specify the plugin 
   --conf spark.checkpoint.dir=${CHECKPOINT_DIR}
 ```
 
-**NOTE!** *GraphFrames is relying on iterative graph algorithms and uses checkpoints internally to avoid infinite growing of the Spark's Logical Plan. Spark-Connect API does not provide the way to specify the checkpoint dir and it should be specified via `spark.checkpoint.dir` configuration!*
+**NOTE!** _GraphFrames is relying on iterative graph algorithms and uses checkpoints internally to avoid infinite growing of the Spark's Logical Plan. Spark-Connect API does not provide the way to specify the checkpoint dir and it should be specified via `spark.checkpoint.dir` configuration!_
 
 ### Quick Start
 
@@ -176,17 +175,17 @@ g.connectedComponents().show()
 
 To learn more about GraphFrames, check out these resources:
 
-* [GraphFrames Documentation](https://graphframes.github.io/graphframes)
-* [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
-* [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
-* [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
+- [GraphFrames Documentation](https://graphframes.github.io/graphframes)
+- [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
+- [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
+- [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
 
 ## Community Resources
 
-* [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
-* [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
-* [Graph Operations in Apache Spark Using GraphFrames](https://www.pluralsight.com/courses/apache-spark-graphframes-graph-operations)
-* [Executing Graph Algorithms with GraphFrames on Databricks](https://www.pluralsight.com/courses/executing-graph-algorithms-graphframes-databricks)
+- [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
+- [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
+- [Graph Operations in Apache Spark Using GraphFrames](https://www.pluralsight.com/courses/apache-spark-graphframes-graph-operations)
+- [Executing Graph Algorithms with GraphFrames on Databricks](https://www.pluralsight.com/courses/executing-graph-algorithms-graphframes-databricks)
 
 ## Note about Python API distribution
 
@@ -207,6 +206,7 @@ This project does not own or control the [graphframes PyPI package](https://pypi
 ## Maven and SBT
 
 Maven:
+
 ```xml
 <dependencies>
     <dependency>
@@ -218,6 +218,7 @@ Maven:
 ```
 
 SBT:
+
 ```sbt
 libraryDependencies += "io.graphframes" %% "graphframes-spark4" % "0.9.2"
 ```
@@ -245,7 +246,7 @@ To compile the Spark Connect Plugin, run `build/sbt connect/package`
 This project is compatible with Spark 3.5.x and Spark 4.0.x. Significant speed improvements have been made to DataFrames in recent versions of Spark, so you may see speedups from using the latest Spark version.
 
 | Component           | Spark 3.x (Scala 2.12) | Spark 3.x (Scala 2.13) | Spark 4.x (Scala 2.13) |
-|---------------------|------------------------|------------------------|------------------------|
+| ------------------- | ---------------------- | ---------------------- | ---------------------- |
 | graphframes         | ✓                      | ✓                      | ✓                      |
 | graphframes-connect | ✓                      | ✓                      | ✓                      |
 
@@ -270,9 +271,9 @@ Please read [this section](https://central.sonatype.org/publish/publish-portal-s
 GroupId: `io.graphframes`
 ArtifactIds:
 
-* `graphframes-spark3_2.12`
-* `graphframes-spark3_2.13`
-* `graphframes-connect-spark3_2.12`
-* `graphframes-connect-spark3_2.13`
-* `graphframes-spark4_2.13`
-* `graphframes-connect-spark4_2.13`
+- `graphframes-spark3_2.12`
+- `graphframes-spark3_2.13`
+- `graphframes-connect-spark3_2.12`
+- `graphframes-connect-spark3_2.13`
+- `graphframes-spark4_2.13`
+- `graphframes-connect-spark4_2.13`
