@@ -1,6 +1,6 @@
 # GraphFrames 0.10.0 release
 
-- **Published:** 2025-10-08T00:00:00Z
+- **Published:** 2025-10-10T00:00:00Z
 - **Title:** GraphFrames 0.10.0 release
 - **Summary:** This release comes with significant performance improvements to most algorithms, as well as fixed memory leaks. The PySpark APIs for Spark Connect and Spark Classic are now synchronized with the Scala core, allowing PySpark users to benefit from the latest improvements in the GraphFrame APIs and configurations. This is the first release in which GraphFrames relies on its own internal fork of GraphX instead of Spark's built-in version. There are also improvements in motif finding. Undirected, bidirectional, and an arbitrary amount of edges can now be included in the pattern string. New algorithm for cycle detection was added. The documentation has also been significantly improved.
 
@@ -55,11 +55,33 @@ The new approach was tested on subste of LDBC graphs up to 8M vertices and 260M 
 
 ### Pregel performance
 
+A couple of important improvements were made in `Pregel API`. In a new version of GraphFrames Pregel more aggresively persist intermediate results of computations. But compared to GraphX Pregel that is built around triplets (and persist triplets on iterations), GraphFrames Pregel API is built arount vertices state and persist only vertices, not triplets. Triplets in GraphFrames API is only an intermediate not materialized result.
+
+To avoid problems with memory and to provide more flexibility, the Spark `StorageLevel` used for persisting in Pregel was made configurable (with a default one equal to `MEMORY_AND_DISK`). This configuration was also propagated to all the Pregel based algorithms like `ShortestPaths`, `LabelPropagation`, etc.
+
+The result is around 2-3x performance boost in GraphFrames based implementation of SP and CDLP.
+
 ## PySpark APIs
+
+GraphFrames is a Scala-first library and all other clients (PySpark Classic, PySpark Connect, etc.) are implemented as wrappers/bindings. In the last few releases the Scala core got a lot of updates not all of which were propagated to PySpark APIs.
+
+This release finally did a sync between Scala API and PySpark Connect / Classic APIs, so PySpark and Scala Spark have a features parity now.
 
 ## Motifs finding
 
+Improvements were made in GraphFrames motifs finding API. The new syntax:
+
+- bidirectional edges
+- undirected edges
+- arbitrary amount of hops
+
+With this new features users can find even more complex motifs and sib structures in graphs at scale!
+
 ## Cycles detection
+
+New algorithm for cycles detection was added. It is based on the [Rocha, Rodrigo Caetano, and Bhalchandra D. Thatte. "Distributed cycle detection in large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional (SBPO’15) (2015): 1-11.](https://assets-eu.researchsquare.com/files/rs-4619085/v1_covered_22e633ca-157a-4302-adef-eb249909efc3.pdf) paper.
+
+API is provided for both Core and PySpark. Such an algorithm significantly improve application of GraphFrames in fraud-detection when we need to detect cyclic transactions, iteractions, etc.
 
 ## Compatibility with Scala 3
 
@@ -68,9 +90,5 @@ the compatibility.
 
 ## Future steps
 
-- During the benchmarking we found that the DataFrame-based Pregel is not as fast as the GraphX-based Pregel. At the
-  moment there is an ongoing discussion about moving the whole GraphX project to GraphFrames and starting to work on
-  improvement and fixes of GraphX based algorithms;
-- With a new `PropertyGraph` model, we can start to work on the pattern matching support and better integration with
-  native graph storage formats;
-- A lot of other improvements can be made in documentation, website, and infrastructure;
+- More improvements in GraphFrames Pregel API are planned, especially related to the memory consumption;
+- In the next release we are planning to finally provide Random Walks API as well as Graph Machine Learning features like node embeddings (like `node2vec` / `deepWalk` algorithms);
