@@ -108,3 +108,29 @@ Triangle Count fail with OOM -> Most probably it is the case of power-law graphs
 Py4j or Spark Connect errors that some method does not exists -> check that the core GraphFrames JAR is exactly the same version like the PySpark graphframes package.
 
 Overall -> Check that the version from graphframes-core is equal to minor spark versions, for example, io.graphframes:graphframes-spark3_2.12 is compatible only with Apache Spark 3.5.x with Scala 2.12, etc. See the [installation section of docs for details](02-quick-start/01-installation.html).
+
+## Installation
+
+GraphFrames requires careful version alignment across multiple components to function correctly. The primary artifacts are:
+- `graphframes`: The core library providing DataFrame-based graph functionality.
+- `graphframes-connect`: Enables integration with Spark Connect for remote execution.
+- `graphframes-graphx`: Provides an optimized distribution of Spark' GraphX.
+
+Ensure that all components use matching versions to prevent runtime errors such as "class not found" or method missing exceptions. Version mismatches often occur when:
+1. The PyPI package `graphframes` does not match the version of the core GraphFrames JAR.
+2. The core GraphFrames JAR is incompatible with the Spark version or Scala binary version.
+
+Maven coordinates follow the pattern:
+`io.graphframes:graphframes_[scala-version]:[graphframes-version]`
+
+Example valid Maven dependency for Spark 3.5.x with Scala 2.12:
+`io.graphframes:graphframes_2.12:0.8.3-spark3.5`
+
+PyPI package must align strictly with the core artifact version:
+`pip install graphframes==0.8.3`
+
+Failure to synchronize versions may result in `Py4JJavaError`, `ClassNotFoundException`, or silent incorrect behavior. Always validate compatibility using the published version matrix in documentation before deployment.
+
+## GraphFrames or GraphX?
+
+For small-medium sized graphs it may be better to use wrapped graphx algorithms from GraphFrames (algorithm="graphx"). GraphX model is build around triplets processing that may be faster in some cases but requires much more memory due to triplets nature and less efficient RDD serialization. For big graphs it is recommended to use DataFrame based implementations (algorithm="graphframes"). GraphFrames algorithms are built around vertices and edges and they are avoiding persisting triplets as well as DataFrames provides better serialization with Thungsten.
