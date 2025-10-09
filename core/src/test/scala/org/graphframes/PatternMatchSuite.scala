@@ -283,7 +283,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   /* ========== 2 named vertices grounding a negated term to non-negated terms =============== */
-  
+
   test("edges without back edges") {
     val edges = g.find("(a)-[]->(b); !(b)-[]->(a)")
 
