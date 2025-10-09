@@ -373,20 +373,52 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
+    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
+    val UndirectedPattern = """\((\w+)\)-\[(\w*)\]-\((\w+)\)""".r
+
     pattern match {
-      case VarLengthPattern(src, name, min, max, dst) =>
+      case VarLengthPattern(src, name, min, max, direction, dst) =>
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
             s"Unbounded length patten ${pattern} is not supported! " +
               "Please a pattern of defined length.")
         }
-        val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
-          s"($src)-[$name*$hop]->($dst)"
+        val strToSeq: Seq[(Int, String)] = (min.toInt to max.toInt).reverse.map { hop =>
+          (hop, s"($src)-[$name*$hop]->($dst)")
         }
-        strToSeq
-          .map(findAugmentedPatterns)
-          .reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+        val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
+          (min.toInt to max.toInt).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
+        } else {
+          Seq.empty[(Int, String)]
+        }
+
+        val out: Seq[DataFrame] = strToSeq.map { case (hop, patternStr) =>
+          findAugmentedPatterns(patternStr)
+            .withColumn("_hop", lit(hop))
+            .withColumn("_pattern", lit(patternStr))
+            .withColumn("_direction", lit("out"))
+        }
+
+        val in: Seq[DataFrame] = strToSeqReverse.map { case (hop, patternStr) =>
+          findAugmentedPatterns(patternStr)
+            .withColumn("_hop", lit(hop))
+            .withColumn("_pattern", lit(patternStr))
+            .withColumn("_direction", lit("in"))
+        }
+
+        val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+        ret.orderBy("_hop", "_direction")
+
+      case UndirectedPattern(src, name, dst) =>
+        val out: DataFrame = findAugmentedPatterns(s"($src)-[$name]->($dst)")
+          .withColumn("_pattern", lit(s"($src)-[$name]->($dst)"))
+          .withColumn("_direction", lit("out"))
+        val in: DataFrame = findAugmentedPatterns(s"($src)<-[$name]-($dst)")
+          .withColumn("_pattern", lit(s"($src)<-[$name]-($dst)"))
+          .withColumn("_direction", lit("in"))
+
+        out.unionByName(in)
+
       case _ =>
         findAugmentedPatterns(pattern)
     }
