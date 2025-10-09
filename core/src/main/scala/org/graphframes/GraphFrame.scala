@@ -417,7 +417,8 @@ class GraphFrame private (
           .withColumn("_pattern", lit(s"($src)<-[$name]-($dst)"))
           .withColumn("_direction", lit("in"))
 
-        out.unionByName(in)
+        val ret = out.unionByName(in)
+        ret.orderBy("_direction")
 
       case _ =>
         findAugmentedPatterns(pattern)
