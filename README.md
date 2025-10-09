@@ -2,14 +2,9 @@
     <img src="docs/src/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="500"/>
 </p>
 
-[![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
-[![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
-[![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
-[![scala-central-publish](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml)
-[![python-pypi-publish](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml)
-![GitHub Release](https://img.shields.io/github/v/release/graphframes/graphframes)
-![GitHub License](https://img.shields.io/github/license/graphframes/graphframes)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/graphframes-py)
+<p align="center">
+    <a href="https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg" alt="Scala CI"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg" alt="Python CI"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment"><img src="https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg" alt="pages-build-deployment"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml/badge.svg" alt="scala-central-publish"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml/badge.svg" alt="python-pypi-publish"></a> <img src="https://img.shields.io/github/v/release/graphframes/graphframes" alt="GitHub Release"> <img src="https://img.shields.io/github/license/graphframes/graphframes" alt="GitHub License"> <img src="https://img.shields.io/pypi/dm/graphframes-py" alt="PyPI - Downloads">
+</p>
 
 # GraphFrames: graph algorithms at scale
 
