@@ -383,22 +383,39 @@ class GraphFrame private (
             s"Unbounded length patten ${pattern} is not supported! " +
               "Please a pattern of defined length.")
         }
-        val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
-          s"($src)-[$name*$hop]->($dst)"
+        val strToSeq: Seq[(Int, String)] = (min.toInt to max.toInt).reverse.map { hop =>
+          (hop, s"($src)-[$name*$hop]->($dst)")
         }
-        val strToSeqReverse: Seq[String] = if (direction.isEmpty) {
-          (min.toInt to max.toInt).reverse.map(hop => s"($dst)-[$name*$hop]->($src)")
+        val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
+          (min.toInt to max.toInt).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
         } else {
-          Seq.empty[String]
+          Seq.empty[(Int, String)]
         }
 
-        (strToSeq ++ strToSeqReverse)
-          .map(findAugmentedPatterns)
-          .reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+        val out: Seq[DataFrame] = strToSeq.map { case (hop, patternStr) =>
+          findAugmentedPatterns(patternStr)
+            .withColumn("_hop", lit(hop))
+            .withColumn("_pattern", lit(patternStr))
+            .withColumn("_direction", lit("out"))
+        }
+
+        val in: Seq[DataFrame] = strToSeqReverse.map { case (hop, patternStr) =>
+          findAugmentedPatterns(patternStr)
+            .withColumn("_hop", lit(hop))
+            .withColumn("_pattern", lit(patternStr))
+            .withColumn("_direction", lit("in"))
+        }
+
+        val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+        ret.orderBy("_hop", "_direction")
 
       case UndirectedPattern(src, name, dst) =>
         val out: DataFrame = findAugmentedPatterns(s"($src)-[$name]->($dst)")
-        val in: DataFrame = findAugmentedPatterns(s"($dst)-[$name]->($src)")
+          .withColumn("_pattern", lit(s"($src)-[$name]->($dst)"))
+          .withColumn("_direction", lit("out"))
+        val in: DataFrame = findAugmentedPatterns(s"($src)<-[$name]-($dst)")
+          .withColumn("_pattern", lit(s"($src)<-[$name]-($dst)"))
+          .withColumn("_direction", lit("in"))
 
         out.unionByName(in)
 
