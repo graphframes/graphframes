@@ -1,4 +1,6 @@
-<img src="docs/src/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="500"/>
+<p align="center">
+    <img src="docs/src/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="500"/>
+</p>
 
 [![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
 [![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
@@ -9,7 +11,7 @@
 ![GitHub License](https://img.shields.io/github/license/graphframes/graphframes)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/graphframes-py)
 
-# GraphFrames: DataFrame-based Graphs
+# GraphFrames: graph algorithms at scale
 
 This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. It provides built-in and easy to use distributed graph algorithms as well as a flexible APIs like `Pregel` or `AggregateMessages` to make custom graph processing. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
