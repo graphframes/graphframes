@@ -172,3 +172,7 @@ See [contribution guide](./CONTRIBUTING.md) and the [local development setup wal
 ## Releases
 
 See [release notes](https://github.com/graphframes/graphframes/releases).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=graphframes/graphframes&type=Date)](https://www.star-history.com/#graphframes/graphframes&Date)
