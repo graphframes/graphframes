@@ -49,9 +49,7 @@ private[graphframes] object PatternParser extends RegexParsers {
     vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]*".r ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ name ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
         val hop: Int = num.toInt
-        if (hop == 1) {
-          List(if (name.isEmpty) AnonymousEdge(src, dst) else NamedEdge(name, src, dst))
-        } else if (hop > 1) {
+        if (hop > 0) {
           val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
           val vertices = src +: midVertices :+ dst
           vertices
