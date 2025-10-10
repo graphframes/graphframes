@@ -1,6 +1,6 @@
 # GraphFrames 0.10.0 release
 
-- **Published:** 2025-10-10T00:00:00Z
+- **Published:** 2025-10-11T00:00:00Z
 - **Title:** GraphFrames 0.10.0 release
 - **Summary:** This release comes with significant performance improvements to most algorithms, as well as fixed memory leaks. The PySpark APIs for Spark Connect and Spark Classic are now synchronized with the Scala core, allowing PySpark users to benefit from the latest improvements in the GraphFrame APIs and configurations. This is the first release in which GraphFrames relies on its own internal fork of GraphX instead of Spark's built-in version. There are also improvements in motif finding. Undirected, bidirectional, and an arbitrary amount of edges can now be included in the pattern string. New algorithm for cycle detection was added. The documentation has also been significantly improved.
 
@@ -41,7 +41,7 @@ Connected Components is one of the important and used algorithm from GraphFrames
 
 **NOTE**
 
-*What is the link between connecte components and identity resolution? The answer may be not obvious, but these two are actually the same task. Let's see it on the example of identification of users based only on the meta information from their web browsers. If we have records about someone is wisiting our website from the same browser, the same IP adress, etc., most probably it is the same user. But when we have hundred billions of session logs, it may be not so obvious how to resolve the problem. And here conncted components algorithm appears. If we imagine each link like `session -> IP` or `session -> browser` as a link in the graph all that we need is to find a connected clusters from such a links and each cluster will be a user. This task is known as a [weakly connected components](https://en.wikipedia.org/wiki/Weak_component).*
+*What is the link between connectet components and identity resolution? The answer may be not obvious, but these two are actually the same task. Let's see it on the example of identification of users based only on the meta information from their web browsers. If we have records about someone is wisiting our website from the same browser, the same IP adress, etc., most probably it is the same user. But when we have hundred billions of session logs, it may be not so obvious how to resolve the problem. And here conncted components algorithm appears. If we imagine each link like `session -> IP` or `session -> browser` as a link in the graph all that we need is to find a connected clusters from such a links and each cluster will be a user. This task is known as a [weakly connected components](https://en.wikipedia.org/wiki/Weak_component).*
 
 ---
 
