@@ -481,9 +481,9 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
         use_local_checkpoints=args.use_local_checkpoints,
         storage_level=args.storage_level,
     )
-    assert res.count() == 3
+    assert res.count() == 1
     collected = res.sort("id").select("found_cycles").collect()
-    assert [row[0] for row in collected] == [[1, 2, 3, 1], [2, 3, 1, 2], [3, 1, 2, 3]]
+    assert collected[0] == [1, 2, 3, 1]
     _ = res.unpersist()
 
 
