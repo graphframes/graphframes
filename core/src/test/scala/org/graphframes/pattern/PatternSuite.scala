@@ -31,6 +31,17 @@ class PatternSuite extends SparkFunSuite {
         Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("v"))))
 
     assert(
+      Pattern.parse("(u)-[e*1]->(v)") ===
+        Seq(NamedEdge("_e1", NamedVertex("u"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[e*3]->(v)") ===
+        Seq(
+          NamedEdge("_e1", NamedVertex("u"), NamedVertex("_v1")),
+          NamedEdge("_e2", NamedVertex("_v1"), NamedVertex("_v2")),
+          NamedEdge("_e3", NamedVertex("_v2"), NamedVertex("v"))))
+
+    assert(
       Pattern.parse("()-[]->(v)") ===
         Seq(AnonymousEdge(AnonymousVertex, NamedVertex("v"))))
 
@@ -90,7 +101,7 @@ class PatternSuite extends SparkFunSuite {
     assert(
       Pattern.rewriteIncomingEdges("(u)<-[]-(v);(u)-[e]->(v)") === "(v)-[]->(u);(u)-[e]->(v)")
     assert(Pattern.rewriteIncomingEdges("(u)<-[]->(v)") === "(u)-[]->(v);(v)-[]->(u)")
-    assert(Pattern.rewriteIncomingEdges("(u)<-[e]->(v)") === "(u)-[e]->(v);(v)-[e]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]->(v)") === "(u)-[e1]->(v);(v)-[e2]->(u)")
     assert(Pattern.rewriteIncomingEdges("(u)<-[*5]-(v)") === "(v)-[*5]->(u)")
     assert(Pattern.rewriteIncomingEdges("(u)<-[*5]->(v)") === "(u)-[*5]->(v);(v)-[*5]->(u)")
     assert(
