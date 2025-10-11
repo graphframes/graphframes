@@ -101,7 +101,7 @@ class PatternSuite extends SparkFunSuite {
     assert(
       Pattern.rewriteIncomingEdges("(u)<-[]-(v);(u)-[e]->(v)") === "(v)-[]->(u);(u)-[e]->(v)")
     assert(Pattern.rewriteIncomingEdges("(u)<-[]->(v)") === "(u)-[]->(v);(v)-[]->(u)")
-    assert(Pattern.rewriteIncomingEdges("(u)<-[e]->(v)") === "(u)-[e]->(v);(v)-[e]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]->(v)") === "(u)-[e1]->(v);(v)-[e2]->(u)")
     assert(Pattern.rewriteIncomingEdges("(u)<-[*5]-(v)") === "(v)-[*5]->(u)")
     assert(Pattern.rewriteIncomingEdges("(u)<-[*5]->(v)") === "(u)-[*5]->(v);(v)-[*5]->(u)")
     assert(

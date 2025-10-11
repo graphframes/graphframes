@@ -100,7 +100,11 @@ private[graphframes] object Pattern {
         case reversedEdge(negation, dst, edge, src) =>
           s"$negation($src)-[$edge]->($dst)"
         case bidirectionalEdge(negation, src, edge, dst) =>
-          s"$negation($src)-[$edge]->($dst);($dst)-[$edge]->($src)"
+          if (edge.isEmpty || edge.contains("*")) {
+            s"$negation($src)-[$edge]->($dst);($dst)-[$edge]->($src)"
+          } else {
+            s"$negation($src)-[${edge}1]->($dst);($dst)-[${edge}2]->($src)"
+          }
         case original => original
       }
     }
