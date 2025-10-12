@@ -483,7 +483,7 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
     )
     assert res.count() == 1
     collected = res.sort("id").select("found_cycles").collect()
-    assert collected[0] == [1, 2, 3, 1]
+    assert collected[0][0] == [1, 2, 3, 1]
     _ = res.unpersist()
 
 
