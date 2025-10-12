@@ -594,6 +594,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val varEdge = g
       .find("(u)-[*2..2]->(v)")
       .where("u.id == 0")
+      .drop("_hop", "_pattern", "_direction")
 
     val fixedEdge = g
       .find("(u)-[*2]->(v)")
@@ -607,6 +608,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val varEdge = g
       .find("(u)-[*2..3]->(v)")
       .where("u.id == 0")
+      .drop("_hop", "_pattern", "_direction")
 
     val fixedEdge2 = g
       .find("(u)-[*2]->(v)")
@@ -628,7 +630,8 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .find("(u)-[e*2..3]->(v)")
       .where("u.id == 0")
 
-    val expectedCols = Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v")
+    val expectedCols =
+      Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v", "_hop", "_pattern", "_direction")
 
     assert(varEdge.schema.map(_.name) == expectedCols)
   }
@@ -637,6 +640,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val varEdge = g
       .find("(u)-[*3..5]->(v)")
       .where("u.id == 0")
+      .drop("_hop", "_pattern", "_direction")
 
     val fixedEdge3 = g
       .find("(u)-[*3]->(v)")
@@ -688,14 +692,17 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val res = g
       .find("(u)-[e*1..3]-(v)")
       .where("u.id == 2")
+      .drop("_pattern", "_direction")
 
     val df1 = g
       .find("(u)-[e*1..3]->(v)")
       .where("u.id == 2")
+      .drop("_pattern", "_direction")
 
     val df2 = g
       .find("(v)-[e*1..3]->(u)")
       .where("u.id == 2")
+      .drop("_pattern", "_direction")
 
     val expected = df1.unionByName(df2, allowMissingColumns = true)
 
