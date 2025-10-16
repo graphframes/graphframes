@@ -112,10 +112,13 @@ abstract class EdgesSamplingStrategy extends Serializable with WithIntermediateS
    * @return
    *   the estimated normalization factor, with a minimum value to avoid division by zero
    */
-  protected def estimateNormalizeFactor(edges: DataFrame, sampleSize: Double): Double = {
+  protected def estimateNormalizeFactor(
+      edges: DataFrame,
+      sampleSize: Double,
+      seed: Long): Double = {
     val estimatedSum = edges
       .select(edgeKeepProbability)
-      .sample(sampleSize)
+      .sample(sampleSize, seed)
       .select(sum(edgeKeepProbability))
       .head()
       .getDouble(0)
@@ -185,7 +188,7 @@ abstract class EdgesSamplingStrategy extends Serializable with WithIntermediateS
             case None => None
           }))
 
-    val zFactor = estimateNormalizeFactor(triplets, zSampleSize)
+    val zFactor = estimateNormalizeFactor(triplets, zSampleSize, seed)
 
     val probs = triplets
       .withColumn(
