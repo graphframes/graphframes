@@ -902,7 +902,7 @@ class GraphFrameConnect:
                 self.use_local_checkpoints = use_local_checkpoints
                 self.checkpoint_interval = checkpoint_interval
                 self.storage_level = storage_level
-                self.is_directed = bool
+                self.is_directed = is_directed
 
             @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
