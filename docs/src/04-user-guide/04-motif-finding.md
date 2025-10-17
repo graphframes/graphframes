@@ -45,7 +45,7 @@ Restrictions:
 
 * Motifs are not allowed to contain edges without any named elements: `"()-[]->()"` and `"!()-[]->()"` are prohibited terms.
 * Motifs are not allowed to contain named edges within negated terms (since these named edges would never appear within results).  E.g., `"!(a)-[ab]->(b)"` is invalid, but `"!(a)-[]->(b)"` is valid.
-* Negation is not supported for the variable-length pattern and undirected pattern: `"!(a)-[*1..3]->(b)"` and `"!(a)-[]-(b)"` are not allowed.
+* Negation is not supported for the variable-length pattern, bidirectional pattern and undirected pattern: `"!(a)-[*1..3]->(b)"`, `"!(a)<-[]->(b)"` and `"!(a)-[]-(b)"` are not allowed.
 * Unbounded length patten is not supported: `"(a)-[*..3]->(b)"` and `"(a)-[*1..]->(b)"` are not allowed.
 * You cannot join additional edges with the variable length pattern: `"(a)-[*1..3]-(b);(b)-[]-(c)"`is not valid.
 

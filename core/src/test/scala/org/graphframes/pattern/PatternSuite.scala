@@ -187,6 +187,11 @@ class PatternSuite extends SparkFunSuite {
         Pattern.parse("(a)-[e]->(b); ()-[e]->()")
       }
     }
+    withClue("Failed to catch parse error with not support negated bidirectional edge") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!(u)<-[]->(v)")
+      }
+    }
   }
 
   test("unsupported parse on the fixed length patterns") {
