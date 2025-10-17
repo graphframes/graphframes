@@ -553,6 +553,7 @@ class GraphFrame:
         use_local_checkpoints: bool = False,
         checkpoint_interval: int = 2,
         storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+        is_directed: bool = True,
     ) -> DataFrame:
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
@@ -568,10 +569,11 @@ class GraphFrame:
                                       a persistent checkpointDir; from the other side, local
                                       checkpoints are less reliable and require executors to have
                                       big enough local disks.
-        :checkpoint_interval: How often should the intermediate result be checkpointed;
+        :param checkpoint_interval: How often should the intermediate result be checkpointed;
                               Using big value here may tend to huge logical plan growth due
                               to the iterative nature of the algorithm.
         :param storage_level: storage level for both intermediate and final dataframes.
+        :param is_directed: should algorithm find directed paths or any paths.
 
         :return: persistent DataFrame with new vertices column "distances"
         """  # noqa: E501
@@ -581,6 +583,7 @@ class GraphFrame:
             use_local_checkpoints=use_local_checkpoints,
             checkpoint_interval=checkpoint_interval,
             storage_level=storage_level,
+            is_directed=is_directed,
         )
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:

@@ -288,6 +288,7 @@ class GraphFrame:
         use_local_checkpoints: bool,
         checkpoint_interval: int,
         storage_level: StorageLevel,
+        is_directed: bool,
     ) -> DataFrame:
         jdf = (
             self._jvm_graph.shortestPaths()
@@ -296,6 +297,7 @@ class GraphFrame:
             .setUseLocalCheckpoints(use_local_checkpoints)
             .setCheckpointInterval(checkpoint_interval)
             .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+            .setIsDirected(is_directed)
             .run()
         )
         return DataFrame(jdf, self._spark)
