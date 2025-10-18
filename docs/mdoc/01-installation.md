@@ -121,10 +121,12 @@ GraphFrames project is publishing SNAPSHOTS (nightly builds) to the "Central Por
 GroupId: `io.graphframes`
 ArtifactIds:
 
-* `graphframes-spark3_2.12`
-* `graphframes-spark3_2.13`
-* `graphframes-connect-spark3_2.12`
-* `graphframes-connect-spark3_2.13`
-* `graphframes-spark4_2.13`
-* `graphframes-connect-spark4_2.13`
-
+- `graphframes-spark3_2.12`
+- `graphframes-spark3_2.13`
+- `graphframes-connect-spark3_2.12`
+- `graphframes-connect-spark3_2.13`
+- `graphframes-graphx-spark3_2.12`
+- `graphframes-graphx-spark3_2.13`
+- `graphframes-spark4_2.13`
+- `graphframes-connect-spark4_2.13`
+- `graphframes-graphx-spark4_2.13`

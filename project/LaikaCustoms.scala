@@ -13,10 +13,12 @@ import laika.theme.ThemeProvider
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import scala.util.Try
 import scala.util.Using
 import scala.util.matching.Regex
-
 import scala.collection.JavaConverters.*
 
 object LaikaCustoms {
@@ -42,14 +44,17 @@ object LaikaCustoms {
         updated: String,
         id: String,
         summary: String): String = {
+      val updatedParsed = OffsetDateTime.parse(updated)
+      val updatedFormatted = updatedParsed.format(
+        DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US))
       s"""
-         |\t<entry>
-         |\t\t<title>$title</title>
-         |\t\t<link href="$link"/>
-         |\t\t<id>$id</id>
-         |\t\t<updated>$updated</updated>
-         |\t\t<summary>$summary</summary>
-         |\t</entry>
+         |\t\t<item>
+         |\t\t\t<title>$title</title>
+         |\t\t\t<link>$link</link>
+         |\t\t\t<guid isPermaLink="false">$id</guid>
+         |\t\t\t<pubDate>$updatedFormatted</pubDate>
+         |\t\t\t<description>$summary</description>
+         |\t\t</item>
          |
          |""".stripMargin
     }
@@ -92,18 +97,27 @@ object LaikaCustoms {
           }
         }
 
+    val lastBuildDate = {
+      val parsed = OffsetDateTime.parse(collected._2)
+      val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US)
+      formatter.format(parsed)
+    }
+
     val header =
       s"""<?xml version="1.0" encoding="utf-8"?>
-        |<feed xmlns="http://www.w3.org/2005/Atom">
+        |<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
         |
-        |\t<title>GraphFrames Blog</title>
-        |\t<id>${baseUrl}</id>
-        |\t<link href="${baseUrl}/05-blog/}/"/>
-        |\t<updated>${collected._2}</updated>
+        |\t<channel>
+        |
+        |\t\t<title>GraphFrames Blog</title>
+        |\t\t<description>GraphFrames Project Blog</description>
+        |\t\t<link>${baseUrl}/05-blog/</link>
+        |\t\t<lastBuildDate>${lastBuildDate}</lastBuildDate>
+        |\t\t<managingEditor>ssinchenko@apache.org (Sem Sinchenko)</managingEditor>
         |
         |""".stripMargin
 
-    val feedContent = header + collected._1.append("</feed>").mkString
+    val feedContent = header + collected._1.append("\n\t</channel>\n</rss>").mkString
     val feedFile = blogDir.resolve("feed.xml")
     Files.write(feedFile, feedContent.getBytes)
   }
