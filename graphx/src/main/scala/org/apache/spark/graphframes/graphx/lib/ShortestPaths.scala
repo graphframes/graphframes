@@ -56,12 +56,17 @@ object ShortestPaths extends Serializable {
    *   the graph for which to compute the shortest paths
    * @param landmarks
    *   the list of landmark vertex ids. Shortest paths will be computed to each landmark.
+   * @param isDirected
+   *   should only directed paths be returned (default true)
    *
    * @return
    *   a graph where each vertex attribute is a map containing the shortest-path distance to each
    *   reachable landmark vertex.
    */
-  def run[VD, ED: ClassTag](graph: Graph[VD, ED], landmarks: Seq[VertexId]): Graph[SPMap, ED] = {
+  def run[VD, ED: ClassTag](
+      graph: Graph[VD, ED],
+      landmarks: Seq[VertexId],
+      isDirected: Boolean = true): Graph[SPMap, ED] = {
     val spGraph = graph.mapVertices { (vid, _) =>
       if (landmarks.contains(vid)) makeMap(vid -> 0) else makeMap()
     }
@@ -73,10 +78,29 @@ object ShortestPaths extends Serializable {
       addMaps(attr, msg)
     }
 
-    def sendMessage(edge: EdgeTriplet[SPMap, _]): Iterator[(VertexId, SPMap)] = {
-      val newAttr = incrementMap(edge.dstAttr)
-      if (edge.srcAttr != addMaps(newAttr, edge.srcAttr)) Iterator((edge.srcId, newAttr))
-      else Iterator.empty
+    val sendMessage: (EdgeTriplet[SPMap, _]) => Iterator[(VertexId, SPMap)] = if (isDirected) {
+      (edge: EdgeTriplet[SPMap, _]) =>
+        {
+          val newAttr = incrementMap(edge.dstAttr)
+          if (edge.srcAttr != addMaps(newAttr, edge.srcAttr)) Iterator((edge.srcId, newAttr))
+          else Iterator.empty
+        }
+    } else { (edge: EdgeTriplet[SPMap, _]) =>
+      {
+        val newDstAttr = incrementMap(edge.dstAttr)
+        val newSrcAttr = incrementMap(edge.srcAttr)
+
+        val srcIter =
+          if (edge.srcAttr != addMaps(newDstAttr, edge.srcAttr))
+            Iterator((edge.srcId, newDstAttr))
+          else Iterator.empty
+        val dstIter =
+          if (edge.dstAttr != addMaps(newSrcAttr, edge.dstAttr))
+            Iterator((edge.dstId, newSrcAttr))
+          else Iterator.empty
+
+        srcIter ++ dstIter
+      }
     }
 
     Pregel(spGraph, initialMessage)(vertexProgram, sendMessage, addMaps)
