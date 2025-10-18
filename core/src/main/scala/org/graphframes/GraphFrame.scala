@@ -617,6 +617,15 @@ class GraphFrame private (
   }
 
   /**
+   * K-Core decomposition.
+   *
+   * See [[org.graphframes.lib.KCore]] for more details.
+   *
+   * @group stdlib
+   */
+  def kCore: KCore = new KCore(this)
+
+  /**
    * Validates the consistency and integrity of a graph by performing checks on the vertices and
    * edges.
    *
