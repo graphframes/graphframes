@@ -8,3 +8,17 @@ Copyright 2014-2025 The Apache Software Foundation.
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
+
+This product includes wiki-Vote dataset from SNAP collection for testing purposes only.
+Citation:
+    J. Leskovec, D. Huttenlocher, J. Kleinberg. Signed Networks in Social Media. CHI 2010.
+    J. Leskovec, D. Huttenlocher, J. Kleinberg. Predicting Positive and Negative Links in Online Social Networks. WWW 2010.
+
+SNAP Datasets:
+@misc{snapnets,
+    author       = {Jure Leskovec and Andrej Krevl},
+    title        = {{SNAP Datasets}: {Stanford} Large Network Dataset Collection},
+    howpublished = {\url{http://snap.stanford.edu/data}},
+    month        = jun,
+    year         = 2014
+}
