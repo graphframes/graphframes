@@ -154,6 +154,7 @@ This resources are provided by the community:
 - [Graph Operations in Apache Spark Using GraphFrames](https://www.pluralsight.com/courses/apache-spark-graphframes-graph-operations)
 - [Executing Graph Algorithms with GraphFrames on Databricks](https://www.pluralsight.com/courses/executing-graph-algorithms-graphframes-databricks)
 - [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
+- [Sustainability in Aluminum Production](https://www.databricks.com/blog/sustainability-aluminum-production)
 
 ## GraphFrames Internals
 
