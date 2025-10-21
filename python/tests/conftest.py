@@ -5,8 +5,8 @@ import pathlib
 import tempfile
 import warnings
 
-from py4j.java_gateway import JavaObject
 import pytest
+from py4j.java_gateway import JavaObject
 from pyspark.sql import SparkSession
 from pyspark.version import __version__
 

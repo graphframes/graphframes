@@ -17,15 +17,16 @@
 
 
 from dataclasses import dataclass
-from pyspark.storagelevel import StorageLevel
+
 import pytest
-from pyspark.sql import DataFrame, SparkSession, functions as sqlfunctions
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as sqlfunctions
+from pyspark.sql.utils import is_remote
+from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.graphframe import _from_java_gf
 from graphframes.examples import BeliefPropagation, Graphs
 from graphframes.graphframe import GraphFrame
-
-from pyspark.sql.utils import is_remote
 
 
 @dataclass
@@ -93,9 +94,7 @@ def test_validate(spark: SparkSession) -> None:
     good_g.validate()  # no exception should be thrown
 
     not_distinct_vertices = GraphFrame(
-        spark.createDataFrame([(1, "a"), (2, "b"), (3, "c"), (1, "d")]).toDF(
-            "id", "attr"
-        ),
+        spark.createDataFrame([(1, "a"), (2, "b"), (3, "c"), (1, "d")]).toDF("id", "attr"),
         spark.createDataFrame([(1, 2), (2, 1), (2, 3)]).toDF("src", "dst"),
     )
     with pytest.raises(ValueError):
@@ -199,15 +198,16 @@ def test_type_degrees(local_g: GraphFrame) -> None:
     assert field_names == {"love", "hate", "follow"}
 
     results = {row.id: row.degrees for row in typeDeg.collect()}
-    assert results[1].love == 1 
-    assert results[1].hate == 1 
+    assert results[1].love == 1
+    assert results[1].hate == 1
     assert results[1].follow == 0
-    assert results[2].love == 1 
-    assert results[2].hate == 1 
-    assert results[2].follow == 1 
+    assert results[2].love == 1
+    assert results[2].hate == 1
+    assert results[2].follow == 1
     assert results[3].love == 0
     assert results[3].hate == 0
-    assert results[3].follow == 1 
+    assert results[3].follow == 1
+
 
 def test_motif_finding(local_g: GraphFrame) -> None:
     motifs = local_g.find("(a)-[e]->(b)")
@@ -500,9 +500,9 @@ def test_strongly_connected_components(spark: SparkSession) -> None:
     g = GraphFrame(vertices, edges)
     c = g.stronglyConnectedComponents(5)
     for row in c.collect():
-        assert row.id == row.component, (
-            f"Vertex {row.id} not equal to its component {row.component}"
-        )
+        assert (
+            row.id == row.component
+        ), f"Vertex {row.id} not equal to its component {row.component}"
     _ = c.unpersist()
 
 
@@ -513,9 +513,7 @@ def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel) -> No
     g = GraphFrame(vertices, edges)
     c = g.triangleCount(storage_level=storage_level)
     for row in c.select("id", "count").collect():
-        assert row.asDict()["count"] == 1, (
-            f"Triangle count for vertex {row.id} is not 1"
-        )
+        assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
     _ = c.unpersist()
 
 
@@ -524,9 +522,7 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
     vertices = spark.createDataFrame(
         [(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")], ["id", "attr"]
     )
-    edges = spark.createDataFrame(
-        [(1, 2), (2, 3), (3, 1), (1, 4), (2, 5)], ["src", "dst"]
-    )
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 1), (1, 4), (2, 5)], ["src", "dst"])
     graph = GraphFrame(vertices, edges)
     res = graph.detectingCycles(
         checkpoint_interval=args.checkpoint_interval,
@@ -581,9 +577,7 @@ def test_belief_propagation(spark: SparkSession):
     # Check that each belief is a valid probability in [0, 1].
     for row in results.vertices.select("belief").collect():
         belief = row["belief"]
-        assert 0 <= belief <= 1, (
-            f"Expected belief to be probability in [0,1], but found {belief}"
-        )
+        assert 0 <= belief <= 1, f"Expected belief to be probability in [0,1], but found {belief}"
 
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")

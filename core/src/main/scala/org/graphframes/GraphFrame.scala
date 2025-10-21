@@ -310,7 +310,7 @@ class GraphFrame private (
       .agg(count("*").cast("int").as("degree"))
   }
 
-    /**
+  /**
    * The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
    *   - [[GraphFrame.ID]] the ID of the vertex
    *   - "outDegrees" a struct with a field for each edge type, storing the out-degree count
@@ -325,7 +325,9 @@ class GraphFrame private (
     val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
 
     val aggExprs = edgeTypes.map { edgeType =>
-      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0)).cast("int").as(edgeType.toString)
+      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0))
+        .cast("int")
+        .as(edgeType.toString)
     }
 
     edges
@@ -348,7 +350,9 @@ class GraphFrame private (
     val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
 
     val aggExprs = edgeTypes.map { edgeType =>
-      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0)).cast("int").as(edgeType.toString)
+      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0))
+        .cast("int")
+        .as(edgeType.toString)
     }
 
     edges
@@ -372,7 +376,9 @@ class GraphFrame private (
     val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
 
     val aggExprs = edgeTypes.map { edgeType =>
-      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0)).cast("int").as(edgeType.toString)
+      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0))
+        .cast("int")
+        .as(edgeType.toString)
     }
 
     edges

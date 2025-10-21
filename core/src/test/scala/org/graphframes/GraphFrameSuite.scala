@@ -340,7 +340,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(g.typeOutDegree("action").columns === Seq("id", "outDegrees"))
     val typeOutDegrees = g.typeOutDegree("action").collect()
 
-    val outDegreesSchema = g.typeOutDegree("action").schema("outDegrees").dataType.asInstanceOf[StructType]
+    val outDegreesSchema =
+      g.typeOutDegree("action").schema("outDegrees").dataType.asInstanceOf[StructType]
     val outDegreesFieldNames = outDegreesSchema.fields.map(_.name).toSet
     assert(outDegreesFieldNames === Set("love", "hate", "follow"))
 
@@ -361,7 +362,8 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(g.typeInDegree("action").columns === Seq("id", "inDegrees"))
     val typeInDegrees = g.typeInDegree("action").collect()
 
-    val inDegreesSchema = g.typeInDegree("action").schema("inDegrees").dataType.asInstanceOf[StructType]
+    val inDegreesSchema =
+      g.typeInDegree("action").schema("inDegrees").dataType.asInstanceOf[StructType]
     val inDegreesFieldNames = inDegreesSchema.fields.map(_.name).toSet
     assert(inDegreesFieldNames === Set("love", "hate", "follow"))
 
@@ -408,7 +410,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(typeDegMap(3L).getAs[Int]("hate") === 0)
     assert(typeDegMap(3L).getAs[Int]("follow") === 1)
   }
-  
+
   test("cache") {
     val g = GraphFrame(vertices, edges)
 
