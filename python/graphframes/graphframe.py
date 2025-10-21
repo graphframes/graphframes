@@ -225,6 +225,79 @@ class GraphFrame:
             .agg(F.count("*").alias("degree"))
         )
 
+
+    def typeOutDegree(self, edgeTypeCol: str) -> DataFrame:
+        """
+        The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
+         - "id": the ID of the vertex
+         - "outDegrees": a struct with a field for each edge type, storing the out-degree count
+
+        :param edgeTypeCol: Name of the column in edges DataFrame that contains edge types
+        :return: DataFrame with columns "id" and "outDegrees" (struct type)
+        """
+        edge_types = [row[0] for row in self._impl._edges.select(edgeTypeCol).distinct().collect()]
+
+        agg_exprs = [
+            F.sum(F.when(F.col(edgeTypeCol) == edge_type, 1).otherwise(0)).cast("int").alias(edge_type)
+            for edge_type in edge_types
+        ]
+
+        result = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).agg(
+            F.struct(*agg_exprs).alias("outDegrees")
+        )
+
+        return result
+
+    def typeInDegree(self, edgeTypeCol: str) -> DataFrame:
+        """
+        The in-degree of each vertex per edge type, returned as a DataFrame with two columns:
+         - "id": the ID of the vertex
+         - "inDegrees": a struct with a field for each edge type, storing the in-degree count
+
+        :param edgeTypeCol: Name of the column in edges DataFrame that contains edge types
+        :return: DataFrame with columns "id" and "inDegrees" (struct type)
+        """
+        edge_types = [row[0] for row in self._impl._edges.select(edgeTypeCol).distinct().collect()]
+
+        agg_exprs = [
+            F.sum(F.when(F.col(edgeTypeCol) == edge_type, 1).otherwise(0)).cast("int").alias(edge_type)
+            for edge_type in edge_types
+        ]
+
+        result = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).agg(
+            F.struct(*agg_exprs).alias("inDegrees")
+        )
+
+        return result
+
+    def typeDegree(self, edgeTypeCol: str) -> DataFrame:
+        """
+        The total degree of each vertex per edge type (both in and out), returned as a DataFrame with two columns:
+         - "id": the ID of the vertex
+         - "degrees": a struct with a field for each edge type, storing the total degree count
+
+        :param edgeTypeCol: Name of the column in edges DataFrame that contains edge types
+        :return: DataFrame with columns "id" and "degrees" (struct type)
+        """
+        edge_types = [row[0] for row in self._impl._edges.select(edgeTypeCol).distinct().collect()]
+
+        agg_exprs = [
+            F.sum(F.when(F.col(edgeTypeCol) == edge_type, 1).otherwise(0)).cast("int").alias(edge_type)
+            for edge_type in edge_types
+        ]
+
+        result = (
+            self._impl._edges.select(
+                F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID),
+                F.col(edgeTypeCol)
+            )
+            .groupBy(self.ID)
+            .agg(F.struct(*agg_exprs).alias("degrees"))
+        )
+
+        return result
+
+
     @property
     def triplets(self) -> DataFrame:
         """

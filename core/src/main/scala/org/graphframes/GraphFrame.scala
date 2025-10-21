@@ -310,6 +310,77 @@ class GraphFrame private (
       .agg(count("*").cast("int").as("degree"))
   }
 
+    /**
+   * The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "outDegrees" a struct with a field for each edge type, storing the out-degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @group degree
+   */
+  def typeOutDegree(edgeTypeCol: String): DataFrame = {
+    import org.apache.spark.sql.functions.{sum, when}
+
+    val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
+
+    val aggExprs = edgeTypes.map { edgeType =>
+      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0)).cast("int").as(edgeType.toString)
+    }
+
+    edges
+      .groupBy(col(SRC).as(ID))
+      .agg(struct(aggExprs.toSeq: _*).as("outDegrees"))
+  }
+
+  /**
+   * The in-degree of each vertex per edge type, returned as a DataFrame with two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "inDegrees" a struct with a field for each edge type, storing the in-degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @group degree
+   */
+  def typeInDegree(edgeTypeCol: String): DataFrame = {
+    import org.apache.spark.sql.functions.{sum, when}
+
+    val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
+
+    val aggExprs = edgeTypes.map { edgeType =>
+      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0)).cast("int").as(edgeType.toString)
+    }
+
+    edges
+      .groupBy(col(DST).as(ID))
+      .agg(struct(aggExprs.toSeq: _*).as("inDegrees"))
+  }
+
+  /**
+   * The total degree of each vertex per edge type (both in and out), returned as a DataFrame with
+   * two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "degrees" a struct with a field for each edge type, storing the total degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @group degree
+   */
+  def typeDegree(edgeTypeCol: String): DataFrame = {
+    import org.apache.spark.sql.functions.{sum, when}
+
+    val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
+
+    val aggExprs = edgeTypes.map { edgeType =>
+      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0)).cast("int").as(edgeType.toString)
+    }
+
+    edges
+      .select(explode(array(col(SRC), col(DST))).as(ID), col(edgeTypeCol))
+      .groupBy(ID)
+      .agg(struct(aggExprs.toSeq: _*).as("degrees"))
+  }
+
   // ============================ Motif finding ========================================
 
   /**

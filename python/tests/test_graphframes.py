@@ -157,6 +157,58 @@ def test_degrees(local_g: GraphFrame) -> None:
     assert set(deg.columns) == {"id", "degree"}
 
 
+def test_type_degrees(local_g: GraphFrame) -> None:
+    typeOutDeg = local_g.typeOutDegree("action")
+    assert set(typeOutDeg.columns) == {"id", "outDegrees"}
+
+    schema = typeOutDeg.schema["outDegrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.outDegrees for row in typeOutDeg.collect()}
+    assert results[1].love == 1
+    assert results[1].hate == 0
+    assert results[1].follow == 0
+    assert results[2].love == 0
+    assert results[2].hate == 1
+    assert results[2].follow == 1
+
+    typeInDeg = local_g.typeInDegree("action")
+    assert set(typeInDeg.columns) == {"id", "inDegrees"}
+
+    schema = typeInDeg.schema["inDegrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.inDegrees for row in typeInDeg.collect()}
+    assert results[1].love == 0
+    assert results[1].hate == 1
+    assert results[1].follow == 0
+    assert results[2].love == 1
+    assert results[2].hate == 0
+    assert results[2].follow == 0
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1
+
+    typeDeg = local_g.typeDegree("action")
+    assert set(typeDeg.columns) == {"id", "degrees"}
+
+    schema = typeDeg.schema["degrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.degrees for row in typeDeg.collect()}
+    assert results[1].love == 1 
+    assert results[1].hate == 1 
+    assert results[1].follow == 0
+    assert results[2].love == 1 
+    assert results[2].hate == 1 
+    assert results[2].follow == 1 
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1 
+
 def test_motif_finding(local_g: GraphFrame) -> None:
     motifs = local_g.find("(a)-[e]->(b)")
     assert motifs.count() == 3
