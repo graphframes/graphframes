@@ -317,22 +317,25 @@ class GraphFrame private (
    *
    * @param edgeTypeCol
    *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If provided, avoids a collect() operation. If None,
+   *   edge types will be discovered automatically.
    * @group degree
    */
-  def typeOutDegree(edgeTypeCol: String): DataFrame = {
-    import org.apache.spark.sql.functions.{sum, when}
+  def typeOutDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    import org.apache.spark.sql.functions.coalesce
 
-    val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
-
-    val aggExprs = edgeTypes.map { edgeType =>
-      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0))
-        .cast("int")
-        .as(edgeType.toString)
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol, types)
+      case None =>
+        edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol)
     }
-
-    edges
-      .groupBy(col(SRC).as(ID))
-      .agg(struct(aggExprs.toSeq: _*).as("outDegrees"))
+    val countDF = pivotDF.agg(count("*"))
+    val structCols = countDF.columns.filter(_ != ID).map { colName =>
+      coalesce(col(colName), lit(0)).cast("int").as(colName)
+    }
+    countDF.select(col(ID), struct(structCols: _*).as("outDegrees"))
   }
 
   /**
@@ -342,22 +345,25 @@ class GraphFrame private (
    *
    * @param edgeTypeCol
    *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If provided, avoids a collect() operation. If None,
+   *   edge types will be discovered automatically.
    * @group degree
    */
-  def typeInDegree(edgeTypeCol: String): DataFrame = {
-    import org.apache.spark.sql.functions.{sum, when}
+  def typeInDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    import org.apache.spark.sql.functions.coalesce
 
-    val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
-
-    val aggExprs = edgeTypes.map { edgeType =>
-      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0))
-        .cast("int")
-        .as(edgeType.toString)
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol, types)
+      case None =>
+        edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol)
     }
-
-    edges
-      .groupBy(col(DST).as(ID))
-      .agg(struct(aggExprs.toSeq: _*).as("inDegrees"))
+    val countDF = pivotDF.agg(count("*"))
+    val structCols = countDF.columns.filter(_ != ID).map { colName =>
+      coalesce(col(colName), lit(0)).cast("int").as(colName)
+    }
+    countDF.select(col(ID), struct(structCols: _*).as("inDegrees"))
   }
 
   /**
@@ -368,23 +374,27 @@ class GraphFrame private (
    *
    * @param edgeTypeCol
    *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If provided, avoids a collect() operation. If None,
+   *   edge types will be discovered automatically.
    * @group degree
    */
-  def typeDegree(edgeTypeCol: String): DataFrame = {
-    import org.apache.spark.sql.functions.{sum, when}
+  def typeDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    import org.apache.spark.sql.functions.coalesce
+    val explodedEdges = edges.select(explode(array(col(SRC), col(DST))).as(ID), col(edgeTypeCol))
 
-    val edgeTypes = edges.select(edgeTypeCol).distinct().collect().map(_.get(0))
-
-    val aggExprs = edgeTypes.map { edgeType =>
-      sum(when(col(edgeTypeCol) === lit(edgeType), 1).otherwise(0))
-        .cast("int")
-        .as(edgeType.toString)
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        explodedEdges.groupBy(ID).pivot(edgeTypeCol, types)
+      case None =>
+        explodedEdges.groupBy(ID).pivot(edgeTypeCol)
+    }
+    val countDF = pivotDF.agg(count("*"))
+    val structCols = countDF.columns.filter(_ != ID).map { colName =>
+      coalesce(col(colName), lit(0)).cast("int").as(colName)
     }
 
-    edges
-      .select(explode(array(col(SRC), col(DST))).as(ID), col(edgeTypeCol))
-      .groupBy(ID)
-      .agg(struct(aggExprs.toSeq: _*).as("degrees"))
+    countDF.select(col(ID), struct(structCols: _*).as("degrees"))
   }
 
   // ============================ Motif finding ========================================

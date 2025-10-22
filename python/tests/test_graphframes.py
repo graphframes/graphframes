@@ -157,14 +157,14 @@ def test_degrees(local_g: GraphFrame) -> None:
 
 
 def test_type_degrees(local_g: GraphFrame) -> None:
-    typeOutDeg = local_g.typeOutDegree("action")
-    assert set(typeOutDeg.columns) == {"id", "outDegrees"}
+    type_out_degree = local_g.type_out_degree("action")
+    assert set(type_out_degree.columns) == {"id", "outDegrees"}
 
-    schema = typeOutDeg.schema["outDegrees"].dataType
+    schema = type_out_degree.schema["outDegrees"].dataType
     field_names = {field.name for field in schema.fields}
     assert field_names == {"love", "hate", "follow"}
 
-    results = {row.id: row.outDegrees for row in typeOutDeg.collect()}
+    results = {row.id: row.outDegrees for row in type_out_degree.collect()}
     assert results[1].love == 1
     assert results[1].hate == 0
     assert results[1].follow == 0
@@ -172,14 +172,14 @@ def test_type_degrees(local_g: GraphFrame) -> None:
     assert results[2].hate == 1
     assert results[2].follow == 1
 
-    typeInDeg = local_g.typeInDegree("action")
-    assert set(typeInDeg.columns) == {"id", "inDegrees"}
+    type_in_degree = local_g.type_in_degree("action")
+    assert set(type_in_degree.columns) == {"id", "inDegrees"}
 
-    schema = typeInDeg.schema["inDegrees"].dataType
+    schema = type_in_degree.schema["inDegrees"].dataType
     field_names = {field.name for field in schema.fields}
     assert field_names == {"love", "hate", "follow"}
 
-    results = {row.id: row.inDegrees for row in typeInDeg.collect()}
+    results = {row.id: row.inDegrees for row in type_in_degree.collect()}
     assert results[1].love == 0
     assert results[1].hate == 1
     assert results[1].follow == 0
@@ -190,14 +190,60 @@ def test_type_degrees(local_g: GraphFrame) -> None:
     assert results[3].hate == 0
     assert results[3].follow == 1
 
-    typeDeg = local_g.typeDegree("action")
-    assert set(typeDeg.columns) == {"id", "degrees"}
+    type_degree = local_g.type_degree("action")
+    assert set(type_degree.columns) == {"id", "degrees"}
 
-    schema = typeDeg.schema["degrees"].dataType
+    schema = type_degree.schema["degrees"].dataType
     field_names = {field.name for field in schema.fields}
     assert field_names == {"love", "hate", "follow"}
 
-    results = {row.id: row.degrees for row in typeDeg.collect()}
+    results = {row.id: row.degrees for row in type_degree.collect()}
+    assert results[1].love == 1
+    assert results[1].hate == 1
+    assert results[1].follow == 0
+    assert results[2].love == 1
+    assert results[2].hate == 1
+    assert results[2].follow == 1
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1
+
+
+def test_type_degrees_with_explicit_types(local_g: GraphFrame) -> None:
+    edge_types = ["love", "hate", "follow"]
+    type_out_degree = local_g.type_out_degree("action", edge_types)
+    assert set(type_out_degree.columns) == {"id", "outDegrees"}
+
+    schema = type_out_degree.schema["outDegrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.outDegrees for row in type_out_degree.collect()}
+    assert results[1].love == 1
+    assert results[1].hate == 0
+    assert results[1].follow == 0
+    assert results[2].love == 0
+    assert results[2].hate == 1
+    assert results[2].follow == 1
+
+    type_in_degree = local_g.type_in_degree("action", edge_types)
+    assert set(type_in_degree.columns) == {"id", "inDegrees"}
+
+    results = {row.id: row.inDegrees for row in type_in_degree.collect()}
+    assert results[1].love == 0
+    assert results[1].hate == 1
+    assert results[1].follow == 0
+    assert results[2].love == 1
+    assert results[2].hate == 0
+    assert results[2].follow == 0
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1
+
+    type_degree = local_g.type_degree("action", edge_types)
+    assert set(type_degree.columns) == {"id", "degrees"}
+
+    results = {row.id: row.degrees for row in type_degree.collect()}
     assert results[1].love == 1
     assert results[1].hate == 1
     assert results[1].follow == 0

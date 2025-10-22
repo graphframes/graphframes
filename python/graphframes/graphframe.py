@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from pyspark.sql import functions as F
 from pyspark.storagelevel import StorageLevel
@@ -225,83 +225,96 @@ class GraphFrame:
             .agg(F.count("*").alias("degree"))
         )
 
-    def typeOutDegree(self, edgeTypeCol: str) -> DataFrame:
+    def type_out_degree(
+        self, edge_type_col: str, edge_types: Optional[List[Any]] = None
+    ) -> DataFrame:
         """
         The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
          - "id": the ID of the vertex
          - "outDegrees": a struct with a field for each edge type, storing the out-degree count
 
-        :param edgeTypeCol: Name of the column in edges DataFrame that contains edge types
+        :param edge_type_col: Name of the column in edges DataFrame that contains edge types
+        :param edge_types: Optional list of edge type values. If provided, avoids a collect() operation.
+                         If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "outDegrees" (struct type)
         """
-        edge_types = [row[0] for row in self._impl._edges.select(edgeTypeCol).distinct().collect()]
+        if edge_types is not None:
+            pivot_df = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).pivot(
+                edge_type_col, edge_types
+            )
+        else:
+            pivot_df = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).pivot(
+                edge_type_col
+            )
 
-        agg_exprs = [
-            F.sum(F.when(F.col(edgeTypeCol) == edge_type, 1).otherwise(0))
-            .cast("int")
-            .alias(edge_type)
-            for edge_type in edge_types
+        count_df = pivot_df.agg(F.count("*"))
+        struct_cols = [
+            F.coalesce(F.col(col_name), F.lit(0)).cast("int").alias(col_name)
+            for col_name in count_df.columns
+            if col_name != self.ID
         ]
 
-        result = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).agg(
-            F.struct(*agg_exprs).alias("outDegrees")
-        )
+        return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("outDegrees"))
 
-        return result
-
-    def typeInDegree(self, edgeTypeCol: str) -> DataFrame:
+    def type_in_degree(
+        self, edge_type_col: str, edge_types: Optional[List[Any]] = None
+    ) -> DataFrame:
         """
         The in-degree of each vertex per edge type, returned as a DataFrame with two columns:
          - "id": the ID of the vertex
          - "inDegrees": a struct with a field for each edge type, storing the in-degree count
 
-        :param edgeTypeCol: Name of the column in edges DataFrame that contains edge types
+        :param edge_type_col: Name of the column in edges DataFrame that contains edge types
+        :param edge_types: Optional list of edge type values. If provided, avoids a collect() operation.
+                         If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "inDegrees" (struct type)
         """
-        edge_types = [row[0] for row in self._impl._edges.select(edgeTypeCol).distinct().collect()]
+        if edge_types is not None:
+            pivot_df = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).pivot(
+                edge_type_col, edge_types
+            )
+        else:
+            pivot_df = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).pivot(
+                edge_type_col
+            )
 
-        agg_exprs = [
-            F.sum(F.when(F.col(edgeTypeCol) == edge_type, 1).otherwise(0))
-            .cast("int")
-            .alias(edge_type)
-            for edge_type in edge_types
+        count_df = pivot_df.agg(F.count("*"))
+        struct_cols = [
+            F.coalesce(F.col(col_name), F.lit(0)).cast("int").alias(col_name)
+            for col_name in count_df.columns
+            if col_name != self.ID
         ]
+        return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("inDegrees"))
 
-        result = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).agg(
-            F.struct(*agg_exprs).alias("inDegrees")
-        )
-
-        return result
-
-    def typeDegree(self, edgeTypeCol: str) -> DataFrame:
+    def type_degree(self, edge_type_col: str, edge_types: Optional[List[Any]] = None) -> DataFrame:
         """
-        The total degree of each vertex per edge type (both in and out), returned as a DataFrame
-        with two columns:
+        The total degree of each vertex per edge type (both in and out), returned as a DataFrame with two columns:
          - "id": the ID of the vertex
          - "degrees": a struct with a field for each edge type, storing the total degree count
 
-        :param edgeTypeCol: Name of the column in edges DataFrame that contains edge types
+        :param edge_type_col: Name of the column in edges DataFrame that contains edge types
+        :param edge_types: Optional list of edge type values. If provided, avoids a collect() operation.
+                         If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "degrees" (struct type)
         """
-        edge_types = [row[0] for row in self._impl._edges.select(edgeTypeCol).distinct().collect()]
-
-        agg_exprs = [
-            F.sum(F.when(F.col(edgeTypeCol) == edge_type, 1).otherwise(0))
-            .cast("int")
-            .alias(edge_type)
-            for edge_type in edge_types
-        ]
-
-        result = (
-            self._impl._edges.select(
-                F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID),
-                F.col(edgeTypeCol),
-            )
-            .groupBy(self.ID)
-            .agg(F.struct(*agg_exprs).alias("degrees"))
+        exploded_edges = self._impl._edges.select(
+            F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID),
+            F.col(edge_type_col),
         )
 
-        return result
+        if edge_types is not None:
+            pivot_df = exploded_edges.groupBy(self.ID).pivot(edge_type_col, edge_types)
+        else:
+            pivot_df = exploded_edges.groupBy(self.ID).pivot(edge_type_col)
+
+        count_df = pivot_df.agg(F.count("*"))
+        struct_cols = [
+            F.coalesce(F.col(col_name), F.lit(0)).cast("int").alias(col_name)
+            for col_name in count_df.columns
+            if col_name != self.ID
+        ]
+
+        return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("degrees"))
 
     @property
     def triplets(self) -> DataFrame:
