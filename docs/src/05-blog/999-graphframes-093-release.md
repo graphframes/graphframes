@@ -2,10 +2,7 @@
 
 - **Published:** 2025-09-10T00:00:00Z
 - **Title:** GraphFrames 0.9.3 release
-- **Summary:** This release comes with redesigned documentation and improvements. A new PropertyGraph model was
-  introduced. An option has been added to use local checkpoints in DataFrame-based Pregel and Connected Components. A
-  bug in DataFrame-based LabelPropagation was fixed. Benchmarks for GraphFrames have been introduced. There is better
-  compatibility with Scala 3. There are also minor updates and improvements.
+- **Summary:** This release comes with redesigned documentation and improvements. A new PropertyGraph model was introduced. An option has been added to use local checkpoints in DataFrame-based Pregel and Connected Components. A bug in DataFrame-based LabelPropagation was fixed. Benchmarks for GraphFrames have been introduced. There is better compatibility with Scala 3. There are also minor updates and improvements.
 
 ## The brand-new website and documentation
 
