@@ -318,23 +318,24 @@ class GraphFrame private (
    * @param edgeTypeCol
    *   Name of the column in edges DataFrame that contains edge types
    * @param edgeTypes
-   *   Optional sequence of edge type values. If provided, avoids a collect() operation. If None,
-   *   edge types will be discovered automatically.
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
    * @group degree
    */
   def typeOutDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
-    import org.apache.spark.sql.functions.coalesce
-
     val pivotDF = edgeTypes match {
       case Some(types) =>
         edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol, types)
       case None =>
         edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol)
     }
-    val countDF = pivotDF.agg(count("*"))
-    val structCols = countDF.columns.filter(_ != ID).map { colName =>
-      coalesce(col(colName), lit(0)).cast("int").as(colName)
-    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
     countDF.select(col(ID), struct(structCols: _*).as("outDegrees"))
   }
 
@@ -346,23 +347,24 @@ class GraphFrame private (
    * @param edgeTypeCol
    *   Name of the column in edges DataFrame that contains edge types
    * @param edgeTypes
-   *   Optional sequence of edge type values. If provided, avoids a collect() operation. If None,
-   *   edge types will be discovered automatically.
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
    * @group degree
    */
   def typeInDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
-    import org.apache.spark.sql.functions.coalesce
-
     val pivotDF = edgeTypes match {
       case Some(types) =>
         edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol, types)
       case None =>
         edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol)
     }
-    val countDF = pivotDF.agg(count("*"))
-    val structCols = countDF.columns.filter(_ != ID).map { colName =>
-      coalesce(col(colName), lit(0)).cast("int").as(colName)
-    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
     countDF.select(col(ID), struct(structCols: _*).as("inDegrees"))
   }
 
@@ -375,12 +377,11 @@ class GraphFrame private (
    * @param edgeTypeCol
    *   Name of the column in edges DataFrame that contains edge types
    * @param edgeTypes
-   *   Optional sequence of edge type values. If provided, avoids a collect() operation. If None,
-   *   edge types will be discovered automatically.
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
    * @group degree
    */
   def typeDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
-    import org.apache.spark.sql.functions.coalesce
     val explodedEdges = edges.select(explode(array(col(SRC), col(DST))).as(ID), col(edgeTypeCol))
 
     val pivotDF = edgeTypes match {
@@ -389,10 +390,13 @@ class GraphFrame private (
       case None =>
         explodedEdges.groupBy(ID).pivot(edgeTypeCol)
     }
-    val countDF = pivotDF.agg(count("*"))
-    val structCols = countDF.columns.filter(_ != ID).map { colName =>
-      coalesce(col(colName), lit(0)).cast("int").as(colName)
-    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
 
     countDF.select(col(ID), struct(structCols: _*).as("degrees"))
   }
