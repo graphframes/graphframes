@@ -108,15 +108,13 @@ class GraphFrame:
         use_local_checkpoints: bool = False,
         intermediate_storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
-        jdf = (
-            self._jvm_graph.detectingCycles()
-            .setUseLocalCheckpoints(use_local_checkpoints)
-            .setCheckpointInterval(checkpoint_interval)
-            .setIntermediateStorageLevel(
-                storage_level_to_jvm(intermediate_storage_level, self._spark)
-            )
-            .run()
+        builder = self._jvm_graph.detectingCycles()
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setIntermediateStorageLevel(
+            storage_level_to_jvm(intermediate_storage_level, self._spark)
         )
+        jdf = builder.run()
 
         return DataFrame(jdf, self._spark)
 
@@ -147,7 +145,7 @@ class GraphFrame:
         intermediate_storage_level: StorageLevel,
     ) -> DataFrame:
         builder = self._jvm_graph.aggregateMessages()
-        builder = builder.setIntermediateStorageLevel(
+        builder.setIntermediateStorageLevel(
             storage_level_to_jvm(intermediate_storage_level, self._spark)
         )
         if len(sendToSrc) == 1:
@@ -212,17 +210,16 @@ class GraphFrame:
         max_iter: int,
         storage_level: StorageLevel,
     ) -> DataFrame:
-        jdf = (
-            self._jvm_graph.connectedComponents()
-            .setAlgorithm(algorithm)
-            .setCheckpointInterval(checkpointInterval)
-            .setBroadcastThreshold(broadcastThreshold)
-            .setUseLabelsAsComponents(useLabelsAsComponents)
-            .setUseLocalCheckpoints(use_local_checkpoints)
-            .maxIter(max_iter)
-            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
-            .run()
-        )
+        java_cc = self._jvm_graph.connectedComponents()
+        java_cc.setAlgorithm(algorithm)
+        java_cc.setCheckpointInterval(checkpointInterval)
+        java_cc.setBroadcastThreshold(broadcastThreshold)
+        java_cc.setUseLabelsAsComponents(useLabelsAsComponents)
+        java_cc.setUseLocalCheckpoints(use_local_checkpoints)
+        java_cc.maxIter(max_iter)
+        java_cc.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = java_cc.run()
+
         return DataFrame(jdf, self._spark)
 
     def labelPropagation(
@@ -233,15 +230,14 @@ class GraphFrame:
         checkpoint_interval: int,
         storage_level: StorageLevel,
     ) -> DataFrame:
-        jdf = (
-            self._jvm_graph.labelPropagation()
-            .maxIter(maxIter)
-            .setAlgorithm(algorithm)
-            .setUseLocalCheckpoints(use_local_checkpoints)
-            .setCheckpointInterval(checkpoint_interval)
-            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
-            .run()
-        )
+        java_cdlp = self._jvm_graph.labelPropagation()
+        java_cdlp.maxIter(maxIter)
+        java_cdlp.setAlgorithm(algorithm)
+        java_cdlp.setUseLocalCheckpoints(use_local_checkpoints)
+        java_cdlp.setCheckpointInterval(checkpoint_interval)
+        java_cdlp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = java_cdlp.run()
+
         return DataFrame(jdf, self._spark)
 
     def pageRank(
@@ -253,13 +249,13 @@ class GraphFrame:
     ) -> "GraphFrame":
         builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
         if sourceId is not None:
-            builder = builder.sourceId(sourceId)
+            builder.sourceId(sourceId)
         if maxIter is not None:
-            builder = builder.maxIter(maxIter)
+            builder.maxIter(maxIter)
             assert tol is None, "Exactly one of maxIter or tol should be set."
         else:
             assert tol is not None, "Exactly one of maxIter or tol should be set."
-            builder = builder.tol(tol)
+            builder.tol(tol)
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)
 
@@ -275,9 +271,9 @@ class GraphFrame:
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
         sourceIds = self._sc._jvm.PythonUtils.toArray(sourceIds)
         builder = self._jvm_graph.parallelPersonalizedPageRank()
-        builder = builder.resetProbability(resetProbability)
-        builder = builder.sourceIds(sourceIds)
-        builder = builder.maxIter(maxIter)
+        builder.resetProbability(resetProbability)
+        builder.sourceIds(sourceIds)
+        builder.maxIter(maxIter)
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)
 
@@ -289,19 +285,20 @@ class GraphFrame:
         checkpoint_interval: int,
         storage_level: StorageLevel,
     ) -> DataFrame:
-        jdf = (
-            self._jvm_graph.shortestPaths()
-            .landmarks(landmarks)
-            .setAlgorithm(algorithm)
-            .setUseLocalCheckpoints(use_local_checkpoints)
-            .setCheckpointInterval(checkpoint_interval)
-            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
-            .run()
-        )
+        java_sp = self._jvm_graph.shortestPaths()
+        java_sp.landmarks(landmarks)
+        java_sp.setAlgorithm(algorithm)
+        java_sp.setUseLocalCheckpoints(use_local_checkpoints)
+        java_sp.setCheckpointInterval(checkpoint_interval)
+        java_sp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = java_sp.run()
+
         return DataFrame(jdf, self._spark)
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
-        jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
+        builder = self._jvm_graph.stronglyConnectedComponents()
+        builder.maxIter(maxIter)
+        jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
     def svdPlusPlus(
@@ -325,11 +322,9 @@ class GraphFrame:
         return (v, loss)
 
     def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
-        jdf = (
-            self._jvm_graph.triangleCount()
-            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
-            .run()
-        )
+        builder = self._jvm_graph.triangleCount()
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
     def powerIterationClustering(
