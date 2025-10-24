@@ -879,6 +879,7 @@ class GraphFrameConnect:
         use_local_checkpoints: bool,
         checkpoint_interval: int,
         storage_level: StorageLevel,
+        is_directed: bool,
     ) -> DataFrame:
         @final
         class ShortestPaths(LogicalPlan):
@@ -891,6 +892,7 @@ class GraphFrameConnect:
                 use_local_checkpoints: bool,
                 checkpoint_interval: int,
                 storage_level: StorageLevel,
+                is_directed: bool,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -900,6 +902,7 @@ class GraphFrameConnect:
                 self.use_local_checkpoints = use_local_checkpoints
                 self.checkpoint_interval = checkpoint_interval
                 self.storage_level = storage_level
+                self.is_directed = is_directed
 
             @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
@@ -913,6 +916,7 @@ class GraphFrameConnect:
                         use_local_checkpoints=self.use_local_checkpoints,
                         checkpoint_interval=self.checkpoint_interval,
                         storage_level=storage_level_to_proto(self.storage_level),
+                        is_directed=self.is_directed,
                     )
                 )
                 plan = self._create_proto_relation()
@@ -928,6 +932,7 @@ class GraphFrameConnect:
                 use_local_checkpoints,
                 checkpoint_interval,
                 storage_level,
+                is_directed,
             ),
             self._spark,
         )
