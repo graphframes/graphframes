@@ -548,6 +548,30 @@ class GraphFrame:
             storage_level=storage_level,
         )
 
+    def k_core(
+        self,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """
+        The k-core is the maximal subgraph such that every vertex has at least degree k.
+        The k-core metric is a measure of the centrality of a node in a network, based on its
+        degree and the degrees of its neighbors. Nodes with higher k-core values are considered
+        to be more central and influential within the network.
+
+        This implementation is based on the algorithm described in:
+        Mandal, Aritra, and Mohammad Al Hasan. "A distributed k-core decomposition algorithm
+        on spark." 2017 IEEE International Conference on Big Data (Big Data). IEEE, 2017.
+
+        :param checkpoint_interval: Pregel checkpoint interval, default is 2
+        :param use_local_checkpoints: should local checkpoints be used instead of checkpointDir
+        :param storage_level: the level of storage for both intermediate results and an output DataFrame
+
+        :return: Persisted DataFrame with ID and k-core values (column "kcore")
+        """  # noqa: E501
+        return self._impl.k_core(checkpoint_interval, use_local_checkpoints, storage_level)
+
     def labelPropagation(
         self,
         maxIter: int,
