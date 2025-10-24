@@ -1087,7 +1087,7 @@ class GraphFrameConnect:
                 self.v = v
                 self.e = e
                 self.checkpoint_interval = checkpoint_interval
-                self.storage_level = (storage_level,)
+                self.storage_level = storage_level
                 self.use_local_checkpoints = use_local_checkpoints
                 self.seed = seed
 
