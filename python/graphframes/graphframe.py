@@ -393,11 +393,7 @@ class GraphFrame:
         large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
         (SBPO’15) (2015): 1-11.
 
-        Returns a DataFrame with ID and cycles, ID are not unique if there are multiple cycles
-        starting from this ID. For the case of cycle 1 -> 2 -> 3 -> 1 all the vertices will have the
-        same cycle! E.g.: 1 -> [1, 2, 3, 1] 2 -> [2, 3, 1, 2] 3 -> [3, 1, 2, 3]
-
-        Deduplication of cycles should be done by the user!
+        Returns a DataFrame with unique cycles.
 
         :param checkpoint_interval: Pregel checkpoint interval, default is 2
         :param use_local_checkpoints: should local checkpoints be used instead of checkpointDir

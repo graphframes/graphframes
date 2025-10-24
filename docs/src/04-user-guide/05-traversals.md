@@ -209,18 +209,10 @@ val res = graph.detectingCycles.setUseLocalCheckpoints(true).run()
 res.show(false)
 
 // Output:
-// +----+--------------+
-// | id | found_cycles |
-// +----+--------------+
-// |1   |[1, 3, 1]     |
-// |1   |[1, 2, 1]     |
-// |1   |[1, 2, 5, 1]  |
-// |2   |[2, 1, 2]     |
-// |2   |[2, 5, 1, 2]  |
-// |3   |[3, 1, 3]     |
-// |5   |[5, 1, 2, 5]  |
-// +----+--------------+
+// +--------------+
+// | found_cycles |
+// +--------------+
+// |[1, 3, 1]     |
+// |[1, 2, 1]     |
+// |[1, 2, 5, 1]  |
 ```
-
-**WARNING:** This algorithm returns all the cycles, and users should handle deduplication of \[1, 2, 1\] and \[2, 1, 2\] (
-that is the same cycle)!
