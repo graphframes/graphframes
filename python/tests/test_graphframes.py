@@ -487,6 +487,28 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
     _ = res.unpersist()
 
 
+@pytest.mark.parametrize("storage_level", STORAGE_LEVELS, ids=STORAGE_LEVELS_IDS)
+def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
+    # Create a graph with isolated vertices
+    vertices = spark.createDataFrame(
+        [(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"]
+    )
+
+    # Only connect vertices 0 and 1
+    edges = spark.createDataFrame([(0, 1, "edge1")], ["src", "dst", "name"])
+
+    graph = GraphFrame(vertices, edges)
+    mis = graph.maximal_independent_set(storage_level=storage_level, seed=12345)
+
+    # Check that all vertices are in the MIS (since 2 and 3 are isolated)
+    mis_ids = set(row[0] for row in mis.select("id").collect())
+    assert len(mis_ids) == 3, "MIS should contain 2 isolated vertices and one of linked"
+    assert 2 in mis_ids, "Isolated vertex 2 should be in MIS"
+    assert 3 in mis_ids, "Isolated vertex 3 should be in MIS"
+
+    _ = mis.unpersist()
+
+
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_svd_plus_plus(examples, spark: SparkSession):
     g = _from_java_gf(getattr(examples, "ALSSyntheticData")(), spark)

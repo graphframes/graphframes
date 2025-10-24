@@ -456,6 +456,48 @@ class GraphFrame:
             storage_level=storage_level,
         )
 
+    def maximal_independent_set(
+        self,
+        seed: int = 42,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """
+        This method implements a distributed algorithm for finding a Maximal Independent Set (MIS)
+        in a graph.
+
+        An MIS is a set of vertices such that no two vertices in the set are adjacent (i.e., there
+        is no edge between any two vertices in the set), and the set is maximal, meaning that adding
+        any other vertex to the set would violate the independence property. Note that this
+        implementation finds a maximal (but not necessarily maximum) independent set; that is, it
+        ensures no more vertices can be added to the set, but does not guarantee that the set has
+        the largest possible number of vertices among all possible independent sets in the graph.
+
+        The algorithm implemented here is based on the paper: Ghaffari, Mohsen. "An improved
+        distributed algorithm for maximal independent set." Proceedings of the twenty-seventh annual
+        ACM-SIAM symposium on Discrete algorithms. Society for Industrial and Applied Mathematics,
+        2016.
+
+        Note: This is a randomized, non-deterministic algorithm. The result may vary between runs
+        even if a fixed random seed is provided because of how Apache Spark works.
+
+        :param seed: random seed used for tie-breaking in the algorithm (default: 42)
+        :param checkpoint_interval: checkpoint interval in terms of number of iterations (default: 2)
+        :param use_local_checkpoints: whether to use local checkpoints (default: False);
+                                      local checkpoints are faster and do not require setting
+                                      a persistent checkpoint directory; however, they are less
+                                      reliable and require executors to have sufficient local disk space.
+        :param storage_level: storage level for both intermediate and final DataFrames
+                              (default: MEMORY_AND_DISK_DESER)
+
+        :return: DataFrame with new vertex column "selected", where "true" indicates the vertex
+                 is part of the Maximal Independent Set
+        """  # noqa: E501
+        return self._impl.maximal_independent_set(
+            checkpoint_interval, storage_level, use_local_checkpoints, seed
+        )
+
     def labelPropagation(
         self,
         maxIter: int,
