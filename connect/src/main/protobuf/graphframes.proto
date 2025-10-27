@@ -35,6 +35,7 @@ message GraphFramesAPI {
     SVDPlusPlus svd_plus_plus = 18;
     TriangleCount triangle_count = 19;
     Triplets triplets = 20;
+    KCore kcore = 21;
   }
 }
 
@@ -187,3 +188,9 @@ message TriangleCount {
 }
 
 message Triplets {}
+
+message KCore {
+  bool use_local_checkpoints = 1;
+  int32 checkpoint_interval = 2;
+  optional StorageLevel storage_level = 3;
+}

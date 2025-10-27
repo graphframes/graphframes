@@ -406,6 +406,19 @@ object GraphFramesConnectUtils {
       case proto.GraphFramesAPI.MethodCase.TRIPLETS => {
         graphFrame.triplets
       }
+      case proto.GraphFramesAPI.MethodCase.KCORE => {
+        var kCoreBuilder =
+          graphFrame.kCore
+            .setCheckpointInterval(apiMessage.getKcore.getCheckpointInterval)
+            .setUseLocalCheckpoints(apiMessage.getKcore.getUseLocalCheckpoints)
+
+        if (apiMessage.getKcore.hasStorageLevel) {
+          kCoreBuilder = kCoreBuilder.setIntermediateStorageLevel(
+            parseStorageLevel(apiMessage.getKcore.getStorageLevel))
+        }
+
+        kCoreBuilder.run()
+      }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }
   }
