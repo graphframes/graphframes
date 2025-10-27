@@ -360,11 +360,13 @@ class ShortestPaths(_message.Message):
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    IS_DIRECTED_FIELD_NUMBER: _ClassVar[int]
     landmarks: _containers.RepeatedCompositeFieldContainer[StringOrLongID]
     algorithm: str
     use_local_checkpoints: bool
     checkpoint_interval: int
     storage_level: StorageLevel
+    is_directed: bool
     def __init__(
         self,
         landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...,
@@ -372,6 +374,7 @@ class ShortestPaths(_message.Message):
         use_local_checkpoints: _Optional[bool] = ...,
         checkpoint_interval: _Optional[int] = ...,
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        is_directed: _Optional[bool] = ...,
     ) -> None: ...
 
 class StronglyConnectedComponents(_message.Message):

@@ -453,13 +453,6 @@ def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> No
     _ = ranks.unpersist()
 
 
-def _hasCols(graph: GraphFrame, vcols: list[str] = [], ecols: list[str] = []) -> None:
-    for c in vcols:
-        assert c in graph.vertices.columns, f"Vertex DataFrame missing column: {c}"
-    for c in ecols:
-        assert c in graph.edges.columns, f"Edge DataFrame missing column: {c}"
-
-
 def _df_hasCols(df: DataFrame, vcols: list[str] = []) -> None:
     for c in vcols:
         assert c in df.columns, f"DataFrame missing column: {c}"
@@ -555,6 +548,26 @@ def test_shortest_paths(spark: SparkSession, args: PregelArguments) -> None:
     )
     _df_hasCols(v2, vcols=["id", "distances"])
     _ = v2.unpersist()
+
+
+def test_shortest_paths2(spark: SparkSession) -> None:
+    # Create an undirected graph
+    vertices = spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 4), (4, 5)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+    landmarks = [1]
+    result = g.shortestPaths(landmarks=landmarks, is_directed=False)
+
+    # Check that distances are correct
+    distances = result.sort("id").select("id", "distances").collect()
+
+    assert distances[0]["distances"] == {1: 0}
+    assert distances[1]["distances"] == {1: 1}
+    assert distances[2]["distances"] == {1: 2}
+    assert distances[3]["distances"] == {1: 3}
+    assert distances[4]["distances"] == {1: 4}
+
+    _ = result.unpersist()
 
 
 def test_strongly_connected_components(spark: SparkSession) -> None:

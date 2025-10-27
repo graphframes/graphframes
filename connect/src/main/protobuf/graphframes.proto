@@ -165,6 +165,7 @@ message ShortestPaths {
   bool use_local_checkpoints = 3;
   int32 checkpoint_interval = 4;
   optional StorageLevel storage_level = 5;
+  optional bool is_directed = 6;
 }
 
 message StronglyConnectedComponents {

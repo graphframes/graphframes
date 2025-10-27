@@ -349,12 +349,19 @@ object GraphFramesConnectUtils {
         pregel.run()
       }
       case proto.GraphFramesAPI.MethodCase.SHORTEST_PATHS => {
+        val isDirected = if (apiMessage.getShortestPaths.hasIsDirected) {
+          apiMessage.getShortestPaths.getIsDirected
+        } else {
+          true
+        }
+
         val spBuilder = graphFrame.shortestPaths
           .landmarks(
             apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID).toSeq)
           .setAlgorithm(apiMessage.getShortestPaths.getAlgorithm)
           .setCheckpointInterval(apiMessage.getShortestPaths.getCheckpointInterval)
           .setUseLocalCheckpoints(apiMessage.getShortestPaths.getUseLocalCheckpoints)
+          .setIsDirected(isDirected)
 
         if (apiMessage.getShortestPaths.hasStorageLevel) {
           spBuilder
