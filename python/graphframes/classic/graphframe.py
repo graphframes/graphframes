@@ -345,11 +345,10 @@ class GraphFrame:
         use_local_checkpoints: bool,
         storage_level: StorageLevel,
     ) -> DataFrame:
-        jdf = (
-            self._jvm_graph.kCore()
-            .setUseLocalCheckpoints(use_local_checkpoints)
-            .setCheckpointInterval(checkpoint_interval)
-            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
-            .run()
-        )
+        java_kcore = self._jvm_graph.kCore()
+        java_kcore.setUseLocalCheckpoints(use_local_checkpoints)
+        java_kcore.setCheckpointInterval(checkpoint_interval)
+        java_kcore.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = java_kcore.run()
+
         return DataFrame(jdf, self._spark)
