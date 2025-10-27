@@ -663,3 +663,96 @@ def test_graph_grid_ising_model(spark: SparkSession):
     for i in range(n):
         for j in range(n):
             assert f"{i},{j}" in ids
+
+
+@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
+def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
+    # Create a graph designed to have clear k-core layers
+    v = spark.createDataFrame([(i, f"v{i}") for i in range(30)], ["id", "name"])
+
+    # Build edges to create a hierarchical structure:
+    # Core (k=5): vertices 0-4 - fully connected
+    core_edges = [(i, j) for i in range(5) for j in range(i + 1, 5)]
+
+    # Next layer (k=3): vertices 5-14 - each connects to multiple core vertices
+    mid_layer_edges = [
+        (5, 0),
+        (5, 1),
+        (5, 2),  # Connect to core
+        (6, 0),
+        (6, 1),
+        (6, 3),
+        (7, 1),
+        (7, 2),
+        (7, 4),
+        (8, 0),
+        (8, 3),
+        (8, 4),
+        (9, 1),
+        (9, 2),
+        (9, 3),
+        (10, 0),
+        (10, 4),
+        (11, 2),
+        (11, 3),
+        (12, 1),
+        (12, 4),
+        (13, 0),
+        (13, 2),
+        (14, 3),
+        (14, 4),
+    ]
+
+    # Outer layer (k=1): vertices 15-29 - sparse connections
+    outer_edges = [
+        (15, 5),
+        (16, 6),
+        (17, 7),
+        (18, 8),
+        (19, 9),
+        (20, 10),
+        (21, 11),
+        (22, 12),
+        (23, 13),
+        (24, 14),
+        (25, 15),
+        (26, 16),
+        (27, 17),
+        (28, 18),
+        (29, 19),
+    ]
+
+    all_edges = core_edges + mid_layer_edges + outer_edges
+    e = spark.createDataFrame(all_edges, ["src", "dst"])
+    g = GraphFrame(v, e)
+    result = g.k_core(
+        checkpoint_interval=args.checkpoint_interval,
+        use_local_checkpoints=args.use_local_checkpoints,
+        storage_level=args.storage_level,
+    )
+
+    assert result.count() == 30
+
+    rows = result.collect()
+    kcore_map = {row["id"]: row["kcore"] for row in rows}
+
+    # Validate hierarchical structure
+    # Core vertices (0-4) should have highest k-core
+    for i in range(5):
+        assert kcore_map[i] >= 4, (
+            f"Core vertex {i} should have high k-core, got {kcore_map[i]}"
+        )
+
+    # Mid-layer vertices (5-14) should have medium k-core
+    for i in range(5, 15):
+        assert 2 <= kcore_map[i] <= 4, (
+            f"Mid-layer vertex {i} should have medium k-core, got {kcore_map[i]}"
+        )
+
+    # Outer vertices (15-29) should have low k-core
+    for i in range(15, 30):
+        assert kcore_map[i] <= 2, (
+            f"Outer vertex {i} should have low k-core, got {kcore_map[i]}"
+        )
+
+    _ = result.unpersist()

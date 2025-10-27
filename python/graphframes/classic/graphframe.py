@@ -336,3 +336,18 @@ class GraphFrame:
             weightCol = self._spark._jvm.scala.Option.empty()
         jdf = self._jvm_graph.powerIterationClustering(k, maxIter, weightCol)
         return DataFrame(jdf, self._spark)
+
+    def k_core(
+        self,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        jdf = (
+            self._jvm_graph.kCore()
+            .setUseLocalCheckpoints(use_local_checkpoints)
+            .setCheckpointInterval(checkpoint_interval)
+            .setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+            .run()
+        )
+        return DataFrame(jdf, self._spark)
