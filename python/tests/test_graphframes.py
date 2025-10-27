@@ -475,9 +475,7 @@ def test_connected_components(
     spark: SparkSession, args: PregelArguments, cc_args: tuple[int, bool]
 ) -> None:
     v = spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
-    e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
-    v = spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
-    e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
+    e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"])
     g = GraphFrame(v, e)
     comps = g.connectedComponents(
         algorithm=args.algorithm,
@@ -515,6 +513,26 @@ def test_connected_components2(
     _df_hasCols(comps, vcols=["id", "component", "A", "B"])
     assert comps.count() == 2
     _ = comps.unpersist()
+
+
+def test_connected_components_example(spark: SparkSession) -> None:
+    nodes = [(1, "Alice", 30), (2, "Bob", 25), (3, "Charlie", 35)]
+    nodes_df = spark.createDataFrame(nodes, ["id", "name", "age"])
+
+    edges = [
+        (1, 2, "friend"),
+        (2, 1, "friend"),
+        (2, 3, "friend"),
+        (3, 2, "enemy"),  # eek!
+    ]
+    edges_df = spark.createDataFrame(edges, ["src", "dst", "relationship"])
+
+    g = GraphFrame(nodes_df, edges_df)
+    cc = g.connectedComponents()
+    cc.write.mode("overwrite").format("noop").save()
+    res = cc.collect()
+    assert len(res) == 3
+    _ = cc.unpersist()
 
 
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
