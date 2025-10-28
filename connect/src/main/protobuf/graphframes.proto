@@ -35,6 +35,8 @@ message GraphFramesAPI {
     SVDPlusPlus svd_plus_plus = 18;
     TriangleCount triangle_count = 19;
     Triplets triplets = 20;
+    MaximalIndependentSet mis = 22;
+    KCore kcore = 21;
   }
 }
 
@@ -164,6 +166,7 @@ message ShortestPaths {
   bool use_local_checkpoints = 3;
   int32 checkpoint_interval = 4;
   optional StorageLevel storage_level = 5;
+  optional bool is_directed = 6;
 }
 
 message StronglyConnectedComponents {
@@ -186,3 +189,16 @@ message TriangleCount {
 }
 
 message Triplets {}
+
+message MaximalIndependentSet {
+  int32 checkpoint_interval = 1;
+  optional StorageLevel storage_level = 2;
+  bool use_local_checkpoints = 3;
+  int64 seed = 4;
+}
+
+message KCore {
+  bool use_local_checkpoints = 1;
+  int32 checkpoint_interval = 2;
+  optional StorageLevel storage_level = 3;
+}

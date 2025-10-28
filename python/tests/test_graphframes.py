@@ -17,15 +17,16 @@
 
 
 from dataclasses import dataclass
-from pyspark.storagelevel import StorageLevel
+
 import pytest
-from pyspark.sql import DataFrame, SparkSession, functions as sqlfunctions
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as sqlfunctions
+from pyspark.sql.utils import is_remote
+from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.graphframe import _from_java_gf
 from graphframes.examples import BeliefPropagation, Graphs
 from graphframes.graphframe import GraphFrame
-
-from pyspark.sql.utils import is_remote
 
 
 @dataclass
@@ -93,9 +94,7 @@ def test_validate(spark: SparkSession) -> None:
     good_g.validate()  # no exception should be thrown
 
     not_distinct_vertices = GraphFrame(
-        spark.createDataFrame([(1, "a"), (2, "b"), (3, "c"), (1, "d")]).toDF(
-            "id", "attr"
-        ),
+        spark.createDataFrame([(1, "a"), (2, "b"), (3, "c"), (1, "d")]).toDF("id", "attr"),
         spark.createDataFrame([(1, 2), (2, 1), (2, 3)]).toDF("src", "dst"),
     )
     with pytest.raises(ValueError):
@@ -155,6 +154,105 @@ def test_degrees(local_g: GraphFrame) -> None:
     assert set(inDeg.columns) == {"id", "inDegree"}
     deg = local_g.degrees
     assert set(deg.columns) == {"id", "degree"}
+
+
+def test_type_degrees(local_g: GraphFrame) -> None:
+    type_out_degree = local_g.type_out_degree("action")
+    assert set(type_out_degree.columns) == {"id", "outDegrees"}
+
+    schema = type_out_degree.schema["outDegrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.outDegrees for row in type_out_degree.collect()}
+    assert results[1].love == 1
+    assert results[1].hate == 0
+    assert results[1].follow == 0
+    assert results[2].love == 0
+    assert results[2].hate == 1
+    assert results[2].follow == 1
+
+    type_in_degree = local_g.type_in_degree("action")
+    assert set(type_in_degree.columns) == {"id", "inDegrees"}
+
+    schema = type_in_degree.schema["inDegrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.inDegrees for row in type_in_degree.collect()}
+    assert results[1].love == 0
+    assert results[1].hate == 1
+    assert results[1].follow == 0
+    assert results[2].love == 1
+    assert results[2].hate == 0
+    assert results[2].follow == 0
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1
+
+    type_degree = local_g.type_degree("action")
+    assert set(type_degree.columns) == {"id", "degrees"}
+
+    schema = type_degree.schema["degrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.degrees for row in type_degree.collect()}
+    assert results[1].love == 1
+    assert results[1].hate == 1
+    assert results[1].follow == 0
+    assert results[2].love == 1
+    assert results[2].hate == 1
+    assert results[2].follow == 1
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1
+
+
+def test_type_degrees_with_explicit_types(local_g: GraphFrame) -> None:
+    edge_types = ["love", "hate", "follow"]
+    type_out_degree = local_g.type_out_degree("action", edge_types)
+    assert set(type_out_degree.columns) == {"id", "outDegrees"}
+
+    schema = type_out_degree.schema["outDegrees"].dataType
+    field_names = {field.name for field in schema.fields}
+    assert field_names == {"love", "hate", "follow"}
+
+    results = {row.id: row.outDegrees for row in type_out_degree.collect()}
+    assert results[1].love == 1
+    assert results[1].hate == 0
+    assert results[1].follow == 0
+    assert results[2].love == 0
+    assert results[2].hate == 1
+    assert results[2].follow == 1
+
+    type_in_degree = local_g.type_in_degree("action", edge_types)
+    assert set(type_in_degree.columns) == {"id", "inDegrees"}
+
+    results = {row.id: row.inDegrees for row in type_in_degree.collect()}
+    assert results[1].love == 0
+    assert results[1].hate == 1
+    assert results[1].follow == 0
+    assert results[2].love == 1
+    assert results[2].hate == 0
+    assert results[2].follow == 0
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1
+
+    type_degree = local_g.type_degree("action", edge_types)
+    assert set(type_degree.columns) == {"id", "degrees"}
+
+    results = {row.id: row.degrees for row in type_degree.collect()}
+    assert results[1].love == 1
+    assert results[1].hate == 1
+    assert results[1].follow == 0
+    assert results[2].love == 1
+    assert results[2].hate == 1
+    assert results[2].follow == 1
+    assert results[3].love == 0
+    assert results[3].hate == 0
+    assert results[3].follow == 1
 
 
 def test_motif_finding(local_g: GraphFrame) -> None:
@@ -355,13 +453,6 @@ def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> No
     _ = ranks.unpersist()
 
 
-def _hasCols(graph: GraphFrame, vcols: list[str] = [], ecols: list[str] = []) -> None:
-    for c in vcols:
-        assert c in graph.vertices.columns, f"Vertex DataFrame missing column: {c}"
-    for c in ecols:
-        assert c in graph.edges.columns, f"Edge DataFrame missing column: {c}"
-
-
 def _df_hasCols(df: DataFrame, vcols: list[str] = []) -> None:
     for c in vcols:
         assert c in df.columns, f"DataFrame missing column: {c}"
@@ -377,9 +468,7 @@ def test_connected_components(
     spark: SparkSession, args: PregelArguments, cc_args: tuple[int, bool]
 ) -> None:
     v = spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
-    e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
-    v = spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
-    e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"]).filter("src > 10")
+    e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"])
     g = GraphFrame(v, e)
     comps = g.connectedComponents(
         algorithm=args.algorithm,
@@ -419,6 +508,26 @@ def test_connected_components2(
     _ = comps.unpersist()
 
 
+def test_connected_components_example(spark: SparkSession) -> None:
+    nodes = [(1, "Alice", 30), (2, "Bob", 25), (3, "Charlie", 35)]
+    nodes_df = spark.createDataFrame(nodes, ["id", "name", "age"])
+
+    edges = [
+        (1, 2, "friend"),
+        (2, 1, "friend"),
+        (2, 3, "friend"),
+        (3, 2, "enemy"),  # eek!
+    ]
+    edges_df = spark.createDataFrame(edges, ["src", "dst", "relationship"])
+
+    g = GraphFrame(nodes_df, edges_df)
+    cc = g.connectedComponents()
+    cc.write.mode("overwrite").format("noop").save()
+    res = cc.collect()
+    assert len(res) == 3
+    _ = cc.unpersist()
+
+
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
 def test_shortest_paths(spark: SparkSession, args: PregelArguments) -> None:
     edges = [(1, 2), (1, 5), (2, 3), (2, 5), (3, 4), (4, 5), (4, 6)]
@@ -441,6 +550,26 @@ def test_shortest_paths(spark: SparkSession, args: PregelArguments) -> None:
     _ = v2.unpersist()
 
 
+def test_shortest_paths2(spark: SparkSession) -> None:
+    # Create an undirected graph
+    vertices = spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 4), (4, 5)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+    landmarks = [1]
+    result = g.shortestPaths(landmarks=landmarks, is_directed=False)
+
+    # Check that distances are correct
+    distances = result.sort("id").select("id", "distances").collect()
+
+    assert distances[0]["distances"] == {1: 0}
+    assert distances[1]["distances"] == {1: 1}
+    assert distances[2]["distances"] == {1: 2}
+    assert distances[3]["distances"] == {1: 3}
+    assert distances[4]["distances"] == {1: 4}
+
+    _ = result.unpersist()
+
+
 def test_strongly_connected_components(spark: SparkSession) -> None:
     # Simple island test
     vertices = spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
@@ -448,9 +577,9 @@ def test_strongly_connected_components(spark: SparkSession) -> None:
     g = GraphFrame(vertices, edges)
     c = g.stronglyConnectedComponents(5)
     for row in c.collect():
-        assert row.id == row.component, (
-            f"Vertex {row.id} not equal to its component {row.component}"
-        )
+        assert (
+            row.id == row.component
+        ), f"Vertex {row.id} not equal to its component {row.component}"
     _ = c.unpersist()
 
 
@@ -461,9 +590,7 @@ def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel) -> No
     g = GraphFrame(vertices, edges)
     c = g.triangleCount(storage_level=storage_level)
     for row in c.select("id", "count").collect():
-        assert row.asDict()["count"] == 1, (
-            f"Triangle count for vertex {row.id} is not 1"
-        )
+        assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
     _ = c.unpersist()
 
 
@@ -472,19 +599,39 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
     vertices = spark.createDataFrame(
         [(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")], ["id", "attr"]
     )
-    edges = spark.createDataFrame(
-        [(1, 2), (2, 3), (3, 1), (1, 4), (2, 5)], ["src", "dst"]
-    )
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 1), (1, 4), (2, 5)], ["src", "dst"])
     graph = GraphFrame(vertices, edges)
     res = graph.detectingCycles(
         checkpoint_interval=args.checkpoint_interval,
         use_local_checkpoints=args.use_local_checkpoints,
         storage_level=args.storage_level,
     )
-    assert res.count() == 3
+    assert res.count() == 1
     collected = res.sort("id").select("found_cycles").collect()
-    assert [row[0] for row in collected] == [[1, 2, 3, 1], [2, 3, 1, 2], [3, 1, 2, 3]]
+    assert collected[0][0] == [1, 2, 3, 1]
     _ = res.unpersist()
+
+
+@pytest.mark.parametrize("storage_level", STORAGE_LEVELS, ids=STORAGE_LEVELS_IDS)
+def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
+    # Create a graph with isolated vertices
+    vertices = spark.createDataFrame(
+        [(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"]
+    )
+
+    # Only connect vertices 0 and 1
+    edges = spark.createDataFrame([(0, 1, "edge1")], ["src", "dst", "name"])
+
+    graph = GraphFrame(vertices, edges)
+    mis = graph.maximal_independent_set(storage_level=storage_level, seed=12345)
+
+    # Check that all vertices are in the MIS (since 2 and 3 are isolated)
+    mis_ids = set(row[0] for row in mis.select("id").collect())
+    assert len(mis_ids) == 3, "MIS should contain 2 isolated vertices and one of linked"
+    assert 2 in mis_ids, "Isolated vertex 2 should be in MIS"
+    assert 3 in mis_ids, "Isolated vertex 3 should be in MIS"
+
+    _ = mis.unpersist()
 
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
@@ -529,9 +676,7 @@ def test_belief_propagation(spark: SparkSession):
     # Check that each belief is a valid probability in [0, 1].
     for row in results.vertices.select("belief").collect():
         belief = row["belief"]
-        assert 0 <= belief <= 1, (
-            f"Expected belief to be probability in [0,1], but found {belief}"
-        )
+        assert 0 <= belief <= 1, f"Expected belief to be probability in [0,1], but found {belief}"
 
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
@@ -553,3 +698,96 @@ def test_graph_grid_ising_model(spark: SparkSession):
     for i in range(n):
         for j in range(n):
             assert f"{i},{j}" in ids
+
+
+@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
+def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
+    # Create a graph designed to have clear k-core layers
+    v = spark.createDataFrame([(i, f"v{i}") for i in range(30)], ["id", "name"])
+
+    # Build edges to create a hierarchical structure:
+    # Core (k=5): vertices 0-4 - fully connected
+    core_edges = [(i, j) for i in range(5) for j in range(i + 1, 5)]
+
+    # Next layer (k=3): vertices 5-14 - each connects to multiple core vertices
+    mid_layer_edges = [
+        (5, 0),
+        (5, 1),
+        (5, 2),  # Connect to core
+        (6, 0),
+        (6, 1),
+        (6, 3),
+        (7, 1),
+        (7, 2),
+        (7, 4),
+        (8, 0),
+        (8, 3),
+        (8, 4),
+        (9, 1),
+        (9, 2),
+        (9, 3),
+        (10, 0),
+        (10, 4),
+        (11, 2),
+        (11, 3),
+        (12, 1),
+        (12, 4),
+        (13, 0),
+        (13, 2),
+        (14, 3),
+        (14, 4),
+    ]
+
+    # Outer layer (k=1): vertices 15-29 - sparse connections
+    outer_edges = [
+        (15, 5),
+        (16, 6),
+        (17, 7),
+        (18, 8),
+        (19, 9),
+        (20, 10),
+        (21, 11),
+        (22, 12),
+        (23, 13),
+        (24, 14),
+        (25, 15),
+        (26, 16),
+        (27, 17),
+        (28, 18),
+        (29, 19),
+    ]
+
+    all_edges = core_edges + mid_layer_edges + outer_edges
+    e = spark.createDataFrame(all_edges, ["src", "dst"])
+    g = GraphFrame(v, e)
+    result = g.k_core(
+        checkpoint_interval=args.checkpoint_interval,
+        use_local_checkpoints=args.use_local_checkpoints,
+        storage_level=args.storage_level,
+    )
+
+    assert result.count() == 30
+
+    rows = result.collect()
+    kcore_map = {row["id"]: row["kcore"] for row in rows}
+
+    # Validate hierarchical structure
+    # Core vertices (0-4) should have highest k-core
+    for i in range(5):
+        assert kcore_map[i] >= 4, (
+            f"Core vertex {i} should have high k-core, got {kcore_map[i]}"
+        )
+
+    # Mid-layer vertices (5-14) should have medium k-core
+    for i in range(5, 15):
+        assert 2 <= kcore_map[i] <= 4, (
+            f"Mid-layer vertex {i} should have medium k-core, got {kcore_map[i]}"
+        )
+
+    # Outer vertices (15-29) should have low k-core
+    for i in range(15, 30):
+        assert kcore_map[i] <= 2, (
+            f"Outer vertex {i} should have low k-core, got {kcore_map[i]}"
+        )
+
+    _ = result.unpersist()

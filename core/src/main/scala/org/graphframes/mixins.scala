@@ -184,3 +184,30 @@ private[graphframes] trait WithLocalCheckpoints {
    */
   def getUseLocalCheckpoints: Boolean = useLocalCheckpoints
 }
+
+/**
+ * Provides support of graph directions for algorithms.
+ */
+private[graphframes] trait WithDirection {
+  protected var isDirected: Boolean = true
+
+  /**
+   * Sets should graph be cosidered as directed.
+   *
+   * @param value
+   *   true to handle graph as directed
+   * @return
+   */
+  def setIsDirected(value: Boolean): this.type = {
+    isDirected = value
+    this
+  }
+
+  /**
+   * Gets should graph be considred as directed.
+   *
+   * @return
+   *   true if directed
+   */
+  def getIsDirected: Boolean = isDirected
+}

@@ -63,6 +63,10 @@ For `graphframes` only. By default, GraphFrames uses persistent checkpoints. The
 
 The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarious, using `DISK_ONLY` may be faster.
 
+- `is_direted`
+
+By default this is true and algorithm will look for only directed paths. By passing false, graph will be considered as undirected and algorithm will look for any shortest path.
+
 ## Breadth-first search (BFS)
 
 Breadth-first search (BFS) finds the shortest path(s) from one vertex (or a set of vertices) to another vertex (or a set
@@ -162,7 +166,7 @@ result.select("id", "component").orderBy("component").show()
 
 - `algorithm`
 
-Possible values are `graphx` and `graphframes`. GraphX-based implementation is a pure Pregel one-by-one. While it may be slightly faster on small-medium sized graphs, it has a much bigger convergence complexity and requires much more memory due to less efficient RDD serialization. GraphFrame-based implementation is based on the ideas from the [Kiveris, Raimondas, et al. "Connected components in mapreduce and beyond." Proceedings of the ACM Symposium on Cloud Computing. 2014.](https://dl.acm.org/doi/abs/10.1145/2670979.2670997). This implementation has much better convergence complexity as well as requires less amount of memory.
+Possible values are `graphx` and `graphframes`. GraphX-based implementation is a naive Pregel one-by-one. While it may be slightly faster on small-medium sized graphs, it has a much bigger convergence complexity and requires much more memory due to less efficient RDD serialization. GraphFrame-based implementation is based on the ideas from the [Kiveris, Raimondas, et al. "Connected components in mapreduce and beyond." Proceedings of the ACM Symposium on Cloud Computing. 2014.](https://dl.acm.org/doi/abs/10.1145/2670979.2670997). This implementation has much better convergence complexity as well as requires less amount of memory.
 
 - `maxIter`
 
@@ -290,7 +294,6 @@ the [Rocha–Thatte cycle detection algorithm](https://en.wikipedia.org/wiki/Roc
 
 **WARNING:**
 
-- *This algorithm returns all the cycles, and users should handle deduplication of \[1, 2, 1\] and \[2, 1, 2\] (that is the same cycle)!*
 - *This algorithm collects the full sequences and may require a lot of cluste memory for power-law graphs*
 
 ---
@@ -343,17 +346,12 @@ val res = graph.detectingCycles.setUseLocalCheckpoints(true).run()
 res.show(false)
 
 // Output:
-// +----+--------------+
-// | id | found_cycles |
-// +----+--------------+
-// |1   |[1, 3, 1]     |
-// |1   |[1, 2, 1]     |
-// |1   |[1, 2, 5, 1]  |
-// |2   |[2, 1, 2]     |
-// |2   |[2, 5, 1, 2]  |
-// |3   |[3, 1, 3]     |
-// |5   |[5, 1, 2, 5]  |
-// +----+--------------+
+// +--------------+
+// | found_cycles |
+// +--------------+
+// |[1, 3, 1]     |
+// |[1, 2, 1]     |
+// |[1, 2, 5, 1]  |
 ```
 
 ### Arguments

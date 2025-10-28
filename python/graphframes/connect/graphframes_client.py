@@ -879,6 +879,7 @@ class GraphFrameConnect:
         use_local_checkpoints: bool,
         checkpoint_interval: int,
         storage_level: StorageLevel,
+        is_directed: bool,
     ) -> DataFrame:
         @final
         class ShortestPaths(LogicalPlan):
@@ -891,6 +892,7 @@ class GraphFrameConnect:
                 use_local_checkpoints: bool,
                 checkpoint_interval: int,
                 storage_level: StorageLevel,
+                is_directed: bool,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -900,6 +902,7 @@ class GraphFrameConnect:
                 self.use_local_checkpoints = use_local_checkpoints
                 self.checkpoint_interval = checkpoint_interval
                 self.storage_level = storage_level
+                self.is_directed = is_directed
 
             @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
@@ -913,6 +916,7 @@ class GraphFrameConnect:
                         use_local_checkpoints=self.use_local_checkpoints,
                         checkpoint_interval=self.checkpoint_interval,
                         storage_level=storage_level_to_proto(self.storage_level),
+                        is_directed=self.is_directed,
                     )
                 )
                 plan = self._create_proto_relation()
@@ -928,6 +932,7 @@ class GraphFrameConnect:
                 use_local_checkpoints,
                 checkpoint_interval,
                 storage_level,
+                is_directed,
             ),
             self._spark,
         )
@@ -1063,4 +1068,109 @@ class GraphFrameConnect:
 
         return _dataframe_from_plan(
             TriangleCount(self._vertices, self._edges, storage_level), self._spark
+        )
+
+    def maximal_independent_set(
+        self,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        use_local_checkpoints: bool,
+        seed: int,
+    ) -> DataFrame:
+        @final
+        class MaximalIndependentSet(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                checkpoint_interval: int,
+                storage_level: StorageLevel,
+                use_local_checkpoints: bool,
+                seed: int,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.checkpoint_interval = checkpoint_interval
+                self.storage_level = storage_level
+                self.use_local_checkpoints = use_local_checkpoints
+                self.seed = seed
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.mis.CopyFrom(
+                    pb.MaximalIndependentSet(
+                        checkpoint_interval=self.checkpoint_interval,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        seed=self.seed,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            MaximalIndependentSet(
+                self._vertices,
+                self._edges,
+                checkpoint_interval,
+                storage_level,
+                use_local_checkpoints,
+                seed,
+            ),
+            self._spark,
+        )
+
+    def k_core(
+        self,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
+        class KCore(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.kcore.CopyFrom(
+                    pb.KCore(
+                        checkpoint_interval=self.checkpoint_interval,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            KCore(
+                self._vertices,
+                self._edges,
+                checkpoint_interval,
+                use_local_checkpoints,
+                storage_level,
+            ),
+            self._spark,
         )
