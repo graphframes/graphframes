@@ -5,6 +5,14 @@ Like GraphX, GraphFrames provides primitives for developing graph algorithms. Th
 * `aggregateMessages`: Send messages between vertices, and aggregate messages for each vertex. GraphFrames provides a native `aggregateMessages` method implemented using DataFrame operations. This may be used analogously to the GraphX API.
 * joins: Join message aggregates with the original graph. GraphFrames rely on `DataFrame` joins, which provide the full functionality of GraphX joins.
 
+---
+
+**NOTE**
+
+*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+
+---
+
 The below code snippets show how to use `aggregateMessages` to compute the sum of the ages of adjacent users.
 
 ## Python API

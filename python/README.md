@@ -1,43 +1,32 @@
 # GraphFrames Python Package
 
-![PyPI - Downloads](https://img.shields.io/pypi/dm/graphframes-py) ![PyPI - License](https://img.shields.io/pypi/l/graphframes-py) ![PyPI - Version](https://img.shields.io/pypi/v/graphframes-py)
+<p align="center">
+    <img src="https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/main/docs/src/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="500"/>
+</p>
 
-<img src=https://raw.githubusercontent.com/graphframes/graphframes/refs/heads/master/docs/src/img/GraphFrames-Logo-Large.png width=500>
-
-https://graphframes.io/
+<p align="center">
+<a href="https://pypi.org/project/graphframes-py/"><img src="https://img.shields.io/pypi/dm/graphframes-py" alt="PyPI - Downloads"></a> <a href="https://pypi.org/project/graphframes-py/"><img src="https://img.shields.io/pypi/l/graphframes-py" alt="PyPI - License"></a> <a href="https://pypi.org/project/graphframes-py/"><img src="https://img.shields.io/pypi/v/graphframes-py" alt="PyPI - Version"></a>
+</p>
 
 The is the officila [graphframes-py PyPI package](https://pypi.org/project/graphframes-py/), which is a Python wrapper for the Scala GraphFrames library.
 This package is maintained by the GraphFrames project and is available on PyPI.
 
-For instructions on GraphFrames, check the project [README.md](https://github.com/graphframes/graphframes?tab=readme-ov-file#graphframes-dataframe-based-graphs).
+## Documentation
 
-See [Installation and Quick-Start](https://github.com/graphframes/graphframes?tab=readme-ov-file#installation-and-quick-start) for the best way to install and use GraphFrames.
-
-## Installation
-
-```bash
-pip install graphframes-py
-```
+- [Installation](https://graphframes.io/02-quick-start/01-installation.html)
+- [Creating Graphs](https://graphframes.io/04-user-guide/01-creating-graphframes.html)
+- [Basic Graph Manipulations](https://graphframes.io/04-user-guide/02-basic-operations.html)
+- [Centrality Metrics](https://graphframes.io/04-user-guide/03-centralities.html)
+- [Motif finding](https://graphframes.io/04-user-guide/04-motif-finding.html)
+- [Traversals and Connectivity](https://graphframes.io/04-user-guide/05-traversals.html)
+- [Community Detection](https://graphframes.io/04-user-guide/06-graph-clustering.html)
+- [Scala API](https://graphframes.io/api/scaladoc/)
+- [Python API](https://graphframes.io/api/python/)
+- [Apache Spark compatibility](https://graphframes.io/02-quick-start/01-installation.html#spark-versions-compatibility)
 
 **NOTE!** *Python distribution does not include JVM-core. You need to add it to your cluster or Spark-Connect server!*
 
 **NOTE!** *GraphFrames depends on its own version of GraphX. While in case of installation from the Maven Central repository, all the runtime dependencies will be resolved automatically, you may need to add them manually in case of installation from the local repository.*
-
-## Running `graphframes-py`
-
-You should use GraphFrames via the `--packages` argument to `pyspark` or `spark-submit`, but this package is helpful in development environments.
-
-```bash
-# Interactive Python, Spark 3.5.x
-$ pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.2
-
-# Interactive Python, Spark 4.0.x
-$ pyspark --packages io.graphframes:graphframes-spark4_2.13:0.9.2
-```
-
-## Documentation
-
-- [API Reference](https://graphframes.io/api/python/index.html)
 
 ## Spark-Connect Note
 
