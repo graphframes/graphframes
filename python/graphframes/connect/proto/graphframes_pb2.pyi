@@ -33,6 +33,7 @@ class GraphFramesAPI(_message.Message):
     TRIANGLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     TRIPLETS_FIELD_NUMBER: _ClassVar[int]
     KCORE_FIELD_NUMBER: _ClassVar[int]
+    MIS_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -54,6 +55,7 @@ class GraphFramesAPI(_message.Message):
     triangle_count: TriangleCount
     triplets: Triplets
     kcore: KCore
+    mis: MaximalIndependentSet
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -81,6 +83,7 @@ class GraphFramesAPI(_message.Message):
         triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ...,
         triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
         kcore: _Optional[_Union[KCore, _Mapping]] = ...,
+        mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -422,6 +425,24 @@ class TriangleCount(_message.Message):
 class Triplets(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
+
+class MaximalIndependentSet(_message.Message):
+    __slots__ = ()
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    SEED_FIELD_NUMBER: _ClassVar[int]
+    checkpoint_interval: int
+    storage_level: StorageLevel
+    use_local_checkpoints: bool
+    seed: int
+    def __init__(
+        self,
+        checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        seed: _Optional[int] = ...,
+    ) -> None: ...
 
 class KCore(_message.Message):
     __slots__ = ()

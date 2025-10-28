@@ -339,6 +339,21 @@ class GraphFrame:
         jdf = self._jvm_graph.powerIterationClustering(k, maxIter, weightCol)
         return DataFrame(jdf, self._spark)
 
+    def maximal_independent_set(
+        self,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        use_local_checkpoints: bool,
+        seed: int,
+    ) -> DataFrame:
+        builder = self._jvm_graph.maximalIndependentSet()
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+
+        jdf = builder.run(seed)
+        return DataFrame(jdf, self._spark)
+
     def k_core(
         self,
         checkpoint_interval: int,

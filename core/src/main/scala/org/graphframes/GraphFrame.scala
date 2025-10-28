@@ -798,6 +798,15 @@ class GraphFrame private (
   def detectingCycles: DetectingCycles = new DetectingCycles(this)
 
   /**
+   * Maximal Independent Set algorithm.
+   *
+   * See [[org.graphframes.lib.MaximalIndependentSet]] for more details.
+   *
+   * @group stdlib
+   */
+  def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
+
+  /**
    * Converts the directed graph into an undirected graph by ensuring that all directed edges are
    * bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
    *

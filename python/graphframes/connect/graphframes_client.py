@@ -1070,6 +1070,61 @@ class GraphFrameConnect:
             TriangleCount(self._vertices, self._edges, storage_level), self._spark
         )
 
+    def maximal_independent_set(
+        self,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        use_local_checkpoints: bool,
+        seed: int,
+    ) -> DataFrame:
+        @final
+        class MaximalIndependentSet(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                checkpoint_interval: int,
+                storage_level: StorageLevel,
+                use_local_checkpoints: bool,
+                seed: int,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.checkpoint_interval = checkpoint_interval
+                self.storage_level = storage_level
+                self.use_local_checkpoints = use_local_checkpoints
+                self.seed = seed
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.mis.CopyFrom(
+                    pb.MaximalIndependentSet(
+                        checkpoint_interval=self.checkpoint_interval,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        seed=self.seed,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            MaximalIndependentSet(
+                self._vertices,
+                self._edges,
+                checkpoint_interval,
+                storage_level,
+                use_local_checkpoints,
+                seed,
+            ),
+            self._spark,
+        )
+
     def k_core(
         self,
         checkpoint_interval: int,

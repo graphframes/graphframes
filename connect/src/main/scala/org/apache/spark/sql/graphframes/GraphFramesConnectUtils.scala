@@ -406,6 +406,19 @@ object GraphFramesConnectUtils {
       case proto.GraphFramesAPI.MethodCase.TRIPLETS => {
         graphFrame.triplets
       }
+      case proto.GraphFramesAPI.MethodCase.MIS => {
+        val mis = graphFrame.maximalIndependentSet
+          .setCheckpointInterval(apiMessage.getMis.getCheckpointInterval)
+          .setUseLocalCheckpoints(apiMessage.getMis.getUseLocalCheckpoints)
+
+        if (apiMessage.getMis.hasStorageLevel) {
+          mis
+            .setIntermediateStorageLevel(parseStorageLevel(apiMessage.getMis.getStorageLevel))
+            .run(apiMessage.getMis.getSeed)
+        } else {
+          mis.run(apiMessage.getMis.getSeed)
+        }
+      }
       case proto.GraphFramesAPI.MethodCase.KCORE => {
         var kCoreBuilder =
           graphFrame.kCore
