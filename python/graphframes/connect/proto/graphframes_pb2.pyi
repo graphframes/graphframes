@@ -32,6 +32,7 @@ class GraphFramesAPI(_message.Message):
     SVD_PLUS_PLUS_FIELD_NUMBER: _ClassVar[int]
     TRIANGLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     TRIPLETS_FIELD_NUMBER: _ClassVar[int]
+    KCORE_FIELD_NUMBER: _ClassVar[int]
     MIS_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
@@ -53,6 +54,7 @@ class GraphFramesAPI(_message.Message):
     svd_plus_plus: SVDPlusPlus
     triangle_count: TriangleCount
     triplets: Triplets
+    kcore: KCore
     mis: MaximalIndependentSet
     def __init__(
         self,
@@ -80,6 +82,7 @@ class GraphFramesAPI(_message.Message):
         svd_plus_plus: _Optional[_Union[SVDPlusPlus, _Mapping]] = ...,
         triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ...,
         triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
+        kcore: _Optional[_Union[KCore, _Mapping]] = ...,
         mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
     ) -> None: ...
 
@@ -360,11 +363,13 @@ class ShortestPaths(_message.Message):
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    IS_DIRECTED_FIELD_NUMBER: _ClassVar[int]
     landmarks: _containers.RepeatedCompositeFieldContainer[StringOrLongID]
     algorithm: str
     use_local_checkpoints: bool
     checkpoint_interval: int
     storage_level: StorageLevel
+    is_directed: bool
     def __init__(
         self,
         landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...,
@@ -372,6 +377,7 @@ class ShortestPaths(_message.Message):
         use_local_checkpoints: _Optional[bool] = ...,
         checkpoint_interval: _Optional[int] = ...,
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        is_directed: _Optional[bool] = ...,
     ) -> None: ...
 
 class StronglyConnectedComponents(_message.Message):
@@ -436,4 +442,19 @@ class MaximalIndependentSet(_message.Message):
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
         use_local_checkpoints: _Optional[bool] = ...,
         seed: _Optional[int] = ...,
+    ) -> None: ...
+
+class KCore(_message.Message):
+    __slots__ = ()
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    use_local_checkpoints: bool
+    checkpoint_interval: int
+    storage_level: StorageLevel
+    def __init__(
+        self,
+        use_local_checkpoints: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
     ) -> None: ...

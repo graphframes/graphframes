@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from pyspark.sql import functions as F
 from pyspark.storagelevel import StorageLevel
@@ -225,6 +225,98 @@ class GraphFrame:
             .agg(F.count("*").alias("degree"))
         )
 
+    def type_out_degree(
+        self, edge_type_col: str, edge_types: Optional[List[Any]] = None
+    ) -> DataFrame:
+        """
+        The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
+         - "id": the ID of the vertex
+         - "outDegrees": a struct with a field for each edge type, storing the out-degree count
+
+        :param edge_type_col: Name of the column in edges DataFrame that contains edge types
+        :param edge_types: Optional list of edge type values. If None, edge types will be
+        discovered automatically.
+        :return: DataFrame with columns "id" and "outDegrees" (struct type)
+        """
+        if edge_types is not None:
+            pivot_df = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).pivot(
+                edge_type_col, edge_types
+            )
+        else:
+            pivot_df = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).pivot(
+                edge_type_col
+            )
+
+        count_df = pivot_df.agg(F.count(F.lit(1))).na.fill(0)
+        struct_cols = [
+            F.col(col_name).cast("int").alias(col_name)
+            for col_name in count_df.columns
+            if col_name != self.ID
+        ]
+
+        return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("outDegrees"))
+
+    def type_in_degree(
+        self, edge_type_col: str, edge_types: Optional[List[Any]] = None
+    ) -> DataFrame:
+        """
+        The in-degree of each vertex per edge type, returned as a DataFrame with two columns:
+         - "id": the ID of the vertex
+         - "inDegrees": a struct with a field for each edge type, storing the in-degree count
+
+        :param edge_type_col: Name of the column in edges DataFrame that contains edge types
+        :param edge_types: Optional list of edge type values. If None, edge types will be
+        discovered automatically.
+        :return: DataFrame with columns "id" and "inDegrees" (struct type)
+        """
+        if edge_types is not None:
+            pivot_df = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).pivot(
+                edge_type_col, edge_types
+            )
+        else:
+            pivot_df = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).pivot(
+                edge_type_col
+            )
+
+        count_df = pivot_df.agg(F.count(F.lit(1))).na.fill(0)
+        struct_cols = [
+            F.col(col_name).cast("int").alias(col_name)
+            for col_name in count_df.columns
+            if col_name != self.ID
+        ]
+        return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("inDegrees"))
+
+    def type_degree(self, edge_type_col: str, edge_types: Optional[List[Any]] = None) -> DataFrame:
+        """
+        The total degree of each vertex per edge type (both in and out), returned as a DataFrame
+        with two columns:
+         - "id": the ID of the vertex
+         - "degrees": a struct with a field for each edge type, storing the total degree count
+
+        :param edge_type_col: Name of the column in edges DataFrame that contains edge types
+        :param edge_types: Optional list of edge type values. If None, edge types will be
+        discovered automatically.
+        :return: DataFrame with columns "id" and "degrees" (struct type)
+        """
+        exploded_edges = self._impl._edges.select(
+            F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID),
+            F.col(edge_type_col),
+        )
+
+        if edge_types is not None:
+            pivot_df = exploded_edges.groupBy(self.ID).pivot(edge_type_col, edge_types)
+        else:
+            pivot_df = exploded_edges.groupBy(self.ID).pivot(edge_type_col)
+
+        count_df = pivot_df.agg(F.count(F.lit(1))).na.fill(0)
+        struct_cols = [
+            F.col(col_name).cast("int").alias(col_name)
+            for col_name in count_df.columns
+            if col_name != self.ID
+        ]
+
+        return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("degrees"))
+
     @property
     def triplets(self) -> DataFrame:
         """
@@ -301,11 +393,7 @@ class GraphFrame:
         large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
         (SBPO’15) (2015): 1-11.
 
-        Returns a DataFrame with ID and cycles, ID are not unique if there are multiple cycles
-        starting from this ID. For the case of cycle 1 -> 2 -> 3 -> 1 all the vertices will have the
-        same cycle! E.g.: 1 -> [1, 2, 3, 1] 2 -> [2, 3, 1, 2] 3 -> [3, 1, 2, 3]
-
-        Deduplication of cycles should be done by the user!
+        Returns a DataFrame with unique cycles.
 
         :param checkpoint_interval: Pregel checkpoint interval, default is 2
         :param use_local_checkpoints: should local checkpoints be used instead of checkpointDir
@@ -498,6 +586,30 @@ class GraphFrame:
             checkpoint_interval, storage_level, use_local_checkpoints, seed
         )
 
+    def k_core(
+        self,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """
+        The k-core is the maximal subgraph such that every vertex has at least degree k.
+        The k-core metric is a measure of the centrality of a node in a network, based on its
+        degree and the degrees of its neighbors. Nodes with higher k-core values are considered
+        to be more central and influential within the network.
+
+        This implementation is based on the algorithm described in:
+        Mandal, Aritra, and Mohammad Al Hasan. "A distributed k-core decomposition algorithm
+        on spark." 2017 IEEE International Conference on Big Data (Big Data). IEEE, 2017.
+
+        :param checkpoint_interval: Pregel checkpoint interval, default is 2
+        :param use_local_checkpoints: should local checkpoints be used instead of checkpointDir
+        :param storage_level: the level of storage for both intermediate results and an output DataFrame
+
+        :return: Persisted DataFrame with ID and k-core values (column "kcore")
+        """  # noqa: E501
+        return self._impl.k_core(checkpoint_interval, use_local_checkpoints, storage_level)
+
     def labelPropagation(
         self,
         maxIter: int,
@@ -595,6 +707,7 @@ class GraphFrame:
         use_local_checkpoints: bool = False,
         checkpoint_interval: int = 2,
         storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+        is_directed: bool = True,
     ) -> DataFrame:
         """
         Runs the shortest path algorithm from a set of landmark vertices in the graph.
@@ -610,10 +723,11 @@ class GraphFrame:
                                       a persistent checkpointDir; from the other side, local
                                       checkpoints are less reliable and require executors to have
                                       big enough local disks.
-        :checkpoint_interval: How often should the intermediate result be checkpointed;
+        :param checkpoint_interval: How often should the intermediate result be checkpointed;
                               Using big value here may tend to huge logical plan growth due
                               to the iterative nature of the algorithm.
         :param storage_level: storage level for both intermediate and final dataframes.
+        :param is_directed: should algorithm find directed paths or any paths.
 
         :return: persistent DataFrame with new vertices column "distances"
         """  # noqa: E501
@@ -623,6 +737,7 @@ class GraphFrame:
             use_local_checkpoints=use_local_checkpoints,
             checkpoint_interval=checkpoint_interval,
             storage_level=storage_level,
+            is_directed=is_directed,
         )
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
