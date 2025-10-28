@@ -64,6 +64,8 @@ GraphFrames is a package for Apache Spark that provides DataFrame-based graphs. 
 4. **Network Analysis**: Motif finding for pattern recognition in complex networks
 5. **Graph Clustering**: Label propagation and power iteration clustering algorithms
 6. **Custom Algorithms**: Framework for implementing domain-specific graph algorithms
+7. **Network Stability**: K-Core algorithm for finding a critical cores
+8. **Marketing Compaigns**: Finding a set of vertices with big coverage via Maximal Independent Set
 
 ## Supported Algorithms
 
@@ -77,6 +79,8 @@ GraphFrames provides implementations for a wide range of graph algorithms includ
 - Cycles Detection (Rocha-Thatte algorithm)
 - Breadth-First Search (BFS)
 - SVD++
+- K-Core
+- Maximal Independent Set
 
 For the most current list of algorithms and their implementations, refer to the User Guide section on graph algorithms.
 
@@ -94,6 +98,8 @@ Problem -> Algorithm
 - Structure Analysis -> Motif Finding
 - Community Detection -> Laber Propagation or Power Iteration Clustering
 - Creating Graphs from Tables -> PropertyGraphFrame API
+- Network stability and critical core -> K-Core
+- Marketing and influnce spreading -> Maximal Independent Set
 
 ## Troubleshooting
 

@@ -88,3 +88,38 @@ val gf = GraphFrame(vertices, edges)
 val clusters = gf
   .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
 ```
+
+## Maximal Independent Set
+
+An MIS is a set of vertices such that no two vertices in the set are adjacent (i.e., there is no edge between any two vertices in the set), and the set is maximal, meaning that adding any other vertex to the set would violate the independence property. Note that maximal independent set is not necessarily maximum independent set; that is, it ensures no more vertices can be added to the set, but does not guarantee that the set has the largest possible number of vertices among all possible independent sets in the graph. Finding a maximum independent set is NP-hard problem.
+
+The algorithm implemented in GraphFrames is based on the paper: Ghaffari, Mohsen. "An improved distributed algorithm for maximal independent set." Proceedings of the twenty-seventh annual ACM-SIAM symposium on Discrete algorithms. Society for Industrial and Applied Mathematics, 2016. ([https://doi.org/10.1137/1.9781611974331.ch20](https://doi.org/10.1137/1.9781611974331.ch20))
+
+Algorithm is useful, for example, if you are planning a marketing campaign and want to cover at most of users of the social network by minimizing communications. In that case, you need to find a big subset of nodes does not connected to each other but connected to othe nodes of the network. It is exactly what Maximal Independent Set do. It returns a set of not connected vertices so no more vertices can be added to the set without violation of the independence.
+
+Note: This is a randomized, non-deterministic algorithm. The result may vary between runs even if a fixed random seed is provided because how Apache Spark works.
+
+### Python API
+
+```python
+vertices = spark.createDataFrame(
+    [(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"]
+)
+
+edges = spark.createDataFrame([(0, 1, "edge1")], ["src", "dst", "name"])
+
+graph = GraphFrame(vertices, edges)
+mis = graph.maximal_independent_set(storage_level=storage_level, seed=12345)
+```
+
+### Scala API
+
+```scala
+val vertices =
+  spark.createDataFrame(Seq((0L, "a"), (1L, "b"), (2L, "c"), (3L, "d"))).toDF("id", "name")
+
+val edges = spark.createDataFrame(Seq((0L, 1L, "edge1"))).toDF("src", "dst", "name")
+
+val graph = GraphFrame(vertices, edges)
+val mis = graph.maximalIndependentSet.run(seed = 12345L)
+```

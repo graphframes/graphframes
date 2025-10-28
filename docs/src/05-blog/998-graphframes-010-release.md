@@ -2,7 +2,12 @@
 
 - **Published:** 2025-10-11T00:00:00Z
 - **Title:** GraphFrames 0.10.0 release
-- **Summary:** This release comes with significant performance improvements to most algorithms, as well as fixed memory leaks. The PySpark APIs for Spark Connect and Spark Classic are now synchronized with the Scala core, allowing PySpark users to benefit from the latest improvements in the GraphFrame APIs and configurations. This is the first release in which GraphFrames relies on its own internal fork of GraphX instead of Spark's built-in version. There are also improvements in motif finding. Undirected, bidirectional, and an arbitrary amount of edges can now be included in the pattern string. New algorithm for cycle detection was added. The documentation has also been significantly improved.
+- **Summary:** This release comes with significant performance improvements to most algorithms, as well as fixed memory leaks. The PySpark APIs for Spark Connect and Spark Classic are now synchronized with the Scala core, allowing PySpark users to benefit from the latest improvements in the GraphFrame APIs and configurations. This is the first release in which GraphFrames relies on its own internal fork of GraphX instead of Spark's built-in version. There are also improvements in motif finding. Undirected, bidirectional, and an arbitrary amount of edges can now be included in the pattern string. New algorithms for cycle detection, maximal independent set, k-Core were added. Shortest Path algorithm can now consider graph as undirected and return any path instead of directed only. A new set of methods to compute degree by edge type was added. The documentation has also been significantly improved.
+
+## New Contributors
+
+- [@joelrobin18](https://github.com/joelrobin18) -- typed degrees, various improvements
+- [@goungoun](https://github.com/goungoun) -- bidirectional, undirected and multi-hop patterns for motifs finding API
 
 ## Performance
 
@@ -77,16 +82,42 @@ Improvements were made in GraphFrames motifs finding API. The new syntax:
 
 With this new features users can find even more complex motifs and sib structures in graphs at scale!
 
+### New syntax
+
+- Variable length motifs: `(u)-[*1..3]->(v)`
+- Undirected edges in motifs: `(u)-[e]-(v)`
+- Bidirectional edges in motifs: `(u)<-[]->(v)`
+
+## Typed Degrees
+
+A new API for computing vertex degree by type was added. For example, if the graph has labels on edges, we can compute the degree groupped by values of this labels. In degree, out-degree and degree is supported, APIs provided in Core and PySpark.
+
 ## Cycles detection
 
 New algorithm for cycles detection was added. It is based on the [Rocha, Rodrigo Caetano, and Bhalchandra D. Thatte. "Distributed cycle detection in large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional (SBPO’15) (2015): 1-11.](https://assets-eu.researchsquare.com/files/rs-4619085/v1_covered_22e633ca-157a-4302-adef-eb249909efc3.pdf) paper.
 
 API is provided for both Core and PySpark. Such an algorithm significantly improve application of GraphFrames in fraud-detection when we need to detect cyclic transactions, iteractions, etc.
 
+## K-Core
+
+New algorithm for K-Core centrality was added. It is based on the [A. Farajollahi, S. G. Khaki, and L. Wang, "Efficient distributed k-core decomposition for large-scale graphs," *2017 IEEE International Conference on Big Data (Big Data)*, Boston, MA, USA, 2017, pp. 1430-1435.](https://ieeexplore.ieee.org/abstract/document/8258018) paper.
+
+API is provided for both Core and PySpark. Such an algorithm is very useful for analysis of networks stability and critical cores, fraud-detection, and others.
+
+## Maximal Independent Set
+
+New algorithm for Maximal Independent Set was added. It is based on the [Ghaffari, Mohsen. "An improved distributed algorithm for maximal independent set." Proceedings of the twenty-seventh annual ACM-SIAM symposium on Discrete algorithms. Society for Industrial and Applied Mathematics, 2016.](https://doi.org/10.1137/1.9781611974331.ch20) paper.
+
+API is provided for both Core and PySpark. Maximal Independent Set allows to effectively plan marketing communications in social networks by effectively finding a good sets of not overlapping (not connected, or independent) influencers connected to the rest of the network. Be aware that algorithm is randomized by it's nature, running it with different seeds is a good idea.
+
 ## Compatibility with Scala 3
 
 We are continuing to work on the compatibility with Scala 3. In 0.10.0 the new scalafix flags were introduced to improve
 the compatibility.
+
+## LLMS.txt
+
+GraphFrames is quite a complex project with a lot of low-level APIs and is designed for distributed processing. It brings a lot of completely and makes onboarding of new users hard. To address it, the `llms.txt` file was added to the root of the documentation website, so from now users can more effectively use codings assistants and chat agents to become familar with GraphFrames APIs, algorithms and usecases.
 
 ## Future steps
 
