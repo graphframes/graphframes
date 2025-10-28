@@ -98,3 +98,5 @@ supported algorithms:
 | SVD++                          | Yes            | No                         | GraphX                                                       |
 | Cycles Detection               | No             | Yes                        | GraphFrames                                                  |
 | Triangel Count                 | No             | Yes                        | GraphFrames                                                  |
+| K-Core                         | No             | Yes                        | GraphFrames                                                  |
+| Maximal Independent Set        | No             | Yes                        | GraphFrames                                                  |
