@@ -1,78 +1,42 @@
-<img src="docs/src/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="500"/>
+<p align="center">
+    <img src="docs/src/img/GraphFrames-Logo-Large.png" alt="GraphFrames Logo" width="500"/>
+</p>
 
-[![Scala CI](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml)
-[![Python CI](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml)
-[![pages-build-deployment](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment)
-[![scala-central-publish](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml)
-[![python-pypi-publish](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml/badge.svg)](https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml)
-![GitHub Release](https://img.shields.io/github/v/release/graphframes/graphframes)
-![GitHub License](https://img.shields.io/github/license/graphframes/graphframes)
+<p align="center">
+    <a href="https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/scala-ci.yml/badge.svg" alt="Scala CI"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/python-ci.yml/badge.svg" alt="Python CI"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment"><img src="https://github.com/graphframes/graphframes/actions/workflows/pages/pages-build-deployment/badge.svg" alt="pages-build-deployment"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/scala-publish.yml/badge.svg" alt="scala-central-publish"></a> <a href="https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml"><img src="https://github.com/graphframes/graphframes/actions/workflows/python-publish.yml/badge.svg" alt="python-pypi-publish"></a> <img src="https://img.shields.io/github/v/release/graphframes/graphframes" alt="GitHub Release"> <img src="https://img.shields.io/github/license/graphframes/graphframes" alt="GitHub License"> <img src="https://img.shields.io/pypi/dm/graphframes-py" alt="PyPI - Downloads">
+</p>
 
+# GraphFrames: graph algorithms at scale
 
+This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. It provides built-in and easy to use distributed graph algorithms as well as a flexible APIs like `Pregel` or `AggregateMessages` to make custom graph processing. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
-# GraphFrames: DataFrame-based Graphs
+## GraphFrames usecases
 
-This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
+There are some popular use cases when GraphFrames is almost irreplaceable, including, but not limited to:
 
-You can find user guide and API docs at <https://graphframes.io>
+- Compliance analytics with a scalable shortest paths algorithm and motif analysis;
+- Anti-fraud with scalable cycles detection in large networks;
+- Identity resolution on the scale of billions with highly efficient connected components;
+- Search result ranking with a distributed, Pregel-based PageRank;
+- Clustering huge graphs with Label Propagation and Power Iteration Clustering;
+- Building a knowledge graph systems with Property Graph Model.
 
-## GraphFrames is Back
+## Documentation
 
-This project was in maintenance mode for some time, but we are happy to announce that it is now back in active development!
+- [Installation](https://graphframes.io/02-quick-start/01-installation.html)
+- [Creating Graphs](https://graphframes.io/04-user-guide/01-creating-graphframes.html)
+- [Basic Graph Manipulations](https://graphframes.io/04-user-guide/02-basic-operations.html)
+- [Centrality Metrics](https://graphframes.io/04-user-guide/03-centralities.html)
+- [Motif finding](https://graphframes.io/04-user-guide/04-motif-finding.html)
+- [Traversals and Connectivity](https://graphframes.io/04-user-guide/05-traversals.html)
+- [Community Detection](https://graphframes.io/04-user-guide/06-graph-clustering.html)
+- [Scala API](https://graphframes.io/api/scaladoc/)
+- [Python API](https://graphframes.io/api/python/)
+- [Apache Spark compatibility](https://graphframes.io/02-quick-start/01-installation.html#spark-versions-compatibility)
 
-## Installation and Quick-Start
-
-### GraphFrames core
-
-GraphFrames scala core and Spark-Connect plugin are published in the Sonatype Central. Namespace is `io.graphframes`.
-
-```bash
-# Interactive Scala/Java
-
-# For Spark 3.5.x, scala 2.12
-$ spark-shell --packages io.graphframes:graphframes-spark3_2.12:0.9.2
-
-# For Spark 3.5.x, scala 2.13
-$ spark-shell --packages io.graphframes:graphframes-spark3_2.13:0.9.2
-
-# For Spark 4.0.x
-$ spark-shell --packages io.graphframes:graphframes-spark4_2.13:0.9.2
-
-# Interactive Python, Spark 3.5.x
-$ pyspark --packages io.graphframes:graphframes-spark3_2.12:0.9.2
-
-# Interactive Python, Spark 4.0.x
-$ pyspark --packages io.graphframes:graphframes-spark4_2.13:0.9.2
-```
-
-### GraphFrames Python API
-
-Python API is published in the PyPi:
-
-```bash
-pip install graphframes-py
-```
-
-**NOTE!** *Python distribution does not include JVM-core. You need to add it to your cluster or Spark-Connect server!*
-
-### GraphFrames Spark Connect
-
-To add GraphFrames to your spark connect server, you need to specify the plugin name, for example:
-
-```bash
-./sbin/start-connect-server.sh \
-  --conf spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect \
-  --packages io.graphframes.graphframes-connect-spark4_2.13:0.9.2
-  --conf spark.checkpoint.dir=${CHECKPOINT_DIR}
-```
-
-**NOTE!** *GraphFrames is relying on iterative graph algorithms and uses checkpoints internally to avoid infinite growing of the Spark's Logical Plan. Spark-Connect API does not provide the way to specify the checkpoint dir and it should be specified via `spark.checkpoint.dir` configuration!*
-
-### Quick Start
+## Quick Start
 
 Now you can create a GraphFrame as follows.
-
-In Python:
 
 ```python
 from pyspark.sql import SparkSession
@@ -176,103 +140,37 @@ g.connectedComponents().show()
 
 To learn more about GraphFrames, check out these resources:
 
-* [GraphFrames Documentation](https://graphframes.github.io/graphframes)
-* [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
-* [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
-* [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
+### GraphFrames tutorials
 
-## Community Resources
+- [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
 
-* [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
-* [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
-* [Graph Operations in Apache Spark Using GraphFrames](https://www.pluralsight.com/courses/apache-spark-graphframes-graph-operations)
-* [Executing Graph Algorithms with GraphFrames on Databricks](https://www.pluralsight.com/courses/executing-graph-algorithms-graphframes-databricks)
+### Community Resources
 
-## Note about Python API distribution
+This resources are provided by the community:
 
-`graphframes-py` is our Official PyPi Package
-
-We recommend using the Spark Packages system to install the latest version of GraphFrames, but now publish a build of our Python package to PyPi in the [graphframes-py](https://pypi.org/project/graphframes-py/) package. It can be used to provide type hints in IDEs, but does not load the java-side of GraphFrames so will not work without loading the GraphFrames package. See [Installation and Quick-Start](#installation-and-quick-start).
-
-```bash
-pip install graphframes-py
-```
-
-**WARNING!**
-
-This project does not own or control the [graphframes PyPI package](https://pypi.org/project/graphframes/) (installs 0.6.0) or [graphframes-latest PyPI package](https://pypi.org/project/graphframes-latest/) (installs 0.8.4).
-
-**WARNING!**
-
-## Maven and SBT
-
-Maven:
-```xml
-<dependencies>
-    <dependency>
-        <groupId>io.graphframes</groupId>
-        <artifactId>graphframes-spark4_2.13</artifactId>
-        <version>0.9.2</version>
-    </dependency>
-</dependencies>
-```
-
-SBT:
-```sbt
-libraryDependencies += "io.graphframes" %% "graphframes-spark4" % "0.9.2"
-```
-
-**WARNING!**
-
-**=========================**
-
-Due to governance problems and limitations, all the new releases of `GraphFrames` will be published to the Maven Central under the namespace `io.graphframes` (not `org.graphframes`)!
-
-**=========================**
+- [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
+- [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
+- [#graphframes Discord Channel on GraphGeeks](https://discord.com/channels/1162999022819225631/1326257052368113674)
+- [Graph Operations in Apache Spark Using GraphFrames](https://www.pluralsight.com/courses/apache-spark-graphframes-graph-operations)
+- [Executing Graph Algorithms with GraphFrames on Databricks](https://www.pluralsight.com/courses/executing-graph-algorithms-graphframes-databricks)
+- [On-Time Flight Performance with GraphFrames for Apache Spark](https://databricks.com/blog/2016/03/16/on-time-flight-performance-with-graphframes-for-apache-spark.html)
+- [Sustainability in Aluminum Production](https://www.databricks.com/blog/sustainability-aluminum-production)
 
 ## GraphFrames Internals
 
-To learn how GraphFrames works internally to combine graph and relational queries, check out the paper [GraphFrames: An Integrated API for Mixing Graph and
-Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
-
-## Building and running unit tests
-
-To compile the core project, run `build/sbt package` from the project home directory.
-To compile the Spark Connect Plugin, run `build/sbt connect/package`
-
-## Spark version compatibility
-
-This project is compatible with Spark 3.5.x and Spark 4.0.x. Significant speed improvements have been made to DataFrames in recent versions of Spark, so you may see speedups from using the latest Spark version.
-
-| Component           | Spark 3.x (Scala 2.12) | Spark 3.x (Scala 2.13) | Spark 4.x (Scala 2.13) |
-|---------------------|------------------------|------------------------|------------------------|
-| graphframes         | ✓                      | ✓                      | ✓                      |
-| graphframes-connect | ✓                      | ✓                      | ✓                      |
+- [A top level overview of GraphFrames internals](https://graphframes.io/01-about/02-architecture.html)
+- [GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
 
 ## Contributing
 
 GraphFrames was made as collaborative effort among UC Berkeley, MIT, Databricks and the open source community. At the moment GraphFrames is maintained by the group of individual contributors.
 
-See [contribution guide](./CONTRIBUTING.md)
-and the [local development setup walkthrough](./docs/src/06-contributing/01-contributing-guide.md) for
-step-by-step instructions on preparing your environment, running tests, and
-submitting changes.
+See [contribution guide](./CONTRIBUTING.md) and the [local development setup walkthrough](https://graphframes.io/06-contributing/01-contributing-guide.html) for step-by-step instructions on preparing your environment, running tests, and submitting changes.
 
 ## Releases
 
 See [release notes](https://github.com/graphframes/graphframes/releases).
 
-## Nightly builds
+## Star History
 
-GraphFrames project is publishing SNAPSHOTS (nightly builds) to the "Central Portal Snapshots."
-Please read [this section](https://central.sonatype.org/publish/publish-portal-snapshots/#consuming-snapshot-releases-for-your-project) of the Sonatype documentation to check how can you use snapshots in your project.
-
-GroupId: `io.graphframes`
-ArtifactIds:
-
-* `graphframes-spark3_2.12`
-* `graphframes-spark3_2.13`
-* `graphframes-connect-spark3_2.12`
-* `graphframes-connect-spark3_2.13`
-* `graphframes-spark4_2.13`
-* `graphframes-connect-spark4_2.13`
+[![Star History Chart](https://api.star-history.com/svg?repos=graphframes/graphframes&type=Date)](https://www.star-history.com/#graphframes/graphframes&Date)

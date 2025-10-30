@@ -310,6 +310,97 @@ class GraphFrame private (
       .agg(count("*").cast("int").as("degree"))
   }
 
+  /**
+   * The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "outDegrees" a struct with a field for each edge type, storing the out-degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
+   * @group degree
+   */
+  def typeOutDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol, types)
+      case None =>
+        edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol)
+    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
+    countDF.select(col(ID), struct(structCols: _*).as("outDegrees"))
+  }
+
+  /**
+   * The in-degree of each vertex per edge type, returned as a DataFrame with two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "inDegrees" a struct with a field for each edge type, storing the in-degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
+   * @group degree
+   */
+  def typeInDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol, types)
+      case None =>
+        edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol)
+    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
+    countDF.select(col(ID), struct(structCols: _*).as("inDegrees"))
+  }
+
+  /**
+   * The total degree of each vertex per edge type (both in and out), returned as a DataFrame with
+   * two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "degrees" a struct with a field for each edge type, storing the total degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
+   * @group degree
+   */
+  def typeDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    val explodedEdges = edges.select(explode(array(col(SRC), col(DST))).as(ID), col(edgeTypeCol))
+
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        explodedEdges.groupBy(ID).pivot(edgeTypeCol, types)
+      case None =>
+        explodedEdges.groupBy(ID).pivot(edgeTypeCol)
+    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
+
+    countDF.select(col(ID), struct(structCols: _*).as("degrees"))
+  }
+
   // ============================ Motif finding ========================================
 
   /**
@@ -617,6 +708,15 @@ class GraphFrame private (
   }
 
   /**
+   * K-Core decomposition.
+   *
+   * See [[org.graphframes.lib.KCore]] for more details.
+   *
+   * @group stdlib
+   */
+  def kCore: KCore = new KCore(this)
+
+  /**
    * Validates the consistency and integrity of a graph by performing checks on the vertices and
    * edges.
    *
@@ -690,16 +790,21 @@ class GraphFrame private (
    * large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
    * (SBPO’15) (2015): 1-11.
    *
-   * Returns a DataFrame with ID and cycles, ID are not unique if there are multiple cycles
-   * starting from this ID. For the case of cycle 1 -> 2 -> 3 -> 1 all the vertices will have the
-   * same cycle! E.g.: 1 -> [1, 2, 3, 1] 2 -> [2, 3, 1, 2] 3 -> [3, 1, 2, 3]
-   *
-   * Deduplication of cycles should be done by the user!
+   * Returns a DataFrame with unque cycles.
    *
    * @return
    *   an instance of DetectingCycles initialized with the current context
    */
   def detectingCycles: DetectingCycles = new DetectingCycles(this)
+
+  /**
+   * Maximal Independent Set algorithm.
+   *
+   * See [[org.graphframes.lib.MaximalIndependentSet]] for more details.
+   *
+   * @group stdlib
+   */
+  def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
 
   /**
    * Converts the directed graph into an undirected graph by ensuring that all directed edges are

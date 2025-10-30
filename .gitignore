@@ -76,3 +76,6 @@ connect/project
 
 # Local spark distro
 spark-*
+
+# Zed
+.zed

@@ -349,12 +349,19 @@ object GraphFramesConnectUtils {
         pregel.run()
       }
       case proto.GraphFramesAPI.MethodCase.SHORTEST_PATHS => {
+        val isDirected = if (apiMessage.getShortestPaths.hasIsDirected) {
+          apiMessage.getShortestPaths.getIsDirected
+        } else {
+          true
+        }
+
         val spBuilder = graphFrame.shortestPaths
           .landmarks(
             apiMessage.getShortestPaths.getLandmarksList.asScala.map(parseLongOrStringID).toSeq)
           .setAlgorithm(apiMessage.getShortestPaths.getAlgorithm)
           .setCheckpointInterval(apiMessage.getShortestPaths.getCheckpointInterval)
           .setUseLocalCheckpoints(apiMessage.getShortestPaths.getUseLocalCheckpoints)
+          .setIsDirected(isDirected)
 
         if (apiMessage.getShortestPaths.hasStorageLevel) {
           spBuilder
@@ -398,6 +405,32 @@ object GraphFramesConnectUtils {
       }
       case proto.GraphFramesAPI.MethodCase.TRIPLETS => {
         graphFrame.triplets
+      }
+      case proto.GraphFramesAPI.MethodCase.MIS => {
+        val mis = graphFrame.maximalIndependentSet
+          .setCheckpointInterval(apiMessage.getMis.getCheckpointInterval)
+          .setUseLocalCheckpoints(apiMessage.getMis.getUseLocalCheckpoints)
+
+        if (apiMessage.getMis.hasStorageLevel) {
+          mis
+            .setIntermediateStorageLevel(parseStorageLevel(apiMessage.getMis.getStorageLevel))
+            .run(apiMessage.getMis.getSeed)
+        } else {
+          mis.run(apiMessage.getMis.getSeed)
+        }
+      }
+      case proto.GraphFramesAPI.MethodCase.KCORE => {
+        var kCoreBuilder =
+          graphFrame.kCore
+            .setCheckpointInterval(apiMessage.getKcore.getCheckpointInterval)
+            .setUseLocalCheckpoints(apiMessage.getKcore.getUseLocalCheckpoints)
+
+        if (apiMessage.getKcore.hasStorageLevel) {
+          kCoreBuilder = kCoreBuilder.setIntermediateStorageLevel(
+            parseStorageLevel(apiMessage.getKcore.getStorageLevel))
+        }
+
+        kCoreBuilder.run()
       }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }
