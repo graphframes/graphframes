@@ -17,8 +17,8 @@
 
 package org.apache.spark.graphframes.graphx.lib
 
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.graphframes.graphx.LocalSparkContext
-import org.apache.spark.graphframes.graphx._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StronglyConnectedComponentsSuite extends AnyFunSuite with LocalSparkContext {

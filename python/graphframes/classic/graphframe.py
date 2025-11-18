@@ -14,21 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
 
-import sys
-from typing import Any, Optional, Union
+from typing import final
 
-if sys.version > "3":
-    basestring = str
+from py4j.java_gateway import JavaObject
+from pyspark import SparkContext, __version__
+from pyspark.sql import SparkSession
 
-from pyspark import SparkContext
-from pyspark.sql import Column, DataFrame, SparkSession
+if __version__.startswith("4"):
+    from pyspark.sql.classic.column import Column, _to_seq
+    from pyspark.sql.classic.dataframe import DataFrame
+else:
+    from pyspark.sql.column import Column, _to_seq
+    from pyspark.sql import DataFrame
+
 from pyspark.storagelevel import StorageLevel
 
+from graphframes.classic.utils import storage_level_to_jvm
 from graphframes.lib import Pregel
 
 
-def _from_java_gf(jgf: Any, spark: SparkSession) -> "GraphFrame":
+def _from_java_gf(jgf: JavaObject, spark: SparkSession) -> "GraphFrame":
     """
     (internal) creates a python GraphFrame wrapper from a java GraphFrame.
 
@@ -39,8 +46,12 @@ def _from_java_gf(jgf: Any, spark: SparkSession) -> "GraphFrame":
     return GraphFrame(pv, pe)
 
 
-def _java_api(jsc: SparkContext) -> Any:
+def _java_api(jsc: SparkContext) -> JavaObject:
     javaClassName = "org.graphframes.GraphFramePythonAPI"
+    if jsc._jvm is None:
+        raise RuntimeError(
+            "Spark Driver's JVM is dead or did not start properly. See driver logs for details."
+        )
     return (
         jsc._jvm.Thread.currentThread()
         .getContextClassLoader()
@@ -49,6 +60,7 @@ def _java_api(jsc: SparkContext) -> Any:
     )
 
 
+@final
 class GraphFrame:
     def __init__(self, v: DataFrame, e: DataFrame) -> None:
         self._vertices = v
@@ -57,71 +69,9 @@ class GraphFrame:
         self._sc = self._spark._sc
         self._jvm_gf_api = _java_api(self._sc)
 
-        self.ID = self._jvm_gf_api.ID()
-        self.SRC = self._jvm_gf_api.SRC()
-        self.DST = self._jvm_gf_api.DST()
-        self._ATTR = self._jvm_gf_api.ATTR()
-
-        # Check that provided DataFrames contain required columns
-        if self.ID not in v.columns:
-            raise ValueError(
-                "Vertex ID column {} missing from vertex DataFrame, which has columns: {}".format(
-                    self.ID, ",".join(v.columns)
-                )
-            )
-        if self.SRC not in e.columns:
-            raise ValueError(
-                "Source vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
-                    self.SRC, ",".join(e.columns)
-                )
-            )
-        if self.DST not in e.columns:
-            raise ValueError(
-                "Destination vertex ID column {} missing from edge DataFrame, which has columns: {}".format(  # noqa: E501
-                    self.DST, ",".join(e.columns)
-                )
-            )
+        self._ATTR: str = self._jvm_gf_api.ATTR()
 
         self._jvm_graph = self._jvm_gf_api.createGraph(v._jdf, e._jdf)
-
-    @property
-    def vertices(self) -> DataFrame:
-        return self._vertices
-
-    @property
-    def edges(self) -> DataFrame:
-        return self._edges
-
-    def __repr__(self):
-        return self._jvm_graph.toString()
-
-    def cache(self) -> "GraphFrame":
-        self._jvm_graph.cache()
-        return self
-
-    def persist(self, storageLevel: StorageLevel = StorageLevel.MEMORY_ONLY) -> "GraphFrame":
-        javaStorageLevel = self._sc._getJavaStorageLevel(storageLevel)
-        self._jvm_graph.persist(javaStorageLevel)
-        return self
-
-    def unpersist(self, blocking: bool = False) -> "GraphFrame":
-        self._jvm_graph.unpersist(blocking)
-        return self
-
-    @property
-    def outDegrees(self) -> DataFrame:
-        jdf = self._jvm_graph.outDegrees()
-        return DataFrame(jdf, self._spark)
-
-    @property
-    def inDegrees(self) -> DataFrame:
-        jdf = self._jvm_graph.inDegrees()
-        return DataFrame(jdf, self._spark)
-
-    @property
-    def degrees(self) -> DataFrame:
-        jdf = self._jvm_graph.degrees()
-        return DataFrame(jdf, self._spark)
 
     @property
     def triplets(self) -> DataFrame:
@@ -136,30 +86,48 @@ class GraphFrame:
         jdf = self._jvm_graph.find(pattern)
         return DataFrame(jdf, self._spark)
 
-    def filterVertices(self, condition: Union[str, Column]) -> "GraphFrame":
-        if isinstance(condition, basestring):
+    def filterVertices(self, condition: str | Column) -> "GraphFrame":
+        if isinstance(condition, str):
             jdf = self._jvm_graph.filterVertices(condition)
-        elif isinstance(condition, Column):
-            jdf = self._jvm_graph.filterVertices(condition._jc)
         else:
-            raise TypeError("condition should be string or Column")
+            jdf = self._jvm_graph.filterVertices(condition._jc)
+
         return _from_java_gf(jdf, self._spark)
 
-    def filterEdges(self, condition: Union[str, Column]) -> "GraphFrame":
-        if isinstance(condition, basestring):
+    def filterEdges(self, condition: str | Column) -> "GraphFrame":
+        if isinstance(condition, str):
             jdf = self._jvm_graph.filterEdges(condition)
-        elif isinstance(condition, Column):
-            jdf = self._jvm_graph.filterEdges(condition._jc)
         else:
-            raise TypeError("condition should be string or Column")
+            jdf = self._jvm_graph.filterEdges(condition._jc)
+
         return _from_java_gf(jdf, self._spark)
+
+    def detectingCycles(
+        self,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        intermediate_storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        builder = self._jvm_graph.detectingCycles()
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setIntermediateStorageLevel(
+            storage_level_to_jvm(intermediate_storage_level, self._spark)
+        )
+        jdf = builder.run()
+
+        return DataFrame(jdf, self._spark)
 
     def dropIsolatedVertices(self) -> "GraphFrame":
         jdf = self._jvm_graph.dropIsolatedVertices()
         return _from_java_gf(jdf, self._spark)
 
     def bfs(
-        self, fromExpr: str, toExpr: str, edgeFilter: Optional[str] = None, maxPathLength: int = 10
+        self,
+        fromExpr: str,
+        toExpr: str,
+        edgeFilter: str | None = None,
+        maxPathLength: int = 10,
     ) -> DataFrame:
         builder = (
             self._jvm_graph.bfs().fromExpr(fromExpr).toExpr(toExpr).maxPathLength(maxPathLength)
@@ -171,81 +139,131 @@ class GraphFrame:
 
     def aggregateMessages(
         self,
-        aggCol: Union[Column, str],
-        sendToSrc: Union[Column, str, None] = None,
-        sendToDst: Union[Column, str, None] = None,
+        aggCol: list[Column | str],
+        sendToSrc: list[Column | str],
+        sendToDst: list[Column | str],
+        intermediate_storage_level: StorageLevel,
     ) -> DataFrame:
-        # Check that either sendToSrc, sendToDst, or both are provided
-        if sendToSrc is None and sendToDst is None:
-            raise ValueError("Either `sendToSrc`, `sendToDst`, or both have to be provided")
         builder = self._jvm_graph.aggregateMessages()
-        if sendToSrc is not None:
-            if isinstance(sendToSrc, Column):
-                builder.sendToSrc(sendToSrc._jc)
-            elif isinstance(sendToSrc, basestring):
-                builder.sendToSrc(sendToSrc)
+        builder.setIntermediateStorageLevel(
+            storage_level_to_jvm(intermediate_storage_level, self._spark)
+        )
+        if len(sendToSrc) == 1:
+            if isinstance(sendToSrc[0], Column):
+                builder.sendToSrc(sendToSrc[0]._jc)
+            elif isinstance(sendToSrc[0], str):
+                builder.sendToSrc(sendToSrc[0])
             else:
                 raise TypeError("Provide message either as `Column` or `str`")
-        if sendToDst is not None:
-            if isinstance(sendToDst, Column):
-                builder.sendToDst(sendToDst._jc)
-            elif isinstance(sendToDst, basestring):
-                builder.sendToDst(sendToDst)
+        elif len(sendToSrc) > 1:
+            if all(isinstance(x, Column) for x in sendToSrc):
+                send2src = [x._jc for x in sendToSrc]
+                builder.sendToSrc(send2src[0], _to_seq(self._sc, send2src[1:]))
+            elif all(isinstance(x, str) for x in sendToSrc):
+                builder.sendToSrc(sendToSrc[0], _to_seq(self._sc, sendToSrc[1:]))
             else:
-                raise TypeError("Provide message either as `Column` or `str`")
-        if isinstance(aggCol, Column):
-            jdf = builder.agg(aggCol._jc)
-        else:
-            jdf = builder.agg(aggCol)
-        return DataFrame(jdf, self._spark)
+                raise TypeError(
+                    "Multiple messages should all be `Column` or `str`, not a mix of them."
+                )
 
-    # Standard algorithms
+        if len(sendToDst) == 1:
+            if isinstance(sendToDst[0], Column):
+                builder.sendToDst(sendToDst[0]._jc)
+            elif isinstance(sendToDst[0], str):
+                builder.sendToDst(sendToDst[0])
+            else:
+                raise TypeError("Provide message either as `Column` or `str`")
+        elif len(sendToDst) > 1:
+            if all(isinstance(x, Column) for x in sendToDst):
+                send2dst = [x._jc for x in sendToDst]
+                builder.sendToDst(send2dst[0], _to_seq(self._sc, send2dst[1:]))
+            elif all(isinstance(x, str) for x in sendToDst):
+                builder.sendToDst(sendToDst[0], _to_seq(self._sc, sendToDst[1:]))
+            else:
+                raise TypeError(
+                    "Multiple messages should all be `Column` or `str`, not a mix of them."
+                )
+
+        if len(aggCol) == 1:
+            if isinstance(aggCol[0], Column):
+                jdf = builder.agg(aggCol[0]._jc)
+            elif isinstance(aggCol[0], str):
+                jdf = builder.agg(aggCol[0])
+        elif len(aggCol) > 1:
+            if all(isinstance(x, Column) for x in aggCol):
+                jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol]))
+            elif all(isinstance(x, str) for x in aggCol):
+                jdf = builder.agg(aggCol[0], _to_seq(self._sc, aggCol[1:]))
+            else:
+                raise TypeError(
+                    "Multiple agg cols should all be `Column` or `str`, not a mix of them."
+                )
+        return DataFrame(jdf, self._spark)
 
     def connectedComponents(
         self,
-        algorithm: str = "graphframes",
-        checkpointInterval: int = 2,
-        broadcastThreshold: int = 1000000,
-        useLabelsAsComponents: bool = False,
+        algorithm: str,
+        checkpointInterval: int,
+        broadcastThreshold: int,
+        useLabelsAsComponents: bool,
+        use_local_checkpoints: bool,
+        max_iter: int,
+        storage_level: StorageLevel,
     ) -> DataFrame:
-        jdf = (
-            self._jvm_graph.connectedComponents()
-            .setAlgorithm(algorithm)
-            .setCheckpointInterval(checkpointInterval)
-            .setBroadcastThreshold(broadcastThreshold)
-            .setUseLabelsAsComponents(useLabelsAsComponents)
-            .run()
-        )
+        java_cc = self._jvm_graph.connectedComponents()
+        java_cc.setAlgorithm(algorithm)
+        java_cc.setCheckpointInterval(checkpointInterval)
+        java_cc.setBroadcastThreshold(broadcastThreshold)
+        java_cc.setUseLabelsAsComponents(useLabelsAsComponents)
+        java_cc.setUseLocalCheckpoints(use_local_checkpoints)
+        java_cc.maxIter(max_iter)
+        java_cc.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = java_cc.run()
+
         return DataFrame(jdf, self._spark)
 
-    def labelPropagation(self, maxIter: int) -> DataFrame:
-        jdf = self._jvm_graph.labelPropagation().maxIter(maxIter).run()
+    def labelPropagation(
+        self,
+        maxIter: int,
+        algorithm: str,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        java_cdlp = self._jvm_graph.labelPropagation()
+        java_cdlp.maxIter(maxIter)
+        java_cdlp.setAlgorithm(algorithm)
+        java_cdlp.setUseLocalCheckpoints(use_local_checkpoints)
+        java_cdlp.setCheckpointInterval(checkpoint_interval)
+        java_cdlp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = java_cdlp.run()
+
         return DataFrame(jdf, self._spark)
 
     def pageRank(
         self,
         resetProbability: float = 0.15,
-        sourceId: Optional[Any] = None,
-        maxIter: Optional[int] = None,
-        tol: Optional[float] = None,
+        sourceId: str | int | None = None,
+        maxIter: int | None = None,
+        tol: float | None = None,
     ) -> "GraphFrame":
         builder = self._jvm_graph.pageRank().resetProbability(resetProbability)
         if sourceId is not None:
-            builder = builder.sourceId(sourceId)
+            builder.sourceId(sourceId)
         if maxIter is not None:
-            builder = builder.maxIter(maxIter)
+            builder.maxIter(maxIter)
             assert tol is None, "Exactly one of maxIter or tol should be set."
         else:
             assert tol is not None, "Exactly one of maxIter or tol should be set."
-            builder = builder.tol(tol)
+            builder.tol(tol)
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)
 
     def parallelPersonalizedPageRank(
         self,
         resetProbability: float = 0.15,
-        sourceIds: Optional[list[Any]] = None,
-        maxIter: Optional[int] = None,
+        sourceIds: list[str | int] | None = None,
+        maxIter: int | None = None,
     ) -> "GraphFrame":
         assert (
             sourceIds is not None and len(sourceIds) > 0
@@ -253,18 +271,36 @@ class GraphFrame:
         assert maxIter is not None, "Max number of iterations maxIter must be provided"
         sourceIds = self._sc._jvm.PythonUtils.toArray(sourceIds)
         builder = self._jvm_graph.parallelPersonalizedPageRank()
-        builder = builder.resetProbability(resetProbability)
-        builder = builder.sourceIds(sourceIds)
-        builder = builder.maxIter(maxIter)
+        builder.resetProbability(resetProbability)
+        builder.sourceIds(sourceIds)
+        builder.maxIter(maxIter)
         jgf = builder.run()
         return _from_java_gf(jgf, self._spark)
 
-    def shortestPaths(self, landmarks: list[Any]) -> DataFrame:
-        jdf = self._jvm_graph.shortestPaths().landmarks(landmarks).run()
+    def shortestPaths(
+        self,
+        landmarks: list[str | int],
+        algorithm: str,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        is_directed: bool,
+    ) -> DataFrame:
+        java_sp = self._jvm_graph.shortestPaths()
+        java_sp.landmarks(landmarks)
+        java_sp.setAlgorithm(algorithm)
+        java_sp.setUseLocalCheckpoints(use_local_checkpoints)
+        java_sp.setCheckpointInterval(checkpoint_interval)
+        java_sp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        java_sp.setIsDirected(is_directed)
+        jdf = java_sp.run()
+
         return DataFrame(jdf, self._spark)
 
     def stronglyConnectedComponents(self, maxIter: int) -> DataFrame:
-        jdf = self._jvm_graph.stronglyConnectedComponents().maxIter(maxIter).run()
+        builder = self._jvm_graph.stronglyConnectedComponents()
+        builder.maxIter(maxIter)
+        jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
     def svdPlusPlus(
@@ -287,12 +323,14 @@ class GraphFrame:
         v = DataFrame(jdf, self._spark)
         return (v, loss)
 
-    def triangleCount(self) -> DataFrame:
-        jdf = self._jvm_graph.triangleCount().run()
+    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+        builder = self._jvm_graph.triangleCount()
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
     def powerIterationClustering(
-        self, k: int, maxIter: int, weightCol: Optional[str] = None
+        self, k: int, maxIter: int, weightCol: str | None = None
     ) -> DataFrame:
         if weightCol:
             weightCol = self._spark._jvm.scala.Option.apply(weightCol)
@@ -301,22 +339,31 @@ class GraphFrame:
         jdf = self._jvm_graph.powerIterationClustering(k, maxIter, weightCol)
         return DataFrame(jdf, self._spark)
 
+    def maximal_independent_set(
+        self,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        use_local_checkpoints: bool,
+        seed: int,
+    ) -> DataFrame:
+        builder = self._jvm_graph.maximalIndependentSet()
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
 
-def _test():
-    import doctest
+        jdf = builder.run(seed)
+        return DataFrame(jdf, self._spark)
 
-    import graphframe
+    def k_core(
+        self,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        java_kcore = self._jvm_graph.kCore()
+        java_kcore.setUseLocalCheckpoints(use_local_checkpoints)
+        java_kcore.setCheckpointInterval(checkpoint_interval)
+        java_kcore.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = java_kcore.run()
 
-    globs = graphframe.__dict__.copy()
-    globs["sc"] = SparkContext("local[4]", "PythonTest", batchSize=2)
-    globs["spark"] = SparkSession(globs["sc"]).builder.getOrCreate()
-    (failure_count, test_count) = doctest.testmod(
-        globs=globs, optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
-    )
-    globs["sc"].stop()
-    if failure_count:
-        exit(-1)
-
-
-if __name__ == "__main__":
-    _test()
+        return DataFrame(jdf, self._spark)

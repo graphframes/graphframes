@@ -20,7 +20,7 @@ package org.graphframes
 import org.apache.spark.graphframes.graphx.Edge
 import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.ml.clustering.PowerIterationClustering
-import org.apache.spark.sql._
+import org.apache.spark.sql.*
 import org.apache.spark.sql.functions.array
 import org.apache.spark.sql.functions.broadcast
 import org.apache.spark.sql.functions.col
@@ -31,10 +31,10 @@ import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.monotonically_increasing_id
 import org.apache.spark.sql.functions.struct
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.*
 import org.apache.spark.storage.StorageLevel
-import org.graphframes.lib._
-import org.graphframes.pattern._
+import org.graphframes.lib.*
+import org.graphframes.pattern.*
 
 import java.util.Random
 import scala.reflect.runtime.universe.TypeTag
@@ -170,12 +170,24 @@ class GraphFrame private (
   /**
    * Returns triplets: (source vertex)-[edge]->(destination vertex) for all edges in the graph.
    * The DataFrame returned has 3 columns, with names: [[GraphFrame.SRC]], [[GraphFrame.EDGE]],
-   * and [[GraphFrame.DST]]. The 2 vertex columns have schema matching [[GraphFrame.vertices]],
-   * and the edge column has a schema matching [[GraphFrame.edges]].
+   * and [[GraphFrame.DST]]. Each column is a struct. The 2 vertex columns have schema matching
+   * [[GraphFrame.vertices]], and the edge column has a schema matching [[GraphFrame.edges]]. For
+   * example, `triplets.select(col(SRC)(ID))` selects ID of the source column.
    *
    * @group structure
    */
-  lazy val triplets: DataFrame = find(s"($SRC)-[$EDGE]->($DST)")
+  lazy val triplets: DataFrame = {
+    vertices
+      .select(col(ID).alias("src_id"), nestAsCol(vertices, SRC))
+      .join(
+        edges
+          .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), nestAsCol(edges, EDGE)),
+        col("src_id") === col("edge_src"))
+      .join(
+        vertices.select(col(ID).alias("dst_id"), nestAsCol(vertices, DST)),
+        col("dst_id") === col("edge_dst"))
+      .drop("src_id", "edge_src", "dst_id", "edge_dst")
+  }
 
   // ============================ Conversions ========================================
 
@@ -298,6 +310,97 @@ class GraphFrame private (
       .agg(count("*").cast("int").as("degree"))
   }
 
+  /**
+   * The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "outDegrees" a struct with a field for each edge type, storing the out-degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
+   * @group degree
+   */
+  def typeOutDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol, types)
+      case None =>
+        edges.groupBy(col(SRC).as(ID)).pivot(edgeTypeCol)
+    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
+    countDF.select(col(ID), struct(structCols: _*).as("outDegrees"))
+  }
+
+  /**
+   * The in-degree of each vertex per edge type, returned as a DataFrame with two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "inDegrees" a struct with a field for each edge type, storing the in-degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
+   * @group degree
+   */
+  def typeInDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol, types)
+      case None =>
+        edges.groupBy(col(DST).as(ID)).pivot(edgeTypeCol)
+    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
+    countDF.select(col(ID), struct(structCols: _*).as("inDegrees"))
+  }
+
+  /**
+   * The total degree of each vertex per edge type (both in and out), returned as a DataFrame with
+   * two columns:
+   *   - [[GraphFrame.ID]] the ID of the vertex
+   *   - "degrees" a struct with a field for each edge type, storing the total degree count
+   *
+   * @param edgeTypeCol
+   *   Name of the column in edges DataFrame that contains edge types
+   * @param edgeTypes
+   *   Optional sequence of edge type values. If None, edge types will be discovered
+   *   automatically.
+   * @group degree
+   */
+  def typeDegree(edgeTypeCol: String, edgeTypes: Option[Seq[Any]] = None): DataFrame = {
+    val explodedEdges = edges.select(explode(array(col(SRC), col(DST))).as(ID), col(edgeTypeCol))
+
+    val pivotDF = edgeTypes match {
+      case Some(types) =>
+        explodedEdges.groupBy(ID).pivot(edgeTypeCol, types)
+      case None =>
+        explodedEdges.groupBy(ID).pivot(edgeTypeCol)
+    }
+    val countDF = pivotDF.agg(count(lit(1))).na.fill(0)
+    val structCols = countDF.columns
+      .filter(_ != ID)
+      .map { colName =>
+        col(colName).cast("int").as(colName)
+      }
+      .toSeq
+
+    countDF.select(col(ID), struct(structCols: _*).as("degrees"))
+  }
+
   // ============================ Motif finding ========================================
 
   /**
@@ -361,20 +464,53 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]->\((\w+)\)""".r
+    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
+    val UndirectedPattern = """\((\w+)\)-\[(\w*)\]-\((\w+)\)""".r
+
     pattern match {
-      case VarLengthPattern(src, name, min, max, dst) =>
+      case VarLengthPattern(src, name, min, max, direction, dst) =>
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
             s"Unbounded length patten ${pattern} is not supported! " +
               "Please a pattern of defined length.")
         }
-        val strToSeq: Seq[String] = (min.toInt to max.toInt).reverse.map { hop =>
-          s"($src)-[$name*$hop]->($dst)"
+        val strToSeq: Seq[(Int, String)] = (min.toInt to max.toInt).reverse.map { hop =>
+          (hop, s"($src)-[$name*$hop]->($dst)")
         }
-        strToSeq
-          .map(findAugmentedPatterns)
-          .reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+        val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
+          (min.toInt to max.toInt).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
+        } else {
+          Seq.empty[(Int, String)]
+        }
+
+        val out: Seq[DataFrame] = strToSeq.map { case (hop, patternStr) =>
+          findAugmentedPatterns(patternStr)
+            .withColumn("_hop", lit(hop))
+            .withColumn("_pattern", lit(patternStr))
+            .withColumn("_direction", lit("out"))
+        }
+
+        val in: Seq[DataFrame] = strToSeqReverse.map { case (hop, patternStr) =>
+          findAugmentedPatterns(patternStr)
+            .withColumn("_hop", lit(hop))
+            .withColumn("_pattern", lit(patternStr))
+            .withColumn("_direction", lit("in"))
+        }
+
+        val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+        ret.orderBy("_hop", "_direction")
+
+      case UndirectedPattern(src, name, dst) =>
+        val out: DataFrame = findAugmentedPatterns(s"($src)-[$name]->($dst)")
+          .withColumn("_pattern", lit(s"($src)-[$name]->($dst)"))
+          .withColumn("_direction", lit("out"))
+        val in: DataFrame = findAugmentedPatterns(s"($src)<-[$name]-($dst)")
+          .withColumn("_pattern", lit(s"($src)<-[$name]-($dst)"))
+          .withColumn("_direction", lit("in"))
+
+        val ret = out.unionByName(in)
+        ret.orderBy("_direction")
+
       case _ =>
         findAugmentedPatterns(pattern)
     }
@@ -572,6 +708,15 @@ class GraphFrame private (
   }
 
   /**
+   * K-Core decomposition.
+   *
+   * See [[org.graphframes.lib.KCore]] for more details.
+   *
+   * @group stdlib
+   */
+  def kCore: KCore = new KCore(this)
+
+  /**
    * Validates the consistency and integrity of a graph by performing checks on the vertices and
    * edges.
    *
@@ -645,16 +790,21 @@ class GraphFrame private (
    * large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
    * (SBPO’15) (2015): 1-11.
    *
-   * Returns a DataFrame with ID and cycles, ID are not unique if there are multiple cycles
-   * starting from this ID. For the case of cycle 1 -> 2 -> 3 -> 1 all the vertices will have the
-   * same cycle! E.g.: 1 -> [1, 2, 3, 1] 2 -> [2, 3, 1, 2] 3 -> [3, 1, 2, 3]
-   *
-   * Deduplication of cycles should be done by the user!
+   * Returns a DataFrame with unque cycles.
    *
    * @return
    *   an instance of DetectingCycles initialized with the current context
    */
   def detectingCycles: DetectingCycles = new DetectingCycles(this)
+
+  /**
+   * Maximal Independent Set algorithm.
+   *
+   * See [[org.graphframes.lib.MaximalIndependentSet]] for more details.
+   *
+   * @group stdlib
+   */
+  def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
 
   /**
    * Converts the directed graph into an undirected graph by ensuring that all directed edges are

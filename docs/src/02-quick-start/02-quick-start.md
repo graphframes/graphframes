@@ -86,13 +86,17 @@ a conversion method (see [user guide](/04-user-guide/12-graphx-conversion.md)). 
 supported algorithms:
 
 | Algorithm                      | GraphX Wrapper | GraphFrames Implementation | Recommendations                                              |
-|--------------------------------|----------------|----------------------------|--------------------------------------------------------------|
+| ------------------------------ | -------------- | -------------------------- | ------------------------------------------------------------ |
 | BFS                            | Yes            | Yes                        | GraphFrames provides smoother API                            |
 | Connected Components           | Yes            | Yes                        | For small graphs and streaming GraphX, otherwise GraphFrames |
 | Strongly Connected Components  | Yes            | No                         | GraphX                                                       |
-| Label Propagation Algorithm    | Yes            | Yes                        | GraphFrames is order of magnitude faster                     |
+| Label Propagation Algorithm    | Yes            | Yes                        | For small graphs and streaming GraphX, otherwise GraphFrames |
 | PageRank                       | Yes            | No                         | GraphX                                                       |
 | Parallel Personalized PageRank | Yes            | No                         | GraphX                                                       |
 | Shortest Paths                 | Yes            | Yes                        | For small graphs and streaming GraphX, otherwise GraphFrames |
 | Triangle Count                 | Yes            | Yes                        | GraphFrames provides smoother API                            |
 | SVD++                          | Yes            | No                         | GraphX                                                       |
+| Cycles Detection               | No             | Yes                        | GraphFrames                                                  |
+| Triangel Count                 | No             | Yes                        | GraphFrames                                                  |
+| K-Core                         | No             | Yes                        | GraphFrames                                                  |
+| Maximal Independent Set        | No             | Yes                        | GraphFrames                                                  |

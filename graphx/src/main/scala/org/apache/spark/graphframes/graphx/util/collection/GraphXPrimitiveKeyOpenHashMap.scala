@@ -18,7 +18,7 @@
 package org.apache.spark.graphframes.graphx.util.collection
 import org.apache.spark.util.collection.OpenHashSet
 
-import scala.reflect._
+import scala.reflect.*
 
 /**
  * A fast hash map implementation for primitive, non-null keys. This hash map supports insertions

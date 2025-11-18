@@ -5,33 +5,57 @@ package org.graphframes.connect.proto;
 option java_multiple_files = true;
 option java_package = "org.graphframes.connect.proto";
 option java_generate_equals_and_hash = true;
-option optimize_for=SPEED;
+option optimize_for = SPEED;
 
 
+// GraphFramesAPI represents the core message type for GraphFrames operations
+// containing graph data and the specific graph algorithm to be executed
 message GraphFramesAPI {
+  // Serialized vertex DataFrame containing node information
   bytes vertices = 1;
+  // Serialized edge DataFrame containing relationship information
   bytes edges = 2;
+  // Specifies which graph algorithm operation to perform
   oneof method {
     AggregateMessages aggregate_messages = 3;
     BFS bfs = 4;
     ConnectedComponents connected_components = 5;
     DropIsolatedVertices drop_isolated_vertices = 6;
-    FilterEdges filter_edges = 7;
-    FilterVertices filter_vertices = 8;
-    Find find = 9;
-    LabelPropagation label_propagation = 10;
-    PageRank page_rank = 11;
-    ParallelPersonalizedPageRank parallel_personalized_page_rank = 12;
-    PowerIterationClustering power_iteration_clustering = 13;
-    Pregel pregel = 14;
-    ShortestPaths shortest_paths = 15;
-    StronglyConnectedComponents strongly_connected_components = 16;
-    SVDPlusPlus svd_plus_plus = 17;
-    TriangleCount triangle_count = 18;
-    Triplets triplets = 19;
+    DetectingCycles detecting_cycles = 7;
+    FilterEdges filter_edges = 8;
+    FilterVertices filter_vertices = 9;
+    Find find = 10;
+    LabelPropagation label_propagation = 11;
+    PageRank page_rank = 12;
+    ParallelPersonalizedPageRank parallel_personalized_page_rank = 13;
+    PowerIterationClustering power_iteration_clustering = 14;
+    Pregel pregel = 15;
+    ShortestPaths shortest_paths = 16;
+    StronglyConnectedComponents strongly_connected_components = 17;
+    SVDPlusPlus svd_plus_plus = 18;
+    TriangleCount triangle_count = 19;
+    Triplets triplets = 20;
+    MaximalIndependentSet mis = 22;
+    KCore kcore = 21;
   }
 }
 
+// Mapping follows PySpark Storage Levels!
+// (not Scala-Spark Storage Levels)
+message StorageLevel {
+  oneof storage_level {
+    bool disk_only = 1;
+    bool disk_only_2 = 2;
+    bool disk_only_3 = 3;
+    bool memory_and_disk = 4;
+    bool memory_and_disk_2 = 5;
+    bool memory_and_disk_deser = 6;
+    bool memory_only = 7;
+    bool memory_only_2 = 8;
+  }
+}
+
+// String expression or serialized column
 message ColumnOrExpression {
   oneof col_or_expr {
     bytes col = 1;
@@ -39,6 +63,7 @@ message ColumnOrExpression {
   }
 }
 
+// Connect supports only string or long-like IDs
 message StringOrLongID {
   oneof id {
     int64 long_id = 1;
@@ -47,9 +72,10 @@ message StringOrLongID {
 }
 
 message AggregateMessages {
-  ColumnOrExpression agg_col = 1;
-  optional ColumnOrExpression send_to_src = 2;
-  optional ColumnOrExpression send_to_dst = 3;
+  repeated ColumnOrExpression agg_col = 1;
+  repeated ColumnOrExpression send_to_src = 2;
+  repeated ColumnOrExpression send_to_dst = 3;
+  optional StorageLevel storage_level = 4;
 }
 
 message BFS {
@@ -64,6 +90,15 @@ message ConnectedComponents {
   int32 checkpoint_interval = 2;
   int32 broadcast_threshold = 3;
   bool use_labels_as_components = 4;
+  bool use_local_checkpoints = 5;
+  int32 max_iter = 6;
+  optional StorageLevel storage_level = 7;
+}
+
+message DetectingCycles {
+  bool use_local_checkpoints = 1;
+  int32 checkpoint_interval = 2;
+  optional StorageLevel storage_level = 3;
 }
 
 message DropIsolatedVertices {}
@@ -81,7 +116,11 @@ message Find {
 }
 
 message LabelPropagation {
-  int32 max_iter = 1;
+  string algorithm = 1;
+  int32 max_iter = 2;
+  bool use_local_checkpoints = 3;
+  int32 checkpoint_interval = 4;
+  optional StorageLevel storage_level = 5;
 }
 
 message PageRank {
@@ -113,10 +152,21 @@ message Pregel {
   ColumnOrExpression additional_col_initial = 7;
   ColumnOrExpression additional_col_upd = 8;
   optional bool early_stopping = 9;
+  bool use_local_checkpoints = 10;
+  optional StorageLevel storage_level = 11;
+  optional bool stop_if_all_non_active = 12;
+  optional ColumnOrExpression initial_active_expr = 13;
+  optional ColumnOrExpression update_active_expr = 14;
+  optional bool skip_messages_from_non_active = 15;
 }
 
 message ShortestPaths {
   repeated StringOrLongID landmarks = 1;
+  string algorithm = 2;
+  bool use_local_checkpoints = 3;
+  int32 checkpoint_interval = 4;
+  optional StorageLevel storage_level = 5;
+  optional bool is_directed = 6;
 }
 
 message StronglyConnectedComponents {
@@ -134,6 +184,21 @@ message SVDPlusPlus {
   double gamma7 = 8;
 }
 
-message TriangleCount {}
+message TriangleCount {
+  optional StorageLevel storage_level = 1;
+}
 
 message Triplets {}
+
+message MaximalIndependentSet {
+  int32 checkpoint_interval = 1;
+  optional StorageLevel storage_level = 2;
+  bool use_local_checkpoints = 3;
+  int64 seed = 4;
+}
+
+message KCore {
+  bool use_local_checkpoints = 1;
+  int32 checkpoint_interval = 2;
+  optional StorageLevel storage_level = 3;
+}

@@ -21,7 +21,7 @@ import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.InvalidParseException
 
 import scala.collection.mutable
-import scala.util.parsing.combinator._
+import scala.util.parsing.combinator.*
 
 /**
  * Parser for graph patterns for motif finding. Copied from GraphFrames with minor modification.
@@ -49,9 +49,7 @@ private[graphframes] object PatternParser extends RegexParsers {
     vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]*".r ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ name ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
         val hop: Int = num.toInt
-        if (hop == 1) {
-          List(if (name.isEmpty) AnonymousEdge(src, dst) else NamedEdge(name, src, dst))
-        } else if (hop > 1) {
+        if (hop > 0) {
           val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
           val vertices = src +: midVertices :+ dst
           vertices
@@ -76,7 +74,8 @@ private[graphframes] object PatternParser extends RegexParsers {
 private[graphframes] object Pattern {
   def parse(s: String): Seq[Pattern] = {
     import PatternParser._
-    val result = parseAll(patterns, s) match {
+    val rewrittenStr: String = rewriteIncomingEdges(s)
+    val result = parseAll(patterns, rewrittenStr) match {
       case result: Success[_] =>
         result.asInstanceOf[Success[Seq[Pattern]]].get
       case result: NoSuccess =>
@@ -85,6 +84,36 @@ private[graphframes] object Pattern {
     }
     assertValidPatterns(result)
     result
+  }
+
+  /**
+   * Rewirte a motif string if there are incomming edges
+   */
+  private[graphframes] def rewriteIncomingEdges(patterns: String): String = {
+    val reversedEdge =
+      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
+    val bidirectionalEdge =
+      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
+
+    val outgoingEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
+      pattern.trim match {
+        case reversedEdge(negation, dst, edge, src) =>
+          s"$negation($src)-[$edge]->($dst)"
+        case bidirectionalEdge(negation, src, edge, dst) =>
+          if (!negation.isEmpty) {
+            throw new InvalidParseException(
+              s"Motif finding does not support negated bidirectional edge: '$pattern'.")
+          }
+          if (edge.isEmpty || edge.contains("*")) {
+            s"($src)-[$edge]->($dst);($dst)-[$edge]->($src)"
+          } else {
+            s"($src)-[${edge}1]->($dst);($dst)-[${edge}2]->($src)"
+          }
+        case original => original
+      }
+    }
+
+    outgoingEdges.mkString(";")
   }
 
   /**

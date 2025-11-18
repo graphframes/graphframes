@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import os
 import pathlib
 import tempfile
-from typing import Optional, Tuple
 import warnings
 
 import pytest
+from py4j.java_gateway import JavaObject
 from pyspark.sql import SparkSession
 from pyspark.version import __version__
 
@@ -18,11 +20,12 @@ else:
     def is_remote() -> bool:
         return False
 
+
 spark_major_version = __version__[:1]
 scala_version = os.environ.get("SCALA_VERSION", "2.12" if __version__ < "4" else "2.13")
 
 
-def get_gf_jar_locations() -> Tuple[str, str, str]:
+def get_gf_jar_locations() -> tuple[str, str, str]:
     """
     Returns a location of the GraphFrames JAR and GraphFrames Connect JAR.
 
@@ -34,9 +37,9 @@ def get_gf_jar_locations() -> Tuple[str, str, str]:
     core_dir = project_root / "core" / "target" / f"scala-{scala_version}"
     connect_dir = project_root / "connect" / "target" / f"scala-{scala_version}"
 
-    graphx_jar: Optional[str] = None
-    core_jar: Optional[str] = None
-    connect_jar: Optional[str] = None
+    graphx_jar: str | None = None
+    core_jar: str | None = None
+    connect_jar: str | None = None
 
     for pp in graphx_dir.glob(f"graphframes-graphx-spark{spark_major_version}*.jar"):
         assert isinstance(pp, pathlib.PosixPath)  # type checking
@@ -64,7 +67,7 @@ def get_gf_jar_locations() -> Tuple[str, str, str]:
         raise ValueError(
             f"Failed to find graphframes connect jar for Spark {spark_major_version} in {connect_dir}"
         )
-    
+
     return core_jar, connect_jar, graphx_jar
 
 
@@ -76,21 +79,26 @@ def spark():
     (core_jar, connect_jar, graphx_jar) = get_gf_jar_locations()
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        builder = (SparkSession.Builder()
+        builder = (
+            SparkSession.Builder()
             .appName("GraphFramesTest")
             .config("spark.sql.shuffle.partitions", 4)
             .config("spark.checkpoint.dir", tmp_dir)
             .config("spark.jars", f"{core_jar},{connect_jar},{graphx_jar}")
+            .config("spark.driver.memory", "6g")
         )
 
         if spark_major_version == "3":
             # Spark 3 does not include connect by default
-            builder = builder.config("spark.jars.packages", f"org.apache.spark:spark-connect_{scala_version}:{__version__}")
+            builder = builder.config(
+                "spark.jars.packages",
+                f"org.apache.spark:spark-connect_{scala_version}:{__version__}",
+            )
 
         if is_remote():
-            builder = (builder
-                .remote("local[4]")
-                .config("spark.connect.extensions.relation.classes", "org.apache.spark.sql.graphframes.GraphFramesConnect")
+            builder = builder.remote("local[4]").config(
+                "spark.connect.extensions.relation.classes",
+                "org.apache.spark.sql.graphframes.GraphFramesConnect",
             )
         else:
             builder = builder.master("local[4]")
@@ -101,7 +109,7 @@ def spark():
 
 
 @pytest.fixture(scope="module")
-def local_g(spark):
+def local_g(spark: SparkSession):
     localVertices = [(1, "A"), (2, "B"), (3, "C")]
     localEdges = [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow")]
     v = spark.createDataFrame(localVertices, ["id", "name"])
@@ -110,11 +118,15 @@ def local_g(spark):
 
 
 @pytest.fixture(scope="module")
-def examples(spark):
+def examples(spark: SparkSession):
     if is_remote():
         # TODO: We should update tests to be able to run all of them on Spark Connect
         # At the moment the problem is that examples API is py4j based.
         yield None
     else:
         japi = _java_api(spark._sc)
-        yield japi.examples()
+        assert japi is not None
+        examples = japi.examples()
+        assert examples is not None
+        assert isinstance(examples, JavaObject)
+        yield examples

@@ -1,7 +1,8 @@
 package org.graphframes.lib
 
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
@@ -30,7 +31,6 @@ class DetectingCycles private[graphframes] (private val graph: GraphFrame)
         filter(col(foundSeqCol), x => size(x) > lit(0)).alias(foundSeqCol))
       .filter(size(col(foundSeqCol)) > lit(0))
       .select(
-        col(GraphFrame.ID),
         // from vid -> [[cycle1, cycle2, ...]]
         // to vid -> [cycle1], vid -> [cycle2], ...
         explode(col(foundSeqCol)).alias(foundSeqCol))
@@ -62,7 +62,10 @@ object DetectingCycles {
     // Each vertex stores all the found cycles
     val foundSequences = array().cast(ArrayType(ArrayType(vertexDT)))
     // Message is simply stored sequences
-    val sentMessages = when(size(Pregel.src(storedSeqCol)) =!= lit(0), Pregel.src(storedSeqCol))
+    // Send only sequences if the starting vertex of them is less than the destination
+    val sentMessages = when(
+      size(Pregel.src(storedSeqCol)) =!= lit(0),
+      filter(Pregel.src(storedSeqCol), (x: Column) => x.getItem(0) <= Pregel.dst(GraphFrame.ID)))
       .otherwise(lit(null).cast(ArrayType(ArrayType(vertexDT))))
     // If the sequence contains the current vertex ID somewhere in the middle, it is
     // a previously detected cycle and a sequence should be discarded.

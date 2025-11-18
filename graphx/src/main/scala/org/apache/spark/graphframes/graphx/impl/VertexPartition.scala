@@ -17,7 +17,7 @@
 
 package org.apache.spark.graphframes.graphx.impl
 
-import org.apache.spark.graphframes.graphx._
+import org.apache.spark.graphframes.graphx.*
 import org.apache.spark.util.collection.BitSet
 
 import scala.reflect.ClassTag

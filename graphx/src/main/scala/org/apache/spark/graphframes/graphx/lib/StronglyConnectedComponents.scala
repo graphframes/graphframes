@@ -17,7 +17,7 @@
 
 package org.apache.spark.graphframes.graphx.lib
 
-import org.apache.spark.graphframes.graphx._
+import org.apache.spark.graphframes.graphx.*
 
 import scala.annotation.nowarn
 import scala.reflect.ClassTag

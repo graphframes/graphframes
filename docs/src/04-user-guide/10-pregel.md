@@ -2,6 +2,14 @@
 
 Pregel API is one of the core backbones of GraphFrames. It is based on the implementation of the [Pregel algorithm](https://blog.lavaplanets.com/wp-content/uploads/2023/12/p135-malewicz.pdf) in terms of relational operations using the Apache Spark `DataFrame` / `Dataset` API.
 
+---
+
+**NOTE**
+
+*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+
+---
+
 ## API
 
 For the API details, please refer to:

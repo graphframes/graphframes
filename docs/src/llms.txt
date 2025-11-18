@@ -1,0 +1,142 @@
+# GraphFrames Documentation Overview
+
+## Project Overview
+
+GraphFrames is a package for Apache Spark that provides DataFrame-based graphs. It offers high-level APIs in Scala, Java, and Python, combining the functionality of GraphX with extended capabilities that leverage Spark DataFrames. GraphFrames represents graphs using vertices and edges as Spark DataFrame objects, enabling powerful graph algorithms and highly expressive queries.
+
+## Key Advantages
+
+1. **DataFrame-Based Architecture**: Unlike GraphX which uses RDDs, GraphFrames uses Spark DataFrames for graph representation, providing better memory efficiency and performance through Tungsten serialization.
+
+2. **Multi-Language Support**: First-class APIs available in Scala, Java, and Python, making it accessible to a wide range of developers and data scientists.
+
+3. **Advanced Querying Capabilities**: Provides motif finding for pattern recognition in graphs, enabling complex network analysis that combines graph and relational queries.
+
+4. **Integrated with Spark Ecosystem**: Leverages Spark's Catalyst optimizer and Adaptive Query Execution for optimized performance on large-scale graph processing.
+
+5. **Distributed Algorithms**: Implements distributed versions of key graph algorithms that can scale to billions of nodes and edges.
+
+6. **Extensible Framework**: Offers AggregateMessages and Pregel APIs for implementing custom graph algorithms using a vertex-centric approach.
+
+## Documentation Structure
+
+### 1. About GraphFrames
+   - [Introduction and Architecture](01-about/01-index.md) - Overview of GraphFrames, comparison with GraphX, and use cases
+   - [Benchmarks](01-about/03-benchmarks.md) - Performance comparisons and benchmark results
+
+### 2. Getting Started
+   - [Installation](02-quick-start/01-installation.md) - How to install and set up GraphFrames with different Spark versions
+   - [Quick Start Guide](02-quick-start/02-quick-start.md) - Basic examples to get you started with GraphFrames in Python and Scala
+
+### 3. Tutorials
+   - [General Tutorials](03-tutorials/01-tutorials.md) - Comprehensive tutorials for learning GraphFrames
+   - [Motif Finding Tutorial](03-tutorials/02-motif-tutorial.md) - In-depth guide on using motif finding for pattern recognition
+
+### 4. User Guide
+   - [Creating GraphFrames](04-user-guide/01-creating-graphframes.md) - How to construct GraphFrames from DataFrames
+   - [Basic Operations](04-user-guide/02-basic-operations.md) - Fundamental graph operations like degrees and filtering
+   - [Centrality Algorithms](04-user-guide/03-centralities.md) - PageRank and other centrality measures
+   - [Motif Finding](04-user-guide/04-motif-finding.md) - Advanced pattern matching in graphs
+   - [Graph Traversals](04-user-guide/05-traversals.md) - Traversal algorithms and techniques
+   - [Graph Clustering](04-user-guide/06-graph-clustering.md) - Clustering algorithms like Label Propagation
+   - [Subgraphs](04-user-guide/07-subgraphs.md) - Working with subgraphs
+   - [Saving and Loading](04-user-guide/08-saving-and-loading.md) - Persistence operations
+   - [Aggregate Messages](04-user-guide/09-aggregate-messages.md) - Message passing API for custom algorithms
+   - [Pregel API](04-user-guide/10-pregel.md) - Vertex-centric programming model
+   - [Property Graphs](04-user-guide/11-property-graphs.md) - Working with property graphs
+   - [GraphX Conversion](04-user-guide/12-graphx-conversion.md) - Converting between GraphFrames and GraphX
+   - [Configurations](04-user-guide/13-configurations.md) - Configuration options and settings
+   - [Special Columns](04-user-guide/14-special-columns.md) - Understanding special graph columns
+
+### 5. API Reference
+   - [Scala API Documentation](api/scaladoc/) - Generated API documentation for Scala
+   - [Python API Documentation](api/python/) - Generated API documentation for Python
+
+### 6. Contributing
+   - [Contributing Guide](06-contributing/01-contributing-guide.md) - How to contribute to the project
+   - [Community](06-contributing/02-community.md) - Community resources and communication channels
+
+## Core Use Cases
+
+1. **Search Ranking**: PageRank implementation for ranking documents in search systems
+2. **Fraud Detection**: Shortest paths algorithms and cycle detection for anti-fraud applications
+3. **Data Deduplication**: Connected components for identity resolution across massive datasets
+4. **Network Analysis**: Motif finding for pattern recognition in complex networks
+5. **Graph Clustering**: Label propagation and power iteration clustering algorithms
+6. **Custom Algorithms**: Framework for implementing domain-specific graph algorithms
+7. **Network Stability**: K-Core algorithm for finding a critical cores
+8. **Marketing Compaigns**: Finding a set of vertices with big coverage via Maximal Independent Set
+
+## Supported Algorithms
+
+GraphFrames provides implementations for a wide range of graph algorithms including:
+- PageRank and Personalized PageRank
+- Connected Components
+- Strongly Connected Components
+- Label Propagation
+- Shortest Paths
+- Triangle Counting
+- Cycles Detection (Rocha-Thatte algorithm)
+- Breadth-First Search (BFS)
+- SVD++
+- K-Core
+- Maximal Independent Set
+
+For the most current list of algorithms and their implementations, refer to the User Guide section on graph algorithms.
+
+## Algorithm Decision Matrix
+
+Problem -> Algorithm
+
+- Data Deduplication -> Connected Components
+- Identity Resolution -> Connected Components
+- Search Ranking -> Page Rank
+- Influencers Finding -> Page Rank + Degrees
+- Custom Graph Algorithms -> Pregel or Aggregate Messages
+- Anti Fraud -> Cycles Detection
+- Compliance -> Shortest Paths
+- Structure Analysis -> Motif Finding
+- Community Detection -> Laber Propagation or Power Iteration Clustering
+- Creating Graphs from Tables -> PropertyGraphFrame API
+- Network stability and critical core -> K-Core
+- Marketing and influnce spreading -> Maximal Independent Set
+
+## Troubleshooting
+
+Problem -> Solution
+
+Overall -> Validate the graph with `graph.validate()`. This operation is expensive and validation is not running by default. It will check the consistency of the graph. The next step is to check for self-loops that may lead to problems for some algorithms. Degrees distribution is important too: it is barely possible to run Pregel on power-law graphs of billion-scale without edges sampling strategies.
+
+Connected Components fails on big graphs -> Use algorithm="graphframes" and "broadCastThreshold=-1"; default parameters are inefficient but cannot be changed due to back-compatibility requirements. GraphFrames implementation rely on the modern scientific paper and "broadCastThreshold=-1" allows to benefit from Spark AQE.
+
+Triangle Count fail with OOM -> Most probably it is the case of power-law graphs. Consider simple edge-sampling strategy.
+
+Py4j or Spark Connect errors that some method does not exists -> check that the core GraphFrames JAR is exactly the same version like the PySpark graphframes package.
+
+Overall -> Check that the version from graphframes-core is equal to minor spark versions, for example, io.graphframes:graphframes-spark3_2.12 is compatible only with Apache Spark 3.5.x with Scala 2.12, etc. See the [installation section of docs for details](02-quick-start/01-installation.html).
+
+## Installation
+
+GraphFrames requires careful version alignment across multiple components to function correctly. The primary artifacts are:
+- `graphframes`: The core library providing DataFrame-based graph functionality.
+- `graphframes-connect`: Enables integration with Spark Connect for remote execution.
+- `graphframes-graphx`: Provides an optimized distribution of Spark' GraphX.
+
+Ensure that all components use matching versions to prevent runtime errors such as "class not found" or method missing exceptions. Version mismatches often occur when:
+1. The PyPI package `graphframes` does not match the version of the core GraphFrames JAR.
+2. The core GraphFrames JAR is incompatible with the Spark version or Scala binary version.
+
+Maven coordinates follow the pattern:
+`io.graphframes:graphframes_[scala-version]:[graphframes-version]`
+
+Example valid Maven dependency for Spark 3.5.x with Scala 2.12:
+`io.graphframes:graphframes_2.12:0.8.3-spark3.5`
+
+PyPI package must align strictly with the core artifact version:
+`pip install graphframes==0.8.3`
+
+Failure to synchronize versions may result in `Py4JJavaError`, `ClassNotFoundException`, or silent incorrect behavior. Always validate compatibility using the published version matrix in documentation before deployment.
+
+## GraphFrames or GraphX?
+
+For small-medium sized graphs it may be better to use wrapped graphx algorithms from GraphFrames (algorithm="graphx"). GraphX model is build around triplets processing that may be faster in some cases but requires much more memory due to triplets nature and less efficient RDD serialization. For big graphs it is recommended to use DataFrame based implementations (algorithm="graphframes"). GraphFrames algorithms are built around vertices and edges and they are avoiding persisting triplets as well as DataFrames provides better serialization with Thungsten.

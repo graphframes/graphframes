@@ -17,7 +17,7 @@
 
 package org.apache.spark.graphframes.graphx
 
-import org.apache.spark.graphframes.graphx.impl._
+import org.apache.spark.graphframes.graphx.impl.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 

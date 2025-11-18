@@ -31,6 +31,17 @@ class PatternSuite extends SparkFunSuite {
         Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("v"))))
 
     assert(
+      Pattern.parse("(u)-[e*1]->(v)") ===
+        Seq(NamedEdge("_e1", NamedVertex("u"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[e*3]->(v)") ===
+        Seq(
+          NamedEdge("_e1", NamedVertex("u"), NamedVertex("_v1")),
+          NamedEdge("_e2", NamedVertex("_v1"), NamedVertex("_v2")),
+          NamedEdge("_e3", NamedVertex("_v2"), NamedVertex("v"))))
+
+    assert(
       Pattern.parse("()-[]->(v)") ===
         Seq(AnonymousEdge(AnonymousVertex, NamedVertex("v"))))
 
@@ -82,6 +93,30 @@ class PatternSuite extends SparkFunSuite {
           AnonymousEdge(NamedVertex("_v7"), NamedVertex("_v8")),
           AnonymousEdge(NamedVertex("_v8"), NamedVertex("_v9")),
           AnonymousEdge(NamedVertex("_v9"), NamedVertex("v"))))
+  }
+
+  test("rewrite incomming edges") {
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]-(v);") === "(v)-[e]->(u)")
+    assert(Pattern.rewriteIncomingEdges("!(u)<-[e]-(v);") === "!(v)-[e]->(u)")
+    assert(
+      Pattern.rewriteIncomingEdges("(u)<-[]-(v);(u)-[e]->(v)") === "(v)-[]->(u);(u)-[e]->(v)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[]->(v)") === "(u)-[]->(v);(v)-[]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]->(v)") === "(u)-[e1]->(v);(v)-[e2]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[*5]-(v)") === "(v)-[*5]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[*5]->(v)") === "(u)-[*5]->(v);(v)-[*5]->(u)")
+    assert(
+      Pattern.rewriteIncomingEdges(
+        "(v1)<-[e*1..2]->(v2)") === "(v1)-[e*1..2]->(v2);(v2)-[e*1..2]->(v1)")
+  }
+
+  test("rewrite incomming edges and parse") {
+    Pattern.parse("(v)<-[e]-(u)") === Pattern.parse("(u)-[e]->(v)")
+    Pattern.parse("(v)<-[]-(u)") === Pattern.parse("(u)-[]->(v)")
+    Pattern.parse("!(v)<-[]-(u)") === Pattern.parse("!(u)-[]->(v)")
+    Pattern.parse("()<-[e]-()") === Pattern.parse("()-[e]->()")
+    Pattern.parse("(u)-[]->(v); (w)<-[]-(v); !(w)<-[]-(u)") === Pattern.parse(
+      "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)")
+    Pattern.parse("(v)<-[*5]-(u)") === Pattern.parse("(u)-[*5]->(v)")
   }
 
   test("bad parses") {
@@ -150,6 +185,11 @@ class PatternSuite extends SparkFunSuite {
     withClue("Failed to catch parse error with reused edge name") {
       intercept[InvalidParseException] {
         Pattern.parse("(a)-[e]->(b); ()-[e]->()")
+      }
+    }
+    withClue("Failed to catch parse error with not support negated bidirectional edge") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!(u)<-[]->(v)")
       }
     }
   }

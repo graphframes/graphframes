@@ -39,5 +39,6 @@ class LabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContex
       labels.filter(s"id >= $n").select("label").collect().toSeq.map(_.getLong(0)).toSet
     assert(clique2.size === 1)
     assert(clique1 !== clique2)
+    labels.unpersist()
   }
 }
