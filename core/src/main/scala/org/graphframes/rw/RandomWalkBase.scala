@@ -1,11 +1,11 @@
 package org.graphframes.rw
 
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.array_union
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.collect_set
 import org.apache.spark.sql.functions.shuffle
 import org.apache.spark.sql.functions.slice
-import org.apache.spark.sql.functions.array_union
 import org.graphframes.GraphFrame
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
@@ -97,7 +97,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       iterationResult.write.parquet(iterationTmpPath(i))
     }
 
-    logInfo(s"Finished all batches, merging results.")
+    logInfo("Finished all batches, merging results.")
     var result = spark.read.parquet(iterationTmpPath(1))
 
     for (i <- 2 to numBatches) {
