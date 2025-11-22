@@ -675,6 +675,19 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, expected)
   }
 
+  test("undirected edge within a chain") {
+    val res = g
+      .find("(u)-[]-(v);(v)-[]->(k)")
+      .where("u.id == 0")
+      .select("u.id", "v.id", "k.id")
+      .collect()
+      .toSet
+
+    val expected = Set(Row(0L, 1L, 2L), Row(0L, 1L, 0L), Row(0L, 2L, 0L), Row(0L, 2L, 3L))
+
+    compareResultToExpected(res, expected)
+  }
+
   test("undirected with edge name") {
     val res = g
       .find("(u)-[e]-(v)")
