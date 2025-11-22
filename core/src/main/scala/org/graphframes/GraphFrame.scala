@@ -1203,6 +1203,15 @@ object GraphFrame extends Serializable with Logging {
   private def eSrcId(name: String): String = prefixWithName(name, SRC)
   private def eDstId(name: String): String = prefixWithName(name, DST)
 
+  def maybeUnion(aOpt: Option[DataFrame], bOpt: Option[DataFrame]): Option[DataFrame] = {
+    (aOpt, bOpt) match {
+      case (Some(a), Some(b)) => Some(a.unionByName(b, allowMissingColumns = true))
+      case (Some(a), None) => Some(a)
+      case (None, Some(b)) => Some(b)
+      case (None, None) => None
+    }
+  }
+
   private def maybeCrossJoin(aOpt: Option[DataFrame], b: DataFrame): DataFrame = {
     aOpt match {
       case Some(a) => a.crossJoin(b)
@@ -1226,6 +1235,8 @@ object GraphFrame extends Serializable with Logging {
   /** Indicate whether a named vertex has been seen in the given pattern */
   private def seen1(v: NamedVertex, pattern: Pattern): Boolean = pattern match {
     case Negation(edge) =>
+      seen1(v, edge)
+    case UndirectedEdge(edge) =>
       seen1(v, edge)
     case AnonymousEdge(src, dst) =>
       seen1(v, src) || seen1(v, dst)
@@ -1270,6 +1281,21 @@ object GraphFrame extends Serializable with Logging {
         } else {
           (Some(maybeCrossJoin(prev, nestV(name))), prevNames :+ name)
         }
+
+      case UndirectedEdge(edge) =>
+        val reversedEdge: Pattern = {
+          edge match {
+            case e: NamedEdge =>
+              e.copy(src = e.dst, dst = e.src)
+            case e: AnonymousEdge =>
+              e.copy(src = e.dst, dst = e.src)
+            case _ => edge
+          }
+        }
+        val (df1, _) = findIncremental(gf, prevPatterns, prev, prevNames, reversedEdge)
+        val (df2, names) = findIncremental(gf, prevPatterns, prev, prevNames, edge)
+        val df = maybeUnion(df1, df2)
+        (df, names)
 
       case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
         val eRen = nestE(name)

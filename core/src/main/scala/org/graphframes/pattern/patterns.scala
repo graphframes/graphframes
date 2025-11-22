@@ -31,13 +31,15 @@ private[graphframes] object PatternParser extends RegexParsers {
   private val anonymousVertex: Parser[Vertex] = "" ^^ { _ => AnonymousVertex }
   private val vertex: Parser[Vertex] = "(" ~> (vertexName | anonymousVertex) <~ ")"
   private val namedEdge: Parser[Edge] =
-    vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]+".r ~ "]" ~ "->" ~ vertex ^^ {
+    vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]+".r ~ "]" ~ ("->" | "-") ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ name ~ "]" ~ "->" ~ dst => NamedEdge(name, src, dst)
+      case src ~ "-" ~ "[" ~ name ~ "]" ~ "-" ~ dst => UndirectedEdge(NamedEdge(name, src, dst))
       case _ => throw new GraphFramesUnreachableException()
     }
   val anonymousEdge: Parser[Edge] =
-    vertex ~ "-" ~ "[" ~ "]" ~ "->" ~ vertex ^^ {
+    vertex ~ "-" ~ "[" ~ "]" ~ ("->" | "-") ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ "]" ~ "->" ~ dst => AnonymousEdge(src, dst)
+      case src ~ "-" ~ "[" ~ "]" ~ "-" ~ dst => UndirectedEdge(AnonymousEdge(src, dst))
       case _ => throw new GraphFramesUnreachableException()
     }
   private val edge: Parser[Edge] = namedEdge | anonymousEdge
@@ -157,6 +159,8 @@ private[graphframes] object Pattern {
       case AnonymousEdge(src, dst) =>
         addVertex(src)
         addVertex(dst)
+      case UndirectedEdge(edge) =>
+        addEdge(edge)
     }
 
     patterns.foreach {
@@ -173,12 +177,16 @@ private[graphframes] object Pattern {
                 "using the edges DataFrame.")
           case e @ AnonymousEdge(_, _) =>
             addEdge(e)
+          case e @ UndirectedEdge(_) =>
+            addEdge(e)
         }
       case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
         throw new InvalidParseException(
           "Motif finding does not support completely " +
             "anonymous edges ()-[]->().  Users can check for the existence of edges in the " +
             "graph using the edges DataFrame.")
+      case e @ UndirectedEdge(_) =>
+        addEdge(e)
       case e @ AnonymousEdge(_, _) =>
         addEdge(e)
       case e @ NamedEdge(_, _, _) =>
@@ -220,6 +228,8 @@ private[graphframes] object Pattern {
     def findNamedElementsHelper(pattern: Pattern): Unit = pattern match {
       case Negation(child) =>
         findNamedElementsHelper(child)
+      case UndirectedEdge(child) =>
+        findNamedElementsHelper(child)
       case AnonymousVertex => // pass
       case NamedVertex(name) =>
         if (!elementSet.contains(name)) {
@@ -251,6 +261,8 @@ private[graphframes] case object AnonymousVertex extends Vertex
 private[graphframes] case class NamedVertex(name: String) extends Vertex
 
 private[graphframes] sealed trait Edge extends Pattern
+
+private[graphframes] case class UndirectedEdge(edge: Edge) extends Edge
 
 private[graphframes] case class AnonymousEdge(src: Vertex, dst: Vertex) extends Edge
 
