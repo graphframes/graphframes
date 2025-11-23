@@ -465,7 +465,6 @@ class GraphFrame private (
    */
   def find(pattern: String): DataFrame = {
     val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
-    val UndirectedPattern = """\((\w+)\)-\[(\w*)\]-\((\w+)\)""".r
 
     pattern match {
       case VarLengthPattern(src, name, min, max, direction, dst) =>
@@ -499,17 +498,6 @@ class GraphFrame private (
 
         val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
         ret.orderBy("_hop", "_direction")
-
-      case UndirectedPattern(src, name, dst) =>
-        val out: DataFrame = findAugmentedPatterns(s"($src)-[$name]->($dst)")
-          .withColumn("_pattern", lit(s"($src)-[$name]->($dst)"))
-          .withColumn("_direction", lit("out"))
-        val in: DataFrame = findAugmentedPatterns(s"($src)<-[$name]-($dst)")
-          .withColumn("_pattern", lit(s"($src)<-[$name]-($dst)"))
-          .withColumn("_direction", lit("in"))
-
-        val ret = out.unionByName(in)
-        ret.orderBy("_direction")
 
       case _ =>
         findAugmentedPatterns(pattern)
@@ -1205,7 +1193,8 @@ object GraphFrame extends Serializable with Logging {
 
   def maybeUnion(aOpt: Option[DataFrame], bOpt: Option[DataFrame]): Option[DataFrame] = {
     (aOpt, bOpt) match {
-      case (Some(a), Some(b)) => Some(a.unionByName(b, allowMissingColumns = true))
+      case (Some(a), Some(b)) =>
+        Some(a.unionByName(b, allowMissingColumns = true).orderBy("_direction"))
       case (Some(a), None) => Some(a)
       case (None, Some(b)) => Some(b)
       case (None, None) => None
@@ -1283,6 +1272,24 @@ object GraphFrame extends Serializable with Logging {
         }
 
       case UndirectedEdge(edge) =>
+        val srcName: String = edge match {
+          case NamedEdge(_, NamedVertex(n), _) => n
+          case AnonymousEdge(NamedVertex(n), _) => n
+          case _ => ""
+        }
+        val dstName: String = edge match {
+          case NamedEdge(_, _, NamedVertex(n)) => n
+          case AnonymousEdge(_, NamedVertex(n)) => n
+          case _ => ""
+        }
+        val edgeName: String = edge match {
+          case NamedEdge(n, _, _) => n
+          case _ => ""
+        }
+
+        val patternStr: String = s"($srcName)-[$edgeName]->($dstName)"
+        val reversedPatternStr: String = s"($srcName)<-[$edgeName]-($dstName)"
+
         val reversedEdge: Pattern = {
           edge match {
             case e: NamedEdge =>
@@ -1292,10 +1299,28 @@ object GraphFrame extends Serializable with Logging {
             case _ => edge
           }
         }
-        val (df1, _) = findIncremental(gf, prevPatterns, prev, prevNames, reversedEdge)
-        val (df2, names) = findIncremental(gf, prevPatterns, prev, prevNames, edge)
+
+        val (dfIn, _) = findIncremental(gf, prevPatterns, prev, prevNames, reversedEdge)
+        val (dfOut, names) = findIncremental(gf, prevPatterns, prev, prevNames, edge)
+
+        val df1 = dfIn match {
+          case Some(d) =>
+            Some(
+              d.withColumn("_pattern", lit(reversedPatternStr))
+                .withColumn("_direction", lit("in")))
+          case None => None
+        }
+
+        val df2 = dfOut match {
+          case Some(d) =>
+            Some(
+              d.withColumn("_pattern", lit(patternStr))
+                .withColumn("_direction", lit("out")))
+          case None => None
+        }
+
         val df = maybeUnion(df1, df2)
-        (df, names)
+        (df, names :+ "_pattern" :+ "_direction")
 
       case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
         val eRen = nestE(name)
@@ -1402,6 +1427,7 @@ object GraphFrame extends Serializable with Logging {
         prev match {
           case Some(p) =>
             val (df, names) = findIncremental(gf, prevPatterns, Some(p), prevNames, edge)
+            // TODO: _pattern. _direction columns should be ignored if it is impacting
             (df.map(result => p.except(result)), names)
           case None =>
             throw new InvalidPatternException

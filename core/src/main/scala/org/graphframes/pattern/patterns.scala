@@ -230,6 +230,8 @@ private[graphframes] object Pattern {
         findNamedElementsHelper(child)
       case UndirectedEdge(child) =>
         findNamedElementsHelper(child)
+        elementSet += "_pattern"
+        elementSet += "_direction"
       case AnonymousVertex => // pass
       case NamedVertex(name) =>
         if (!elementSet.contains(name)) {
