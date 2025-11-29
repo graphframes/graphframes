@@ -184,6 +184,17 @@ class PatternSuite extends SparkFunSuite {
         Pattern.parse("!()-[]->()")
       }
     }
+    withClue("Failed to catch parse error with completely anonymous undirected edge ()-[]-()") {
+      intercept[InvalidParseException] {
+        Pattern.parse("()-[]-()")
+      }
+    }
+    withClue(
+      "Failed to catch parse error with completely anonymous negated and undirected edge !()-[]-()") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!()-[]-()")
+      }
+    }
     withClue("Failed to catch parse error with reused element name") {
       intercept[InvalidParseException] {
         Pattern.parse("(a)-[]->(b); ()-[a]->()")

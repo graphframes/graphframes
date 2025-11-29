@@ -1191,7 +1191,7 @@ object GraphFrame extends Serializable with Logging {
   private def eSrcId(name: String): String = prefixWithName(name, SRC)
   private def eDstId(name: String): String = prefixWithName(name, DST)
 
-  def maybeUnion(aOpt: Option[DataFrame], bOpt: Option[DataFrame]): Option[DataFrame] = {
+  private def maybeUnion(aOpt: Option[DataFrame], bOpt: Option[DataFrame]): Option[DataFrame] = {
     (aOpt, bOpt) match {
       case (Some(a), Some(b)) =>
         Some(a.unionByName(b, allowMissingColumns = true).orderBy("_direction"))

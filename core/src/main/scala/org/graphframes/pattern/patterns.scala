@@ -175,9 +175,16 @@ private[graphframes] object Pattern {
               "Motif finding does not support completely " +
                 "anonymous negated edges !()-[]->().  Users can check for 0 edges in the graph " +
                 "using the edges DataFrame.")
+          case e @ UndirectedEdge(edge) =>
+            edge match {
+              case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
+                throw new InvalidParseException(
+                  "Motif finding does not support completely " +
+                    "anonymous negated edges !()-[]-().  Users can check for the existence of edges in the " +
+                    "graph using the edges DataFrame.")
+              case _ => addEdge(e)
+            }
           case e @ AnonymousEdge(_, _) =>
-            addEdge(e)
-          case e @ UndirectedEdge(_) =>
             addEdge(e)
         }
       case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
@@ -185,8 +192,15 @@ private[graphframes] object Pattern {
           "Motif finding does not support completely " +
             "anonymous edges ()-[]->().  Users can check for the existence of edges in the " +
             "graph using the edges DataFrame.")
-      case e @ UndirectedEdge(_) =>
-        addEdge(e)
+      case e @ UndirectedEdge(edge) =>
+        edge match {
+          case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
+            throw new InvalidParseException(
+              "Motif finding does not support completely " +
+                "anonymous edges ()-[]-().  Users can check for the existence of edges in the " +
+                "graph using the edges DataFrame.")
+          case _ => addEdge(e)
+        }
       case e @ AnonymousEdge(_, _) =>
         addEdge(e)
       case e @ NamedEdge(_, _, _) =>
