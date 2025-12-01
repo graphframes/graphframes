@@ -4,9 +4,29 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.*
 import org.graphframes.GraphFrame
 
+/**
+ * An implementation of random walk with restart. At each step of the walk, there is a probability
+ * (defined by restartProbability) to reset the walk to the original starting node, otherwise the
+ * walk continues to a random neighbor.
+ */
+/**
+ * An implementation of random walk with restart. At each step of the walk, there is a probability
+ * (defined by restartProbability) to reset the walk to the original starting node, otherwise the
+ * walk continues to a random neighbor.
+ */
 class RandomWalkWithRestart extends RandomWalkBase {
+
+  /** The probability of restarting the walk at each step (resets to starting node). */
   private var restartProbability: Double = 0.1
 
+  /**
+   * Sets the restart probability for the random walk.
+   *
+   * @param value
+   *   the probability value (between 0.0 and 1.0)
+   * @return
+   *   this RandomWalkWithRestart instance for chaining
+   */
   def setRestartProbability(value: Double): this.type = {
     restartProbability = value
     this
@@ -45,7 +65,7 @@ class RandomWalkWithRestart extends RandomWalkBase {
         .withColumn(
           "nextNode",
           when(col("doRestart"), col("startingNode")).otherwise(
-            element_at(shuffle(col(RandomWalkBase.nbrsColName)), 0)))
+            element_at(shuffle(col(RandomWalkBase.nbrsColName)), 1)))
         .select(
           col("startingNode"),
           col("nextNode").alias(RandomWalkBase.currVisitingVertexColName),
