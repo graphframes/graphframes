@@ -67,11 +67,12 @@ class RandomWalkWithRestart extends RandomWalkBase {
           when(col("doRestart"), col("startingNode")).otherwise(
             element_at(shuffle(col(RandomWalkBase.nbrsColName)), 1)))
         .select(
+          col(RandomWalkBase.walkIdCol),
           col("startingNode"),
           col("nextNode").alias(RandomWalkBase.currVisitingVertexColName),
           array_append(
             col(RandomWalkBase.rwColName),
-            col(RandomWalkBase.currVisitingVertexColName)))
+            col(RandomWalkBase.currVisitingVertexColName)).alias(RandomWalkBase.rwColName))
     }
 
     walks

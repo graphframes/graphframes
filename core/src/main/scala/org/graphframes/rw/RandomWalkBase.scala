@@ -239,7 +239,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
                         .agg(collect_set(GraphFrame.DST).alias(RandomWalkBase.nbrsColName))
                     }).select(
       col(GraphFrame.ID),
-      slice(shuffle(col(RandomWalkBase.nbrsColName)), 0, maxNbrs)
+      slice(shuffle(col(RandomWalkBase.nbrsColName)), 1, maxNbrs)
         .alias(RandomWalkBase.nbrsColName))
 
     val edges = graph.edges
