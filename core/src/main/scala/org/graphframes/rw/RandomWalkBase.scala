@@ -1,12 +1,18 @@
 package org.graphframes.rw
 
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.functions.array_union
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.collect_set
-import org.apache.spark.sql.functions.shuffle
-import org.apache.spark.sql.functions.slice
+import org.apache.spark.sql.functions.udaf
+import org.apache.spark.sql.graphframes.expressions.ReservoirSamplingAgg
+import org.apache.spark.sql.types.ByteType
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.ShortType
+import org.apache.spark.sql.types.StringType
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
 
@@ -223,24 +229,46 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
    *   prepared GraphFrame
    */
   protected def prepareGraph(): GraphFrame = {
-    // Would be nice to implement something like Reservoir Sampling here
-    // but I have no idea at the moment how to do it in Spark effectively
-    val vertices = (if (useEdgeDirection) {
-                      graph.edges
-                        .select(col(GraphFrame.SRC), col(GraphFrame.DST))
-                        .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
-                        .agg(collect_set(GraphFrame.DST).alias(RandomWalkBase.nbrsColName))
-                    } else {
-                      graph.edges
-                        .select(GraphFrame.SRC, GraphFrame.DST)
-                        .union(graph.edges.select(GraphFrame.DST, GraphFrame.SRC))
-                        .distinct()
-                        .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
-                        .agg(collect_set(GraphFrame.DST).alias(RandomWalkBase.nbrsColName))
-                    }).select(
-      col(GraphFrame.ID),
-      slice(shuffle(col(RandomWalkBase.nbrsColName)), 1, maxNbrs)
-        .alias(RandomWalkBase.nbrsColName))
+    val preAggs = if (useEdgeDirection) {
+      graph.edges
+        .select(col(GraphFrame.SRC), col(GraphFrame.DST))
+        .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
+    } else {
+      graph.edges
+        .select(GraphFrame.SRC, GraphFrame.DST)
+        .union(graph.edges.select(GraphFrame.DST, GraphFrame.SRC))
+        .distinct()
+        .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
+    }
+
+    val vertices = graph.vertices.schema(GraphFrame.ID).dataType match {
+      case StringType =>
+        preAggs.agg(
+          udaf(ReservoirSamplingAgg[java.lang.String](maxNbrs), Encoders.STRING)
+            .apply(col(GraphFrame.DST))
+            .alias(RandomWalkBase.nbrsColName))
+      case ShortType =>
+        preAggs.agg(
+          udaf(ReservoirSamplingAgg[java.lang.Short](maxNbrs), Encoders.SHORT)
+            .apply(col(GraphFrame.DST))
+            .alias(RandomWalkBase.nbrsColName))
+      case ByteType =>
+        preAggs.agg(
+          udaf(ReservoirSamplingAgg[java.lang.Byte](maxNbrs), Encoders.BYTE)
+            .apply(col(GraphFrame.DST))
+            .alias(RandomWalkBase.nbrsColName))
+      case IntegerType =>
+        preAggs.agg(
+          udaf(ReservoirSamplingAgg[java.lang.Integer](maxNbrs), Encoders.INT)
+            .apply(col(GraphFrame.DST))
+            .alias(RandomWalkBase.nbrsColName))
+      case LongType =>
+        preAggs.agg(
+          udaf(ReservoirSamplingAgg[java.lang.Long](maxNbrs), Encoders.LONG)
+            .apply(col(GraphFrame.DST))
+            .alias(RandomWalkBase.nbrsColName))
+      case _ => throw new GraphFramesUnsupportedVertexTypeException("unsupported vertex type")
+    }
 
     val edges = graph.edges
       .select(GraphFrame.SRC, GraphFrame.DST)
