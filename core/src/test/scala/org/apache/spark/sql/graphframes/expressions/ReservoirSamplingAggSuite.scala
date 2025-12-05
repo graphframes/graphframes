@@ -40,14 +40,8 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
 
     // Add third element
     val res3 = agg.reduce(fixedRes, 3)
-    // elements=3, rng.nextInt(3) = (with 42) let's compute: nextInt(3) for elements+1=3
-    // Random(42).nextInt(3) = ? Wait, actually in scala, val r=new Random(42); r.nextInt(3) gives 1
-    // Yes, assuming j=1 <2, so seq(1)=3, seq=[1,3]
-    // Actually need to know: elements was 2, b.elements +1 =3, j= rng.nextInt(3)
     assert(res3.elements == 3)
     assert(res3.seq.length == 2)
-    // With seed 42, j should be 1, as per calculation
-    // So assuming [1,3]
   }
 
   test("merge two empty reservoirs") {
@@ -73,20 +67,15 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
   test("merge partial and full reservoirs with fixed seed") {
     val agg = new ReservoirSamplingAgg[Int](1)
     var left = agg.zero
-    left = agg.reduce(left, 10) // full with 1, elements>1 maybe, but for size 1, full at 1
-    // Wait, for size 1, after 1, seq.size==1
+    left = agg.reduce(left, 10)
     val rng = new Random(42)
     left = left.copy(rng = rng)
 
     var right = agg.zero
-    right = agg.reduce(right, 20) // another 1
-    // Merge: left.elements=1, size=1, so mergePartialRight
+    right = agg.reduce(right, 20)
     val merged = agg.merge(left, right)
     assert(merged.elements == 2)
     assert(merged.seq.length == 1)
-    // In mergePartialRight, it will sample from left and right
-    // With pLeft=0.5, rng.nextDouble() , etc.
-    // But for test, assert size correct
   }
 
   test("merge two full reservoirs with fixed seed") {
@@ -96,7 +85,6 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
     val merged = agg.merge(r1, r2)
     assert(merged.elements == 10)
     assert(merged.seq.length == 2)
-    // Since mergeFull, it samples prob from left and right
   }
 
   test("finish returns the sequence") {
@@ -106,5 +94,51 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
     res = agg.reduce(res, 2)
     val seq = agg.finish(res)
     assert(seq == Seq(1, 2))
+  }
+
+  test("uniformity of sampling") {
+    // WARNING!
+    // this test is slightly non determenistic
+    // in a very rare case (1 from 50) it may fail
+    // so just re-run it.
+    val numElements = 5000
+    val numSamples = 3000
+    val sampleSize = 500
+    val sequence = (1 to numElements).toArray
+
+    // Count frequencies of each element across all samples
+    val frequencyMap = scala.collection.mutable.Map[Int, Int]()
+    for (i <- 0 until numElements) {
+      frequencyMap += (i + 1 -> 0)
+    }
+
+    // Perform multiple samplings
+    for (_ <- 0 until numSamples) {
+      val agg = new ReservoirSamplingAgg[Int](sampleSize)
+      var res = agg.zero
+
+      // Fill reservoir with all elements in sequence
+      for (element <- sequence) {
+        res = agg.reduce(res, element)
+      }
+
+      // Collect sampled elements
+      val sampled = agg.finish(res)
+      for (element <- sampled) {
+        frequencyMap(element) += 1
+      }
+    }
+
+    // Check uniformity - each element should be sampled roughly the same number of times
+    val expectedFreq = numSamples * sampleSize.toDouble / numElements
+    val tolerance = 0.3 // 30% tolerance
+    val minExpected = expectedFreq * (1 - tolerance)
+    val maxExpected = expectedFreq * (1 + tolerance)
+
+    for ((element, count) <- frequencyMap) {
+      assert(
+        count >= minExpected && count <= maxExpected,
+        s"Element $element was sampled $count times, expected between $minExpected and $maxExpected")
+    }
   }
 }

@@ -9,8 +9,7 @@ import scala.util.Random
 
 import collection.mutable.ArrayBuffer
 
-case class Reservoir[T: TypeTag](seq: ArrayBuffer[T], elements: Int, rng: Random)
-    extends Serializable
+case class Reservoir[T](seq: ArrayBuffer[T], elements: Int, rng: Random) extends Serializable
 
 case class ReservoirSamplingAgg[T: TypeTag](size: Int)
     extends Aggregator[T, Reservoir[T], Seq[T]]
