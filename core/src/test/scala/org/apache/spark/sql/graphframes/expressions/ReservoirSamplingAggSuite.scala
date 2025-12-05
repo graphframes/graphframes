@@ -3,7 +3,6 @@ package org.apache.spark.sql.graphframes.expressions
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Random
 
 class ReservoirSamplingAggSuite extends AnyFunSuite {
 
@@ -31,12 +30,11 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
   test("reduce replaces randomly when at size with fixed seed") {
     val agg = new ReservoirSamplingAgg[Int](2)
     // Create a full reservoir with fixed rng
-    val rng = new Random(42)
     var res = agg.zero
     res = agg.reduce(res, 1)
     res = agg.reduce(res, 2)
     // Now res.seq = [1,2], elements=2
-    val fixedRes = res.copy(rng = rng) // Override rng
+    val fixedRes = res.copy()
 
     // Add third element
     val res3 = agg.reduce(fixedRes, 3)
@@ -68,8 +66,7 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
     val agg = new ReservoirSamplingAgg[Int](1)
     var left = agg.zero
     left = agg.reduce(left, 10)
-    val rng = new Random(42)
-    left = left.copy(rng = rng)
+    left = left.copy()
 
     var right = agg.zero
     right = agg.reduce(right, 20)
@@ -80,8 +77,8 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
 
   test("merge two full reservoirs with fixed seed") {
     val agg = new ReservoirSamplingAgg[Int](2)
-    val r1 = Reservoir(ArrayBuffer(1, 2), 5, new Random(42))
-    val r2 = Reservoir(ArrayBuffer(3, 4), 5, new Random(42))
+    val r1 = Reservoir(ArrayBuffer(1, 2), 5)
+    val r2 = Reservoir(ArrayBuffer(3, 4), 5)
     val merged = agg.merge(r1, r2)
     assert(merged.elements == 10)
     assert(merged.seq.length == 2)
@@ -102,7 +99,7 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
     // in a very rare case (1 from 50) it may fail
     // so just re-run it.
     val numElements = 5000
-    val numSamples = 3000
+    val numSamples = 5000
     val sampleSize = 500
     val sequence = (1 to numElements).toArray
 
@@ -131,7 +128,7 @@ class ReservoirSamplingAggSuite extends AnyFunSuite {
 
     // Check uniformity - each element should be sampled roughly the same number of times
     val expectedFreq = numSamples * sampleSize.toDouble / numElements
-    val tolerance = 0.3 // 30% tolerance
+    val tolerance = 0.2 // 20% tolerance
     val minExpected = expectedFreq * (1 - tolerance)
     val maxExpected = expectedFreq * (1 + tolerance)
 
