@@ -1,8 +1,8 @@
 package org.graphframes.embeddings
 
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
+import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.ml.stat.Summarizer
-import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
@@ -128,23 +128,23 @@ class Hash2Vec extends Serializable {
     val (rowRDD, schema) = elDataType match {
       case _: StringType =>
         (
-          runTyped[String](data).map(f => Row(f._1, f._2)),
+          runTyped[String](data).map(f => Row(f._1, Vectors.dense(f._2))),
           StructType(Seq(StructField("id", StringType), StructField("vector", VectorType))))
       case _: ByteType =>
         (
-          runTyped[Byte](data).map(f => Row(f._1, f._2)),
+          runTyped[Byte](data).map(f => Row(f._1, Vectors.dense(f._2))),
           StructType(Seq(StructField("id", ByteType), StructField("vector", VectorType))))
       case _: ShortType =>
         (
-          runTyped[Short](data).map(f => Row(f._1, f._2)),
+          runTyped[Short](data).map(f => Row(f._1, Vectors.dense(f._2))),
           StructType(Seq(StructField("id", ShortType), StructField("vector", VectorType))))
       case _: IntegerType =>
         (
-          runTyped[Int](data).map(f => Row(f._1, f._2)),
+          runTyped[Int](data).map(f => Row(f._1, Vectors.dense(f._2))),
           StructType(Seq(StructField("id", IntegerType), StructField("vector", VectorType))))
       case _: LongType =>
         (
-          runTyped[Long](data).map(f => Row(f._1, f._2)),
+          runTyped[Long](data).map(f => Row(f._1, Vectors.dense(f._2))),
           StructType(Seq(StructField("id", LongType), StructField("vector", VectorType))))
       case _ =>
         throw new GraphFramesUnsupportedVertexTypeException(
@@ -154,7 +154,7 @@ class Hash2Vec extends Serializable {
     spark.createDataFrame(rowRDD, schema).groupBy("id").agg(Summarizer.sum(col("vector")))
   }
 
-  private def runTyped[T: ClassTag](data: DataFrame): RDD[(T, DenseVector)] = {
+  private def runTyped[T: ClassTag](data: DataFrame): RDD[(T, Array[Double])] = {
     data
       .select(col(sequenceCol))
       .rdd
@@ -163,13 +163,16 @@ class Hash2Vec extends Serializable {
       .mapPartitions(processPartition[T])
   }
 
-  private def processPartition[T](iter: Iterator[Seq[T]]): Iterator[(T, DenseVector)] = {
+  private def processPartition[T](iter: Iterator[Seq[T]]): Iterator[(T, Array[Double])] = {
     val localVocab = new java.util.concurrent.ConcurrentHashMap[T, Array[Double]]()
 
     for (seq <- iter) {
       val currentSeqSize = seq.length
       for (idx <- (0 until currentSeqSize)) {
         val currentWord = seq(idx)
+        if (!localVocab.containsKey(currentWord)) {
+          localVocab.put(currentWord, Array.fill(embeddingsDim)(0.0))
+        }
         val context = ((idx - contextSize) to (idx + contextSize)).filter(i =>
           (i >= 0) && (i < currentSeqSize) && (i != idx))
         for (cIdx <- context) {
@@ -178,8 +181,7 @@ class Hash2Vec extends Serializable {
           val sign = 2.0 * signHash(word) - 1.0
           val embeddingIdx = valueHash(word)
 
-          val currentEmbedding =
-            localVocab.getOrDefault(currentWord, Array.fill(embeddingsDim)(0.0))
+          val currentEmbedding = localVocab.get(currentWord)
           currentEmbedding(embeddingIdx) += sign * weight
         }
       }
@@ -188,7 +190,7 @@ class Hash2Vec extends Serializable {
     localVocab
       .entrySet()
       .asScala
-      .map(entry => (entry.getKey(), new DenseVector(entry.getValue())))
+      .map(entry => (entry.getKey(), entry.getValue()))
       .iterator
   }
 }

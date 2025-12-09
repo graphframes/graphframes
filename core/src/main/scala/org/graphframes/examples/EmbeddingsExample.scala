@@ -68,7 +68,7 @@ object EmbeddingsExample {
 
     println("Learn embeddings")
 
-    val embeddings = new Hash2Vec().run(checkpointedWalks)
+    val embeddings = new Hash2Vec().setEmbeddingsDim(512).run(checkpointedWalks)
     embeddings.write.mode("overwrite").format("parquet").save("embeddings")
   }
 }
