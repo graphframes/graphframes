@@ -108,7 +108,6 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnUnusedImports,
     ScalacOptions.warnUnusedParams,
     ScalacOptions.warnUnusedPrivates,
-    ScalacOptions.warnUnusedNoWarn,
     ScalacOptions.source3,
     ScalacOptions.fatalWarnings),
   tpolecatExcludeOptions ++= Set(ScalacOptions.warnNonUnitStatement),

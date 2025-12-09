@@ -20,9 +20,25 @@ import org.apache.spark.unsafe.types.UTF8String
 import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.rw.RandomWalkBase
 
+import scala.annotation.nowarn
 import scala.jdk.CollectionConverters.*
 import scala.reflect.ClassTag
 
+/**
+ * Implementation of Hash2Vec, an efficient word embedding technique using feature hashing. Based
+ * on: Argerich, Luis, Joaquín Torré Zaffaroni, and Matías J. Cano. "Hash2vec, feature hashing for
+ * word embeddings." arXiv preprint arXiv:1608.08940 (2016).
+ *
+ * Produces embeddings for elements in sequences using a hash-based approach to avoid storing a
+ * vocabulary. Uses MurmurHash3 for hashing elements to embedding indices and signs.
+ *
+ * Output DataFrame has columns "id" (element identifier, same type as sequence elements) and
+ * "vector" (dense vector of doubles, summed across all occurrences).
+ *
+ * Tradeoffs: Higher numPartitions reduces local state and memory per partition but increases
+ * aggregation and merging overhead across partitions. Larger embeddingsDim provides richer
+ * representations but consumes more memory. Seeds control hashing for reproducibility.
+ */
 class Hash2Vec extends Serializable {
   private def decayGaussian(d: Int, sigma: Double): Double = {
     math.exp(-(d * d) / (sigma * sigma))
@@ -38,26 +54,46 @@ class Hash2Vec extends Serializable {
   private var hashingSeed: Int = 42
   private var signHashingSeed: Int = 18
 
+  /**
+   * Sets the context window size around each element to consider during training. Larger values
+   * incorporate more distant elements but increase computation time. Default: 5.
+   */
   def setContextSize(value: Int): this.type = {
     contextSize = value
     this
   }
 
+  /**
+   * Sets the number of partitions for RDDs to parallelize computation. More partitions distribute
+   * workload and reduce memory per partition but complicate merging across partitions. Default:
+   * 5.
+   */
   def setNumPartitions(value: Int): this.type = {
     numPartitions = value
     this
   }
 
+  /**
+   * Sets the dimensionality of the dense embedding vectors. Larger dimensions allow richer
+   * representations but require more memory. Corresponds to the hash table size. Default: 256.
+   */
   def setEmbeddingsDim(value: Int): this.type = {
     embeddingsDim = value
     this
   }
 
+  /**
+   * Sets the column name containing sequences of elements (as arrays). Default: "random_walk".
+   */
   def setSequenceCol(value: String): this.type = {
     sequenceCol = value
     this
   }
 
+  /**
+   * Sets the decay function used to weight context elements by distance. Supported values:
+   * "gaussian", "constant". Default: "gaussian".
+   */
   def setDecayFunction(value: String): this.type = {
     val sep = ", "
     require(
@@ -67,16 +103,28 @@ class Hash2Vec extends Serializable {
     this
   }
 
+  /**
+   * Sets the sigma parameter for Gaussian decay weighting. Smaller values decay weights faster
+   * with distance. Default: 1.0.
+   */
   def setGaussianSigma(value: Double): this.type = {
     gaussianSigma = value
     this
   }
 
+  /**
+   * Sets the seed for hashing elements to embedding indices. Used for reproducibility of
+   * embeddings. Default: 42.
+   */
   def setHashingSeed(value: Int): this.type = {
     hashingSeed = value
     this
   }
 
+  /**
+   * Sets the seed for hashing elements to determine the sign of contributions. Used for
+   * reproducibility of embeddings. Default: 18.
+   */
   def setSignHashSeed(value: Int): this.type = {
     signHashingSeed = value
     this
@@ -111,6 +159,12 @@ class Hash2Vec extends Serializable {
     }
   }
 
+  /**
+   * Runs the Hash2Vec algorithm on the input DataFrame containing sequences. The specified
+   * sequenceCol must contain arrays of elements (string or numeric). Produces a DataFrame with
+   * "id" (element ID, same type as elements) and "vector" (embedding vector, VectorType).
+   * Embeddings are summed across all partitions and occurrences.
+   */
   def run(data: DataFrame): DataFrame = {
     val spark = data.sparkSession
     require(data.schema(sequenceCol).dataType.isInstanceOf[ArrayType], "sequence should be array")
@@ -154,6 +208,7 @@ class Hash2Vec extends Serializable {
     spark.createDataFrame(rowRDD, schema).groupBy("id").agg(Summarizer.sum(col("vector")))
   }
 
+  @nowarn
   private def runTyped[T: ClassTag](data: DataFrame): RDD[(T, Array[Double])] = {
     data
       .select(col(sequenceCol))

@@ -114,5 +114,5 @@ case class ReservoirSamplingAgg[T: TypeTag](size: Int)
 
   override def bufferEncoder: Encoder[Reservoir[T]] = Encoders.product
 
-  override def outputEncoder: Encoder[Seq[T]] = ExpressionEncoder[Seq[T]]
+  override def outputEncoder: Encoder[Seq[T]] = ExpressionEncoder[Seq[T]]()
 }
