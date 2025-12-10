@@ -1,6 +1,7 @@
 package org.graphframes.examples
 
 import org.apache.spark.SparkConf
+import org.apache.spark.ml.feature.Word2Vec
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.LongType
@@ -9,17 +10,23 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.embeddings.Hash2Vec
+import org.graphframes.embeddings.RandomWalkEmbeddings
 import org.graphframes.rw.RandomWalkWithRestart
 
 import java.nio.file.*
 
 object EmbeddingsExample {
   def main(args: Array[String]): Unit = {
-    if (args.length == 0) {
-      throw new RuntimeException("expected one arg")
+    if (args.length < 3) {
+      throw new RuntimeException("expected three arg: input path, model type, output path")
     }
 
-    val filePath = Paths.get(args(0))
+    val filePath = Paths.get(args(0).strip())
+    val modelType = args(1).strip()
+    if (!Seq("word2vec", "hash2vec").contains(modelType)) {
+      throw new RuntimeException("supported models are word2vec and hash2vec")
+    }
+    val outputPath = Paths.get(args(2).strip())
     val sparkConf = new SparkConf()
       .setMaster("local[*]")
       .setAppName("GraphFramesBenchmarks")
@@ -33,8 +40,8 @@ object EmbeddingsExample {
 
     val edges = spark.read
       .format("csv")
-      .option("header", "false")
-      .option("delimiter", " ")
+      .option("header", "true")
+      .option("delimiter", ",")
       .schema(StructType(Seq(StructField("src", LongType), StructField("dst", LongType))))
       .load(filePath.toString())
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
@@ -49,26 +56,25 @@ object EmbeddingsExample {
         .persist(StorageLevel.MEMORY_AND_DISK_SER)
     println(s"Read vertices: ${vertices.count()}")
 
-    println("Run random walks...")
     val graph = GraphFrame(vertices, edges)
-    val rwBuilder =
-      new RandomWalkWithRestart()
-        .onGraph(graph)
-        .setRestartProbability(0.2)
-        .setGlobalSeed(42)
-        .setTemporaryPrefix("rw-test-data")
-    val walks = rwBuilder.run().persist(StorageLevel.MEMORY_AND_DISK_SER)
 
-    println(s"Generated ${walks.count()} random walks")
-    println("Checkpointing walks")
+    val model = modelType match {
+      case "word2vec" => Left(new Word2Vec().setVectorSize(128))
+      case "hash2vec" => Right(new Hash2Vec().setEmbeddingsDim(512))
+    }
 
-    // manual checkpointing
-    walks.write.mode("overwrite").format("parquet").save("rw-test")
-    val checkpointedWalks = spark.read.parquet("rw-test")
+    val rwModel = new RandomWalkWithRestart()
+      .setRestartProbability(0.2)
+      .setGlobalSeed(42)
+      .setTemporaryPrefix(outputPath.resolve("rw-temp-data").toAbsolutePath().toString())
 
-    println("Learn embeddings")
+    val embeddingsModel =
+      new RandomWalkEmbeddings(graph).setSequenceModel(model).setRandomWalks(rwModel)
 
-    val embeddings = new Hash2Vec().setEmbeddingsDim(512).run(checkpointedWalks)
-    embeddings.write.mode("overwrite").format("parquet").save("embeddings")
+    val embeddings = embeddingsModel.run()
+    embeddings.write
+      .mode("overwrite")
+      .format("parquet")
+      .save(outputPath.resolve("embeddings").toAbsolutePath().toString())
   }
 }

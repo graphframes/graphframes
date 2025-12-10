@@ -205,7 +205,10 @@ class Hash2Vec extends Serializable {
           s"Hash2vec supports only string or numeric types of elements but gor ${elDataType.toString()}")
     }
 
-    spark.createDataFrame(rowRDD, schema).groupBy("id").agg(Summarizer.sum(col("vector")))
+    spark
+      .createDataFrame(rowRDD, schema)
+      .groupBy("id")
+      .agg(Summarizer.sum(col("vector")).alias("embedding"))
   }
 
   @nowarn

@@ -99,7 +99,7 @@ lazy val commonSetting = Seq(
     "--add-opens=java.base/java.util=ALL-UNNAMED"),
 
   // Scalac options
-  tpolecatScalacOptions ++= Set(
+  Compile / tpolecatScalacOptions ++= Set(
     ScalacOptions.lint,
     ScalacOptions.deprecation,
     ScalacOptions.warnDeadCode,
@@ -108,9 +108,13 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnUnusedImports,
     ScalacOptions.warnUnusedParams,
     ScalacOptions.warnUnusedPrivates,
+    ScalacOptions.warnUnusedNoWarn,
     ScalacOptions.source3,
     ScalacOptions.fatalWarnings),
-  tpolecatExcludeOptions ++= Set(ScalacOptions.warnNonUnitStatement),
+  Compile / tpolecatExcludeOptions ++= Set(
+    ScalacOptions.warnNonUnitStatement,
+    ScalacOptions.privateWarnUnusedNoWarn,
+  ),
   Test / tpolecatExcludeOptions ++= Set(
     ScalacOptions.warnValueDiscard,
     ScalacOptions.warnUnusedLocals,
@@ -121,8 +125,7 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnNumericWiden,
     ScalacOptions.privateWarnNumericWiden,
     ScalacOptions.warnUnusedNoWarn,
-    ScalacOptions.privateWarnUnusedNoWarn,
-  ))
+    ScalacOptions.privateWarnUnusedNoWarn))
 
 lazy val graphx = (project in file("graphx"))
   .settings(
@@ -135,7 +138,9 @@ lazy val graphx = (project in file("graphx"))
     // for scala 2.13 we should mark "unused" class tags by @nowarn,
     // for scala 2.12 we shouldn't
     // the only way at the moment is to not check unused @nowarn for GraphX
-    tpolecatExcludeOptions ++= Set(ScalacOptions.warnUnusedNoWarn, ScalacOptions.privateWarnUnusedNoWarn),
+    tpolecatExcludeOptions ++= Set(
+      ScalacOptions.warnUnusedNoWarn,
+      ScalacOptions.privateWarnUnusedNoWarn),
 
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),

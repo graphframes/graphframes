@@ -54,10 +54,10 @@ case class ReservoirSamplingAgg[T: TypeTag](size: Int)
     if (total_cnt <= size) {
       Reservoir(left.seq ++ right.seq, total_cnt)
     } else {
-      val currElements = left.seq ++ right.seq.slice(0, size - left.elements)
+      val currElements = left.seq ++ right.seq.slice(0, size - left.seq.size)
       var currSize = size + 1
 
-      for (i <- ((size - left.elements) to right.elements)) {
+      for (i <- ((size - left.seq.size) until right.seq.size)) {
         val j = rng.nextInt(currSize)
         if (j < size) {
           currElements(j) = right.seq(i)
