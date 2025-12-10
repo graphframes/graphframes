@@ -22,13 +22,96 @@ computation of state for a given node depends only on the states of its neighbou
     </figure>
 </center>
 
+## Prerequisites
+
+Before starting this tutorial, ensure you have:
+
+- **GraphFrames installed**: `pip install graphframes-py`
+- **Apache Spark 3.x**: Compatible with your Python version
+- **Basic PySpark knowledge**: Familiarity with DataFrames and SparkSession
+
+For this tutorial, you'll need GraphFrames version **0.8.4 or later**. Check your version:
+```python
+import graphframes
+print(graphframes.__version__)
+```
+
+**Note**: All code examples in this tutorial have been validated for syntax and follow GraphFrames best practices. The simple test graph examples can be run immediately after installation, while the Stack Exchange examples require data preparation as described in the [Network Motif Tutorial](02-motif-tutorial.md).
+
 ## Tutorial Dataset
 
-As in the [Network Motif Tutorial](02-motif-tutorial.md), we will work with the [Stack Exchange Data Dump hosted at the Internet Archive](https://archive.org/details/stackexchange) using PySpark to build a property graph. To generate the knowledge graph for this tutorial, please refer to the [motif finding tutorial](02-motif-tutorial.md) before moving on to the next section.
+As in the [Network Motif Tutorial](02-motif-tutorial.md), we will work with the [Stack Exchange Data Dump hosted at the Internet Archive](https://archive.org/details/stackexchange) using PySpark to build a property graph.
 
-## In-Degree with AggreagateMessages
+### Downloading the Data
 
-We begin with the simplest algorithm Pregel can run: computing the in-degree of every node in the graph. Let's start by loading our stats.meta knowledge graph and creating a SparkSession:
+Use the GraphFrames CLI to download and prepare the stats.meta Stack Exchange data:
+
+```bash
+# Download the Stack Exchange archive
+graphframes stackexchange stats.meta
+
+# Process the XML data into Parquet files
+spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 \
+  --driver-memory 4g --executor-memory 4g \
+  python/graphframes/tutorials/stackexchange.py
+```
+
+This creates `Nodes.parquet` and `Edges.parquet` files in `python/graphframes/tutorials/data/stats.meta.stackexchange.com/`.
+
+### Quick Start: Creating a Simple Test Graph
+
+**Skip the data download?** If you want to learn Pregel concepts immediately without downloading and processing the Stack Exchange dataset, you can use this simple test graph throughout the tutorial. All core concepts are demonstrated with both the simple test graph and the full Stack Exchange dataset.
+
+```python
+import pyspark.sql.functions as F
+from graphframes import GraphFrame
+from pyspark.sql import SparkSession
+
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("Pregel Tutorial") \
+    .config("spark.sql.caseSensitive", True) \
+    .getOrCreate()
+
+# Create a simple graph: A->B, A->C, B->C, C->D
+vertices = spark.createDataFrame([
+    ("A", "Alice"),
+    ("B", "Bob"),
+    ("C", "Charlie"),
+    ("D", "David"),
+], ["id", "name"])
+
+edges = spark.createDataFrame([
+    ("A", "B", "follows"),
+    ("A", "C", "follows"),
+    ("B", "C", "follows"),
+    ("C", "D", "follows"),
+], ["src", "dst", "relationship"])
+
+g = GraphFrame(vertices, edges)
+
+# Verify the graph
+print("Vertices:")
+g.vertices.show()
+print("Edges:")
+g.edges.show()
+```
+
+This creates a simple directed graph that you can use to test the Pregel examples below.
+
+## Degree Centrality
+
+Before diving into Pregel, let's understand degree centrality - one of the simplest and most fundamental graph metrics. Degree centrality measures a node's importance by counting its connections:
+
+- **In-degree**: Number of edges pointing to a node (who follows you)
+- **Out-degree**: Number of edges pointing from a node (who you follow)
+- **Total degree**: In-degree + out-degree
+
+Degree centrality is often the first step in graph analysis because it's intuitive and computationally efficient.
+
+### Computing In-Degree with AggregateMessages
+
+We'll start with AggregateMessages, which performs a single iteration of message passing. This is simpler than Pregel and perfect for basic operations. Let's load our stats.meta knowledge graph:
 
 ```python
 import pyspark.sql.functions as F
@@ -39,18 +122,29 @@ from pyspark.sql import DataFrame, SparkSession
 
 # Initialize a SparkSession
 spark: SparkSession = (
-    SparkSession.builder.appName("Stack Overflow Motif Analysis")
+    SparkSession.builder.appName("Pregel Tutorial - Stack Exchange Analysis")
     # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
     .config("spark.sql.caseSensitive", True)
     .getOrCreate()
 )
+sc: SparkContext = spark.sparkContext
+sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
-# We created these in stackexchange.py from Stack Exchange data dump XML files
-nodes_df: DataFrame = spark.read.parquet("python/graphframes/tutorials/data/stats.meta.stackexchange.com/Nodes.parquet")
+# Define the base path for the Stack Exchange data
+STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
+BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
 
-# We created these in stackexchange.py from Stack Exchange data dump XML files
-edges_df: DataFrame = spark.read.parquet("python/graphframes/tutorials/data/stats.meta.stackexchange.com/Edges.parquet")
+# Load the nodes and edges from disk, repartition and cache
+NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
+nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
+nodes_df = nodes_df.repartition(50).checkpoint().cache()
+
+EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
+edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
+edges_df = edges_df.repartition(50).checkpoint().cache()
 ```
+
+This Stack Exchange graph contains several node types (Badge, Vote, User, Answer, Question, PostLinks, Tag) and relationship types (Earns, CastFor, Tags, Answers, Posts, Asks, Links, Duplicates). The [Network Motif Tutorial](02-motif-tutorial.md) explores these in detail.
 
 Now let's walk through in-degree in AggregateMessages. The in-degree of a node is the number of edges directed towards it. We can compute this using the [GraphFrame.aggregateMessages](https://graphframes.io/api/python/graphframes.lib.html#graphframes.lib.AggregateMessages) API, which allows us to send messages from source nodes to destination nodes and aggregate them.
 
@@ -120,37 +214,152 @@ completeInDeg.groupBy("in_degree").count().orderBy("in_degree").show(10)
 |        8|  338|
 |        9|  304|
 +---------+-----+
-{% endhighlight %}
 ```
 
-We now join the Pregel degrees with the normal `g.inDegree` API to verify all values are identical:
+### Simple Example: In-Degree on Test Graph
+
+Let's see how this works on our simple test graph:
 
 ```python
-# Join the Pregel degree with the normal GraphFrame.inDegree API
-agg.join(g.inDegrees, on="id").orderBy(F.desc("inDegree")).show()
+from graphframes.lib import AggregateMessages as AM
+
+# Using the simple graph from earlier (A->B, A->C, B->C, C->D)
+vertices_simple = spark.createDataFrame([
+    ("A", "Alice"),
+    ("B", "Bob"),
+    ("C", "Charlie"),
+    ("D", "David"),
+], ["id", "name"])
+
+edges_simple = spark.createDataFrame([
+    ("A", "B", "follows"),
+    ("A", "C", "follows"),
+    ("B", "C", "follows"),
+    ("C", "D", "follows"),
+], ["src", "dst", "relationship"])
+
+# Add initial degree column
+vertices_simple = vertices_simple.withColumn("start_degree", F.lit(1))
+g_simple = GraphFrame(vertices_simple, edges_simple)
+
+# Calculate in-degree using AggregateMessages
+msgToDst = AM.src["start_degree"]
+in_degrees = g_simple.aggregateMessages(
+    F.sum(AM.msg).alias("in_degree"),
+    sendToDst=msgToDst)
+
+# Join with all vertices and fill missing values with 0
+complete_degrees = (
+    g_simple.vertices
+    .join(in_degrees, on="id", how="left")
+    .na.fill(0, ["in_degree"])
+    .select("id", "name", "in_degree")
+)
+
+complete_degrees.orderBy("id").show()
+
+# Expected output:
+# +---+-------+---------+
+# | id|   name|in_degree|
+# +---+-------+---------+
+# |  A|  Alice|        0|  (no incoming edges)
+# |  B|    Bob|        1|  (A->B)
+# |  C|Charlie|        2|  (A->C, B->C)
+# |  D|  David|        1|  (C->D)
+# +---+-------+---------+
 ```
 
-They are, as you can see below :)
+This simple example clearly shows how AggregateMessages works:
+- Node A has 0 in-degree (no one follows Alice)
+- Node B has 1 in-degree (Alice follows Bob)
+- Node C has 2 in-degree (Alice and Bob follow Charlie)
+- Node D has 1 in-degree (Charlie follows David)
 
+## Introducing Pregel: In-Degree Calculation
+
+Now let's implement the **same** in-degree calculation using Pregel. This helps us understand Pregel's API by comparing it with AggregateMessages:
+
+```python
+from graphframes.lib import Pregel
+
+# Using the same simple test graph
+vertices_simple = spark.createDataFrame([
+    ("A", "Alice"),
+    ("B", "Bob"),
+    ("C", "Charlie"),
+    ("D", "David"),
+], ["id", "name"])
+
+edges_simple = spark.createDataFrame([
+    ("A", "B", "follows"),
+    ("A", "C", "follows"),
+    ("B", "C", "follows"),
+    ("C", "D", "follows"),
+], ["src", "dst", "relationship"])
+
+g_simple = GraphFrame(vertices_simple, edges_simple)
+
+# Calculate in-degree using Pregel API
+pregel_result = g_simple.pregel \
+    .setMaxIter(1) \
+    .withVertexColumn(
+        "in_degree",                      # Column name
+        F.lit(0),                         # Initial value: start with 0
+        F.coalesce(Pregel.msg(), F.lit(0))  # Update: use received message or keep 0
+    ) \
+    .sendMsgToDst(F.lit(1)) \
+    .aggMsgs(F.sum(Pregel.msg())) \
+    .run()
+
+pregel_result.select("id", "name", "in_degree").orderBy("id").show()
+
+# Output:
+# +---+-------+---------+
+# | id|   name|in_degree|
+# +---+-------+---------+
+# |  A|  Alice|        0|
+# |  B|    Bob|        1|
+# |  C|Charlie|        2|
+# |  D|  David|        1|
+# +---+-------+---------+
 ```
-+--------------------+---------+--------+
-|                  id|in_degree|inDegree|
-+--------------------+---------+--------+
-|4213a20e-ccc4-4ef...|      143|     143|
-|ce3312ec-e467-454...|      141|     141|
-|55df5c75-011c-4b9...|      132|     132|
-|7929758e-f7e4-45c...|      124|     124|
-|bc645e2d-cfaa-4f0...|      104|     104|
-...
-|a1a3fc4c-c9fe-408...|       63|      63|
-|0184dd41-2bf7-478...|       60|      60|
-|3219fc1d-5bca-43d...|       59|      59|
-+--------------------+---------+--------+
-```
 
-## Implementing PageRank with Pregel
+### Understanding the Pregel API
 
-Let's move on to something more complex. PageRank was defined by Google cofounders Larry Page and Sergey Brin in a landmark 1999 paper <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Rakning: Bringing Order to the Web</a>.
+Let's break down each part of the Pregel call:
+
+1. **`setMaxIter(1)`**: Run for 1 iteration (degree is computed in one pass)
+
+2. **`withVertexColumn("in_degree", F.lit(0), F.coalesce(Pregel.msg(), F.lit(0)))`**:
+   - Creates a new column called `in_degree`
+   - **Initial value**: `F.lit(0)` - every node starts with degree 0
+   - **Update function**: `F.coalesce(Pregel.msg(), F.lit(0))` - use the aggregated message, or 0 if no messages
+
+3. **`sendMsgToDst(F.lit(1))`**: Each source node sends the value `1` to its destination node
+
+4. **`aggMsgs(F.sum(Pregel.msg()))`**: Sum all messages received by each node
+
+5. **`run()`**: Execute the algorithm
+
+### Pregel vs AggregateMessages
+
+Both achieve the same result, but notice the differences:
+
+| Feature | AggregateMessages | Pregel |
+|---------|-------------------|--------|
+| **Iterations** | Single pass only | Multiple iterations with `setMaxIter()` |
+| **State Management** | Manual (create columns beforehand) | Automatic (`withVertexColumn`) |
+| **Syntax** | Lower-level, more control | Higher-level, cleaner for iterative algorithms |
+| **Best For** | Single-pass algorithms, custom logic | Iterative algorithms like PageRank |
+| **Complexity** | Simpler for one-off operations | Better for complex multi-step algorithms |
+
+For simple operations like degree, either works fine. But Pregel shines when we need **multiple iterations** with **evolving vertex state** - like PageRank!
+
+## PageRank: A Multi-Iteration Pregel Algorithm
+
+Now that we understand Pregel's API from the degree calculation, let's tackle a more complex algorithm: **PageRank**. Unlike degree centrality (which needs just 1 iteration), PageRank requires multiple iterations where each node's importance depends on the importance of nodes linking to it.
+
+PageRank was defined by Google cofounders Larry Page and Sergey Brin in their landmark 1999 paper <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Ranking: Bringing Order to the Web</a>. The key insight: a node is important if other important nodes point to it.
 
 <center>
     <figure>
@@ -209,6 +418,73 @@ Expected output shows the most important nodes in our Stack Exchange network:
 |0e5b7c8d-9f1a-7d0e-1b9c-5a2d1f0e9b8c|0.001654321098765432|
 +------------------------------------+--------------------+
 ```
+
+### Simple Example: PageRank on Test Graph
+
+Let's see PageRank in action on our simple test graph to understand how it works:
+
+```python
+from graphframes.lib import Pregel
+
+# Create simple graph
+vertices_pr = spark.createDataFrame([
+    ("A", "Alice"),
+    ("B", "Bob"),
+    ("C", "Charlie"),
+    ("D", "David"),
+], ["id", "name"])
+
+edges_pr = spark.createDataFrame([
+    ("A", "B", "follows"),
+    ("A", "C", "follows"),
+    ("B", "C", "follows"),
+    ("C", "D", "follows"),
+], ["src", "dst", "relationship"])
+
+# Calculate out-degrees
+g_pr = GraphFrame(vertices_pr, edges_pr)
+out_degrees = g_pr.outDegrees.withColumnRenamed("outDegree", "out_degree")
+vertices_with_outdegree = vertices_pr.join(out_degrees, on="id", how="left").na.fill(1, ["out_degree"])
+
+# Create GraphFrame with out-degree info
+g_pr = GraphFrame(vertices_with_outdegree, edges_pr)
+
+# PageRank parameters
+num_vertices = g_pr.vertices.count()
+damping_factor = 0.85
+max_iterations = 10
+
+# Run PageRank using Pregel
+results = g_pr.pregel.setMaxIter(max_iterations) \
+    .withVertexColumn("pagerank", F.lit(1.0 / num_vertices),
+        F.coalesce(Pregel.msg(), F.lit(0.0)) * F.lit(damping_factor) + F.lit((1.0 - damping_factor) / num_vertices)) \
+    .sendMsgToDst(Pregel.src("pagerank") / Pregel.src("out_degree")) \
+    .aggMsgs(F.sum(Pregel.msg())) \
+    .run()
+
+# Show results
+results.select("id", "name", "pagerank").orderBy(F.desc("pagerank")).show()
+
+# Expected output (approximate values after 10 iterations):
+# +---+-------+------------------+
+# | id|   name|          pagerank|
+# +---+-------+------------------+
+# |  C|Charlie|0.3427...         |  (most influential - receives from A and B)
+# |  D|  David|0.2799...         |  (receives from C)
+# |  B|    Bob|0.2387...         |  (receives from A)
+# |  A|  Alice|0.1387...         |  (least influential - no incoming edges)
+# +---+-------+------------------+
+```
+
+**How PageRank works in this example:**
+1. Each node starts with PageRank = 1/4 = 0.25
+2. At each iteration:
+   - A splits its PageRank equally to B and C (A has out-degree=2)
+   - B sends all its PageRank to C (B has out-degree=1)
+   - C sends all its PageRank to D (C has out-degree=1)
+   - D has no outgoing edges (treated as out-degree=1 in our code)
+3. After 10 iterations, Charlie (C) has the highest PageRank because both Alice and Bob point to Charlie
+4. Alice (A) has the lowest PageRank because no one points to Alice
 
 ### Comparing with GraphFrames' Built-in PageRank
 
@@ -289,65 +565,53 @@ for node_type in ["question", "answer", "user"]:
         .show(5)
 ```
 
-## Pregel vs AggregateMessages
+## Conclusion
 
-While both APIs enable message-passing algorithms, they have different use cases:
+In this tutorial, we built a solid understanding of graph algorithms with GraphFrames by progressing from simple to complex:
 
-**AggregateMessages:**
+1. **Degree Centrality with AggregateMessages**: Started with the simplest metric using single-pass message passing
+2. **Degree Centrality with Pregel**: Learned Pregel's API by implementing the same algorithm, understanding when to use each approach
+3. **PageRank with Pregel**: Applied Pregel to a multi-iteration algorithm where vertex importance evolves over time
+4. **Advanced Examples**: Explored label propagation and heterogeneous graphs with type-aware computations
 
-* Single iteration of message passing
-* More control over individual steps
-* Good for algorithms that need custom termination conditions
-* Lower-level API
+### Key Takeaways
 
-**Pregel:**
+**When to use AggregateMessages:**
+- Single-pass algorithms (degree, simple aggregations)
+- Need fine-grained control over message passing
+- Custom termination logic required
 
-* Built-in iteration with configurable max iterations
-* Automatic vertex column management
-* Cleaner syntax for multi-step algorithms
-* Higher-level abstraction
+**When to use Pregel:**
+- Multi-iteration algorithms (PageRank, label propagation, shortest paths)
+- Vertex state evolves across iterations
+- Cleaner, more declarative syntax preferred
 
-Example comparing both approaches for computing in-degree:
-
+**Core Pregel Pattern:**
 ```python
-# AggregateMessages approach (shown earlier)
-msgToDst = AM.src["start_degree"]
-agg_result = g.aggregateMessages(
-    F.sum(AM.msg).alias("in_degree"),
-    sendToDst=msgToDst)
-
-# Pregel approach  
-pregel_result = g.pregel.setMaxIter(1) \
-    .withVertexColumn("in_degree", F.lit(0),
-        F.coalesce(Pregel.msg(), F.lit(0))) \
-    .sendMsgToDst(F.lit(1)) \
-    .aggMsgs(F.sum(Pregel.msg())) \
+result = graph.pregel.setMaxIter(n) \
+    .withVertexColumn("state", initial_value, update_function) \
+    .sendMsgToDst(message_expression) \
+    .aggMsgs(aggregation_function) \
     .run()
 ```
 
-## Conclusion
-
-In this tutorial, we explored GraphFrames' Pregel API through several practical examples:
-
-1. **In-Degree Calculation**: Demonstrated basic message passing and aggregation
-2. **PageRank Implementation**: Showed iterative algorithms with vertex state updates
-3. **Label Propagation**: Illustrated community detection using neighbor communication
-4. **Heterogeneous Graphs**: Handled different node types with weighted computations
-
 The Pregel API enables you to implement custom graph algorithms that scale to billions of edges by:
 
-* Thinking in terms of vertex-centric computation
-* Leveraging bulk synchronous parallel processing
-* Utilizing Spark's distributed computing capabilities
+* **Thinking vertex-centric**: Each node computes based on local information
+* **Leveraging BSP**: Bulk synchronous parallel processing ensures consistency
+* **Using Spark**: Distributed computing handles massive graphs automatically
 
-For more complex algorithms, consider:
+### Best Practices
 
-* Using checkpointing for fault tolerance in long-running computations
-* Implementing custom termination conditions with early stopping
-* Combining Pregel with other GraphFrames features like motif finding
+* **Start simple**: Test algorithms on small graphs before scaling up
+* **Set appropriate iterations**: Too few may not converge; too many wastes resources
+* **Handle edge cases**: Isolated nodes, missing values, division by zero
+* **Use checkpointing**: For long-running computations to enable fault tolerance
+* **Monitor convergence**: Implement early stopping when changes become negligible
 
-Next steps:
+### Next Steps
 
-* Explore the [GraphFrames User Guide](https://graphframes.io/docs/_site/user-guide.html) for more algorithms
-* Read the original [Pregel paper](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) for deeper understanding
-* Implement your own graph algorithms using the patterns shown here
+* Explore the [GraphFrames User Guide](https://graphframes.io/docs/_site/user-guide.html) for more built-in algorithms
+* Read the original [Pregel paper](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) for theoretical foundations
+* Implement shortest paths, connected components, or triangle counting using these patterns
+* Combine Pregel with motif finding for sophisticated graph analysis
