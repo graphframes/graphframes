@@ -57,6 +57,8 @@ class PregelConnect:
         self._update_active_expr: Column | str | None = None
         self._stop_if_all_non_active = False
         self._skip_messages_from_non_active = False
+        self._required_src_columns: list[str] = []
+        self._required_dst_columns: list[str] = []
 
     def setMaxIter(self, value: int) -> Self:
         self._max_iter = value
@@ -117,6 +119,32 @@ class PregelConnect:
         self._storage_level = storage_level
         return self
 
+    def requiredSrcColumns(self, colName: str, *colNames: str) -> Self:
+        """Specifies which source vertex columns are required when constructing triplets.
+
+        By default, all source vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state. Use this method to reduce
+        memory usage by specifying only the columns that are actually needed.
+
+        :param colName: the first required source vertex column name
+        :param colNames: additional required source vertex column names
+        """
+        self._required_src_columns = [colName] + list(colNames)
+        return self
+
+    def requiredDstColumns(self, colName: str, *colNames: str) -> Self:
+        """Specifies which destination vertex columns are required when constructing triplets.
+
+        By default, all destination vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state. Use this method to reduce
+        memory usage by specifying only the columns that are actually needed.
+
+        :param colName: the first required destination vertex column name
+        :param colNames: additional required destination vertex column names
+        """
+        self._required_dst_columns = [colName] + list(colNames)
+        return self
+
     def run(self) -> DataFrame:
         @final
         class Pregel(LogicalPlan):
@@ -137,6 +165,8 @@ class PregelConnect:
                 update_active_col: Column | str | None,
                 stop_if_all_non_active: bool,
                 skip_message_from_non_active: bool,
+                required_src_columns: list[str],
+                required_dst_columns: list[str],
                 vertices: DataFrame,
                 edges: DataFrame,
             ) -> None:
@@ -156,6 +186,8 @@ class PregelConnect:
                 self.update_active_expr = update_active_col
                 self.stop_if_all_non_active = stop_if_all_non_active
                 self.skip_message_from_non_active = skip_message_from_non_active
+                self.required_src_columns = required_src_columns
+                self.required_dst_columns = required_dst_columns
                 self.vertices = vertices
                 self.edges = edges
 
@@ -184,6 +216,12 @@ class PregelConnect:
                     else None,
                     update_active_expr=make_column_or_expr(self.update_active_expr, session)
                     if self.update_active_expr is not None
+                    else None,
+                    required_src_columns=",".join(self.required_src_columns)
+                    if self.required_src_columns
+                    else None,
+                    required_dst_columns=",".join(self.required_dst_columns)
+                    if self.required_dst_columns
                     else None,
                 )
                 pb_message = pb.GraphFramesAPI(
@@ -221,6 +259,8 @@ class PregelConnect:
                 update_active_col=self._update_active_expr,
                 stop_if_all_non_active=self._stop_if_all_non_active,
                 skip_message_from_non_active=self._skip_messages_from_non_active,
+                required_src_columns=self._required_src_columns,
+                required_dst_columns=self._required_dst_columns,
                 storage_level=self._storage_level,
                 vertices=self.graph._vertices,
                 edges=self.graph._edges,

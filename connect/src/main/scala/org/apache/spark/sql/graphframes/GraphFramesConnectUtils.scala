@@ -346,6 +346,19 @@ object GraphFramesConnectUtils {
           pregel = pregel.setEarlyStopping(pregelProto.getEarlyStopping)
         }
 
+        // Handle required columns for triplet optimization (comma-separated)
+        if (pregelProto.hasRequiredSrcColumns) {
+          val cols =
+            pregelProto.getRequiredSrcColumns.split(",").map(_.trim).filter(_.nonEmpty).toSeq
+          if (cols.nonEmpty) pregel = pregel.requiredSrcColumns(cols.head, cols.tail: _*)
+        }
+
+        if (pregelProto.hasRequiredDstColumns) {
+          val cols =
+            pregelProto.getRequiredDstColumns.split(",").map(_.trim).filter(_.nonEmpty).toSeq
+          if (cols.nonEmpty) pregel = pregel.requiredDstColumns(cols.head, cols.tail: _*)
+        }
+
         pregel.run()
       }
       case proto.GraphFramesAPI.MethodCase.SHORTEST_PATHS => {
