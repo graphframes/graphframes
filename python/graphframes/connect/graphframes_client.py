@@ -119,30 +119,30 @@ class PregelConnect:
         self._storage_level = storage_level
         return self
 
-    def requiredSrcColumns(self, colName: str, *colNames: str) -> Self:
+    def required_src_columns(self, col_name: str, *col_names: str) -> Self:
         """Specifies which source vertex columns are required when constructing triplets.
 
         By default, all source vertex columns are included in triplets, which can create large
         intermediate datasets for algorithms with significant state. Use this method to reduce
         memory usage by specifying only the columns that are actually needed.
 
-        :param colName: the first required source vertex column name
-        :param colNames: additional required source vertex column names
+        :param col_name: the first required source vertex column name
+        :param col_names: additional required source vertex column names
         """
-        self._required_src_columns = [colName] + list(colNames)
+        self._required_src_columns = [col_name] + list(col_names)
         return self
 
-    def requiredDstColumns(self, colName: str, *colNames: str) -> Self:
+    def required_dst_columns(self, col_name: str, *col_names: str) -> Self:
         """Specifies which destination vertex columns are required when constructing triplets.
 
         By default, all destination vertex columns are included in triplets, which can create large
         intermediate datasets for algorithms with significant state. Use this method to reduce
         memory usage by specifying only the columns that are actually needed.
 
-        :param colName: the first required destination vertex column name
-        :param colNames: additional required destination vertex column names
+        :param col_name: the first required destination vertex column name
+        :param col_names: additional required destination vertex column names
         """
-        self._required_dst_columns = [colName] + list(colNames)
+        self._required_dst_columns = [col_name] + list(col_names)
         return self
 
     def run(self) -> DataFrame:

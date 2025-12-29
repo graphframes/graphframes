@@ -236,7 +236,7 @@ class Pregel(JavaWrapper):
         )
         return self
 
-    def requiredSrcColumns(self, colName: str, *colNames: str) -> Self:
+    def required_src_columns(self, col_name: str, *col_names: str) -> Self:
         """Specifies which source vertex columns are required when constructing triplets.
 
         By default, all source vertex columns are included in triplets, which can create large
@@ -246,17 +246,17 @@ class Pregel(JavaWrapper):
 
         The ID column and the active flag column (if used) are always included automatically.
 
-        :param colName: the first required source vertex column name
-        :param colNames: additional required source vertex column names
+        :param col_name: the first required source vertex column name
+        :param col_names: additional required source vertex column names
 
-        See also :func:`requiredDstColumns`
+        See also :func:`required_dst_columns`
         """
         self._java_obj.requiredSrcColumns(
-            colName, _to_seq(self.graph._spark.sparkContext, colNames)
+            col_name, _to_seq(self.graph._spark.sparkContext, col_names)
         )
         return self
 
-    def requiredDstColumns(self, colName: str, *colNames: str) -> Self:
+    def required_dst_columns(self, col_name: str, *col_names: str) -> Self:
         """Specifies which destination vertex columns are required when constructing triplets.
 
         By default, all destination vertex columns are included in triplets, which can create large
@@ -266,13 +266,13 @@ class Pregel(JavaWrapper):
 
         The ID column and the active flag column (if used) are always included automatically.
 
-        :param colName: the first required destination vertex column name
-        :param colNames: additional required destination vertex column names
+        :param col_name: the first required destination vertex column name
+        :param col_names: additional required destination vertex column names
 
-        See also :func:`requiredSrcColumns`
+        See also :func:`required_src_columns`
         """
         self._java_obj.requiredDstColumns(
-            colName, _to_seq(self.graph._spark.sparkContext, colNames)
+            col_name, _to_seq(self.graph._spark.sparkContext, col_names)
         )
         return self
 

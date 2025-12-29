@@ -48,6 +48,36 @@ val edgeWeight = Pregel.edge("weight")
 
 Under the hood, the passed name of the column will be resolved to get the corresponding element of the triplet structs.
 
+### Memory Optimization for Triplets
+
+By default, all vertex columns are included when constructing triplets. For algorithms with large per-vertex state (e.g., cycle detection storing sequences, random walks), this can create huge intermediate datasets in memory.
+
+To reduce memory usage, you can specify only the columns that are actually needed using `requiredSrcColumns` and `requiredDstColumns`:
+
+```scala
+graph.pregel
+  .withVertexColumn("distances", ...)
+  .sendMsgToDst(Pregel.src("distances"))  // Only needs "distances" from source
+  .requiredSrcColumns("distances")         // Only include "distances" in src struct
+  .requiredDstColumns("distances")         // Only include "distances" in dst struct
+  .aggMsgs(...)
+  .run()
+```
+
+In Python:
+
+```python
+graph.pregel \
+  .withVertexColumn("distances", ...) \
+  .sendMsgToDst(Pregel.src("distances")) \
+  .required_src_columns("distances") \
+  .required_dst_columns("distances") \
+  .aggMsgs(...) \
+  .run()
+```
+
+The `id` column and the active flag column (if used) are always included automatically, so you don't need to specify them.
+
 ### Sending Messages
 
 GraphFrames Pregel API support arbitrary number of messages per vertex. Inside the Pregel API **graphs are always considered directed**. This means that if a vertex has an outgoing edge to another vertex, then the message will be sent to the destination vertex. To emulate the behavior of the undirected graph, the user can send the same message to both the source and the destination vertex.
