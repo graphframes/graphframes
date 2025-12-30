@@ -69,8 +69,9 @@ case class KMinSampling[T: TypeTag](size: Int)(implicit ord: Ordering[T])
   }
 
   override def finish(reduction: ArrayBuffer[(T, Long)]): Seq[T] = reduction.map(_._1).toSeq
+  // TODO: replace by Kryo after 4.0.2 is released, see SPARK-52819
   override def bufferEncoder: Encoder[ArrayBuffer[(T, Long)]] =
-    Encoders.kryo[ArrayBuffer[(T, Long)]]
+    Encoders.javaSerialization[ArrayBuffer[(T, Long)]]
   override def outputEncoder: Encoder[Seq[T]] = ExpressionEncoder[Seq[T]]()
 }
 
