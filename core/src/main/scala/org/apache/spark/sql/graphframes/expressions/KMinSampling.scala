@@ -13,7 +13,7 @@ import org.apache.spark.sql.types.DataType
 import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.internal.CollectionCompat
 
-import scala.collection.Searching.search
+import scala.collection.Searching.*
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe.TypeTag
 
@@ -42,7 +42,7 @@ case class KMinSampling[T: TypeTag](size: Int)(implicit ord: Ordering[T])
     }
 
     // fast-path failed; long-path
-    val searchRes = b.search((a.getAs[T](0), a.getAs[Long](1)))(ordering)
+    val searchRes: SearchResult = b.search((a.getAs[T](0), a.getAs[Long](1)))(ordering)
     val idx = searchRes.insertionPoint
 
     b.insert(idx, (a.getAs[T](0), a.getAs[Long](1)))
