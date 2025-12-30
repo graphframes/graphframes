@@ -158,6 +158,10 @@ message Pregel {
   optional ColumnOrExpression initial_active_expr = 13;
   optional ColumnOrExpression update_active_expr = 14;
   optional bool skip_messages_from_non_active = 15;
+  // Required columns for triplet construction (memory optimization)
+  // Column names separated by comma
+  optional string required_src_columns = 16;
+  optional string required_dst_columns = 17;
 }
 
 message ShortestPaths {
