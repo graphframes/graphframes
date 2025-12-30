@@ -60,7 +60,8 @@ object EmbeddingsExample {
 
     val model = modelType match {
       case "word2vec" => Left(new Word2Vec().setVectorSize(128))
-      case "hash2vec" => Right(new Hash2Vec().setEmbeddingsDim(512))
+      case "hash2vec" =>
+        Right(new Hash2Vec().setDoNormalization(true, true).setEmbeddingsDim(512))
     }
 
     val rwModel = new RandomWalkWithRestart()

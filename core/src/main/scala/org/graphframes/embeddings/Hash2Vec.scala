@@ -1,5 +1,7 @@
 package org.graphframes.embeddings
 
+import dev.ludovic.netlib.blas.BLAS
+import org.apache.spark.ml.linalg
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.ml.stat.Summarizer
@@ -7,6 +9,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.ByteType
 import org.apache.spark.sql.types.IntegerType
@@ -53,6 +56,19 @@ class Hash2Vec extends Serializable {
   private var gaussianSigma: Double = 1.0
   private var hashingSeed: Int = 42
   private var signHashingSeed: Int = 18
+  private var doL2Norm: Boolean = false
+  private var safeL2NormAsChannel: Boolean = true
+
+  def setDoNormalization(doNorm: Boolean, safeNorm: Boolean): this.type = {
+    doL2Norm = doNorm
+    safeL2NormAsChannel = safeNorm
+    this
+  }
+
+  def setDoNormalization(value: Boolean): this.type = {
+    setDoNormalization(value, true)
+    this
+  }
 
   /**
    * Sets the context window size around each element to consider during training. Larger values
@@ -159,6 +175,20 @@ class Hash2Vec extends Serializable {
     }
   }
 
+  private def normalize(vector: linalg.Vector, addChannel: Boolean): linalg.Vector = {
+    val blas = BLAS.getInstance()
+    val arr = vector.toArray
+    val norm = blas.dnrm2(arr.size, arr, 0, 1)
+    blas.dscal(arr.size, 1 / (norm + 1e-6), arr, 1)
+    if (addChannel) {
+      val scaledL2 = math.log(norm + 1)
+      val newChannel = scaledL2 / math.sqrt(vector.size.toDouble)
+      new linalg.DenseVector(arr :+ newChannel)
+    } else {
+      new linalg.DenseVector(arr)
+    }
+  }
+
   /**
    * Runs the Hash2Vec algorithm on the input DataFrame containing sequences. The specified
    * sequenceCol must contain arrays of elements (string or numeric). Produces a DataFrame with
@@ -205,10 +235,18 @@ class Hash2Vec extends Serializable {
           s"Hash2vec supports only string or numeric types of elements but gor ${elDataType.toString()}")
     }
 
-    spark
+    val embeddings = spark
       .createDataFrame(rowRDD, schema)
       .groupBy("id")
-      .agg(Summarizer.sum(col("vector")).alias("embedding"))
+      .agg(Summarizer.sum(col("vector")).alias("vector"))
+
+    val normalizer = (x: linalg.Vector) => normalize(x, safeL2NormAsChannel)
+
+    if (doL2Norm) {
+      embeddings.withColumn("vector", udf(normalizer).apply(col("vector")))
+    } else {
+      embeddings
+    }
   }
 
   @nowarn

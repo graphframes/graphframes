@@ -1,18 +1,13 @@
 package org.graphframes.rw
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.functions.array_union
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.udaf
-import org.apache.spark.sql.graphframes.expressions.ReservoirSamplingAgg
-import org.apache.spark.sql.types.ByteType
-import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.types.ShortType
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.struct
+import org.apache.spark.sql.functions.xxhash64
+import org.apache.spark.sql.graphframes.expressions.KMinSampling
 import org.graphframes.GraphFrame
-import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
 
@@ -191,7 +186,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
     for (i <- 1 to numBatches) {
       logInfo(s"Starting batch $i of $numBatches")
       val iterSeed = iterationsRng.nextLong()
-      val preparedGraph = prepareGraph()
+      val preparedGraph = prepareGraph(iterSeed)
       val prevIterationDF = if (i == 1) { None }
       else {
         Some(spark.read.parquet(iterationTmpPath(i - 1)))
@@ -228,55 +223,33 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
    * @return
    *   prepared GraphFrame
    */
-  protected def prepareGraph(): GraphFrame = {
-    val preAggs = if (useEdgeDirection) {
-      graph.edges
-        .select(col(GraphFrame.SRC), col(GraphFrame.DST))
-        .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
-    } else {
-      graph.edges
-        .select(GraphFrame.SRC, GraphFrame.DST)
-        .union(graph.edges.select(GraphFrame.DST, GraphFrame.SRC))
-        .distinct()
-        .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
-    }
+  protected def prepareGraph(iterationSeed: Long): GraphFrame = {
+    val preAggs = (if (useEdgeDirection) {
+                     graph.edges
+                       .select(col(GraphFrame.SRC), col(GraphFrame.DST))
 
-    val vertices = graph.vertices.schema(GraphFrame.ID).dataType match {
-      case StringType =>
-        preAggs.agg(
-          udaf(ReservoirSamplingAgg[java.lang.String](maxNbrs), Encoders.STRING)
-            .apply(col(GraphFrame.DST))
-            .alias(RandomWalkBase.nbrsColName))
-      case ShortType =>
-        preAggs.agg(
-          udaf(ReservoirSamplingAgg[java.lang.Short](maxNbrs), Encoders.SHORT)
-            .apply(col(GraphFrame.DST))
-            .alias(RandomWalkBase.nbrsColName))
-      case ByteType =>
-        preAggs.agg(
-          udaf(ReservoirSamplingAgg[java.lang.Byte](maxNbrs), Encoders.BYTE)
-            .apply(col(GraphFrame.DST))
-            .alias(RandomWalkBase.nbrsColName))
-      case IntegerType =>
-        preAggs.agg(
-          udaf(ReservoirSamplingAgg[java.lang.Integer](maxNbrs), Encoders.INT)
-            .apply(col(GraphFrame.DST))
-            .alias(RandomWalkBase.nbrsColName))
-      case LongType =>
-        preAggs.agg(
-          udaf(ReservoirSamplingAgg[java.lang.Long](maxNbrs), Encoders.LONG)
-            .apply(col(GraphFrame.DST))
-            .alias(RandomWalkBase.nbrsColName))
-      case _ => throw new GraphFramesUnsupportedVertexTypeException("unsupported vertex type")
-    }
+                   } else {
+                     graph.edges
+                       .select(GraphFrame.SRC, GraphFrame.DST)
+                       .union(graph.edges.select(GraphFrame.DST, GraphFrame.SRC))
+                       .distinct()
+                   })
+      // xxhash64(src, dst, seed) ~ fault tolerant random order
+      .withColumn(
+        "rand_rank",
+        xxhash64(col(GraphFrame.SRC), col(GraphFrame.DST), lit(iterationSeed)))
+      .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
+
+    // typed sampling aggregator
+    val kMinSamplingUDAF =
+      KMinSampling.fromSparkType(graph.vertices.schema(GraphFrame.ID).dataType, maxNbrs)
+
+    // at most maxNbrs per vertex with a stable uniform sampling
+    val vertices = preAggs.agg(
+      kMinSamplingUDAF(struct(col(GraphFrame.DST), col("rand_rank")))
+        .alias(RandomWalkBase.rwColName))
 
     val edges = graph.edges
-      .select(GraphFrame.SRC, GraphFrame.DST)
-      .join(vertices, col(GraphFrame.SRC) === col(GraphFrame.ID))
-      .drop(GraphFrame.ID)
-      .join(vertices, col(GraphFrame.DST) === col(GraphFrame.ID))
-      .drop(GraphFrame.ID)
-
     GraphFrame(vertices, edges)
   }
 
