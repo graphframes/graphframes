@@ -23,7 +23,7 @@ import org.scalatest.funsuite.AnyFunSuite
 /**
  * Base abstract class for all unit tests in Spark for handling common functionality.
  */
-private[graphframes] abstract class SparkFunSuite extends AnyFunSuite with Logging {
+abstract class SparkFunSuite extends AnyFunSuite with Logging {
 
   /**
    * Log the suite name and the test name before and after each test.

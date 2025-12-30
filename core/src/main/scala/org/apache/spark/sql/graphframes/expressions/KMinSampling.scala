@@ -3,6 +3,7 @@ package org.apache.spark.sql.graphframes.expressions
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
 import org.apache.spark.sql.expressions.Aggregator
 import org.apache.spark.sql.expressions.UserDefinedFunction
@@ -12,7 +13,7 @@ import org.apache.spark.sql.types.DataType
 import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.internal.CollectionCompat
 
-import scala.collection.Searching.*
+import scala.collection.Searching.search
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.runtime.universe.TypeTag
 
@@ -73,16 +74,25 @@ case class KMinSampling[T: TypeTag](size: Int)(implicit ord: Ordering[T])
   override def outputEncoder: Encoder[Seq[T]] = ExpressionEncoder[Seq[T]]()
 }
 
-object KMinSampling {
-  def fromSparkType(dataType: DataType, size: Int): UserDefinedFunction = {
-    dataType match {
-      case StringType => udaf(KMinSampling[java.lang.String](size))
-      case ShortType => udaf(KMinSampling[java.lang.Short](size))
-      case ByteType => udaf(KMinSampling[java.lang.Byte](size))
-      case IntegerType => udaf(KMinSampling[java.lang.Integer](size))
-      case LongType => udaf(KMinSampling[java.lang.Long](size))
-      case _ => throw new GraphFramesUnsupportedVertexTypeException("unsupported vertex type")
+object KMinSampling extends Serializable {
+  def getEncoder(spark: SparkSession, dataType: DataType, colNames: Seq[String]): Encoder[Row] = {
+    // That is very stupid way actually. But it is the only way with public API
+    spark
+      .createDataFrame(
+        java.util.List.of[Row](),
+        StructType(
+          StructField(colNames(0), dataType) :: StructField(colNames(1), LongType) :: Nil))
+      .encoder
+  }
 
+  def fromSparkType(dataType: DataType, size: Int, encoder: Encoder[Row]): UserDefinedFunction = {
+    dataType match {
+      case StringType => udaf(KMinSampling[java.lang.String](size), encoder)
+      case ShortType => udaf(KMinSampling[java.lang.Short](size), encoder)
+      case ByteType => udaf(KMinSampling[java.lang.Byte](size), encoder)
+      case IntegerType => udaf(KMinSampling[java.lang.Integer](size), encoder)
+      case LongType => udaf(KMinSampling[java.lang.Long](size), encoder)
+      case _ => throw new GraphFramesUnsupportedVertexTypeException("unsupported vertex type")
     }
   }
 }

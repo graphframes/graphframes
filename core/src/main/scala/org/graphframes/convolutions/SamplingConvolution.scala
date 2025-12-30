@@ -61,7 +61,11 @@ class SamplingConvolution extends Serializable with Logging {
       .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
 
     val vertexDtype = graph.vertices.schema(GraphFrame.ID).dataType
-    val samplingUDF = KMinSampling.fromSparkType(vertexDtype, maxNbrs)
+    val encoder = KMinSampling.getEncoder(
+      graph.vertices.sparkSession,
+      vertexDtype,
+      Seq(GraphFrame.ID, "hash"))
+    val samplingUDF = KMinSampling.fromSparkType(vertexDtype, maxNbrs, encoder)
 
     val sampledNbrs = preAggs
       .agg(samplingUDF(struct(col(GraphFrame.ID), col("hash"))).alias("nbrs"))

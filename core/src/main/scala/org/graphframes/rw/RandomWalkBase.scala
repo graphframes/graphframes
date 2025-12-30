@@ -234,15 +234,20 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
                        .union(graph.edges.select(GraphFrame.DST, GraphFrame.SRC))
                        .distinct()
                    })
-      // xxhash64(src, dst, seed) ~ fault tolerant random order
+      // xxhash64(src, dst, seed) ~= fault tolerant random order
       .withColumn(
         "rand_rank",
         xxhash64(col(GraphFrame.SRC), col(GraphFrame.DST), lit(iterationSeed)))
       .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
 
     // typed sampling aggregator
+    val dataType = graph.vertices.schema(GraphFrame.ID).dataType
+    val encoder = KMinSampling.getEncoder(
+      graph.vertices.sparkSession,
+      dataType,
+      Seq(GraphFrame.ID, "rand_rank"))
     val kMinSamplingUDAF =
-      KMinSampling.fromSparkType(graph.vertices.schema(GraphFrame.ID).dataType, maxNbrs)
+      KMinSampling.fromSparkType(dataType, maxNbrs, encoder)
 
     // at most maxNbrs per vertex with a stable uniform sampling
     val vertices = preAggs.agg(
@@ -271,7 +276,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       iterSeed: Long): DataFrame
 }
 
-object RandomWalkBase {
+object RandomWalkBase extends Serializable {
 
   /** Column name for the random walk array. */
   val rwColName: String = "random_walk"
