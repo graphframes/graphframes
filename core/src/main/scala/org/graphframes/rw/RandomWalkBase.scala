@@ -1,10 +1,9 @@
 package org.graphframes.rw
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions.array_union
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.lit
-import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.functions.xxhash64
 import org.apache.spark.sql.graphframes.expressions.KMinSampling
 import org.graphframes.GraphFrame
@@ -206,7 +205,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
         .join(tmpDF, Seq(RandomWalkBase.walkIdCol))
         .select(
           col(RandomWalkBase.walkIdCol),
-          array_union(col(RandomWalkBase.rwColName), col("toMerge"))
+          concat(col(RandomWalkBase.rwColName), col("toMerge"))
             .alias(RandomWalkBase.rwColName))
     }
     result = result.persist(intermediateStorageLevel)
@@ -251,8 +250,8 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
 
     // at most maxNbrs per vertex with a stable uniform sampling
     val vertices = preAggs.agg(
-      kMinSamplingUDAF(struct(col(GraphFrame.DST), col("rand_rank")))
-        .alias(RandomWalkBase.rwColName))
+      kMinSamplingUDAF(col(GraphFrame.DST), col("rand_rank"))
+        .alias(RandomWalkBase.nbrsColName))
 
     val edges = graph.edges
     GraphFrame(vertices, edges)

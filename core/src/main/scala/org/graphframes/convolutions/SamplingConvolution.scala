@@ -68,7 +68,7 @@ class SamplingConvolution extends Serializable with Logging {
     val samplingUDF = KMinSampling.fromSparkType(vertexDtype, maxNbrs, encoder)
 
     val sampledNbrs = preAggs
-      .agg(samplingUDF(struct(col(GraphFrame.ID), col("hash"))).alias("nbrs"))
+      .agg(samplingUDF(col(GraphFrame.DST), col("hash")).alias("nbrs"))
       .select(col(GraphFrame.ID), explode(col("nbrs")).alias("nbr"))
 
     val joined =
@@ -86,7 +86,7 @@ class SamplingConvolution extends Serializable with Logging {
       originalAndNbrs.withColumn(
         featuresCol,
         array_to_vector(
-          array_union(vector_to_array(col(featuresCol)), vector_to_array(col("nbr_embedding")))))
+          concat(vector_to_array(col(featuresCol)), vector_to_array(col("nbr_embedding")))))
     } else {
       originalAndNbrs
     }

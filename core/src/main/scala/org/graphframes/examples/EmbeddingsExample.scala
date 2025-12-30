@@ -72,7 +72,12 @@ object EmbeddingsExample {
     val embeddingsModel =
       new RandomWalkEmbeddings(graph).setSequenceModel(model).setRandomWalks(rwModel)
 
-    val embeddings = embeddingsModel.run()
+    val embeddings = modelType match {
+      case "word2vec" => embeddingsModel.setAggregateNeighbors(false).run()
+      case "hash2vec" =>
+        embeddingsModel.setAggregateNeighbors(true).setMaxNbrs(50).setSeed(42L).run()
+    }
+
     embeddings.write
       .mode("overwrite")
       .format("parquet")
