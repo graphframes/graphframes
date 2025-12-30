@@ -96,7 +96,8 @@ lazy val commonSetting = Seq(
     "--add-opens=java.base/java.lang=ALL-UNNAMED",
     "--add-opens=java.base/java.nio=ALL-UNNAMED",
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
-    "--add-opens=java.base/java.util=ALL-UNNAMED"),
+    "--add-opens=java.base/java.util=ALL-UNNAMED",
+    "--add-opens=java.base/sun.security.action=ALL-UNNAMED"),
 
   // Scalac options
   Compile / tpolecatScalacOptions ++= Set(
@@ -113,8 +114,7 @@ lazy val commonSetting = Seq(
     ScalacOptions.fatalWarnings),
   Compile / tpolecatExcludeOptions ++= Set(
     ScalacOptions.warnNonUnitStatement,
-    ScalacOptions.privateWarnUnusedNoWarn,
-  ),
+    ScalacOptions.privateWarnUnusedNoWarn),
   Test / tpolecatExcludeOptions ++= Set(
     ScalacOptions.warnValueDiscard,
     ScalacOptions.warnUnusedLocals,
