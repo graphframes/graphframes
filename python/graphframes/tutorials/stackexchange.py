@@ -11,15 +11,19 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import click
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
 from pyspark.sql import DataFrame, SparkSession
 
+# Get the directory containing this script (works regardless of where you run from)
+SCRIPT_DIR = Path(__file__).parent.resolve()
+
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
+BASE_PATH = str(SCRIPT_DIR / "data" / STACKEXCHANGE_SITE)
 
 
 #
@@ -238,6 +242,8 @@ click.echo(f"Total Badges:      {badges_df.count():,}\n")
 badges_df = remove_prefix(badges_df).withColumn("Type", F.lit("Badge"))
 
 
+
+
 #
 # Form the nodes from the UNION of posts, users, votes and their combined schemas
 #
@@ -350,6 +356,58 @@ users_df = nodes_df.filter(nodes_df.Type == "User").cache()
 votes_df = nodes_df.filter(nodes_df.Type == "Vote").cache()
 tags_df = nodes_df.filter(nodes_df.Type == "Tag").cache()
 badges_df = nodes_df.filter(nodes_df.Type == "Badge").cache()
+
+
+#
+# Save individual type Parquet files for Neo4j APOC loading
+# These are saved AFTER UUIDs are assigned so edges can reference them
+#
+
+click.echo("\nSaving individual type Parquet files for Neo4j APOC...")
+
+# Save Posts (questions + answers combined)
+raw_posts_df = posts_df
+raw_posts_df.write.mode("overwrite").parquet(f"{BASE_PATH}/Posts.parquet")
+click.echo(f"  Saved Posts.parquet ({raw_posts_df.count():,} records)")
+
+# Save Questions separately
+questions_df.write.mode("overwrite").parquet(f"{BASE_PATH}/Questions.parquet")
+click.echo(f"  Saved Questions.parquet ({questions_df.count():,} records)")
+
+# Save Answers separately
+answers_df.write.mode("overwrite").parquet(f"{BASE_PATH}/Answers.parquet")
+click.echo(f"  Saved Answers.parquet ({answers_df.count():,} records)")
+
+# Save PostLinks
+post_links_df.write.mode("overwrite").parquet(f"{BASE_PATH}/PostLinks.parquet")
+click.echo(f"  Saved PostLinks.parquet ({post_links_df.count():,} records)")
+
+# Save Users
+users_df.write.mode("overwrite").parquet(f"{BASE_PATH}/Users.parquet")
+click.echo(f"  Saved Users.parquet ({users_df.count():,} records)")
+
+# Save Votes
+votes_df.write.mode("overwrite").parquet(f"{BASE_PATH}/Votes.parquet")
+click.echo(f"  Saved Votes.parquet ({votes_df.count():,} records)")
+
+# Save Tags
+tags_df.write.mode("overwrite").parquet(f"{BASE_PATH}/Tags.parquet")
+click.echo(f"  Saved Tags.parquet ({tags_df.count():,} records)")
+
+# Save Badges
+badges_df.write.mode("overwrite").parquet(f"{BASE_PATH}/Badges.parquet")
+click.echo(f"  Saved Badges.parquet ({badges_df.count():,} records)")
+
+# PostHistory and Comments need UUIDs added (they weren't in the main nodes union)
+post_history_with_id = post_history_df.withColumn("id", F.expr("uuid()"))
+post_history_with_id.write.mode("overwrite").parquet(f"{BASE_PATH}/PostHistory.parquet")
+click.echo(f"  Saved PostHistory.parquet ({post_history_with_id.count():,} records)")
+
+comments_with_id = comments_df.withColumn("id", F.expr("uuid()"))
+comments_with_id.write.mode("overwrite").parquet(f"{BASE_PATH}/Comments.parquet")
+click.echo(f"  Saved Comments.parquet ({comments_with_id.count():,} records)")
+
+click.echo("Individual type Parquet files saved.\n")
 
 
 #
@@ -600,6 +658,50 @@ EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
 
 # Write to disk and back again
 relationships_df.write.mode("overwrite").parquet(EDGES_PATH)
+
+
+#
+# Save individual edge type Parquet files for Neo4j APOC loading
+#
+
+click.echo("\nSaving individual edge type Parquet files for Neo4j APOC...")
+
+# Create edges directory
+EDGES_DIR: str = f"{BASE_PATH}/edges"
+
+# Save CastFor edges (Vote -> Post)
+cast_for_edge_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/CastFor.parquet")
+click.echo(f"  Saved edges/CastFor.parquet ({cast_for_edge_df.count():,} records)")
+
+# Save Asks edges (User -> Question)
+user_asks_edges_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/Asks.parquet")
+click.echo(f"  Saved edges/Asks.parquet ({user_asks_edges_df.count():,} records)")
+
+# Save Posts edges (User -> Answer)
+user_answers_edges_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/Posts.parquet")
+click.echo(f"  Saved edges/Posts.parquet ({user_answers_edges_df.count():,} records)")
+
+# Save Answers edges (Answer -> Question)
+question_answers_edges_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/Answers.parquet")
+click.echo(f"  Saved edges/Answers.parquet ({question_answers_edges_df.count():,} records)")
+
+# Save Tags edges (Tag -> Post)
+tags_edge_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/Tags.parquet")
+click.echo(f"  Saved edges/Tags.parquet ({tags_edge_df.count():,} records)")
+
+# Save Earns edges (User -> Badge)
+earns_edges_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/Earns.parquet")
+click.echo(f"  Saved edges/Earns.parquet ({earns_edges_df.count():,} records)")
+
+# Save Duplicates edges (Post -> Post)
+duplicates_edge_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/Duplicates.parquet")
+click.echo(f"  Saved edges/Duplicates.parquet ({duplicates_edge_df.count():,} records)")
+
+# Save Links edges (Post -> Post)
+linked_edge_df.write.mode("overwrite").parquet(f"{EDGES_DIR}/Links.parquet")
+click.echo(f"  Saved edges/Links.parquet ({linked_edge_df.count():,} records)")
+
+click.echo("Individual edge type Parquet files saved.\n")
 
 spark.stop()
 click.echo("Spark stopped.")
