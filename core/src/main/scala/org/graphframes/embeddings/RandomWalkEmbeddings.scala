@@ -15,6 +15,31 @@ import org.graphframes.rw.RandomWalkBase
 
 import java.io.IOException
 
+/**
+ * RandomWalkEmbeddings is a class for generating node embeddings in a graph using random walks
+ * and sequence-to-vector models. This implementation supports two types of embedding models:
+ * Word2Vec and Hash2Vec, each with different performance characteristics.
+ *
+ * Word2Vec is based on the skip-gram model, which typically provides higher quality embeddings
+ * due to its ability to capture semantic relationships through gradient descent optimization.
+ * However, it is computationally expensive, requires more memory, and scales to approximately 20
+ * million vertices in a graph, as it depends on transforming sequences into a vocabulary.
+ *
+ * Hash2Vec uses random projection hashing, making it much faster and more memory-efficient, with
+ * excellent horizontal scaling properties. Its drawbacks include the need for wider embedding
+ * dimensions (typically 512 or more, depending on graph size) and generally lower quality due to
+ * its sparse nature.
+ *
+ * Additionally, this class supports optional neighbor aggregation, where embeddings from sampled
+ * neighbors are aggregated (using average) and concatenated with the node's own embedding. This
+ * technique leverages min-hash sampling and has shown to improve predictive power by over 20% in
+ * synthetic tests. It is particularly efficient for Hash2Vec, as Word2Vec already incorporates
+ * neighborhood information through random walks and skip-gram learning.
+ *
+ * To use this class, instantiate with a GraphFrame, set the random walk generator, choose the
+ * sequence model (Word2Vec or Hash2Vec), and optionally configure other parameters like seed,
+ * edge direction usage, neighbor aggregation, and maximum neighbors for sampling.
+ */
 class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
     extends Serializable
     with Logging
@@ -27,36 +52,99 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
   private var maxNbrs: Int = 50
   private var seed: Long = 42L
 
+  /**
+   * Sets the sequence model to use for generating embeddings. This can be either a Word2Vec model
+   * (Left(Word2Vec)) or a Hash2Vec model (Right(Hash2Vec)). No default; this must be set before
+   * running.
+   * @param value
+   *   The sequence model to use.
+   * @return
+   *   This instance for method chaining.
+   */
   def setSequenceModel(value: Either[Word2Vec, Hash2Vec]): this.type = {
     sequenceModel = value
     this
   }
 
+  /**
+   * Sets the random walk generator to use. No default; this must be set before running.
+   * @param value
+   *   The random walk generator instance.
+   * @return
+   *   This instance for method chaining.
+   */
   def setRandomWalks(value: RandomWalkBase): this.type = {
     randomWalks = value
     this
   }
 
+  /**
+   * Sets the random seed for reproducibility. Default: 42L.
+   * @param value
+   *   The random seed.
+   * @return
+   *   This instance for method chaining.
+   */
   def setSeed(value: Long): this.type = {
     seed = value
     this
   }
 
+  /**
+   * Sets whether to use edge directions in random walks and neighbor aggregation. If true,
+   * considers directed edges; otherwise, treats the graph as undirected. Default: false.
+   * @param value
+   *   Boolean flag for using edge directions.
+   * @return
+   *   This instance for method chaining.
+   */
   def setUseEdgeDirections(value: Boolean): this.type = {
     useEdgeDirections = value
     this
   }
 
+  /**
+   * Sets whether to aggregate neighbor embeddings via min-hash sampling, concatenating the
+   * aggregated vector with the node's own embedding. This improves predictive power (e.g., +20%
+   * in tests) and is more efficient for Hash2Vec. For Word2Vec, this adds redundant information
+   * since it already learns neighborhood relations. Default: true.
+   * @param value
+   *   Boolean flag for neighbor aggregation.
+   * @return
+   *   This instance for method chaining.
+   */
   def setAggregateNeighbors(value: Boolean): this.type = {
     aggregateNeighbors = value
     this
   }
 
+  /**
+   * Sets the maximum number of neighbors to sample for aggregation. Used only if
+   * aggregateNeighbors is true. Default: 50.
+   * @param value
+   *   Maximum neighbors to sample.
+   * @return
+   *   This instance for method chaining.
+   */
   def setMaxNbrs(value: Int): this.type = {
     maxNbrs = value
     this
   }
 
+  /**
+   * Executes the random walk embedding generation process. Requires that sequenceModel and
+   * randomWalks are set. The input GraphFrame must have valid vertex and edge DataFrames, with
+   * vertices containing an ID column.
+   *
+   * The process generates random walks, applies the chosen sequence model to produce initial
+   * embeddings, and optionally aggregates neighbor embeddings if aggregateNeighbors is enabled.
+   *
+   * @return
+   *   A DataFrame containing the original vertex columns plus an additional "embedding" column
+   *   (as defined by RandomWalkEmbeddings.embeddingColName) of type Vector containing the node
+   *   embeddings. If aggregateNeighbors is true, the embedding will be a concatenation of the
+   *   node's embedding and the averaged embeddings of sampled neighbors.
+   */
   def run(): DataFrame = {
     val spark = graph.vertices.sparkSession
     val sc = spark.sparkContext
@@ -126,6 +214,11 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
   }
 }
 
+/**
+ * Companion object for RandomWalkEmbeddings.
+ */
 object RandomWalkEmbeddings {
+
+  /** Name of the embedding column in the output DataFrame. */
   val embeddingColName: String = "embedding"
 }
