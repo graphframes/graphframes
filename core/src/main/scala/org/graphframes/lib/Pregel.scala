@@ -100,6 +100,11 @@ class Pregel(val graph: GraphFrame)
   private val sendMsgs = collection.mutable.ListBuffer.empty[(Column, Column)]
   private var aggMsgsCol: Column = null
 
+  // Required columns for source and destination vertices in triplets
+  // When empty, all columns are selected (default behavior)
+  private val requiredSrcColumnsList = collection.mutable.ListBuffer.empty[String]
+  private val requiredDstColumnsList = collection.mutable.ListBuffer.empty[String]
+
   /** Sets the max number of iterations (default: 10). */
   def setMaxIter(value: Int): this.type = {
     maxIter = value
@@ -292,6 +297,54 @@ class Pregel(val graph: GraphFrame)
   }
 
   /**
+   * Specifies which source vertex columns are required when constructing triplets.
+   *
+   * By default, all source vertex columns are included in triplets, which can create large
+   * intermediate datasets for algorithms with significant state (e.g., cycle detection, random
+   * walks). Use this method to reduce memory usage by specifying only the columns that are
+   * actually needed by the sendMsgToSrc and sendMsgToDst expressions.
+   *
+   * The ID column and the active flag column (if used) are always included automatically.
+   *
+   * @param colName
+   *   the first required source vertex column name
+   * @param colNames
+   *   additional required source vertex column names
+   * @see
+   *   [[requiredDstColumns]]
+   */
+  def requiredSrcColumns(colName: String, colNames: String*): this.type = {
+    requiredSrcColumnsList.clear()
+    requiredSrcColumnsList += colName
+    requiredSrcColumnsList ++= colNames
+    this
+  }
+
+  /**
+   * Specifies which destination vertex columns are required when constructing triplets.
+   *
+   * By default, all destination vertex columns are included in triplets, which can create large
+   * intermediate datasets for algorithms with significant state (e.g., cycle detection, random
+   * walks). Use this method to reduce memory usage by specifying only the columns that are
+   * actually needed by the sendMsgToSrc and sendMsgToDst expressions.
+   *
+   * The ID column and the active flag column (if used) are always included automatically.
+   *
+   * @param colName
+   *   the first required destination vertex column name
+   * @param colNames
+   *   additional required destination vertex column names
+   * @see
+   *   [[requiredSrcColumns]]
+   */
+  def requiredDstColumns(colName: String, colNames: String*): this.type = {
+    requiredDstColumnsList.clear()
+    requiredDstColumnsList += colName
+    requiredDstColumnsList ++= colNames
+    this
+  }
+
+  /**
    * Defines how messages are aggregated after grouped by target vertex IDs.
    *
    * @param aggExpr
@@ -364,16 +417,25 @@ class Pregel(val graph: GraphFrame)
       }
     }
 
+    // Columns to include in triplet structs (ID + active flag always included if specified)
+    val srcCols =
+      if (requiredSrcColumnsList.isEmpty) Seq(col("*"))
+      else (Seq(ID, Pregel.ACTIVE_FLAG_COL) ++ requiredSrcColumnsList).distinct.map(col)
+    val dstCols =
+      if (requiredDstColumnsList.isEmpty) Seq(col("*"))
+      else (Seq(ID, Pregel.ACTIVE_FLAG_COL) ++ requiredDstColumnsList).distinct.map(col)
+
     breakable {
       while (iteration <= maxIter) {
         logInfo(s"start Pregel iteration $iteration / $maxIter")
         val currRoundPersistent = scala.collection.mutable.Queue[DataFrame]()
         currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
+
         var tripletsDF = currentVertices
-          .select(struct(col("*")).as(SRC))
+          .select(struct(srcCols: _*).as(SRC))
           .join(edges, Pregel.src(ID) === col("edge_src"))
           .join(
-            currentVertices.select(struct(col("*")).as(DST)),
+            currentVertices.select(struct(dstCols: _*).as(DST)),
             col("edge_dst") === Pregel.dst(ID))
           .drop(col("edge_src"), col("edge_dst"))
 

@@ -170,4 +170,127 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         .map(r => r.getAs[Long]("id") -> r.getAs[Int]("newColumn"))
         .toMap === Map(1L -> 2, 2L -> 1, 3L -> 2, 4L -> 1))
   }
+
+  test("requiredSrcColumns - only specified columns are used in triplets") {
+    // Test that requiredSrcColumns correctly limits the columns in triplets
+    // This is a memory optimization test - we verify the result is correct
+    // with only required source columns
+
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 4L), (2L, 0L), (3L, 4L), (4L, 0L), (4L, 2L))
+      .toDF("src", "dst")
+      .cache()
+    val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
+    val numVertices = vertices.count()
+    val graph = GraphFrame(vertices, edges)
+
+    val alpha = 0.15
+    // PageRank only needs "rank" and "outDegree" from source vertex
+    val ranks = graph.pregel
+      .setMaxIter(5)
+      .withVertexColumn(
+        "rank",
+        lit(1.0 / numVertices),
+        coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
+      .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
+      .aggMsgs(sum(Pregel.msg))
+      .requiredSrcColumns("rank", "outDegree")
+      .run()
+
+    val result = ranks
+      .sort(col("id"))
+      .select("rank")
+      .as[Double]
+      .collect()
+    assert(result.sum === 1.0 +- 1e-6)
+    val expected = Seq(0.245, 0.224, 0.303, 0.03, 0.197)
+    result.zip(expected).foreach { case (r, e) =>
+      assert(r === e +- 1e-3)
+    }
+  }
+
+  test("requiredDstColumns - only specified columns are used in triplets") {
+    // Test that requiredDstColumns correctly limits the columns in triplets
+    // Reverse chain propagation where we only need dst("value") from destination
+
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x + 1, x))
+      .toDF("src", "dst")
+      .repartition(3)
+
+    val graph = GraphFrame(verDF, edgeDF)
+
+    val resultDF = graph.pregel
+      .setMaxIter(n - 1)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      .sendMsgToSrc(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.dst("value")))
+      .aggMsgs(max(Pregel.msg))
+      .requiredDstColumns("value") // Only need "value" from destination
+      .run()
+
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
+
+  test("requiredSrcColumns and requiredDstColumns together") {
+    // Test using both requiredSrcColumns and requiredDstColumns
+    // Chain propagation where we need "value" from both src and dst
+
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x, x + 1))
+      .toDF("src", "dst")
+      .repartition(3)
+
+    val graph = GraphFrame(verDF, edgeDF)
+
+    val resultDF = graph.pregel
+      .setMaxIter(n - 1)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
+      .aggMsgs(max(Pregel.msg))
+      .requiredSrcColumns("value") // Only need "value" from source
+      .requiredDstColumns("value") // Only need "value" from destination
+      .run()
+
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
+
+  test("requiredSrcColumns with empty list uses all columns (default behavior)") {
+    // Verify that not calling requiredSrcColumns means all columns are used
+    // This is the same as the original page rank test
+
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 4L), (2L, 0L), (3L, 4L), (4L, 0L), (4L, 2L))
+      .toDF("src", "dst")
+      .cache()
+    val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
+    val numVertices = vertices.count()
+    val graph = GraphFrame(vertices, edges)
+
+    val alpha = 0.15
+    val ranks = graph.pregel
+      .setMaxIter(5)
+      .withVertexColumn(
+        "rank",
+        lit(1.0 / numVertices),
+        coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
+      .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
+      .aggMsgs(sum(Pregel.msg))
+      // No requiredSrcColumns or requiredDstColumns - should use all columns
+      .run()
+
+    val result = ranks
+      .sort(col("id"))
+      .select("rank")
+      .as[Double]
+      .collect()
+    assert(result.sum === 1.0 +- 1e-6)
+  }
 }

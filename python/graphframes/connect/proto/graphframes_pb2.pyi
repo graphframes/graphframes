@@ -32,8 +32,8 @@ class GraphFramesAPI(_message.Message):
     SVD_PLUS_PLUS_FIELD_NUMBER: _ClassVar[int]
     TRIANGLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     TRIPLETS_FIELD_NUMBER: _ClassVar[int]
-    KCORE_FIELD_NUMBER: _ClassVar[int]
     MIS_FIELD_NUMBER: _ClassVar[int]
+    KCORE_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -54,8 +54,8 @@ class GraphFramesAPI(_message.Message):
     svd_plus_plus: SVDPlusPlus
     triangle_count: TriangleCount
     triplets: Triplets
-    kcore: KCore
     mis: MaximalIndependentSet
+    kcore: KCore
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -82,8 +82,8 @@ class GraphFramesAPI(_message.Message):
         svd_plus_plus: _Optional[_Union[SVDPlusPlus, _Mapping]] = ...,
         triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ...,
         triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
-        kcore: _Optional[_Union[KCore, _Mapping]] = ...,
         mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
+        kcore: _Optional[_Union[KCore, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -322,6 +322,8 @@ class Pregel(_message.Message):
     INITIAL_ACTIVE_EXPR_FIELD_NUMBER: _ClassVar[int]
     UPDATE_ACTIVE_EXPR_FIELD_NUMBER: _ClassVar[int]
     SKIP_MESSAGES_FROM_NON_ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_SRC_COLUMNS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_DST_COLUMNS_FIELD_NUMBER: _ClassVar[int]
     agg_msgs: ColumnOrExpression
     send_msg_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     send_msg_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
@@ -337,6 +339,8 @@ class Pregel(_message.Message):
     initial_active_expr: ColumnOrExpression
     update_active_expr: ColumnOrExpression
     skip_messages_from_non_active: bool
+    required_src_columns: str
+    required_dst_columns: str
     def __init__(
         self,
         agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
@@ -354,6 +358,8 @@ class Pregel(_message.Message):
         initial_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         update_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         skip_messages_from_non_active: _Optional[bool] = ...,
+        required_src_columns: _Optional[str] = ...,
+        required_dst_columns: _Optional[str] = ...,
     ) -> None: ...
 
 class ShortestPaths(_message.Message):
