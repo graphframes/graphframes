@@ -24,6 +24,7 @@ import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.rw.RandomWalkBase
 
 import scala.annotation.nowarn
+import scala.collection.mutable.ArraySeq
 import scala.jdk.CollectionConverters.*
 import scala.reflect.ClassTag
 
@@ -254,7 +255,7 @@ class Hash2Vec extends Serializable {
     data
       .select(col(sequenceCol))
       .rdd
-      .map(_.getAs[Seq[T]](0))
+      .map(_.getAs[ArraySeq[T]](0).toSeq)
       .repartition(numPartitions)
       .mapPartitions(processPartition[T])
   }
