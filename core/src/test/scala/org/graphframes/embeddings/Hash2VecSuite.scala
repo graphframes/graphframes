@@ -98,4 +98,31 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
         .map(v => naiveL2norm(v))
         .forall(f => approxEqual(f, 1.0)))
   }
+
+  test("hash2vec safe L2") {
+    val hash2vecResults = new Hash2Vec()
+      .setDoNormalization(true, true)
+      .setEmbeddingsDim(128)
+      .setSequenceCol("seq")
+      .run(longSequences)
+      .collect()
+
+    assert(hash2vecResults.forall(r => r.getAs[DenseVector](1).size === 129))
+  }
+
+  test("constant decay") {
+    val hash2vecResults = new Hash2Vec()
+      .setDecayFunction("constant")
+      .setSequenceCol("seq")
+      .run(longSequences)
+    hash2vecResults.write.mode("overwrite").format("noop").save()
+  }
+
+  test("context longer than sequence") {
+    val hash2vecResults = new Hash2Vec()
+      .setSequenceCol("seq")
+      .setContextSize(30)
+      .run(longSequences)
+    hash2vecResults.write.mode("overwrite").format("noop").save()
+  }
 }

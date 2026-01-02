@@ -2,6 +2,7 @@ package org.graphframes.rw
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.*
+import org.apache.spark.sql.types.ArrayType
 import org.graphframes.GraphFrame
 
 /**
@@ -37,6 +38,7 @@ class RandomWalkWithRestart extends RandomWalkBase {
       prevIterationDF: Option[DataFrame],
       iterSeed: Long): DataFrame = {
     val neighbors = graph.vertices.select(col(GraphFrame.ID), col(RandomWalkBase.nbrsColName))
+    val walksDtype = ArrayType(graph.vertices.schema(GraphFrame.ID).dataType)
     var walks = if (prevIterationDF.isEmpty) {
       graph.vertices.select(
         col(GraphFrame.ID).alias("startingNode"),
@@ -46,13 +48,13 @@ class RandomWalkWithRestart extends RandomWalkBase {
             array_size(col(RandomWalkBase.nbrsColName)) > lit(0),
             array((0 until numWalksPerNode).map(_ => uuid()): _*)).otherwise(array()))
           .alias(RandomWalkBase.walkIdCol),
-        array(col(GraphFrame.ID)).alias(RandomWalkBase.rwColName))
+        array().cast(walksDtype).alias(RandomWalkBase.rwColName))
     } else {
       prevIterationDF.get.select(
         col("startingNode"),
         col(RandomWalkBase.currVisitingVertexColName),
         col(RandomWalkBase.walkIdCol),
-        array(col(RandomWalkBase.currVisitingVertexColName)).alias(RandomWalkBase.rwColName))
+        array().cast(walksDtype).alias(RandomWalkBase.rwColName))
     }
 
     for (_ <- (0 until batchSize)) {
