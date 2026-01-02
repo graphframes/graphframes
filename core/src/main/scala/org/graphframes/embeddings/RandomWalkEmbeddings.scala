@@ -7,11 +7,13 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.transform
 import org.apache.spark.sql.types.StringType
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesW2VException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 import org.graphframes.convolutions.SamplingConvolution
 import org.graphframes.rw.RandomWalkBase
+import org.graphframes.rw.RandomWalkWithRestart
 
 import java.io.IOException
 
@@ -217,8 +219,137 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
 /**
  * Companion object for RandomWalkEmbeddings.
  */
-object RandomWalkEmbeddings {
+object RandomWalkEmbeddings extends Serializable {
 
   /** Name of the embedding column in the output DataFrame. */
   val embeddingColName: String = "embedding"
+
+  private val rwModels = Seq("rw_with_restart")
+
+  /**
+   * While this API is public, it is not recommended to use it. The only purpose of this API is to
+   * provide a smooth way to initialize the whole embeddings pipeline with a single method call
+   * that is useable for Python API (py4j and Spark Connect).
+   *
+   * Instead of this API it is recommended to use new + settters of the class!
+   *
+   * @param graph
+   * @param useEdgeDirection
+   * @param rwModel
+   * @param rwMaxNbrs
+   * @param rwNumWalksPerNode
+   * @param rwBatchSize
+   * @param rwNumBatches
+   * @param rwSeed
+   * @param rwRestartProbability
+   * @param rwTemporaryPrefix
+   * @param sequenceModel
+   * @param hash2vecContextSize
+   * @param hash2vecNumPartitions
+   * @param hash2vecEmbeddingsDim
+   * @param hash2vecDecayFunction
+   * @param hash2vecGaussianSigma
+   * @param hash2vecHashingSeed
+   * @param hash2vecSignSeed
+   * @param hash2vecDoL2Norm
+   * @param hash2vecSafeL2
+   * @param word2vecMaxIter
+   * @param word2vecEmbeddingsDim
+   * @param word2vecWindowSize
+   * @param word2vecNumPartitions
+   * @param word2vecMinCount
+   * @param word2vecMaxSentenceLength
+   * @param word2vecSeed
+   * @param word2vecStepSize
+   * @param aggregateNeighbors
+   * @param aggregateNeighborsMaxNbrs
+   * @param aggregateNeighborsSeed
+   * @return
+   */
+  def pythonAPI(
+      graph: GraphFrame,
+      useEdgeDirection: Boolean,
+      rwModel: String,
+      rwMaxNbrs: Int,
+      rwNumWalksPerNode: Int,
+      rwBatchSize: Int,
+      rwNumBatches: Int,
+      rwSeed: Long,
+      rwRestartProbability: Double,
+      rwTemporaryPrefix: String,
+      sequenceModel: String,
+      hash2vecContextSize: Int,
+      hash2vecNumPartitions: Int,
+      hash2vecEmbeddingsDim: Int,
+      hash2vecDecayFunction: String,
+      hash2vecGaussianSigma: Double = 1.0,
+      hash2vecHashingSeed: Int = 42,
+      hash2vecSignSeed: Int = 18,
+      hash2vecDoL2Norm: Boolean = true,
+      hash2vecSafeL2: Boolean = true,
+      word2vecMaxIter: Int,
+      word2vecEmbeddingsDim: Int,
+      word2vecWindowSize: Int,
+      word2vecNumPartitions: Int,
+      word2vecMinCount: Int,
+      word2vecMaxSentenceLength: Int,
+      word2vecSeed: Long,
+      word2vecStepSize: Double,
+      aggregateNeighbors: Boolean,
+      aggregateNeighborsMaxNbrs: Int,
+      aggregateNeighborsSeed: Long): DataFrame = {
+    val randomWalksModel: RandomWalkBase = rwModel match {
+      case "rw_with_restart" =>
+        new RandomWalkWithRestart()
+          .setRestartProbability(rwRestartProbability)
+          .setBatchSize(rwBatchSize)
+          .setNumBatches(rwNumBatches)
+          .setMaxNbrsPerVertex(rwMaxNbrs)
+          .setNumWalksPerNode(rwNumWalksPerNode)
+          .setUseEdgeDirection(useEdgeDirection)
+          .setTemporaryPrefix(rwTemporaryPrefix)
+          .setGlobalSeed(rwSeed)
+      case _: String =>
+        throw new GraphFramesW2VException(
+          s"unsupported RW $rwModel, supported: ${rwModels.mkString}")
+    }
+
+    val embeddingsModel = sequenceModel match {
+      case "hash2vec" =>
+        Right(
+          new Hash2Vec()
+            .setContextSize(hash2vecContextSize)
+            .setDecayFunction(hash2vecDecayFunction)
+            .setDoNormalization(hash2vecDoL2Norm, hash2vecSafeL2)
+            .setEmbeddingsDim(hash2vecEmbeddingsDim)
+            .setGaussianSigma(hash2vecGaussianSigma)
+            .setHashingSeed(hash2vecHashingSeed)
+            .setNumPartitions(hash2vecNumPartitions)
+            .setSignHashSeed(hash2vecSignSeed))
+      case "word2vec" =>
+        Left(
+          new Word2Vec()
+            .setMaxIter(word2vecMaxIter)
+            .setMaxSentenceLength(word2vecMaxSentenceLength)
+            .setMinCount(word2vecMinCount)
+            .setNumPartitions(word2vecNumPartitions)
+            .setSeed(word2vecSeed)
+            .setStepSize(word2vecStepSize)
+            .setVectorSize(word2vecEmbeddingsDim)
+            .setWindowSize(word2vecWindowSize))
+      case _: String =>
+        throw new GraphFramesW2VException(
+          s"unsupported sequence model $sequenceModel, supported are 'word2vec' and 'hash2vec'")
+    }
+
+    val embeddingsGenerator = new RandomWalkEmbeddings(graph)
+      .setRandomWalks(randomWalksModel)
+      .setSequenceModel(embeddingsModel)
+      .setAggregateNeighbors(aggregateNeighbors)
+      .setMaxNbrs(aggregateNeighborsMaxNbrs)
+      .setUseEdgeDirections(useEdgeDirection)
+      .setSeed(aggregateNeighborsSeed)
+
+    embeddingsGenerator.run()
+  }
 }
