@@ -207,25 +207,11 @@ class GraphFrame private (
    */
   def toGraphX: Graph[Row, Row] = {
     if (hasIntegralIdType) {
-      // 1. Null IDs
-      val badVertices = vertices.filter(col(ID).isNull).limit(1).count()
-
-      if (badVertices > 0) {
-        throw new IllegalArgumentException(
-          s"Vertex ID cannot be null. Found null in column '$ID'.")
-      }
-
-      // 2. Null Src/Dst
-      val badEdges = edges.filter(col(SRC).isNull || col(DST).isNull).limit(1).count()
-
-      if (badEdges > 0) {
-        throw new IllegalArgumentException(s"Edge '$SRC' and '$DST' cannot be null.")
-      }
-    }
-
-    if (hasIntegralIdType) {
       val vv = vertices.select(col(ID).cast(LongType), nestAsCol(vertices, ATTR)).rdd.map {
         case Row(id: Long, attr: Row) => (id, attr)
+        case Row(null, _) =>
+          throw new IllegalArgumentException(
+            s"Vertex ID cannot be null. Found null in column '$ID'.")
         case _ => throw new GraphFramesUnreachableException()
       }
       val ee = edges
@@ -233,6 +219,8 @@ class GraphFrame private (
         .rdd
         .map {
           case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr)
+          case Row(null, _, _) | Row(_, null, _) =>
+            throw new IllegalArgumentException(s"Edge '$SRC' and '$DST' cannot be null.")
           case _ => throw new GraphFramesUnreachableException()
         }
       Graph[Row, Row](vv, ee)

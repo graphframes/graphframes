@@ -623,10 +623,12 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     val g = GraphFrame(vertices, edges)
 
-    val e = intercept[IllegalArgumentException] {
-      g.toGraphX
+    val e = intercept[org.apache.spark.SparkException] {
+      // Trigger an action to hit the lazy exception in the .map
+      g.toGraphX.vertices.collect()
     }
 
+    assert(e.getCause.isInstanceOf[IllegalArgumentException])
     assert(e.getMessage.contains("Vertex ID cannot be null"))
   }
 
@@ -645,10 +647,12 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     val g = GraphFrame(vertices, edges)
 
-    val e = intercept[IllegalArgumentException] {
-      g.toGraphX
+    val e = intercept[org.apache.spark.SparkException] {
+      // Trigger action on edges
+      g.toGraphX.edges.collect()
     }
 
+    assert(e.getCause.isInstanceOf[IllegalArgumentException])
     assert(e.getMessage.contains("Edge"))
     assert(e.getMessage.contains("cannot be null"))
   }
