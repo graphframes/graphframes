@@ -1,0 +1,355 @@
+package org.graphframes.embeddings
+
+import org.apache.spark.ml.feature.Word2Vec
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.transform
+import org.apache.spark.sql.types.StringType
+import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesW2VException
+import org.graphframes.Logging
+import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithLocalCheckpoints
+import org.graphframes.convolutions.SamplingConvolution
+import org.graphframes.rw.RandomWalkBase
+import org.graphframes.rw.RandomWalkWithRestart
+
+import java.io.IOException
+
+/**
+ * RandomWalkEmbeddings is a class for generating node embeddings in a graph using random walks
+ * and sequence-to-vector models. This implementation supports two types of embedding models:
+ * Word2Vec and Hash2Vec, each with different performance characteristics.
+ *
+ * Word2Vec is based on the skip-gram model, which typically provides higher quality embeddings
+ * due to its ability to capture semantic relationships through gradient descent optimization.
+ * However, it is computationally expensive, requires more memory, and scales to approximately 20
+ * million vertices in a graph, as it depends on transforming sequences into a vocabulary.
+ *
+ * Hash2Vec uses random projection hashing, making it much faster and more memory-efficient, with
+ * excellent horizontal scaling properties. Its drawbacks include the need for wider embedding
+ * dimensions (typically 512 or more, depending on graph size) and generally lower quality due to
+ * its sparse nature.
+ *
+ * Additionally, this class supports optional neighbor aggregation, where embeddings from sampled
+ * neighbors are aggregated (using average) and concatenated with the node's own embedding. This
+ * technique leverages min-hash sampling and has shown to improve predictive power by over 20% in
+ * synthetic tests. It is particularly efficient for Hash2Vec, as Word2Vec already incorporates
+ * neighborhood information through random walks and skip-gram learning.
+ *
+ * To use this class, instantiate with a GraphFrame, set the random walk generator, choose the
+ * sequence model (Word2Vec or Hash2Vec), and optionally configure other parameters like seed,
+ * edge direction usage, neighbor aggregation, and maximum neighbors for sampling.
+ */
+class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
+    extends Serializable
+    with Logging
+    with WithLocalCheckpoints
+    with WithIntermediateStorageLevel {
+  private var sequenceModel: Either[Word2Vec, Hash2Vec] = _
+  private var randomWalks: RandomWalkBase = _
+  private var aggregateNeighbors: Boolean = true
+  private var useEdgeDirections: Boolean = false
+  private var maxNbrs: Int = 50
+  private var seed: Long = 42L
+
+  /**
+   * Sets the sequence model to use for generating embeddings. This can be either a Word2Vec model
+   * (Left(Word2Vec)) or a Hash2Vec model (Right(Hash2Vec)). No default; this must be set before
+   * running.
+   * @param value
+   *   The sequence model to use.
+   * @return
+   *   This instance for method chaining.
+   */
+  def setSequenceModel(value: Either[Word2Vec, Hash2Vec]): this.type = {
+    sequenceModel = value
+    this
+  }
+
+  /**
+   * Sets the random walk generator to use. No default; this must be set before running.
+   * @param value
+   *   The random walk generator instance.
+   * @return
+   *   This instance for method chaining.
+   */
+  def setRandomWalks(value: RandomWalkBase): this.type = {
+    randomWalks = value
+    this
+  }
+
+  /**
+   * Sets the random seed for reproducibility. Default: 42L.
+   * @param value
+   *   The random seed.
+   * @return
+   *   This instance for method chaining.
+   */
+  def setSeed(value: Long): this.type = {
+    seed = value
+    this
+  }
+
+  /**
+   * Sets whether to use edge directions in random walks and neighbor aggregation. If true,
+   * considers directed edges; otherwise, treats the graph as undirected. Default: false.
+   * @param value
+   *   Boolean flag for using edge directions.
+   * @return
+   *   This instance for method chaining.
+   */
+  def setUseEdgeDirections(value: Boolean): this.type = {
+    useEdgeDirections = value
+    this
+  }
+
+  /**
+   * Sets whether to aggregate neighbor embeddings via min-hash sampling, concatenating the
+   * aggregated vector with the node's own embedding. This improves predictive power (e.g., +20%
+   * in tests) and is more efficient for Hash2Vec. For Word2Vec, this adds redundant information
+   * since it already learns neighborhood relations. Default: true.
+   * @param value
+   *   Boolean flag for neighbor aggregation.
+   * @return
+   *   This instance for method chaining.
+   */
+  def setAggregateNeighbors(value: Boolean): this.type = {
+    aggregateNeighbors = value
+    this
+  }
+
+  /**
+   * Sets the maximum number of neighbors to sample for aggregation. Used only if
+   * aggregateNeighbors is true. Default: 50.
+   * @param value
+   *   Maximum neighbors to sample.
+   * @return
+   *   This instance for method chaining.
+   */
+  def setMaxNbrs(value: Int): this.type = {
+    maxNbrs = value
+    this
+  }
+
+  /**
+   * Executes the random walk embedding generation process. Requires that sequenceModel and
+   * randomWalks are set. The input GraphFrame must have valid vertex and edge DataFrames, with
+   * vertices containing an ID column.
+   *
+   * The process generates random walks, applies the chosen sequence model to produce initial
+   * embeddings, and optionally aggregates neighbor embeddings if aggregateNeighbors is enabled.
+   *
+   * @return
+   *   A DataFrame containing the original vertex columns plus an additional "embedding" column
+   *   (as defined by RandomWalkEmbeddings.embeddingColName) of type Vector containing the node
+   *   embeddings. If aggregateNeighbors is true, the embedding will be a concatenation of the
+   *   node's embedding and the averaged embeddings of sampled neighbors.
+   */
+  def run(): DataFrame = {
+    val spark = graph.vertices.sparkSession
+    val sc = spark.sparkContext
+    val walksGenerator = randomWalks.onGraph(graph).setUseEdgeDirection(useEdgeDirections)
+    val walks = if (useLocalCheckpoints) {
+      walksGenerator.run().localCheckpoint()
+    } else {
+      if (sc.getCheckpointDir.isEmpty) {
+        val checkpointDir = spark.conf.getOption("spark.checkpoint.dir")
+        if (checkpointDir.isEmpty) {
+          throw new IOException(
+            "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
+              "or by specifying the conf 'spark.checkpoint.dir'.")
+        } else {
+          sc.setCheckpointDir(checkpointDir.get)
+        }
+      }
+
+      walksGenerator.run().checkpoint()
+    }
+
+    val embeddings = sequenceModel match {
+      case Left(w2v) => {
+        val model = w2v.setInputCol(RandomWalkBase.rwColName)
+        val preProcessedSequences =
+          if (graph.vertices.schema(GraphFrame.ID).dataType != StringType) {
+            walks.withColumn(
+              RandomWalkBase.rwColName,
+              transform(col(RandomWalkBase.rwColName), (c: Column) => c.cast(StringType)))
+          } else {
+            walks
+          }
+
+        val fittedW2V = model.fit(preProcessedSequences)
+        fittedW2V.getVectors.withColumnsRenamed(
+          Map("word" -> GraphFrame.ID, "vector" -> RandomWalkEmbeddings.embeddingColName))
+      }
+      case Right(h2v) => {
+        h2v.run(walks).withColumnRenamed("vector", RandomWalkEmbeddings.embeddingColName)
+      }
+    }
+
+    // If requested, do the following:
+    // - sample neighbors up to maxNbrs
+    // - compute avg embedding of sample
+    // - concatenate self and aggregated
+    val aggregated = if (aggregateNeighbors) {
+      new SamplingConvolution()
+        .onGraph(GraphFrame(embeddings, graph.edges))
+        .setFeaturesCol(RandomWalkEmbeddings.embeddingColName)
+        .setMaxNbrs(maxNbrs)
+        .setSeed(seed)
+        .setUseEdgeDirections(useEdgeDirections)
+        .setConcatEmbeddings(true)
+        .run()
+    } else {
+      embeddings
+    }
+
+    val persistedDF = aggregated.persist(intermediateStorageLevel)
+
+    // materialize
+    persistedDF.count()
+    resultIsPersistent()
+
+    persistedDF
+  }
+}
+
+/**
+ * Companion object for RandomWalkEmbeddings.
+ */
+object RandomWalkEmbeddings extends Serializable {
+
+  /** Name of the embedding column in the output DataFrame. */
+  val embeddingColName: String = "embedding"
+
+  private val rwModels = Seq("rw_with_restart")
+
+  /**
+   * While this API is public, it is not recommended to use it. The only purpose of this API is to
+   * provide a smooth way to initialize the whole embeddings pipeline with a single method call
+   * that is useable for Python API (py4j and Spark Connect).
+   *
+   * Instead of this API it is recommended to use new + settters of the class!
+   *
+   * @param graph
+   * @param useEdgeDirection
+   * @param rwModel
+   * @param rwMaxNbrs
+   * @param rwNumWalksPerNode
+   * @param rwBatchSize
+   * @param rwNumBatches
+   * @param rwSeed
+   * @param rwRestartProbability
+   * @param rwTemporaryPrefix
+   * @param sequenceModel
+   * @param hash2vecContextSize
+   * @param hash2vecNumPartitions
+   * @param hash2vecEmbeddingsDim
+   * @param hash2vecDecayFunction
+   * @param hash2vecGaussianSigma
+   * @param hash2vecHashingSeed
+   * @param hash2vecSignSeed
+   * @param hash2vecDoL2Norm
+   * @param hash2vecSafeL2
+   * @param word2vecMaxIter
+   * @param word2vecEmbeddingsDim
+   * @param word2vecWindowSize
+   * @param word2vecNumPartitions
+   * @param word2vecMinCount
+   * @param word2vecMaxSentenceLength
+   * @param word2vecSeed
+   * @param word2vecStepSize
+   * @param aggregateNeighbors
+   * @param aggregateNeighborsMaxNbrs
+   * @param aggregateNeighborsSeed
+   * @return
+   */
+  def pythonAPI(
+      graph: GraphFrame,
+      useEdgeDirection: Boolean,
+      rwModel: String,
+      rwMaxNbrs: Int,
+      rwNumWalksPerNode: Int,
+      rwBatchSize: Int,
+      rwNumBatches: Int,
+      rwSeed: Long,
+      rwRestartProbability: Double,
+      rwTemporaryPrefix: String,
+      sequenceModel: String,
+      hash2vecContextSize: Int,
+      hash2vecNumPartitions: Int,
+      hash2vecEmbeddingsDim: Int,
+      hash2vecDecayFunction: String,
+      hash2vecGaussianSigma: Double = 1.0,
+      hash2vecHashingSeed: Int = 42,
+      hash2vecSignSeed: Int = 18,
+      hash2vecDoL2Norm: Boolean = true,
+      hash2vecSafeL2: Boolean = true,
+      word2vecMaxIter: Int,
+      word2vecEmbeddingsDim: Int,
+      word2vecWindowSize: Int,
+      word2vecNumPartitions: Int,
+      word2vecMinCount: Int,
+      word2vecMaxSentenceLength: Int,
+      word2vecSeed: Long,
+      word2vecStepSize: Double,
+      aggregateNeighbors: Boolean,
+      aggregateNeighborsMaxNbrs: Int,
+      aggregateNeighborsSeed: Long): DataFrame = {
+    val randomWalksModel: RandomWalkBase = rwModel match {
+      case "rw_with_restart" =>
+        new RandomWalkWithRestart()
+          .setRestartProbability(rwRestartProbability)
+          .setBatchSize(rwBatchSize)
+          .setNumBatches(rwNumBatches)
+          .setMaxNbrsPerVertex(rwMaxNbrs)
+          .setNumWalksPerNode(rwNumWalksPerNode)
+          .setUseEdgeDirection(useEdgeDirection)
+          .setTemporaryPrefix(rwTemporaryPrefix)
+          .setGlobalSeed(rwSeed)
+      case _: String =>
+        throw new GraphFramesW2VException(
+          s"unsupported RW $rwModel, supported: ${rwModels.mkString}")
+    }
+
+    val embeddingsModel = sequenceModel match {
+      case "hash2vec" =>
+        Right(
+          new Hash2Vec()
+            .setContextSize(hash2vecContextSize)
+            .setDecayFunction(hash2vecDecayFunction)
+            .setDoNormalization(hash2vecDoL2Norm, hash2vecSafeL2)
+            .setEmbeddingsDim(hash2vecEmbeddingsDim)
+            .setGaussianSigma(hash2vecGaussianSigma)
+            .setHashingSeed(hash2vecHashingSeed)
+            .setNumPartitions(hash2vecNumPartitions)
+            .setSignHashSeed(hash2vecSignSeed))
+      case "word2vec" =>
+        Left(
+          new Word2Vec()
+            .setMaxIter(word2vecMaxIter)
+            .setMaxSentenceLength(word2vecMaxSentenceLength)
+            .setMinCount(word2vecMinCount)
+            .setNumPartitions(word2vecNumPartitions)
+            .setSeed(word2vecSeed)
+            .setStepSize(word2vecStepSize)
+            .setVectorSize(word2vecEmbeddingsDim)
+            .setWindowSize(word2vecWindowSize))
+      case _: String =>
+        throw new GraphFramesW2VException(
+          s"unsupported sequence model $sequenceModel, supported are 'word2vec' and 'hash2vec'")
+    }
+
+    val embeddingsGenerator = new RandomWalkEmbeddings(graph)
+      .setRandomWalks(randomWalksModel)
+      .setSequenceModel(embeddingsModel)
+      .setAggregateNeighbors(aggregateNeighbors)
+      .setMaxNbrs(aggregateNeighborsMaxNbrs)
+      .setUseEdgeDirections(useEdgeDirection)
+      .setSeed(aggregateNeighborsSeed)
+
+    embeddingsGenerator.run()
+  }
+}
