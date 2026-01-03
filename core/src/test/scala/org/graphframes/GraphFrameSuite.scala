@@ -611,7 +611,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("toGraphX should throw IllegalArgumentException for null IDs") {
-    import org.apache.spark.sql.functions._
     // Creating vertices with a null ID
     val vertices = spark
       .createDataFrame(Seq((1L, "a"), (null.asInstanceOf[java.lang.Long], "b")))
