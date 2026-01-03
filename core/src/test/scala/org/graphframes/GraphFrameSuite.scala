@@ -613,14 +613,11 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("toGraphX should throw IllegalArgumentException for null IDs") {
     import org.apache.spark.sql.functions._
     // Creating vertices with a null ID
-    val vertices = spark.createDataFrame(Seq(
-      (1L, "a"),
-      (null.asInstanceOf[java.lang.Long], "b")
-    )).toDF("id", "attr")
+    val vertices = spark
+      .createDataFrame(Seq((1L, "a"), (null.asInstanceOf[java.lang.Long], "b")))
+      .toDF("id", "attr")
 
-    val edges = spark.createDataFrame(Seq(
-      (1L, 1L, "friend")
-    )).toDF("src", "dst", "relationship")
+    val edges = spark.createDataFrame(Seq((1L, 1L, "friend"))).toDF("src", "dst", "relationship")
 
     val g = GraphFrame(vertices, edges)
 
@@ -629,7 +626,7 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val e = intercept[IllegalArgumentException] {
       g.toGraphX
     }
-    
+
     assert(e.getMessage.contains("Vertex ID cannot be null"))
   }
 
@@ -637,19 +634,19 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val vertices = spark.createDataFrame(Seq((1L, "a"))).toDF("id", "attr")
 
     // Edge with a NULL destination
-    val edges = spark.createDataFrame(Seq(
-      (1L, null.asInstanceOf[java.lang.Long], "friend")
-    )).toDF("src", "dst", "relationship")
+    val edges = spark
+      .createDataFrame(Seq((1L, null.asInstanceOf[java.lang.Long], "friend")))
+      .toDF("src", "dst", "relationship")
 
     val g = GraphFrame(vertices, edges)
 
     val e = intercept[IllegalArgumentException] {
       g.toGraphX
     }
-    
+
     assert(e.getMessage.contains("Edge"))
     assert(e.getMessage.contains("cannot be null."))
-}
+  }
 
   test("convert directed graph with edge attributes to undirected") {
     val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"))).toDF("id", "name")
