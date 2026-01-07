@@ -9,6 +9,7 @@ import org.apache.spark.sql.functions.collect_list
 import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.reduce
+import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.functions.when
 import org.apache.spark.sql.functions.xxhash64
 import org.apache.spark.sql.graphframes.expressions.KMinSampling
@@ -275,7 +276,9 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       .map(i => spark.read.parquet(iterationTmpPath(i)))
       .reduce((a, b) => a.union(b))
       .groupBy(RandomWalkBase.walkIdCol)
-      .agg(sortAndConcat(collect_list(RandomWalkBase.rwColName)).alias(RandomWalkBase.rwColName))
+      .agg(sortAndConcat(
+        collect_list(struct(RandomWalkBase.batchIDColName, RandomWalkBase.rwColName)))
+        .alias(RandomWalkBase.rwColName))
       .persist(intermediateStorageLevel)
 
     val cnt = result.count()

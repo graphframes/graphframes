@@ -35,6 +35,9 @@ import org.graphframes.rw.RandomWalkWithRestart
  * synthetic tests. It is particularly efficient for Hash2Vec, as Word2Vec already incorporates
  * neighborhood information through random walks and skip-gram learning.
  *
+ * This class provides also a way to run only embedding model (or sequnce2vec model) on top of
+ * cached RandomWalks. Users can provide a path to cached walks in parquet format.
+ *
  * To use this class, instantiate with a GraphFrame, set the random walk generator, choose the
  * sequence model (Word2Vec or Hash2Vec), and optionally configure other parameters like seed,
  * edge direction usage, neighbor aggregation, and maximum neighbors for sampling.
@@ -130,6 +133,15 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
     this
   }
 
+  /**
+   * Sets the path to the existing cached RandomWalks if you want to run only embeddings model and
+   * skip the sequences generation step.
+   *
+   * @param path
+   *   to walks in parquet format
+   * @return
+   *   This instance for method chaining.
+   */
   def useCachedRandomWalks(path: String): this.type = {
     cachedRwPath = Some(path)
     this
@@ -219,7 +231,7 @@ object RandomWalkEmbeddings extends Serializable {
   /**
    * While this API is public, it is not recommended to use it. The only purpose of this API is to
    * provide a smooth way to initialize the whole embeddings pipeline with a single method call
-   * that is useable for Python API (py4j and Spark Connect).
+   * that is usable for Python API (py4j and Spark Connect).
    *
    * Instead of this API it is recommended to use new + settters of the class!
    */
