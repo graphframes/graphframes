@@ -24,9 +24,10 @@ class KMinSamplingSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val aggUDF = KMinSampling.fromSparkType(LongType, 3, encoder)
 
     val result =
-      toAgg.groupBy("src").agg(aggUDF(col("dst"), col("weight")).alias("r")).collect()
+      toAgg.groupBy("src").agg(aggUDF(col("dst"), col("weight")).alias("r"))
 
-    val collectedMap = result.map(f => (f.getLong(0), f.getAs[Seq[Long]](1))).toMap
+    val collectedResult = result.collect()
+    val collectedMap = collectedResult.map(f => (f.getLong(0), f.getAs[Seq[Long]](1))).toMap
 
     assert(collectedMap.get(1L).get === Seq(2L, 3L, 5L))
     assert(collectedMap.get(2L).get === Seq(1L, 4L))
@@ -49,6 +50,10 @@ class KMinSamplingSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       toAgg.groupBy("src").agg(aggUDF(col("dst"), col("weight")).alias("r")).collect()
 
     val collectedMap = result.map(f => (f.getLong(0), f.getAs[Seq[Long]](1))).toMap
+    // at least one should be full
+    assert(collectedMap.map(f => f._2.size).max == 5)
+
+    // all should be within the limit
     for (id <- (1L to 10L)) {
       assert(collectedMap.get(id).get.size <= 5)
     }

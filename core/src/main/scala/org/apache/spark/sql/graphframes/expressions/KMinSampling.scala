@@ -11,67 +11,133 @@ import org.apache.spark.sql.functions.udaf
 import org.apache.spark.sql.types.*
 import org.apache.spark.sql.types.DataType
 import org.graphframes.GraphFramesUnsupportedVertexTypeException
-import org.graphframes.internal.CollectionCompat
 
-import scala.collection.Searching.*
-import scala.collection.mutable.ArrayBuffer
+import scala.annotation.nowarn
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-case class KMinSampling[T: TypeTag](size: Int)(implicit ord: Ordering[T])
-    extends Aggregator[Row, ArrayBuffer[(T, Long)], Seq[T]]
+case class KMinAccum[T](values: Array[T], weights: Array[Long], var cnt: Int) extends Serializable
+
+case class KMinSampling[T: ClassTag](size: Int)(implicit
+    @nowarn tag: TypeTag[T],
+    ord: Ordering[T])
+    extends Aggregator[Row, KMinAccum[T], Seq[T]]
     with Serializable {
 
-  override def zero: ArrayBuffer[(T, Long)] = ArrayBuffer.empty
+  override def zero: KMinAccum[T] = KMinAccum(Array.ofDim[T](size), Array.ofDim[Long](size), 0)
 
-  // tie-breaking by the vertex ID
-  private val ordering = new Ordering[(T, Long)] {
-    override def compare(x: (T, Long), y: (T, Long)): Int = {
-      val wCmp = java.lang.Long.compare(x._2, y._2)
-      if (wCmp != 0) wCmp else ord.compare(x._1, y._1)
-    }
-  }
-
-  override def reduce(b: ArrayBuffer[(T, Long)], a: Row): ArrayBuffer[(T, Long)] = {
+  override def reduce(b: KMinAccum[T], a: Row): KMinAccum[T] = {
+    val newWeight = a.getLong(1)
+    val newValue = a.getAs[T](0)
     // fast-path: buffer is already full of "strong" elements
     // the case of "inflencer" vertex
-    if (b.size >= size) {
-      val last = b.last
-      val wCmp = java.lang.Long.compare(a.getAs[Long](1), last._2)
-      if (wCmp > 0) return b
-      if (wCmp == 0 && ord.compare(a.getAs[T](0), last._1) >= 0) return b
+    if (b.cnt == size) {
+      val lastWeight = b.weights.last
+      if ((lastWeight < newWeight) || ((lastWeight == newWeight) && (ord.compare(
+          newValue,
+          b.values.last) >= 0))) {
+        return b
+      }
     }
 
-    // fast-path failed; long-path
-    val searchRes: SearchResult = b.search((a.getAs[T](0), a.getAs[Long](1)))(ordering)
-    val idx = searchRes.insertionPoint
+    // slow-path: custom binary search for (Weight, Value)
+    // We want to find the first index where (b.w, b.v) > (newWeight, newValue)
+    var low = 0
+    var high = b.cnt - 1
+    var idx = b.cnt // Default insertion point is at the end
 
-    b.insert(idx, (a.getAs[T](0), a.getAs[Long](1)))
+    while (low <= high) {
+      val mid = (low + high) / 2
+      val midWeight = b.weights(mid)
 
-    if (b.size > size) {
-      b.remove(size, b.size - size)
+      // Compare (midWeight, midValue) vs (newWeight, newValue)
+      val res =
+        if (midWeight < newWeight) -1
+        else if (midWeight > newWeight) 1
+        else ord.compare(b.values(mid), newValue)
+
+      if (res <= 0) {
+        // mid is smaller or equal: we must insert after mid
+        low = mid + 1
+      } else {
+        // mid is larger: potential insertion point here
+        idx = mid
+        high = mid - 1
+      }
     }
+
+    if (idx < size) {
+      val newCount = math.min(b.cnt + 1, size)
+      if (idx < newCount - 1) {
+        // shift to the right if needed
+        System.arraycopy(b.weights, idx, b.weights, idx + 1, newCount - idx - 1)
+        System.arraycopy(b.values, idx, b.values, idx + 1, newCount - idx - 1)
+      }
+
+      b.weights(idx) = newWeight
+      b.values(idx) = newValue
+      b.cnt = newCount
+    }
+
     b
   }
 
-  override def merge(
-      b1: ArrayBuffer[(T, Long)],
-      b2: ArrayBuffer[(T, Long)]): ArrayBuffer[(T, Long)] = {
+  override def merge(b1: KMinAccum[T], b2: KMinAccum[T]): KMinAccum[T] = {
 
-    b1 ++= b2
-    // Collections.sort for 2.12 and sortInPlace for 2.13
-    CollectionCompat.sortBuffer(b1, ordering)
-
-    if (b1.size > size) {
-      b1.remove(size, b1.size - size)
+    if (b1.cnt == 0) {
+      return b2
     }
 
-    b1
+    if (b2.cnt == 0) {
+      return b1
+    }
+
+    val resultSize = math.min(b1.cnt + b2.cnt, size)
+    val newValues = Array.ofDim[T](resultSize)
+    val newWeights = Array.ofDim[Long](resultSize)
+
+    var i = 0
+    var j = 0
+    var r = 0
+
+    while (r < resultSize) {
+      val useLeft = if (i >= b1.cnt) {
+        false
+      } else if (j >= b2.cnt) {
+        true
+      } else {
+        val wLeft = b1.weights(i)
+        val wRight = b2.weights(j)
+
+        if (wLeft < wRight) {
+          true
+        } else if (wLeft > wRight) {
+          false
+        } else {
+          ord.compare(b1.values(i), b2.values(j)) <= 0
+        }
+      }
+
+      if (useLeft) {
+        newWeights(r) = b1.weights(i)
+        newValues(r) = b1.values(i)
+        i += 1
+      } else {
+        newWeights(r) = b2.weights(j)
+        newValues(r) = b2.values(j)
+        j += 1
+      }
+
+      r += 1
+    }
+
+    KMinAccum(newValues, newWeights, resultSize)
   }
 
-  override def finish(reduction: ArrayBuffer[(T, Long)]): Seq[T] = reduction.map(_._1).toSeq
+  override def finish(reduction: KMinAccum[T]): Seq[T] =
+    reduction.values.slice(0, reduction.cnt).toSeq
   // TODO: replace by Kryo after 4.0.2 is released, see SPARK-52819
-  override def bufferEncoder: Encoder[ArrayBuffer[(T, Long)]] =
-    Encoders.javaSerialization[ArrayBuffer[(T, Long)]]
+  override def bufferEncoder: Encoder[KMinAccum[T]] = Encoders.product
   override def outputEncoder: Encoder[Seq[T]] = ExpressionEncoder[Seq[T]]()
 }
 
