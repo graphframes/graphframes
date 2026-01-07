@@ -35,8 +35,9 @@ message GraphFramesAPI {
     SVDPlusPlus svd_plus_plus = 18;
     TriangleCount triangle_count = 19;
     Triplets triplets = 20;
-    MaximalIndependentSet mis = 22;
     KCore kcore = 21;
+    MaximalIndependentSet mis = 22;
+    RandomWalkEmbeddings rw_embeddings = 23;
   }
 }
 
@@ -205,4 +206,38 @@ message KCore {
   bool use_local_checkpoints = 1;
   int32 checkpoint_interval = 2;
   optional StorageLevel storage_level = 3;
+}
+
+message RandomWalkEmbeddings {
+  bool use_edge_direction = 1;
+  string rw_model = 2;
+  int32 rw_max_nbrs = 3;
+  int32 rw_num_walks_per_node = 4;
+  int32 rw_batch_size = 5;
+  int32 rw_num_batches = 6;
+  int64 rw_seed = 7;
+  double rw_restart_probability = 8;
+  string rw_temporary_prefix = 9;
+  string rw_cached_walks = 10;
+  string sequence_model = 11;
+  int32 hash2vec_context_size = 12;
+  int32 hash2vec_num_partitions = 13;
+  int32 hash2vec_embeddings_dim = 14;
+  string hash2vec_decay_function = 15;
+  double hash2vec_gaussian_sigma = 16;
+  int32 hash2vec_hashing_seed = 17;
+  int32 hash2vec_sign_seed = 18;
+  bool hash2vec_do_l2_norm = 19;
+  bool hash2vec_safe_l2 = 20;
+  int32 word2vec_max_iter = 21;
+  int32 word2vec_embeddings_dim = 22;
+  int32 word2vec_window_size = 23;
+  int32 word2vec_num_partitions = 24;
+  int32 word2vec_min_count = 25;
+  int32 word2vec_max_sentence_length = 26;
+  int64 word2vec_seed = 27;
+  double word2vec_step_size = 28;
+  bool aggregate_neighbors = 29;
+  int32 aggregate_neighbors_max_nbrs = 30;
+  int64 aggregate_neighbors_seed = 31;
 }
