@@ -229,7 +229,10 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
           left.getField(RandomWalkBase.batchIDColName),
           right.getField(RandomWalkBase.batchIDColName)))
 
-    reduce(sorted, array().cast(ArrayType(idDataType)), (left, right) => concat(left, right))
+    reduce(
+      sorted,
+      array().cast(ArrayType(idDataType)),
+      (left, right) => concat(left, right.getField(RandomWalkBase.rwColName)))
   }
 
   /**
