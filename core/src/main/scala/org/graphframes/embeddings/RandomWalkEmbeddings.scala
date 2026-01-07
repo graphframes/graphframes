@@ -10,12 +10,9 @@ import org.graphframes.GraphFrame
 import org.graphframes.GraphFramesW2VException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
-import org.graphframes.WithLocalCheckpoints
 import org.graphframes.convolutions.SamplingConvolution
 import org.graphframes.rw.RandomWalkBase
 import org.graphframes.rw.RandomWalkWithRestart
-
-import java.io.IOException
 
 /**
  * RandomWalkEmbeddings is a class for generating node embeddings in a graph using random walks
@@ -45,7 +42,6 @@ import java.io.IOException
 class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
     extends Serializable
     with Logging
-    with WithLocalCheckpoints
     with WithIntermediateStorageLevel {
   private var sequenceModel: Either[Word2Vec, Hash2Vec] = _
   private var randomWalks: RandomWalkBase = _
@@ -53,6 +49,7 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
   private var useEdgeDirections: Boolean = false
   private var maxNbrs: Int = 50
   private var seed: Long = 42L
+  private var cachedRwPath: Option[String] = None
 
   /**
    * Sets the sequence model to use for generating embeddings. This can be either a Word2Vec model
@@ -133,6 +130,11 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
     this
   }
 
+  def useCachedRandomWalks(path: String): this.type = {
+    cachedRwPath = Some(path)
+    this
+  }
+
   /**
    * Executes the random walk embedding generation process. Requires that sequenceModel and
    * randomWalks are set. The input GraphFrame must have valid vertex and edge DataFrames, with
@@ -149,23 +151,11 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
    */
   def run(): DataFrame = {
     val spark = graph.vertices.sparkSession
-    val sc = spark.sparkContext
     val walksGenerator = randomWalks.onGraph(graph).setUseEdgeDirection(useEdgeDirections)
-    val walks = if (useLocalCheckpoints) {
-      walksGenerator.run().localCheckpoint()
+    val walks = if (cachedRwPath.isDefined) {
+      spark.read.parquet(cachedRwPath.get)
     } else {
-      if (sc.getCheckpointDir.isEmpty) {
-        val checkpointDir = spark.conf.getOption("spark.checkpoint.dir")
-        if (checkpointDir.isEmpty) {
-          throw new IOException(
-            "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
-              "or by specifying the conf 'spark.checkpoint.dir'.")
-        } else {
-          sc.setCheckpointDir(checkpointDir.get)
-        }
-      }
-
-      walksGenerator.run().checkpoint()
+      walksGenerator.run()
     }
 
     val embeddings = sequenceModel match {
@@ -232,39 +222,6 @@ object RandomWalkEmbeddings extends Serializable {
    * that is useable for Python API (py4j and Spark Connect).
    *
    * Instead of this API it is recommended to use new + settters of the class!
-   *
-   * @param graph
-   * @param useEdgeDirection
-   * @param rwModel
-   * @param rwMaxNbrs
-   * @param rwNumWalksPerNode
-   * @param rwBatchSize
-   * @param rwNumBatches
-   * @param rwSeed
-   * @param rwRestartProbability
-   * @param rwTemporaryPrefix
-   * @param sequenceModel
-   * @param hash2vecContextSize
-   * @param hash2vecNumPartitions
-   * @param hash2vecEmbeddingsDim
-   * @param hash2vecDecayFunction
-   * @param hash2vecGaussianSigma
-   * @param hash2vecHashingSeed
-   * @param hash2vecSignSeed
-   * @param hash2vecDoL2Norm
-   * @param hash2vecSafeL2
-   * @param word2vecMaxIter
-   * @param word2vecEmbeddingsDim
-   * @param word2vecWindowSize
-   * @param word2vecNumPartitions
-   * @param word2vecMinCount
-   * @param word2vecMaxSentenceLength
-   * @param word2vecSeed
-   * @param word2vecStepSize
-   * @param aggregateNeighbors
-   * @param aggregateNeighborsMaxNbrs
-   * @param aggregateNeighborsSeed
-   * @return
    */
   def pythonAPI(
       graph: GraphFrame,
@@ -277,6 +234,7 @@ object RandomWalkEmbeddings extends Serializable {
       rwSeed: Long,
       rwRestartProbability: Double,
       rwTemporaryPrefix: String,
+      rwCachedWalks: String,
       sequenceModel: String,
       hash2vecContextSize: Int,
       hash2vecNumPartitions: Int,
@@ -350,6 +308,10 @@ object RandomWalkEmbeddings extends Serializable {
       .setUseEdgeDirections(useEdgeDirection)
       .setSeed(aggregateNeighborsSeed)
 
-    embeddingsGenerator.run()
+    if (rwCachedWalks == "") {
+      embeddingsGenerator.run()
+    } else {
+      embeddingsGenerator.useCachedRandomWalks(rwCachedWalks).run()
+    }
   }
 }

@@ -1,11 +1,19 @@
 package org.graphframes.rw
 
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.array_sort
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.collect_list
 import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.reduce
+import org.apache.spark.sql.functions.when
 import org.apache.spark.sql.functions.xxhash64
 import org.apache.spark.sql.graphframes.expressions.KMinSampling
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DataType
 import org.graphframes.GraphFrame
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
@@ -43,7 +51,16 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   protected var temporaryPrefix: Option[String] = None
 
   /** Unique identifier for the current random walk run. */
-  protected var runID: String = ""
+  protected var walkID: Option[String] = None
+
+  /** Starting batch index for continous mode */
+  protected var startingIteration: Int = 1
+
+  /** Internal ID */
+  private var runID: String = ""
+
+  /** Internal handler of vertex data type */
+  private var idDataType: DataType = null
 
   /**
    * Sets the graph to perform random walks on.
@@ -55,6 +72,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
    */
   def onGraph(graph: GraphFrame): this.type = {
     this.graph = graph
+    this.idDataType = graph.vertices.schema(GraphFrame.ID).dataType
     this
   }
 
@@ -150,6 +168,42 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   }
 
   /**
+   * Sets the random walk runID. If provided, cached batches from existing random walk run will be
+   * reused. User should be careful, that temporary prefix points to the right direction as well
+   * the cached data starting from the set index exists.
+   *
+   * @param value
+   * @return
+   */
+  def setWalkId(value: String): this.type = {
+    require(value != "", "empty string is not supported as walk ID")
+    walkID = Some(value)
+    this
+  }
+
+  /**
+   * Get the generated (or provided) walkID. This method can be called only after @run
+   *
+   * @return
+   */
+  def getWalkId(): String = {
+    require(runID != "", "you cannot get walkID before running")
+    runID
+  }
+
+  /**
+   * Sets the startng batch index for the continous mode. See @setWalkId comment for details.
+   *
+   * @param value
+   * @return
+   */
+  def setStartingFromBatch(value: Int): this.type = {
+    require(value >= 1, s"batches are one-indexed but got $value")
+    startingIteration = value
+    this
+  }
+
+  /**
    * Generates a temporary path for a given iteration.
    *
    * @param iter
@@ -161,6 +215,20 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
     s"${temporaryPrefix.get}${runID}_batch_${iter}"
   } else {
     s"${temporaryPrefix.get}/${runID}_batch_${iter}"
+  }
+
+  private def sortAndConcat(arrCol: Column): Column = {
+    def ordering(left: Column, right: Column): Column = {
+      when(left < right, lit(-1)).when(left === right, lit(0)).otherwise(lit(1))
+    }
+    val sorted = array_sort(
+      arrCol,
+      (left, right) =>
+        ordering(
+          left.getField(RandomWalkBase.batchIDColName),
+          right.getField(RandomWalkBase.batchIDColName)))
+
+    reduce(sorted, array().cast(ArrayType(idDataType)), (left, right) => concat(left, right))
   }
 
   /**
@@ -176,13 +244,19 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
     if (temporaryPrefix.isEmpty) {
       throw new IllegalArgumentException("Temporary prefix is required for random walks.")
     }
-    runID = java.util.UUID.randomUUID().toString
-    logInfo(s"Starting random walk with runID: $runID")
+
+    runID = walkID.getOrElse(java.util.UUID.randomUUID().toString)
+    if (walkID.isDefined) {
+      logInfo(s"Continue existing random walk with runID: ${runID}")
+    } else {
+      logInfo(s"Starting random walk with runID: $runID")
+    }
+
     val iterationsRng = new Random()
     iterationsRng.setSeed(globalSeed)
     val spark = graph.vertices.sparkSession
 
-    for (i <- 1 to numBatches) {
+    for (i <- startingIteration to numBatches) {
       logInfo(s"Starting batch $i of $numBatches")
       val iterSeed = iterationsRng.nextLong()
       val preparedGraph = prepareGraph(iterSeed)
@@ -191,24 +265,18 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
         Some(spark.read.parquet(iterationTmpPath(i - 1)))
       }
       val iterationResult: DataFrame = runIter(preparedGraph, prevIterationDF, iterSeed)
+        .withColumn(RandomWalkBase.batchIDColName, lit(i))
       iterationResult.write.parquet(iterationTmpPath(i))
     }
 
     logInfo("Finished all batches, merging results.")
-    var result = spark.read.parquet(iterationTmpPath(1))
 
-    for (i <- 2 to numBatches) {
-      val tmpDF = spark.read
-        .parquet(iterationTmpPath(i))
-        .withColumnRenamed(RandomWalkBase.rwColName, "toMerge")
-      result = result
-        .join(tmpDF, Seq(RandomWalkBase.walkIdCol))
-        .select(
-          col(RandomWalkBase.walkIdCol),
-          concat(col(RandomWalkBase.rwColName), col("toMerge"))
-            .alias(RandomWalkBase.rwColName))
-    }
-    result = result.persist(intermediateStorageLevel)
+    val result = (1 to numBatches)
+      .map(i => spark.read.parquet(iterationTmpPath(i)))
+      .reduce((a, b) => a.union(b))
+      .groupBy(RandomWalkBase.walkIdCol)
+      .agg(sortAndConcat(collect_list(RandomWalkBase.rwColName)).alias(RandomWalkBase.rwColName))
+      .persist(intermediateStorageLevel)
 
     val cnt = result.count()
     resultIsPersistent()
@@ -288,4 +356,7 @@ object RandomWalkBase extends Serializable {
 
   /** Column name for the current visiting vertex. */
   val currVisitingVertexColName: String = "random_walk_curr_vertex"
+
+  /** Column name for batch ID inside walk. */
+  val batchIDColName: String = "random_walk_batch_it"
 }
