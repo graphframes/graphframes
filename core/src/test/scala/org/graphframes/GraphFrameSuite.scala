@@ -610,6 +610,53 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edges(3).getLong(1) === 2L)
   }
 
+  test("toGraphX should throw IllegalArgumentException for null IDs") {
+    val schema = StructType(
+      Seq(
+        StructField("id", LongType, nullable = true),
+        StructField("attr", StringType, nullable = true)))
+
+    val data = spark.sparkContext.parallelize(Seq(Row(1L, "a"), Row(null, "b")))
+
+    val vertices = spark.createDataFrame(data, schema)
+    val edges = spark.createDataFrame(Seq((1L, 1L, "friend"))).toDF("src", "dst", "relationship")
+
+    val g = GraphFrame(vertices, edges)
+
+    val e = intercept[org.apache.spark.SparkException] {
+      // Trigger an action to hit the lazy exception in the .map
+      g.toGraphX.vertices.collect()
+    }
+
+    assert(e.getCause.isInstanceOf[IllegalArgumentException])
+    assert(e.getMessage.contains("Vertex ID cannot be null"))
+  }
+
+  test("toGraphX should throw IllegalArgumentException for null Edge Src/Dst") {
+    val vertices = spark.createDataFrame(Seq((1L, "a"))).toDF("id", "attr")
+
+    val edgeSchema = StructType(
+      Seq(
+        StructField("src", LongType, nullable = true),
+        StructField("dst", LongType, nullable = true),
+        StructField("relationship", StringType, nullable = true)))
+
+    val edgeData = spark.sparkContext.parallelize(Seq(Row(1L, null, "friend")))
+
+    val edges = spark.createDataFrame(edgeData, edgeSchema)
+
+    val g = GraphFrame(vertices, edges)
+
+    val e = intercept[org.apache.spark.SparkException] {
+      // Trigger action on edges
+      g.toGraphX.edges.collect()
+    }
+
+    assert(e.getCause.isInstanceOf[IllegalArgumentException])
+    assert(e.getMessage.contains("Edge"))
+    assert(e.getMessage.contains("cannot be null"))
+  }
+
   test("convert directed graph with edge attributes to undirected") {
     val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"))).toDF("id", "name")
     val e = spark.createDataFrame(Seq((1L, 2L, "edge1"))).toDF("src", "dst", "attr")
