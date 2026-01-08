@@ -67,9 +67,6 @@ enable = true
 "Code Repository" = "https://github.com/graphframes/graphframes"
 "Bug Tracker" = "https://github.com/graphframes/graphframes/issues"
 
-[tool.poetry.dependencies]
-numpy = ">= 1.7"
-
 [tool.poetry.group.dev.dependencies]
 black = "^25.12.0"
 flake8 = "^7.3.0"
@@ -94,8 +91,7 @@ graphframes = "graphframes.console:main"
 line-length = 100
 target-version = ["py310", "py311", "py312"]
 include = ["graphframes"]
-
-required-version = "23.12.1"
+required-version = "25.12.0"
 
 [tool.isort]
 profile = "black"
