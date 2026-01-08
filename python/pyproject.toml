@@ -44,9 +44,9 @@ dependencies = [
 
 [project.optional-dependencies]
 tutorials = [
-    "py7zr^1.1.0",
-    "requests^2.32.5",
-    "click^8.3.1",
+    "py7zr",
+    "requests",
+    "click",
 ]
 
 [build-system]

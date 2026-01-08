@@ -34,7 +34,7 @@ description = "Backport of compression.zstd"
 optional = false
 python-versions = "<3.14,>=3.9"
 groups = ["main", "tutorials"]
-markers = "python_version < \"3.14\""
+markers = "python_version <= \"3.13\""
 files = [
     {file = "backports_zstd-1.3.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:0a2db17a6d9bf6b4dc223b3f6414aa9db6d1afe9de9bff61d582c2934ca456a0"},
     {file = "backports_zstd-1.3.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:a7f16b98ba81780a9517ce6c493e1aea9b7d72de2b1efa08375136c270e1ecba"},
@@ -2439,4 +2439,4 @@ tutorials = ["click", "py7zr", "requests"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "b2b780aee62f444054591e030761d3d8dbf5b94a44dc6a0edf32c797a38c7a93"
+content-hash = "13d3d183db1c73b5db67194873431dc338e67d682961c1cd842915991d5aebf8"
