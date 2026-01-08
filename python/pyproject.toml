@@ -76,6 +76,7 @@ pytest = "^8.3.4"
 py7zr = "^0.22.0"
 requests = "^2.32.4"
 click = "^8.1.8"
+neo4j = "^6.0.3"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1"
