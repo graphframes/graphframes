@@ -211,18 +211,22 @@ class PregelConnect:
                     storage_level=storage_level_to_proto(self.storage_level),
                     stop_if_all_non_active=self.stop_if_all_non_active,
                     skip_messages_from_non_active=self.skip_message_from_non_active,
-                    initial_active_expr=make_column_or_expr(self.initial_active_expr, session)
-                    if self.initial_active_expr is not None
-                    else None,
-                    update_active_expr=make_column_or_expr(self.update_active_expr, session)
-                    if self.update_active_expr is not None
-                    else None,
-                    required_src_columns=",".join(self.required_src_columns)
-                    if self.required_src_columns
-                    else None,
-                    required_dst_columns=",".join(self.required_dst_columns)
-                    if self.required_dst_columns
-                    else None,
+                    initial_active_expr=(
+                        make_column_or_expr(self.initial_active_expr, session)
+                        if self.initial_active_expr is not None
+                        else None
+                    ),
+                    update_active_expr=(
+                        make_column_or_expr(self.update_active_expr, session)
+                        if self.update_active_expr is not None
+                        else None
+                    ),
+                    required_src_columns=(
+                        ",".join(self.required_src_columns) if self.required_src_columns else None
+                    ),
+                    required_dst_columns=(
+                        ",".join(self.required_dst_columns) if self.required_dst_columns else None
+                    ),
                 )
                 pb_message = pb.GraphFramesAPI(
                     vertices=dataframe_to_proto(self.vertices, session),
