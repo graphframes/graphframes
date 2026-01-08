@@ -1061,7 +1061,7 @@ version = "2.2.6"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.10"
-groups = ["dev"]
+groups = ["main", "dev"]
 markers = "python_version < \"3.11\""
 files = [
     {file = "numpy-2.2.6-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b412caa66f72040e6d268491a59f2c43bf03eb6c96dd8f0307829feb7fa2b6fb"},
@@ -1127,7 +1127,7 @@ version = "2.4.0"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.11"
-groups = ["dev"]
+groups = ["main", "dev"]
 markers = "python_version >= \"3.11\""
 files = [
     {file = "numpy-2.4.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:316b2f2584682318539f0bcaca5a496ce9ca78c88066579ebd11fd06f8e4741e"},
@@ -1430,7 +1430,7 @@ version = "0.10.9.9"
 description = "Enables Python programs to dynamically access arbitrary Java objects"
 optional = false
 python-versions = "*"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "py4j-0.10.9.9-py2.py3-none-any.whl", hash = "sha256:c7c26e4158defb37b0bb124933163641a2ff6e3a3913f7811b0ddbe07ed61533"},
     {file = "py4j-0.10.9.9.tar.gz", hash = "sha256:f694cad19efa5bd1dee4f3e5270eb406613c974394035e5bfc4ec1aba870b879"},
@@ -1781,7 +1781,7 @@ version = "4.0.1"
 description = "Apache Spark Python API"
 optional = false
 python-versions = ">=3.9"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "pyspark-4.0.1.tar.gz", hash = "sha256:9d1f22d994f60369228397e3479003ffe2dd736ba79165003246ff7bd48e2c73"},
 ]
@@ -2252,4 +2252,4 @@ tutorials = ["click", "py7zr", "requests"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "57b8aea6bd9a7875ec61859e64512d255f59cea779b18d1f510e86c0c378715c"
+content-hash = "ec4b0e4cde19f71684028597cea18ebbaa21c580e92186d0dd6a47050e1a279a"
