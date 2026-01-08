@@ -13,10 +13,12 @@ import laika.theme.ThemeProvider
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import scala.util.Try
 import scala.util.Using
 import scala.util.matching.Regex
-
 import scala.collection.JavaConverters.*
 
 object LaikaCustoms {
@@ -36,54 +38,86 @@ object LaikaCustoms {
     val publishedRegex = """(?m)^-\s\*\*Published:\*\*\s(.+)$""".r
     val summaryRegex = """(?m)^-\s\*\*Summary:\*\*\s(.+)$""".r
 
-    val header =
-      """<?xml version="1.0" encoding="utf-8"?>
-        |<feed xmlns="http://www.w3.org/2005/Atom">
-        |""".stripMargin
-
     def genEntry(
         title: String,
         link: String,
         updated: String,
         id: String,
         summary: String): String = {
+      val updatedParsed = OffsetDateTime.parse(updated)
+      val updatedFormatted = updatedParsed.format(
+        DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US))
       s"""
-         |\t<title>$title</title>
-         |\t<link href="$link"/>
-         |\t<id>$id</id>
-         |\t<updated>$updated</updated>
-         |\t<summary>$summary</summary>
+         |\t\t<item>
+         |\t\t\t<title>$title</title>
+         |\t\t\t<link>$link</link>
+         |\t\t\t<guid isPermaLink="false">$id</guid>
+         |\t\t\t<pubDate>$updatedFormatted</pubDate>
+         |\t\t\t<description>$summary</description>
+         |\t\t</item>
          |
          |""".stripMargin
     }
 
-    val feed =
-      posts.sortBy(_.getFileName.toString).foldLeft(new StringBuilder(header)) { (builder, post) =>
-        {
-          println(s"Generating feed entry for ${post.getFileName}")
-          val content = Using(scala.io.Source.fromFile(post.toFile)) { source => source.mkString }
-            .getOrElse("")
+    val collected =
+      posts
+        .sortBy(_.getFileName.toString)
+        .foldLeft((new StringBuilder(), "1970-01-01:T00:00:00Z")) { (acc, post) =>
+          {
+            println(s"Generating feed entry for ${post.getFileName}")
+            val content = Using(scala.io.Source.fromFile(post.toFile)) { source =>
+              source.mkString
+            }
+              .getOrElse("")
 
-          val id =
-            java.util.UUID.nameUUIDFromBytes(post.getFileName.toString.getBytes("UTF-8")).toString
-          val title = titleRegex.findAllMatchIn(content) match {
-            case titleMatch if titleMatch.hasNext => titleMatch.next().group(1)
-            case _ => "No title"
+            val id =
+              java.util.UUID
+                .nameUUIDFromBytes(post.getFileName.toString.getBytes("UTF-8"))
+                .toString
+            val title = titleRegex.findAllMatchIn(content) match {
+              case titleMatch if titleMatch.hasNext => titleMatch.next().group(1)
+              case _ => "No title"
+            }
+            val link =
+              s"$baseUrl/05-blog/${post.getFileName.toString.replaceAll("\\.md", "\\.html")}"
+            val updated = publishedRegex.findAllMatchIn(content) match {
+              case publishedMatch if publishedMatch.hasNext => publishedMatch.next().group(1)
+              case _ => "1970-01-01:T00:00:00Z"
+            }
+            val summary = summaryRegex.findAllMatchIn(content) match {
+              case summaryMatch if summaryMatch.hasNext => summaryMatch.next().group(1)
+              case _ => "No summary"
+            }
+            val builderWithPost = acc._1.append(genEntry(title, link, updated, id, summary))
+            if (updated > acc._2) {
+              (builderWithPost, updated)
+            } else {
+              (builderWithPost, acc._2)
+            }
           }
-          val link = s"$baseUrl/05-blog/${post.getFileName.toString.replaceAll("\\.md", "\\.html")}"
-          val updated = publishedRegex.findAllMatchIn(content) match {
-            case publishedMatch if publishedMatch.hasNext => publishedMatch.next().group(1)
-            case _ => "1970-01-01"
-          }
-          val summary = summaryRegex.findAllMatchIn(content) match {
-            case summaryMatch if summaryMatch.hasNext => summaryMatch.next().group(1)
-            case _ => "No summary"
-          }
-          builder.append(genEntry(title, link, updated, id, summary))
         }
-      }
 
-    val feedContent = feed.append("</feed>").mkString
+    val lastBuildDate = {
+      val parsed = OffsetDateTime.parse(collected._2)
+      val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US)
+      formatter.format(parsed)
+    }
+
+    val header =
+      s"""<?xml version="1.0" encoding="utf-8"?>
+        |<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+        |
+        |\t<channel>
+        |
+        |\t\t<title>GraphFrames Blog</title>
+        |\t\t<description>GraphFrames Project Blog</description>
+        |\t\t<link>${baseUrl}/05-blog/</link>
+        |\t\t<lastBuildDate>${lastBuildDate}</lastBuildDate>
+        |\t\t<managingEditor>ssinchenko@apache.org (Sem Sinchenko)</managingEditor>
+        |
+        |""".stripMargin
+
+    val feedContent = header + collected._1.append("\n\t</channel>\n</rss>").mkString
     val feedFile = blogDir.resolve("feed.xml")
     Files.write(feedFile, feedContent.getBytes)
   }

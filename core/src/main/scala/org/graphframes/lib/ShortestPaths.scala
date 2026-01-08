@@ -17,7 +17,7 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.col
@@ -32,16 +32,19 @@ import org.apache.spark.sql.functions.transform_values
 import org.apache.spark.sql.functions.when
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.MapType
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.quote
 import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.Logging
 import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithDirection
+import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 
 import java.util
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 /**
  * Computes shortest paths from every vertex to the given set of landmark vertices. Note that this
@@ -56,7 +59,9 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with WithAlgorithmChoice
     with WithCheckpointInterval
-    with WithLocalCheckpoints {
+    with WithLocalCheckpoints
+    with WithIntermediateStorageLevel
+    with WithDirection {
   import org.graphframes.lib.ShortestPaths._
 
   private var lmarks: Option[Seq[Any]] = None
@@ -79,25 +84,32 @@ class ShortestPaths private[graphframes] (private val graph: GraphFrame)
 
   def run(): DataFrame = {
     val lmarksChecked = check(lmarks, "landmarks")
-    algorithm match {
-      case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked)
+    val res = algorithm match {
+      case ALGO_GRAPHX => runInGraphX(graph, lmarksChecked, isDirected)
       case ALGO_GRAPHFRAMES =>
         runInGraphFrames(
           graph,
           lmarksChecked,
           checkpointInterval,
-          useLocalCheckpoints = useLocalCheckpoints)
+          useLocalCheckpoints = useLocalCheckpoints,
+          intermediateStorageLevel = intermediateStorageLevel,
+          isDirected = isDirected)
       case _ => throw new GraphFramesUnreachableException()
     }
+    resultIsPersistent()
+    res
   }
 }
 
 private object ShortestPaths extends Logging {
 
-  private def runInGraphX(graph: GraphFrame, landmarks: Seq[Any]): DataFrame = {
+  private def runInGraphX(
+      graph: GraphFrame,
+      landmarks: Seq[Any],
+      isDirected: Boolean): DataFrame = {
     val longIdToLandmark = landmarks.map(l => GraphXConversions.integralId(graph, l) -> l).toMap
-    val gx = graphxlib.ShortestPaths
-      .run(graph.cachedTopologyGraphX, longIdToLandmark.keys.toSeq.sorted)
+    val gx = graphx.lib.ShortestPaths
+      .run(graph.cachedTopologyGraphX, longIdToLandmark.keys.toSeq.sorted, isDirected)
     val g = GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(DISTANCE_ID))
     val distanceCol: Column = if (graph.hasIntegralIdType) {
       g.vertices(DISTANCE_ID)
@@ -109,16 +121,20 @@ private object ShortestPaths extends Logging {
       transform_keys(col(DISTANCE_ID), (longId: Column, _) => longIdToLandmarkColumn(longId))
     }
     val cols = graph.vertices.columns.map(quote).map(col) :+ distanceCol.as(DISTANCE_ID)
-    g.vertices.select(cols.toSeq: _*)
+    val res = g.vertices.select(cols.toSeq: _*)
+    res.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    res.count()
+    gx.unpersist()
+    res
   }
 
   private def runInGraphFrames(
       graph: GraphFrame,
       landmarks: Seq[Any],
       checkpointInterval: Int,
-      isDirected: Boolean = true,
-      useLocalCheckpoints: Boolean): DataFrame = {
-    logWarn("The GraphFrames based implementation is slow and considered experimental!")
+      isDirected: Boolean,
+      useLocalCheckpoints: Boolean,
+      intermediateStorageLevel: StorageLevel): DataFrame = {
     val vertexType = graph.vertices.schema(GraphFrame.ID).dataType
 
     // For landmark vertices the initial distance to itself is set to 0
@@ -190,11 +206,16 @@ private object ShortestPaths extends Logging {
     // Mark vertex as active only in the case idstance changed
     val updateActiveVierticesExpr = isDistanceImprovedWithMessage(Pregel.msg, col(DISTANCE_ID))
 
+    val preparedGraph = GraphFrame(
+      graph.vertices.select(GraphFrame.ID),
+      graph.edges.select(GraphFrame.SRC, GraphFrame.DST))
+
     // Overall:
     // 1. Initialize distances
     // 2. If new message can improve distances send it
     // 3. Collect and aggregate messages
-    val pregel = graph.pregel
+    val pregel = preparedGraph.pregel
+      .setIntermediateStorageLevel(intermediateStorageLevel)
       .setMaxIter(Int.MaxValue) // That is how the GraphX implementation works
       .withVertexColumn(
         DISTANCE_ID,
@@ -212,6 +233,9 @@ private object ShortestPaths extends Logging {
       .setSkipMessagesFromNonActiveVertices(true)
       .setCheckpointInterval(checkpointInterval)
       .setUseLocalCheckpoints(useLocalCheckpoints)
+      // Memory optimization: only include required columns in triplets
+      .requiredSrcColumns(DISTANCE_ID)
+      .requiredDstColumns(DISTANCE_ID)
 
     // Experimental feature
     if (isDirected) {

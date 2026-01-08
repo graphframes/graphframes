@@ -1,8 +1,8 @@
 package org.graphframes.examples
 
 import java.net.URL
-import java.nio.file._
-import scala.sys.process._
+import java.nio.file.*
+import scala.sys.process.*
 
 object LDBCUtils {
   private val LDBC_URL_PREFIX = "https://datasets.ldbcouncil.org/graphalytics/"
@@ -18,7 +18,14 @@ object LDBCUtils {
   val TEST_WCC_UNDIRECTED = "test-wcc-undirected"
   val KGS = "kgs"
   val GRAPH500_22 = "graph500-22"
+  val GRAPH500_23 = "graph500-23"
   val GRAPH500_24 = "graph500-24"
+  val GRAPH500_25 = "graph500-25"
+  val GRAPH500_26 = "graph500-26"
+  val GRAPH500_27 = "graph500-27"
+  val GRAPH500_28 = "graph500-28"
+  val GRAPH500_29 = "graph500-29"
+  val GRAPH500_30 = "graph500-30"
   val CIT_PATENTS = "cit-Patents"
   val WIKI_TALKS = "wiki-Talk"
 
@@ -33,7 +40,14 @@ object LDBCUtils {
     TEST_WCC_UNDIRECTED,
     KGS,
     GRAPH500_22,
+    GRAPH500_23,
     GRAPH500_24,
+    GRAPH500_25,
+    GRAPH500_26,
+    GRAPH500_27,
+    GRAPH500_28,
+    GRAPH500_29,
+    GRAPH500_30,
     CIT_PATENTS,
     WIKI_TALKS)
 
@@ -64,7 +78,7 @@ object LDBCUtils {
       println(s"LDBC data for the case ${name} not found. Downloading...")
       checkZSTD()
       if (Files.notExists(dir)) {
-        Files.createDirectory(dir)
+        Files.createDirectories(dir)
       }
       val archivePath = path.resolve(s"${name}.tar.zst")
       val connection = ldbcURL(name).openConnection()

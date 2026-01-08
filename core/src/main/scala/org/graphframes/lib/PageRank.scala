@@ -17,8 +17,9 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx.lib as graphxlib
 import org.graphframes.GraphFrame
+import org.graphframes.Logging
 
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank.
@@ -63,7 +64,9 @@ import org.graphframes.GraphFrame
  * The resulting edges DataFrame contains one additional column:
  *   - weight (`DoubleType`): the normalized weight of this edge after running PageRank
  */
-class PageRank private[graphframes] (private val graph: GraphFrame) extends Arguments {
+class PageRank private[graphframes] (private val graph: GraphFrame)
+    extends Arguments
+    with Logging {
 
   private var tol: Option[Double] = None
   private var resetProb: Option[Double] = Some(0.15)
@@ -93,13 +96,15 @@ class PageRank private[graphframes] (private val graph: GraphFrame) extends Argu
   }
 
   def run(): GraphFrame = {
-    tol match {
+    val res = tol match {
       case Some(t) =>
         assert(maxIter.isEmpty, "You cannot specify maxIter() and tol() at the same time.")
         PageRank.runUntilConvergence(graph, t, resetProb.get, srcId)
       case None =>
         PageRank.run(graph, check(maxIter, "maxIter"), resetProb.get, srcId)
     }
+    resultIsPersistent()
+    res
   }
 }
 
@@ -129,7 +134,13 @@ private object PageRank {
     val longSrcId = srcId.map(GraphXConversions.integralId(graph, _))
     val gx =
       graphxlib.PageRank.runWithOptions(graph.cachedTopologyGraphX, maxIter, resetProb, longSrcId)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
+    val res = GraphXConversions
+      .fromGraphX(graph, gx, vertexNames = Seq(PAGERANK), edgeNames = Seq(WEIGHT))
+      .persist()
+    res.vertices.count()
+    res.edges.count()
+    gx.unpersist()
+    res
   }
 
   /**

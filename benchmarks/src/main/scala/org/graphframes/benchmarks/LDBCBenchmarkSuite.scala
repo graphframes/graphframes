@@ -8,7 +8,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.examples.LDBCUtils
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.infra.Blackhole
 
 import java.io.File
@@ -81,22 +81,6 @@ class LDBCBenchmarkSuite {
   private def resourcesPath = Path.of(new File("target").toURI)
 
   @Benchmark
-  def benchmarkSPlocalCheckpoints(blackhole: Blackhole): Unit = {
-    val sourceVertex =
-      props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
-
-    val spResults = graph.shortestPaths
-      .setUseLocalCheckpoints(true)
-      .landmarks(Seq(sourceVertex))
-      .setCheckpointInterval(1)
-      .setAlgorithm("graphframes")
-      .run()
-
-    val res: Unit = spResults.write.format("noop").mode("overwrite").save()
-    blackhole.consume(res)
-  }
-
-  @Benchmark
   def benchmarkSP(blackhole: Blackhole): Unit = {
     val sourceVertex =
       props.getProperty(s"graph.${benchmarkGraphName}.bfs.source-vertex").toLong
@@ -104,6 +88,7 @@ class LDBCBenchmarkSuite {
     val spResults = graph.shortestPaths
       .setAlgorithm("graphframes")
       .landmarks(Seq(sourceVertex))
+      .setCheckpointInterval(1)
       .run()
 
     val res: Unit = spResults.write.format("noop").mode("overwrite").save()
@@ -123,7 +108,11 @@ class LDBCBenchmarkSuite {
   @Benchmark
   def benchmarkCC(blackhole: Blackhole): Unit = {
     val ccResults =
-      graph.connectedComponents.setUseLocalCheckpoints(true).setAlgorithm("graphframes").run()
+      graph.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setAlgorithm("graphframes")
+        .setBroadcastThreshold(-1)
+        .run()
     val res: Unit = ccResults.write.format("noop").mode("overwrite").save()
     blackhole.consume(res)
   }
@@ -141,6 +130,16 @@ class LDBCBenchmarkSuite {
       .setAlgorithm("graphframes")
       .maxIter(10)
       .setUseLocalCheckpoints(true)
+      .run()
+    val res: Unit = cdlpResults.write.format("noop").mode("overwrite").save()
+    blackhole.consume(res)
+  }
+
+  @Benchmark
+  def benchmarkCDLPGraphX(blackhole: Blackhole): Unit = {
+    val cdlpResults = graph.labelPropagation
+      .setAlgorithm("graphx")
+      .maxIter(10)
       .run()
     val res: Unit = cdlpResults.write.format("noop").mode("overwrite").save()
     blackhole.consume(res)

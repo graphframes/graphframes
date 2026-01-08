@@ -15,21 +15,11 @@
 # limitations under the License.
 #
 
+
 from typing import Any
 
-from pyspark import SparkContext
-from pyspark.sql import Column, DataFrame, SparkSession
-from pyspark.sql import functions as sqlfunctions
-
-
-def _java_api(jsc: SparkContext) -> Any:
-    javaClassName = "org.graphframes.GraphFramePythonAPI"
-    return (
-        jsc._jvm.Thread.currentThread()
-        .getContextClassLoader()
-        .loadClass(javaClassName)
-        .newInstance()
-    )
+from pyspark.sql import Column
+from pyspark.sql import functions as F
 
 
 class _ClassProperty:
@@ -38,7 +28,7 @@ class _ClassProperty:
     The underlying method should take the class as the sole argument.
     """
 
-    def __init__(self, f: callable) -> None:
+    def __init__(self, f: Any) -> None:
         self.f = f
         self.__doc__ = f.__doc__
 
@@ -52,39 +42,19 @@ class AggregateMessages:
     @_ClassProperty
     def src(cls) -> Column:
         """Reference for source column, used for specifying messages."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.SRC())
+        return F.col("src")
 
     @_ClassProperty
     def dst(cls) -> Column:
         """Reference for destination column, used for specifying messages."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.DST())
+        return F.col("dst")
 
     @_ClassProperty
     def edge(cls) -> Column:
         """Reference for edge column, used for specifying messages."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.EDGE())
+        return F.col("edge")
 
     @_ClassProperty
     def msg(cls) -> Column:
         """Reference for message column, used for specifying aggregation function."""
-        jvm_gf_api = _java_api(SparkContext)
-        return sqlfunctions.col(jvm_gf_api.aggregateMessages().MSG_COL_NAME())
-
-    @staticmethod
-    def getCachedDataFrame(df: DataFrame) -> DataFrame:
-        """
-        Create a new cached copy of a DataFrame.
-
-        This utility method is useful for iterative DataFrame-based algorithms. See Scala
-        documentation for more details.
-
-        WARNING: This is NOT the same as `DataFrame.cache()`.
-                 The original DataFrame will NOT be cached.
-        """
-        spark = SparkSession.getActiveSession()
-        jvm_gf_api = _java_api(spark._sc)
-        jdf = jvm_gf_api.aggregateMessages().getCachedDataFrame(df._jdf)
-        return DataFrame(jdf, spark)
+        return F.col("MSG")

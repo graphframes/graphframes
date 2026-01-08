@@ -17,6 +17,7 @@
 
 package org.graphframes.pattern
 
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.InvalidParseException
 import org.graphframes.SparkFunSuite
 
@@ -28,6 +29,17 @@ class PatternSuite extends SparkFunSuite {
     assert(
       Pattern.parse("(u)-[e]->(v)") ===
         Seq(NamedEdge("e", NamedVertex("u"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[e*1]->(v)") ===
+        Seq(NamedEdge("_e1", NamedVertex("u"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[e*3]->(v)") ===
+        Seq(
+          NamedEdge("_e1", NamedVertex("u"), NamedVertex("_v1")),
+          NamedEdge("_e2", NamedVertex("_v1"), NamedVertex("_v2")),
+          NamedEdge("_e3", NamedVertex("_v2"), NamedVertex("v"))))
 
     assert(
       Pattern.parse("()-[]->(v)") ===
@@ -51,6 +63,72 @@ class PatternSuite extends SparkFunSuite {
           AnonymousEdge(NamedVertex("u"), NamedVertex("v")),
           AnonymousEdge(NamedVertex("v"), NamedVertex("w")),
           Negation(AnonymousEdge(NamedVertex("u"), NamedVertex("w")))))
+
+    assert(
+      Pattern.parse("(u)-[*3]->(v)") ===
+        Seq(
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
+          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
+          AnonymousEdge(NamedVertex("_v2"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[*5]->(v)") ===
+        Seq(
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
+          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
+          AnonymousEdge(NamedVertex("_v2"), NamedVertex("_v3")),
+          AnonymousEdge(NamedVertex("_v3"), NamedVertex("_v4")),
+          AnonymousEdge(NamedVertex("_v4"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[*10]->(v)") ===
+        Seq(
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
+          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
+          AnonymousEdge(NamedVertex("_v2"), NamedVertex("_v3")),
+          AnonymousEdge(NamedVertex("_v3"), NamedVertex("_v4")),
+          AnonymousEdge(NamedVertex("_v4"), NamedVertex("_v5")),
+          AnonymousEdge(NamedVertex("_v5"), NamedVertex("_v6")),
+          AnonymousEdge(NamedVertex("_v6"), NamedVertex("_v7")),
+          AnonymousEdge(NamedVertex("_v7"), NamedVertex("_v8")),
+          AnonymousEdge(NamedVertex("_v8"), NamedVertex("_v9")),
+          AnonymousEdge(NamedVertex("_v9"), NamedVertex("v"))))
+  }
+
+  test("good parses - undirected pattern") {
+    assert(
+      Pattern.parse("(u)-[e]-(v)") ===
+        Seq(UndirectedEdge(NamedEdge("e", NamedVertex("u"), NamedVertex("v")))))
+
+    assert(
+      Pattern.parse("(u)-[e]-(v);(v)-[]-(k)") ===
+        Seq(
+          UndirectedEdge(NamedEdge("e", NamedVertex("u"), NamedVertex("v"))),
+          UndirectedEdge(AnonymousEdge(NamedVertex("v"), NamedVertex("k")))))
+  }
+
+  test("rewrite incomming edges") {
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]-(v);") === "(v)-[e]->(u)")
+    assert(Pattern.rewriteIncomingEdges("!(u)<-[e]-(v);") === "!(v)-[e]->(u)")
+    assert(
+      Pattern.rewriteIncomingEdges("(u)<-[]-(v);(u)-[e]->(v)") === "(v)-[]->(u);(u)-[e]->(v)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[]->(v)") === "(u)-[]->(v);(v)-[]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[e]->(v)") === "(u)-[e1]->(v);(v)-[e2]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[*5]-(v)") === "(v)-[*5]->(u)")
+    assert(Pattern.rewriteIncomingEdges("(u)<-[*5]->(v)") === "(u)-[*5]->(v);(v)-[*5]->(u)")
+    assert(
+      Pattern.rewriteIncomingEdges(
+        "(v1)<-[e*1..2]->(v2)") === "(v1)-[e*1..2]->(v2);(v2)-[e*1..2]->(v1)")
+  }
+
+  test("rewrite incomming edges and parse") {
+    Pattern.parse("(v)<-[e]-(u)") === Pattern.parse("(u)-[e]->(v)")
+    Pattern.parse("(v)<-[]-(u)") === Pattern.parse("(u)-[]->(v)")
+    Pattern.parse("!(v)<-[]-(u)") === Pattern.parse("!(u)-[]->(v)")
+    Pattern.parse("()<-[e]-()") === Pattern.parse("()-[e]->()")
+    Pattern.parse("(u)-[]->(v); (w)<-[]-(v); !(w)<-[]-(u)") === Pattern.parse(
+      "(u)-[]->(v); (v)-[]->(w); !(u)-[]->(w)")
+    Pattern.parse("(v)<-[*5]-(u)") === Pattern.parse("(u)-[*5]->(v)")
   }
 
   test("bad parses") {
@@ -106,6 +184,17 @@ class PatternSuite extends SparkFunSuite {
         Pattern.parse("!()-[]->()")
       }
     }
+    withClue("Failed to catch parse error with completely anonymous undirected edge ()-[]-()") {
+      intercept[InvalidParseException] {
+        Pattern.parse("()-[]-()")
+      }
+    }
+    withClue(
+      "Failed to catch parse error with completely anonymous negated and undirected edge !()-[]-()") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!()-[]-()")
+      }
+    }
     withClue("Failed to catch parse error with reused element name") {
       intercept[InvalidParseException] {
         Pattern.parse("(a)-[]->(b); ()-[a]->()")
@@ -119,6 +208,31 @@ class PatternSuite extends SparkFunSuite {
     withClue("Failed to catch parse error with reused edge name") {
       intercept[InvalidParseException] {
         Pattern.parse("(a)-[e]->(b); ()-[e]->()")
+      }
+    }
+    withClue("Failed to catch parse error with not support negated bidirectional edge") {
+      intercept[InvalidParseException] {
+        Pattern.parse("!(u)<-[]->(v)")
+      }
+    }
+  }
+
+  test("unsupported parse on the fixed length patterns") {
+    withClue("Failed to catch parse error with graph frame unreachable") {
+      intercept[GraphFramesUnreachableException] {
+        Pattern.parse("(u)-[*0]->(v)")
+      }
+    }
+
+    withClue("Failed to catch parse error with bad motif string") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(u)-[*]->(v)")
+      }
+    }
+
+    withClue("Failed to catch parse error with chaining quantified length pattern") {
+      intercept[InvalidParseException] {
+        Pattern.parse("(u)-[*2]->(v);(v)-[e]->(w)")
       }
     }
   }

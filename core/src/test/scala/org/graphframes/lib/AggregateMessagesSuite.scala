@@ -17,10 +17,14 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.*
+import org.apache.spark.sql.types.*
+import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.SparkFunSuite
+import org.graphframes.TestUtils
 import org.graphframes.examples.Graphs
 
 import scala.collection.mutable
@@ -50,6 +54,7 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
         case _: Row => throw new GraphFramesUnreachableException()
       }
       .toMap
+    agg.unpersist()
     // Compute the truth via brute force for comparison.
     val trueAgg: Map[String, Int] = {
       val user2age = g.vertices
@@ -93,9 +98,83 @@ class AggregateMessagesSuite extends SparkFunSuite with GraphFrameTestSparkConte
         case _: Row => throw new GraphFramesUnreachableException()
       }
       .toMap
+    agg2.unpersist()
     // Compare to the true values.
     agg2Map.keys.foreach { case user =>
       assert(agg2Map(user) === trueAgg(user), s"Failure on user $user")
     }
+  }
+
+  test("aggregateMessages with multiple message and aggregation columns") {
+    val AM = AggregateMessages
+    val vertices =
+      sqlContext.createDataFrame(List((1, 30), (2, 40), (3, 50), (4, 60))).toDF("id", "att1")
+    val edges =
+      sqlContext.createDataFrame(List((1, 2, 4), (2, 3, 5), (1, 4, 6))).toDF("src", "dst", "att2")
+    val expectedValues = Map(
+      1 -> Tuple2(100L, 5.0),
+      2 -> Tuple2(80L, 4.5),
+      3 -> Tuple2(40L, 5.0),
+      4 -> Tuple2(30L, 6.0))
+
+    val g = GraphFrame(vertices, edges)
+    // aggregateMessages with column aliases
+    val agg = g.aggregateMessages
+      .sendToDst(AM.src("att1").as("att1"), AM.edge("att2").as("att2"))
+      .sendToSrc(AM.dst("att1").as("att1"), AM.edge("att2").as("att2"))
+      .agg(sum(AM.msg("att1")).as("sum_att1"), avg(AM.msg("att2")).as("avg_att2"))
+
+    // aggregateMessages with columns and no aliases
+    val agg2 = g.aggregateMessages
+      .sendToDst(AM.src("att1"), AM.edge("att2"))
+      .sendToSrc(AM.dst("att1"), AM.edge("att2"))
+      .agg(sum(AM.msg("att1")).as("sum_att1"), avg(AM.msg("att2")).as("avg_att2"))
+
+    // aggregateMessages with column expressions
+    val agg3 = g.aggregateMessages
+      .sendToDst("src['att1'] as att1", "edge['att2'] as att2")
+      .sendToSrc("dst['att1'] as att1", "edge['att2'] as att2")
+      .agg("sum(MSG['att1']) AS sum_att1", "avg(MSG['att2']) AS avg_att2")
+
+    // validate schema
+    assert(agg.schema.size === 3)
+    TestUtils.checkColumnType(agg.schema, "id", IntegerType)
+    TestUtils.checkColumnType(agg.schema, "sum_att1", LongType)
+    TestUtils.checkColumnType(agg.schema, "avg_att2", DoubleType)
+
+    assert(agg.schema === agg2.schema)
+    assert(agg.schema === agg3.schema)
+
+    // validate content
+    val output1 = agg
+      .collect()
+      .map {
+        case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
+          id -> Tuple2(sumAtt1, avgAtt2)
+        case _ => throw new GraphFramesUnreachableException()
+      }
+      .toMap
+    val output2 = agg2
+      .collect()
+      .map {
+        case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
+          id -> Tuple2(sumAtt1, avgAtt2)
+        case _ => throw new GraphFramesUnreachableException()
+      }
+      .toMap
+    val output3 = agg3
+      .collect()
+      .map {
+        case Row(id: Int, sumAtt1: Long, avgAtt2: Double) =>
+          id -> Tuple2(sumAtt1, avgAtt2)
+        case _ => throw new GraphFramesUnreachableException()
+      }
+      .toMap
+    assert(output1 === expectedValues)
+    assert(output2 === expectedValues)
+    assert(output3 === expectedValues)
+    agg.unpersist()
+    agg2.unpersist()
+    agg3.unpersist()
   }
 }

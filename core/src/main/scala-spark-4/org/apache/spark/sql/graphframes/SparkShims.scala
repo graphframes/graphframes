@@ -23,11 +23,11 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.classic.ClassicConversions._
+import org.apache.spark.sql.classic.ClassicConversions.*
+import org.apache.spark.sql.classic.DataFrame as ClassicDataFrame
 import org.apache.spark.sql.classic.Dataset
 import org.apache.spark.sql.classic.ExpressionUtils
-import org.apache.spark.sql.classic.{DataFrame => ClassicDataFrame}
-import org.apache.spark.sql.classic.{SparkSession => ClassicSparkSession}
+import org.apache.spark.sql.classic.SparkSession as ClassicSparkSession
 
 object SparkShims {
 

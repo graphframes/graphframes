@@ -2,6 +2,14 @@
 
 Pregel API is one of the core backbones of GraphFrames. It is based on the implementation of the [Pregel algorithm](https://blog.lavaplanets.com/wp-content/uploads/2023/12/p135-malewicz.pdf) in terms of relational operations using the Apache Spark `DataFrame` / `Dataset` API.
 
+---
+
+**NOTE**
+
+*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+
+---
+
 ## API
 
 For the API details, please refer to:
@@ -39,6 +47,36 @@ val edgeWeight = Pregel.edge("weight")
 ```
 
 Under the hood, the passed name of the column will be resolved to get the corresponding element of the triplet structs.
+
+### Memory Optimization for Triplets
+
+By default, all vertex columns are included when constructing triplets. For algorithms with large per-vertex state (e.g., cycle detection storing sequences, random walks), this can create huge intermediate datasets in memory.
+
+To reduce memory usage, you can specify only the columns that are actually needed using `requiredSrcColumns` and `requiredDstColumns`:
+
+```scala
+graph.pregel
+  .withVertexColumn("distances", ...)
+  .sendMsgToDst(Pregel.src("distances"))  // Only needs "distances" from source
+  .requiredSrcColumns("distances")         // Only include "distances" in src struct
+  .requiredDstColumns("distances")         // Only include "distances" in dst struct
+  .aggMsgs(...)
+  .run()
+```
+
+In Python:
+
+```python
+graph.pregel \
+  .withVertexColumn("distances", ...) \
+  .sendMsgToDst(Pregel.src("distances")) \
+  .required_src_columns("distances") \
+  .required_dst_columns("distances") \
+  .aggMsgs(...) \
+  .run()
+```
+
+The `id` column and the active flag column (if used) are always included automatically, so you don't need to specify them.
 
 ### Sending Messages
 

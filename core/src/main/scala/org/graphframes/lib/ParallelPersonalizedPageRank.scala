@@ -17,8 +17,9 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.{lib => graphxlib}
+import org.apache.spark.graphframes.graphx
 import org.graphframes.GraphFrame
+import org.graphframes.Logging
 import org.graphframes.WithMaxIter
 
 /**
@@ -54,7 +55,8 @@ import org.graphframes.WithMaxIter
  */
 class ParallelPersonalizedPageRank private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with WithMaxIter {
+    with WithMaxIter
+    with Logging {
 
   private var resetProb: Option[Double] = Some(0.15)
   private var srcIds: Array[Any] = Array()
@@ -74,7 +76,9 @@ class ParallelPersonalizedPageRank private[graphframes] (private val graph: Grap
   def run(): GraphFrame = {
     require(maxIter != None, "Max number of iterations maxIter() must be provided")
     require(srcIds.nonEmpty, "Source vertices Ids sourceIds() must be provided")
-    ParallelPersonalizedPageRank.run(graph, maxIter.get, resetProb.get, srcIds)
+    val res = ParallelPersonalizedPageRank.run(graph, maxIter.get, resetProb.get, srcIds)
+    resultIsPersistent()
+    res
   }
 }
 
@@ -109,11 +113,17 @@ private object ParallelPersonalizedPageRank {
       resetProb: Double,
       sourceIds: Array[Any]): GraphFrame = {
     val longSrcIds = sourceIds.map(GraphXConversions.integralId(graph, _))
-    val gx = graphxlib.PageRank.runParallelPersonalizedPageRank(
+    val gx = graphx.lib.PageRank.runParallelPersonalizedPageRank(
       graph.cachedTopologyGraphX,
       maxIter,
       resetProb,
       longSrcIds)
-    GraphXConversions.fromGraphX(graph, gx, vertexNames = Seq(PAGERANKS), edgeNames = Seq(WEIGHT))
+    val gf = GraphXConversions
+      .fromGraphX(graph, gx, vertexNames = Seq(PAGERANKS), edgeNames = Seq(WEIGHT))
+      .persist()
+    gf.vertices.count()
+    gf.edges.count()
+    gx.unpersist()
+    gf
   }
 }

@@ -19,12 +19,12 @@ package org.graphframes
 
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-import org.apache.spark.graphx.Edge
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphframes.graphx.Edge
+import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StringType
@@ -61,6 +61,23 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   override def afterAll(): Unit = {
     FileUtils.deleteQuietly(tempDir)
     super.afterAll()
+  }
+
+  test("test validate") {
+    val goodG = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L))).toDF("src", "dst"))
+    goodG.validate() // no exception should be thrown
+
+    val notDistinctVertices = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"), (1L, "d"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L))).toDF("src", "dst"))
+    assertThrows[InvalidGraphException](notDistinctVertices.validate())
+
+    val missingVertices = GraphFrame(
+      spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "attr"),
+      spark.createDataFrame(Seq((1L, 2L), (2L, 1L), (2L, 3L), (1L, 4L))).toDF("src", "dst"))
+    assertThrows[InvalidGraphException](missingVertices.validate())
   }
 
   test("construction from DataFrames") {
@@ -317,6 +334,142 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(degrees === Map(1L -> 2, 2L -> 3, 3L -> 1))
   }
 
+  test("type degree metrics") {
+    val g = GraphFrame(vertices, edges)
+
+    assert(g.typeOutDegree("action").columns === Seq("id", "outDegrees"))
+    val typeOutDegrees = g.typeOutDegree("action").collect()
+
+    val outDegreesSchema =
+      g.typeOutDegree("action").schema("outDegrees").dataType.asInstanceOf[StructType]
+    val outDegreesFieldNames = outDegreesSchema.fields.map(_.name).toSet
+    assert(outDegreesFieldNames === Set("love", "hate", "follow"))
+
+    val typeOutDegMap = typeOutDegrees.map { row =>
+      val id = row.getLong(0)
+      val degrees = row.getStruct(1)
+      (id, degrees)
+    }.toMap
+
+    assert(typeOutDegMap(1L).getAs[Int]("love") === 1)
+    assert(typeOutDegMap(1L).getAs[Int]("hate") === 0)
+    assert(typeOutDegMap(1L).getAs[Int]("follow") === 0)
+
+    assert(typeOutDegMap(2L).getAs[Int]("love") === 0)
+    assert(typeOutDegMap(2L).getAs[Int]("hate") === 1)
+    assert(typeOutDegMap(2L).getAs[Int]("follow") === 1)
+
+    assert(g.typeInDegree("action").columns === Seq("id", "inDegrees"))
+    val typeInDegrees = g.typeInDegree("action").collect()
+
+    val inDegreesSchema =
+      g.typeInDegree("action").schema("inDegrees").dataType.asInstanceOf[StructType]
+    val inDegreesFieldNames = inDegreesSchema.fields.map(_.name).toSet
+    assert(inDegreesFieldNames === Set("love", "hate", "follow"))
+
+    val typeInDegMap = typeInDegrees.map { row =>
+      val id = row.getLong(0)
+      val degrees = row.getStruct(1)
+      (id, degrees)
+    }.toMap
+
+    assert(typeInDegMap(1L).getAs[Int]("love") === 0)
+    assert(typeInDegMap(1L).getAs[Int]("hate") === 1)
+    assert(typeInDegMap(1L).getAs[Int]("follow") === 0)
+
+    assert(typeInDegMap(2L).getAs[Int]("love") === 1)
+    assert(typeInDegMap(2L).getAs[Int]("hate") === 0)
+    assert(typeInDegMap(2L).getAs[Int]("follow") === 0)
+
+    assert(typeInDegMap(3L).getAs[Int]("love") === 0)
+    assert(typeInDegMap(3L).getAs[Int]("hate") === 0)
+    assert(typeInDegMap(3L).getAs[Int]("follow") === 1)
+
+    assert(g.typeDegree("action").columns === Seq("id", "degrees"))
+    val typeDegrees = g.typeDegree("action").collect()
+
+    val degreesSchema = g.typeDegree("action").schema("degrees").dataType.asInstanceOf[StructType]
+    val degreesFieldNames = degreesSchema.fields.map(_.name).toSet
+    assert(degreesFieldNames === Set("love", "hate", "follow"))
+
+    val typeDegMap = typeDegrees.map { row =>
+      val id = row.getLong(0)
+      val degrees = row.getStruct(1)
+      (id, degrees)
+    }.toMap
+
+    assert(typeDegMap(1L).getAs[Int]("love") === 1)
+    assert(typeDegMap(1L).getAs[Int]("hate") === 1)
+    assert(typeDegMap(1L).getAs[Int]("follow") === 0)
+
+    assert(typeDegMap(2L).getAs[Int]("love") === 1)
+    assert(typeDegMap(2L).getAs[Int]("hate") === 1)
+    assert(typeDegMap(2L).getAs[Int]("follow") === 1)
+
+    assert(typeDegMap(3L).getAs[Int]("love") === 0)
+    assert(typeDegMap(3L).getAs[Int]("hate") === 0)
+    assert(typeDegMap(3L).getAs[Int]("follow") === 1)
+  }
+
+  test("type degree metrics with explicit edge types") {
+    val g = GraphFrame(vertices, edges)
+    val edgeTypes = Seq("love", "hate", "follow")
+
+    val typeOutDegrees = g.typeOutDegree("action", Some(edgeTypes)).collect()
+
+    val typeOutDegMap = typeOutDegrees.map { row =>
+      val id = row.getLong(0)
+      val degrees = row.getStruct(1)
+      (id, degrees)
+    }.toMap
+
+    assert(typeOutDegMap(1L).getAs[Int]("love") === 1)
+    assert(typeOutDegMap(1L).getAs[Int]("hate") === 0)
+    assert(typeOutDegMap(1L).getAs[Int]("follow") === 0)
+
+    assert(typeOutDegMap(2L).getAs[Int]("love") === 0)
+    assert(typeOutDegMap(2L).getAs[Int]("hate") === 1)
+    assert(typeOutDegMap(2L).getAs[Int]("follow") === 1)
+
+    val typeInDegrees = g.typeInDegree("action", Some(edgeTypes)).collect()
+    val typeInDegMap = typeInDegrees.map { row =>
+      val id = row.getLong(0)
+      val degrees = row.getStruct(1)
+      (id, degrees)
+    }.toMap
+
+    assert(typeInDegMap(1L).getAs[Int]("love") === 0)
+    assert(typeInDegMap(1L).getAs[Int]("hate") === 1)
+    assert(typeInDegMap(1L).getAs[Int]("follow") === 0)
+
+    assert(typeInDegMap(2L).getAs[Int]("love") === 1)
+    assert(typeInDegMap(2L).getAs[Int]("hate") === 0)
+    assert(typeInDegMap(2L).getAs[Int]("follow") === 0)
+
+    assert(typeInDegMap(3L).getAs[Int]("love") === 0)
+    assert(typeInDegMap(3L).getAs[Int]("hate") === 0)
+    assert(typeInDegMap(3L).getAs[Int]("follow") === 1)
+
+    val typeDegrees = g.typeDegree("action", Some(edgeTypes)).collect()
+    val typeDegMap = typeDegrees.map { row =>
+      val id = row.getLong(0)
+      val degrees = row.getStruct(1)
+      (id, degrees)
+    }.toMap
+
+    assert(typeDegMap(1L).getAs[Int]("love") === 1)
+    assert(typeDegMap(1L).getAs[Int]("hate") === 1)
+    assert(typeDegMap(1L).getAs[Int]("follow") === 0)
+
+    assert(typeDegMap(2L).getAs[Int]("love") === 1)
+    assert(typeDegMap(2L).getAs[Int]("hate") === 1)
+    assert(typeDegMap(2L).getAs[Int]("follow") === 1)
+
+    assert(typeDegMap(3L).getAs[Int]("love") === 0)
+    assert(typeDegMap(3L).getAs[Int]("hate") === 0)
+    assert(typeDegMap(3L).getAs[Int]("follow") === 1)
+  }
+
   test("cache") {
     val g = GraphFrame(vertices, edges)
 
@@ -333,6 +486,44 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       assert(empty.outDegrees.count() === 0L)
       assert(empty.degrees.count() === 0L)
       assert(empty.triplets.count() === 0L)
+    }
+  }
+
+  test("test triplets") {
+    // Basic triplets test
+    val g = GraphFrame(vertices, edges)
+    val triplets = g.triplets.collect()
+    assert(triplets.length === localEdges.size)
+    triplets.foreach {
+      case Row(src: Row, edge: Row, dst: Row) =>
+        assert(src.getLong(0) === edge.getLong(0)) // src.id === edge.src
+        assert(dst.getLong(0) === edge.getLong(1)) // dst.id === edge.dst
+        assert(localEdges((edge.getLong(0), edge.getLong(1))) === edge.getString(2))
+      case _ => throw new GraphFramesUnreachableException()
+    }
+
+    // Test with attributes
+    val v2 = vertices.withColumn("age", lit(10))
+    val e2 = edges.withColumn("weight", lit(2.0))
+    val g2 = GraphFrame(v2, e2)
+    val triplets2 = g2.triplets.collect()
+    triplets2.foreach {
+      case Row(src: Row, edge: Row, _: Row) =>
+        assert(src.getInt(2) === 10) // Check vertex attribute
+        assert(edge.getDouble(3) === 2.0) // Check edge attribute
+      case _ => throw new GraphFramesUnreachableException()
+    }
+
+    // Test with dots in column names
+    val v3 = v2.withColumnRenamed("age", "person.age")
+    val e3 = e2.withColumnRenamed("weight", "edge.weight")
+    val g3 = GraphFrame(v3, e3)
+    val triplets3 = g3.triplets.collect()
+    triplets3.foreach {
+      case Row(src: Row, edge: Row, _: Row) =>
+        assert(src.getInt(2) === 10) // Check vertex attribute
+        assert(edge.getDouble(3) === 2.0) // Check edge attribute
+      case _ => throw new GraphFramesUnreachableException()
     }
   }
 
@@ -362,53 +553,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
               StructField("id", LongType, nullable = false),
               StructField("a `name`", StringType, nullable = true))),
             nullable = false))))
-  }
-
-  test("skewed long ID assignments") {
-    val spark = this.spark
-    import spark.implicits._
-    val n = 5L
-    // union a star graph and a chain graph and cast integral IDs to strings
-    val star = Graphs.star(n)
-    val chain = Graphs.chain(n + 1)
-    val vertices = star.vertices.select(col(ID).cast("string").as(ID))
-    val edges =
-      star.edges
-        .select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST))
-        .unionAll(
-          chain.edges.select(col(SRC).cast("string").as(SRC), col(DST).cast("string").as(DST)))
-
-    val localVertices = vertices.select(ID).as[String].collect().toSet
-    val localEdges = edges.select(SRC, DST).as[(String, String)].collect().toSet
-
-    val defaultThreshold = GraphFrame.broadcastThreshold
-    assert(
-      defaultThreshold === 1000000,
-      s"Default broadcast threshold should be 1000000 but got $defaultThreshold.")
-
-    for (threshold <- Seq(0, 4, 10)) {
-      GraphFrame.setBroadcastThreshold(threshold)
-
-      val g = GraphFrame(vertices, edges)
-      g.persist(StorageLevel.MEMORY_AND_DISK)
-
-      val indexedVertices =
-        g.indexedVertices.select(ID, LONG_ID).as[(String, Long)].collect().toMap
-      assert(indexedVertices.keySet === localVertices)
-      assert(indexedVertices.values.toSeq.distinct.size === localVertices.size)
-      val origEdges = g.indexedEdges.select(SRC, DST).as[(String, String)].collect().toSet
-      assert(origEdges === localEdges)
-      g.indexedEdges
-        .select(SRC, LONG_SRC, DST, LONG_DST)
-        .as[(String, Long, String, Long)]
-        .collect()
-        .foreach { case (src, longSrc, dst, longDst) =>
-          assert(indexedVertices(src) === longSrc)
-          assert(indexedVertices(dst) === longDst)
-        }
-    }
-
-    GraphFrame.setBroadcastThreshold(defaultThreshold)
   }
 
   test("power iteration clustering wrapper") {
@@ -442,5 +586,88 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .map(_.getAs[Int]("cluster"))
       .toSeq
     assert(Seq(0, 0, 0, 0, 1, 0) == clusters)
+  }
+
+  test("convert directed graph to undirected") {
+    val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "name")
+    val e = spark.createDataFrame(Seq((1L, 2L), (2L, 3L))).toDF("src", "dst")
+    val g = GraphFrame(v, e)
+    val undirected = g.asUndirected()
+
+    // Check edge count doubled
+    assert(undirected.edges.count() === 2 * g.edges.count())
+
+    // Verify reverse edges exist
+    val edges = undirected.edges.sort("src", "dst").collect()
+    assert(edges.length === 4)
+    assert(edges(0).getLong(0) === 1L)
+    assert(edges(0).getLong(1) === 2L)
+    assert(edges(1).getLong(0) === 2L)
+    assert(edges(1).getLong(1) === 1L)
+    assert(edges(2).getLong(0) === 2L)
+    assert(edges(2).getLong(1) === 3L)
+    assert(edges(3).getLong(0) === 3L)
+    assert(edges(3).getLong(1) === 2L)
+  }
+
+  test("toGraphX should throw IllegalArgumentException for null IDs") {
+    val schema = StructType(
+      Seq(
+        StructField("id", LongType, nullable = true),
+        StructField("attr", StringType, nullable = true)))
+
+    val data = spark.sparkContext.parallelize(Seq(Row(1L, "a"), Row(null, "b")))
+
+    val vertices = spark.createDataFrame(data, schema)
+    val edges = spark.createDataFrame(Seq((1L, 1L, "friend"))).toDF("src", "dst", "relationship")
+
+    val g = GraphFrame(vertices, edges)
+
+    val e = intercept[org.apache.spark.SparkException] {
+      // Trigger an action to hit the lazy exception in the .map
+      g.toGraphX.vertices.collect()
+    }
+
+    assert(e.getCause.isInstanceOf[IllegalArgumentException])
+    assert(e.getMessage.contains("Vertex ID cannot be null"))
+  }
+
+  test("toGraphX should throw IllegalArgumentException for null Edge Src/Dst") {
+    val vertices = spark.createDataFrame(Seq((1L, "a"))).toDF("id", "attr")
+
+    val edgeSchema = StructType(
+      Seq(
+        StructField("src", LongType, nullable = true),
+        StructField("dst", LongType, nullable = true),
+        StructField("relationship", StringType, nullable = true)))
+
+    val edgeData = spark.sparkContext.parallelize(Seq(Row(1L, null, "friend")))
+
+    val edges = spark.createDataFrame(edgeData, edgeSchema)
+
+    val g = GraphFrame(vertices, edges)
+
+    val e = intercept[org.apache.spark.SparkException] {
+      // Trigger action on edges
+      g.toGraphX.edges.collect()
+    }
+
+    assert(e.getCause.isInstanceOf[IllegalArgumentException])
+    assert(e.getMessage.contains("Edge"))
+    assert(e.getMessage.contains("cannot be null"))
+  }
+
+  test("convert directed graph with edge attributes to undirected") {
+    val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"))).toDF("id", "name")
+    val e = spark.createDataFrame(Seq((1L, 2L, "edge1"))).toDF("src", "dst", "attr")
+    val g = GraphFrame(v, e)
+    val undirected = g.asUndirected()
+
+    val edges = undirected.edges.collect()
+    assert(edges.length === 2)
+    assert(
+      edges.exists(r => r.getLong(0) == 1L && r.getLong(1) == 2L && r.getString(2) == "edge1"))
+    assert(
+      edges.exists(r => r.getLong(0) == 2L && r.getLong(1) == 1L && r.getString(2) == "edge1"))
   }
 }

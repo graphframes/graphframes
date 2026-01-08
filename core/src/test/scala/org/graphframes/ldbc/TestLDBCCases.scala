@@ -16,11 +16,11 @@ import org.graphframes.SparkFunSuite
 import org.graphframes.examples.LDBCUtils
 
 import java.io.File
-import java.nio.file._
+import java.nio.file.*
 import java.util.Properties
 
 class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
-  private val resourcesPath = Path.of(new File("target").toURI)
+  private val resourcesPath = Paths.get(new File("target").toURI)
   private val unreachableID = 9223372036854775807L
 
   private def readUndirectedUnweighted(pathPrefix: String): GraphFrame = {
@@ -44,6 +44,22 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
     GraphFrame(nodes, edges)
   }
 
+  private def readDirectedUnweighted(pathPrefix: String): GraphFrame = {
+    val edges = spark.read
+      .option("delimiter", " ")
+      .option("header", "false")
+      .schema(StructType(Seq(StructField("src", LongType), StructField("dst", LongType))))
+      .csv(s"${pathPrefix}.e")
+      .toDF("src", "dst")
+
+    val nodes = spark.read
+      .text(s"${pathPrefix}.v")
+      .toDF("id")
+      .select(col("id").cast(LongType))
+
+    GraphFrame(nodes, edges)
+  }
+
   private def readProperties(path: Path): Properties = {
     val props = new Properties()
     val stream = Files.newInputStream(path)
@@ -52,7 +68,7 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
     props
   }
 
-  private lazy val ldbcTestBFSUndirected: (GraphFrame, DataFrame, Long) = {
+  private lazy val ldbcTestBFSDirected: (GraphFrame, DataFrame, Long) = {
     LDBCUtils.downloadLDBCIfNotExists(resourcesPath, LDBCUtils.TEST_BFS_UNDIRECTED)
     val caseRoot = resourcesPath.resolve(LDBCUtils.TEST_BFS_UNDIRECTED)
 
@@ -66,18 +82,22 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
       .toDF("id", "distance")
     val props = readProperties(caseRoot.resolve(s"${LDBCUtils.TEST_BFS_UNDIRECTED}.properties"))
     (
-      readUndirectedUnweighted(s"${caseRoot.toString}/${LDBCUtils.TEST_BFS_UNDIRECTED}"),
+      readDirectedUnweighted(s"${caseRoot.toString}/${LDBCUtils.TEST_BFS_UNDIRECTED}"),
       expectedDistances,
       props.getProperty(s"graph.${LDBCUtils.TEST_BFS_UNDIRECTED}.bfs.source-vertex").toLong)
   }
 
   Seq("graphframes", "graphx").foreach { algo =>
     test(s"test undirected BFS with LDBC for impl ${algo}") {
-      val testCase = ldbcTestBFSUndirected
+      val testCase = ldbcTestBFSDirected
       val srcVertex = testCase._3
+
+      // this graph is undirected, but in GF direction exists
+      // only on the level of algorithms!
       val spResult = testCase._1.shortestPaths
         .landmarks(Seq(srcVertex))
         .setAlgorithm(algo)
+        .setIsDirected(false)
         .run()
         .select(
           col(GraphFrame.ID),
@@ -117,10 +137,6 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
 
   Seq("graphx", "graphframes").foreach { algo =>
     test(s"test undirected CDLP with LDBC for algo ${algo}") {
-      // I have no idea how to write it so it will work
-      if (scala.util.Properties.versionNumberString.startsWith("2.12") && algo == "graphx") {
-        cancel("CDLP implementations are broken in 2.12, see #571")
-      }
       val testCase = ldbcTestCDLPUndirected
       val cdlpResults = testCase._1.labelPropagation.setAlgorithm(algo).maxIter(testCase._3).run()
       assert(cdlpResults.count() == testCase._1.vertices.count())

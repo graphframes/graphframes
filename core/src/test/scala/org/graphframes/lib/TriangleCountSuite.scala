@@ -43,6 +43,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         case Row(_: Long, count: Long, _) => assert(count === 1)
         case _: Row => throw new GraphFramesUnreachableException()
       }
+    v2.unpersist()
   }
 
   test("Count two triangles") {
@@ -62,6 +63,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         }
       case _: Row => throw new GraphFramesUnreachableException()
     }
+    v2.unpersist()
   }
 
   test("Count one triangles with bi-directed edges") {
@@ -80,6 +82,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         }
       case _: Row => throw new GraphFramesUnreachableException()
     }
+    v2.unpersist()
   }
 
   test("Count a single triangle with duplicate edges") {
@@ -95,6 +98,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         assert(count === 1)
       case _: Row => throw new GraphFramesUnreachableException()
     }
+    v2.unpersist()
   }
 
   test("Count with dot column name") {
@@ -112,6 +116,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         case Row(_: Long, count: Long, _) => assert(count === 1)
         case _: Row => throw new GraphFramesUnreachableException()
       }
+    v2.unpersist()
   }
 
   test("Count with backquote in column name") {
@@ -129,6 +134,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         case Row(_: Long, count: Long, _) => assert(count === 1)
         case _: Row => throw new GraphFramesUnreachableException()
       }
+    v2.unpersist()
   }
 
   test("no triangle") {
@@ -140,5 +146,6 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         assert(count === 0)
       case _: Row => throw new GraphFramesUnreachableException()
     }
+    v2.unpersist()
   }
 }

@@ -535,6 +535,12 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
+  test("Unbound variable-length pattern (u)->[*..5]->(v)") {
+    intercept[InvalidParseException] {
+      g.find("(u)-[*..5]->(v)")
+    }
+  }
+
   /* ============================= More complex use case examples ============================== */
 
   test("triangles via post-hoc filter") {
@@ -545,6 +551,200 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     val res = triangles.collect().toSet
     compareResultToExpected(res, Set(Row(0L, 1L, 2L), Row(2L, 0L, 1L), Row(1L, 2L, 0L)))
+  }
+
+  test("fixed-length 3") {
+    val fixedLengthEdge = g
+      .find("(u)-[*3]->(v)")
+      .where("u.id == 0")
+      .select("u.id", "_v1.id", "_v2.id", "v.id")
+
+    val res = fixedLengthEdge.collect().toSet
+    val expected = Set(Row(0L, 1L, 2L, 0L), Row(0L, 1L, 2L, 3L), Row(0L, 1L, 0L, 1L))
+    compareResultToExpected(res, expected)
+  }
+
+  test("fixed-length 3 with named edge") {
+    val fixedLengthNamedEdge = g
+      .find("(u)-[e*3]->(v)")
+      .where("u.id == 0")
+
+    val expectedCols = Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v")
+
+    assert(fixedLengthNamedEdge.schema.map(_.name) == expectedCols)
+  }
+
+  test("fixed-length 5") {
+    val fixedLengthEdge = g
+      .find("(u)-[*5]->(v)")
+      .where("u.id == 0")
+      .select("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
+
+    val res = fixedLengthEdge.collect().toSet
+    val expected = Set(
+      Row(0L, 1L, 2L, 0L, 1L, 0L),
+      Row(0L, 1L, 0L, 1L, 0L, 1L),
+      Row(0L, 1L, 2L, 0L, 1L, 2L),
+      Row(0L, 1L, 0L, 1L, 2L, 0L),
+      Row(0L, 1L, 0L, 1L, 2L, 3L))
+    compareResultToExpected(res, expected)
+  }
+
+  test("var-length pattern 2..2") {
+    val varEdge = g
+      .find("(u)-[*2..2]->(v)")
+      .where("u.id == 0")
+      .drop("_hop", "_pattern", "_direction")
+
+    val fixedEdge = g
+      .find("(u)-[*2]->(v)")
+      .where("u.id == 0")
+
+    assert(varEdge.schema == fixedEdge.schema)
+    assert(varEdge.except(fixedEdge).isEmpty && fixedEdge.except(varEdge).isEmpty)
+  }
+
+  test("var-length pattern 2..3") {
+    val varEdge = g
+      .find("(u)-[*2..3]->(v)")
+      .where("u.id == 0")
+      .drop("_hop", "_pattern", "_direction")
+
+    val fixedEdge2 = g
+      .find("(u)-[*2]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge3 = g
+      .find("(u)-[*3]->(v)")
+      .where("u.id == 0")
+
+    val unionEdge = fixedEdge3
+      .unionByName(fixedEdge2, allowMissingColumns = true)
+
+    assert(varEdge.schema == unionEdge.schema)
+    assert(varEdge.except(unionEdge).isEmpty && unionEdge.except(varEdge).isEmpty)
+  }
+
+  test("var-length pattern 2..3 with named edge") {
+    val varEdge = g
+      .find("(u)-[e*2..3]->(v)")
+      .where("u.id == 0")
+
+    val expectedCols =
+      Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v", "_hop", "_pattern", "_direction")
+
+    assert(varEdge.schema.map(_.name) == expectedCols)
+  }
+
+  test("var-length pattern 3..5") {
+    val varEdge = g
+      .find("(u)-[*3..5]->(v)")
+      .where("u.id == 0")
+      .drop("_hop", "_pattern", "_direction")
+
+    val fixedEdge3 = g
+      .find("(u)-[*3]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge4 = g
+      .find("(u)-[*4]->(v)")
+      .where("u.id == 0")
+
+    val fixedEdge5 = g
+      .find("(u)-[*5]->(v)")
+      .where("u.id == 0")
+
+    val unionEdge = fixedEdge5
+      .unionByName(fixedEdge4, allowMissingColumns = true)
+      .unionByName(fixedEdge3, allowMissingColumns = true)
+
+    assert(varEdge.schema == unionEdge.schema)
+    assert(varEdge.except(unionEdge).isEmpty && unionEdge.except(varEdge).isEmpty)
+  }
+
+  test("undirected edge") {
+    val res = g
+      .find("(u)-[]-(v)")
+      .where("u.id == 0")
+      .select("u.id", "v.id")
+      .collect()
+      .toSet
+
+    val expected = Set(Row(0L, 1L), Row(0L, 2L))
+
+    compareResultToExpected(res, expected)
+  }
+
+  test("undirected information column") {
+    val res1 = g
+      .find("(u)-[e1]-(v)")
+      .where("u.id == 0")
+      .select("_pattern", "_direction")
+      .collect()
+      .toSet
+
+    val expected1 = Set(Row("(u)<-[e1]-(v)", "in"), Row("(u)-[e1]->(v)", "out"))
+
+    compareResultToExpected(res1, expected1)
+
+    val res2 = g
+      .find("(u)-[]-(v)")
+      .where("u.id == 0")
+      .select("_pattern", "_direction")
+      .collect()
+      .toSet
+
+    val expected2 = Set(Row("(u)<-[]-(v)", "in"), Row("(u)-[]->(v)", "out"))
+
+    compareResultToExpected(res2, expected2)
+  }
+
+  test("undirected edge within a chain") {
+    val res = g
+      .find("(u)-[]-(v);(v)-[]->(k)")
+      .where("u.id == 0")
+      .select("u.id", "v.id", "k.id")
+      .collect()
+      .toSet
+
+    val expected = Set(Row(0L, 1L, 2L), Row(0L, 1L, 0L), Row(0L, 2L, 0L), Row(0L, 2L, 3L))
+
+    compareResultToExpected(res, expected)
+  }
+
+  test("undirected with edge name") {
+    val res = g
+      .find("(u)-[e]-(v)")
+      .where("u.id == 0")
+      .select("e.src", "e.dst", "e.relationship")
+      .collect()
+      .toSet
+
+    val expected = Set(Row(0L, 1L, "friend"), Row(1L, 0L, "follow"), Row(2L, 0L, "unknown"))
+
+    compareResultToExpected(res, expected)
+  }
+
+  test("undirected var-length pattern") {
+    val res = g
+      .find("(u)-[e*1..3]-(v)")
+      .where("u.id == 2")
+      .drop("_pattern", "_direction")
+
+    val df1 = g
+      .find("(u)-[e*1..3]->(v)")
+      .where("u.id == 2")
+      .drop("_pattern", "_direction")
+
+    val df2 = g
+      .find("(v)-[e*1..3]->(u)")
+      .where("u.id == 2")
+      .drop("_pattern", "_direction")
+
+    val expected = df1.unionByName(df2, allowMissingColumns = true)
+
+    assert(res.schema === expected.schema)
+    assert(res.except(expected).isEmpty && expected.except(res).isEmpty)
   }
 
   test("stateful predicates via UDFs") {

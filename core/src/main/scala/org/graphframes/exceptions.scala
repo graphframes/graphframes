@@ -34,3 +34,12 @@ class GraphFramesUnreachableException()
  *   A detailed error message describing the issue.
  */
 class InvalidPropertyGroupException(message: String) extends Exception(message)
+
+/**
+ * Exception thrown when the graph is invalid, e.g. duplicate vertices, inconsistency between
+ * vertex set and edges src / dst, etc.
+ *
+ * @param message
+ *   A descriptive error message providing details about why the graph operation is invalid.
+ */
+class InvalidGraphException(message: String) extends Exception(message)

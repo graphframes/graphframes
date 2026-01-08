@@ -17,16 +17,16 @@
 
 package org.graphframes.lib
 
-import org.apache.spark.graphx.Graph
+import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.graphframes.GraphFrame
 import org.graphframes.NoSuchVertexException
 
-import scala.reflect.runtime.universe._
+import scala.reflect.runtime.universe.*
 
 /**
  * Convenience functions to map GraphX graphs to GraphFrames, checking for the types expected by
