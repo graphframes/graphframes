@@ -2209,12 +2209,12 @@ version = "4.15.0"
 description = "Backported and Experimental Type Hints for Python 3.9+"
 optional = false
 python-versions = ">=3.9"
-groups = ["dev"]
-markers = "python_version < \"3.11\""
+groups = ["main", "dev"]
 files = [
     {file = "typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548"},
     {file = "typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466"},
 ]
+markers = {dev = "python_version < \"3.11\""}
 
 [[package]]
 name = "tzdata"
@@ -2252,4 +2252,4 @@ tutorials = ["click", "py7zr", "requests"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "1eeb969e08150bdb53097765dedaa8e100fde2407cb6b0eeb3753862a4d8ee35"
+content-hash = "57b8aea6bd9a7875ec61859e64512d255f59cea779b18d1f510e86c0c378715c"
