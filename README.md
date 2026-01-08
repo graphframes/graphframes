@@ -142,7 +142,7 @@ To learn more about GraphFrames, check out these resources:
 
 ### GraphFrames tutorials
 
-- [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
+- [GraphFrames Network Motif Finding Tutorial](https://graphframes.io/03-tutorials/02-motif-tutorial.html)
 
 ### Community Resources
 
