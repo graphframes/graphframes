@@ -79,6 +79,7 @@ isort = "^7.0.0"
 pyspark = { version = ">=3.5, <4.1", extras = ["connect"] }
 grpcio = "<=1.67.1"
 pytest = "^9.0.2"
+pre-commit = "^4.5.1"
 
 [tool.poetry.group.tutorials.dependencies]
 py7zr = "^1.1.0"
