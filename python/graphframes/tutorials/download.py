@@ -3,18 +3,22 @@
 """Download and decompress the Stack Exchange data dump from the Internet Archive."""
 
 import os
+from pathlib import Path
 
 import click
 import py7zr
 import requests  # type: ignore
+
+# Default data directory is relative to this module's location
+DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
 
 
 @click.command()
 @click.argument("subdomain")
 @click.option(
     "--data-dir",
-    default="python/graphframes/tutorials/data",
-    help="Directory to store downloaded files",
+    default=DEFAULT_DATA_DIR,
+    help="Directory to store downloaded files (default: package data directory)",
 )
 @click.option(
     "--extract/--no-extract",
@@ -24,7 +28,7 @@ import requests  # type: ignore
 def stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
     """Download Stack Exchange archive for a given SUBDOMAIN.
 
-    Example: python/graphframes/tutorials/download.py stats.meta
+    Example: graphframes stackexchange stats.meta
 
     Note: This won't work for stackoverflow.com archives due to size.
     """
