@@ -17,7 +17,6 @@
 
 package org.graphframes.pattern
 
-import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.InvalidParseException
 import org.graphframes.SparkFunSuite
 
@@ -219,7 +218,7 @@ class PatternSuite extends SparkFunSuite {
 
   test("unsupported parse on the fixed length patterns") {
     withClue("Failed to catch parse error with graph frame unreachable") {
-      intercept[GraphFramesUnreachableException] {
+      intercept[InvalidParseException] {
         Pattern.parse("(u)-[*0]->(v)")
       }
     }
@@ -227,12 +226,6 @@ class PatternSuite extends SparkFunSuite {
     withClue("Failed to catch parse error with bad motif string") {
       intercept[InvalidParseException] {
         Pattern.parse("(u)-[*]->(v)")
-      }
-    }
-
-    withClue("Failed to catch parse error with chaining quantified length pattern") {
-      intercept[InvalidParseException] {
-        Pattern.parse("(u)-[*2]->(v);(v)-[e]->(w)")
       }
     }
   }

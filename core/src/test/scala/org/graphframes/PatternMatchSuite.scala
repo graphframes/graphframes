@@ -564,6 +564,25 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     compareResultToExpected(res, expected)
   }
 
+  test("fixed-length 3 can be expressed with fixed-length 2 with a chain") {
+    val fixedLengthEdge1 = g
+      .find("(u)-[*2]->(v);(v)-[]->(k)")
+      .where("u.id == 0")
+      .select("u.id", "_v1.id", "v.id", "k.id")
+
+    val fixedLengthEdge2 = g
+      .find("(u)-[]->(v);(v)-[*2]->(k)")
+      .where("u.id == 0")
+      .select("u.id", "v.id", "_v1.id", "k.id")
+
+    val res1 = fixedLengthEdge1.collect().toSet
+    val res2 = fixedLengthEdge2.collect().toSet
+
+    val expected = Set(Row(0L, 1L, 2L, 0L), Row(0L, 1L, 2L, 3L), Row(0L, 1L, 0L, 1L))
+    compareResultToExpected(res1, expected)
+    compareResultToExpected(res2, expected)
+  }
+
   test("fixed-length 3 with named edge") {
     val fixedLengthNamedEdge = g
       .find("(u)-[e*3]->(v)")
