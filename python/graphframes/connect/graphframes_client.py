@@ -10,12 +10,13 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.sql.connect.session import SparkSession
 from pyspark.storagelevel import StorageLevel
-from typing_extensions import override
 
 try:
-    from typing import Self
+    from typing import Self, override
 except ImportError:
-    from typing_extensions import Self
+    from typing_extensions import Self, override
+
+from graphframes.internal.utils import _RandomWalksEmbeddingsParameters
 
 from .proto import graphframes_pb2 as pb
 from .utils import (
@@ -1214,3 +1215,59 @@ class GraphFrameConnect:
             ),
             self._spark,
         )
+
+    def rw_embeddings(self, params: _RandomWalksEmbeddingsParameters) -> DataFrame:
+        @final
+        class RWEmbeddings(LogicalPlan):
+            def __init__(
+                self, v: DataFrame, e: DataFrame, params: _RandomWalksEmbeddingsParameters
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.params = params
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.rw_embeddings.CopyFrom(
+                    pb.RandomWalkEmbeddings(
+                        use_edge_direction=self.params.use_edge_direction,
+                        rw_model=self.params.rw_model,
+                        rw_max_nbrs=self.params.rw_max_nbrs,
+                        rw_num_walks_per_node=self.params.rw_num_walks_per_node,
+                        rw_batch_size=self.params.rw_batch_size,
+                        rw_seed=self.params.rw_seed,
+                        rw_restart_probability=self.params.rw_restart_probability,
+                        rw_temporary_prefix=self.params.rw_temporary_prefix,
+                        rw_cached_walks=self.params.rw_cached_walks,
+                        sequence_model=self.params.sequence_model,
+                        hash2vec_context_size=self.params.hash2vec_context_size,
+                        hash2vec_num_partitions=self.params.hash2vec_num_partitions,
+                        hash2vec_embeddings_dim=self.params.hash2vec_embeddings_dim,
+                        hash2vec_decay_function=self.params.hash2vec_decay_function,
+                        hash2vec_gaussian_sigma=self.params.hash2vec_gaussian_sigma,
+                        hash2vec_hashing_seed=self.params.hash2vec_hashing_seed,
+                        hash2vec_sign_seed=self.params.hash2vec_sign_seed,
+                        hash2vec_do_l2_norm=self.params.hash2vec_do_l2_norm,
+                        hash2vec_safe_l2=self.params.hash2vec_safe_l2,
+                        word2vec_max_iter=self.params.word2vec_max_iter,
+                        word2vec_embeddings_dim=self.params.word2vec_embeddings_dim,
+                        word2vec_window_size=self.params.word2vec_window_size,
+                        word2vec_num_partitions=self.params.word2vec_num_partitions,
+                        word2vec_min_count=self.params.word2vec_min_count,
+                        word2vec_max_sentence_length=self.params.word2vec_max_sentence_length,
+                        word2vec_seed=self.params.word2vec_seed,
+                        word2vec_step_size=self.params.word2vec_step_size,
+                        aggregate_neighbors=self.params.aggregate_neighbors,
+                        aggregate_neighbors_max_nbrs=self.params.aggregate_neighbors_max_nbrs,
+                        aggregate_neighbors_seed=self.params.aggregate_neighbors_seed,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(RWEmbeddings(self._vertices, self._edges, params), self._spark)

@@ -51,7 +51,7 @@ class Hash2Vec extends Serializable {
 
   private var contextSize: Int = 5
   private var numPartitions: Int = 5
-  private var embeddingsDim: Int = 256
+  private var embeddingsDim: Int = 512
   private var sequenceCol: String = RandomWalkBase.rwColName
   private var decayFunction: String = "gaussian"
   private var gaussianSigma: Double = 1.0
