@@ -32,8 +32,9 @@ class GraphFramesAPI(_message.Message):
     SVD_PLUS_PLUS_FIELD_NUMBER: _ClassVar[int]
     TRIANGLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     TRIPLETS_FIELD_NUMBER: _ClassVar[int]
-    MIS_FIELD_NUMBER: _ClassVar[int]
     KCORE_FIELD_NUMBER: _ClassVar[int]
+    MIS_FIELD_NUMBER: _ClassVar[int]
+    RW_EMBEDDINGS_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -54,8 +55,9 @@ class GraphFramesAPI(_message.Message):
     svd_plus_plus: SVDPlusPlus
     triangle_count: TriangleCount
     triplets: Triplets
-    mis: MaximalIndependentSet
     kcore: KCore
+    mis: MaximalIndependentSet
+    rw_embeddings: RandomWalkEmbeddings
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -82,8 +84,9 @@ class GraphFramesAPI(_message.Message):
         svd_plus_plus: _Optional[_Union[SVDPlusPlus, _Mapping]] = ...,
         triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ...,
         triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
-        mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
         kcore: _Optional[_Union[KCore, _Mapping]] = ...,
+        mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
+        rw_embeddings: _Optional[_Union[RandomWalkEmbeddings, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -463,4 +466,100 @@ class KCore(_message.Message):
         use_local_checkpoints: _Optional[bool] = ...,
         checkpoint_interval: _Optional[int] = ...,
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+    ) -> None: ...
+
+class RandomWalkEmbeddings(_message.Message):
+    __slots__ = ()
+    USE_EDGE_DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    RW_MODEL_FIELD_NUMBER: _ClassVar[int]
+    RW_MAX_NBRS_FIELD_NUMBER: _ClassVar[int]
+    RW_NUM_WALKS_PER_NODE_FIELD_NUMBER: _ClassVar[int]
+    RW_BATCH_SIZE_FIELD_NUMBER: _ClassVar[int]
+    RW_SEED_FIELD_NUMBER: _ClassVar[int]
+    RW_RESTART_PROBABILITY_FIELD_NUMBER: _ClassVar[int]
+    RW_TEMPORARY_PREFIX_FIELD_NUMBER: _ClassVar[int]
+    RW_CACHED_WALKS_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_MODEL_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_CONTEXT_SIZE_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_NUM_PARTITIONS_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_EMBEDDINGS_DIM_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_DECAY_FUNCTION_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_GAUSSIAN_SIGMA_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_HASHING_SEED_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_SIGN_SEED_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_DO_L2_NORM_FIELD_NUMBER: _ClassVar[int]
+    HASH2VEC_SAFE_L2_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_MAX_ITER_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_EMBEDDINGS_DIM_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_WINDOW_SIZE_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_NUM_PARTITIONS_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_MIN_COUNT_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_MAX_SENTENCE_LENGTH_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_SEED_FIELD_NUMBER: _ClassVar[int]
+    WORD2VEC_STEP_SIZE_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATE_NEIGHBORS_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATE_NEIGHBORS_MAX_NBRS_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATE_NEIGHBORS_SEED_FIELD_NUMBER: _ClassVar[int]
+    use_edge_direction: bool
+    rw_model: str
+    rw_max_nbrs: int
+    rw_num_walks_per_node: int
+    rw_batch_size: int
+    rw_seed: int
+    rw_restart_probability: float
+    rw_temporary_prefix: str
+    rw_cached_walks: str
+    sequence_model: str
+    hash2vec_context_size: int
+    hash2vec_num_partitions: int
+    hash2vec_embeddings_dim: int
+    hash2vec_decay_function: str
+    hash2vec_gaussian_sigma: float
+    hash2vec_hashing_seed: int
+    hash2vec_sign_seed: int
+    hash2vec_do_l2_norm: bool
+    hash2vec_safe_l2: bool
+    word2vec_max_iter: int
+    word2vec_embeddings_dim: int
+    word2vec_window_size: int
+    word2vec_num_partitions: int
+    word2vec_min_count: int
+    word2vec_max_sentence_length: int
+    word2vec_seed: int
+    word2vec_step_size: float
+    aggregate_neighbors: bool
+    aggregate_neighbors_max_nbrs: int
+    aggregate_neighbors_seed: int
+    def __init__(
+        self,
+        use_edge_direction: _Optional[bool] = ...,
+        rw_model: _Optional[str] = ...,
+        rw_max_nbrs: _Optional[int] = ...,
+        rw_num_walks_per_node: _Optional[int] = ...,
+        rw_batch_size: _Optional[int] = ...,
+        rw_seed: _Optional[int] = ...,
+        rw_restart_probability: _Optional[float] = ...,
+        rw_temporary_prefix: _Optional[str] = ...,
+        rw_cached_walks: _Optional[str] = ...,
+        sequence_model: _Optional[str] = ...,
+        hash2vec_context_size: _Optional[int] = ...,
+        hash2vec_num_partitions: _Optional[int] = ...,
+        hash2vec_embeddings_dim: _Optional[int] = ...,
+        hash2vec_decay_function: _Optional[str] = ...,
+        hash2vec_gaussian_sigma: _Optional[float] = ...,
+        hash2vec_hashing_seed: _Optional[int] = ...,
+        hash2vec_sign_seed: _Optional[int] = ...,
+        hash2vec_do_l2_norm: _Optional[bool] = ...,
+        hash2vec_safe_l2: _Optional[bool] = ...,
+        word2vec_max_iter: _Optional[int] = ...,
+        word2vec_embeddings_dim: _Optional[int] = ...,
+        word2vec_window_size: _Optional[int] = ...,
+        word2vec_num_partitions: _Optional[int] = ...,
+        word2vec_min_count: _Optional[int] = ...,
+        word2vec_max_sentence_length: _Optional[int] = ...,
+        word2vec_seed: _Optional[int] = ...,
+        word2vec_step_size: _Optional[float] = ...,
+        aggregate_neighbors: _Optional[bool] = ...,
+        aggregate_neighbors_max_nbrs: _Optional[int] = ...,
+        aggregate_neighbors_seed: _Optional[int] = ...,
     ) -> None: ...
