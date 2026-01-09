@@ -24,6 +24,12 @@ from pyspark.sql import functions as F
 from pyspark.storagelevel import StorageLevel
 from pyspark.version import __version__
 
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
+
+
 if __version__[:3] >= "3.4":
     from pyspark.sql.utils import is_remote
 else:
@@ -40,11 +46,6 @@ from graphframes.internal.utils import (
 from graphframes.lib import Pregel
 
 if TYPE_CHECKING:
-    try:
-        from typing import override
-    except ImportError:
-        from typing_extensions import override
-
     from pyspark.sql import Column, DataFrame
 
     from graphframes.connect.graphframes_client import GraphFrameConnect
