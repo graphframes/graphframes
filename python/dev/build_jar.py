@@ -11,9 +11,7 @@ def build(spark_versions: Sequence[str] = ["4.0.1"]):
         assert spark_version[:3] in {"3.5", "4.0"}, "Unsupported spark version!"
 
         project_root = Path(__file__).parent.parent.parent
-        sbt_executable = (
-            project_root.joinpath("build").joinpath("sbt").absolute().__str__()
-        )
+        sbt_executable = project_root.joinpath("build").joinpath("sbt").absolute().__str__()
         sbt_build_command = [
             sbt_executable,
             f"-Dspark.version={spark_version}",

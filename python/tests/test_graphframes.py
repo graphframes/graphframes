@@ -615,9 +615,7 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
 @pytest.mark.parametrize("storage_level", STORAGE_LEVELS, ids=STORAGE_LEVELS_IDS)
 def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
     # Create a graph with isolated vertices
-    vertices = spark.createDataFrame(
-        [(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"]
-    )
+    vertices = spark.createDataFrame([(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"])
 
     # Only connect vertices 0 and 1
     edges = spark.createDataFrame([(0, 1, "edge1")], ["src", "dst", "name"])
@@ -774,20 +772,16 @@ def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
     # Validate hierarchical structure
     # Core vertices (0-4) should have highest k-core
     for i in range(5):
-        assert kcore_map[i] >= 4, (
-            f"Core vertex {i} should have high k-core, got {kcore_map[i]}"
-        )
+        assert kcore_map[i] >= 4, f"Core vertex {i} should have high k-core, got {kcore_map[i]}"
 
     # Mid-layer vertices (5-14) should have medium k-core
     for i in range(5, 15):
-        assert 2 <= kcore_map[i] <= 4, (
-            f"Mid-layer vertex {i} should have medium k-core, got {kcore_map[i]}"
-        )
+        assert (
+            2 <= kcore_map[i] <= 4
+        ), f"Mid-layer vertex {i} should have medium k-core, got {kcore_map[i]}"
 
     # Outer vertices (15-29) should have low k-core
     for i in range(15, 30):
-        assert kcore_map[i] <= 2, (
-            f"Outer vertex {i} should have low k-core, got {kcore_map[i]}"
-        )
+        assert kcore_map[i] <= 2, f"Outer vertex {i} should have low k-core, got {kcore_map[i]}"
 
     _ = result.unpersist()
