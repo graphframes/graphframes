@@ -54,7 +54,7 @@ private[graphframes] object PatternParser extends RegexParsers {
 private[graphframes] object Pattern {
   def parse(s: String): Seq[Pattern] = {
     import PatternParser._
-       val rewrittenStr: String = rewriteFixedLengthPattern(rewriteIncomingEdges(s))
+    val rewrittenStr: String = rewriteFixedLengthPattern(rewriteIncomingEdges(s))
     val result = parseAll(patterns, rewrittenStr) match {
       case result: Success[_] =>
         result.asInstanceOf[Success[Seq[Pattern]]].get
@@ -107,7 +107,7 @@ private[graphframes] object Pattern {
         case fixedLengthPattern(negation, src, name, num, dst) =>
           val hop: Int = num.toInt
           if (hop > 0) {
-            val midVertices = (1 until hop).map(i => s"_v$i")
+            val midVertices = (1 until hop).map(i => s"_${src}${dst}${i}")
             val vertices = src +: midVertices :+ dst
             vertices
               .sliding(2)

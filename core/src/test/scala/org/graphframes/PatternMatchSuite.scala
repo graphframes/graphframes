@@ -557,7 +557,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val fixedLengthEdge = g
       .find("(u)-[*3]->(v)")
       .where("u.id == 0")
-      .select("u.id", "_v1.id", "_v2.id", "v.id")
+      .select("u.id", "_uv1.id", "_uv2.id", "v.id")
 
     val res = fixedLengthEdge.collect().toSet
     val expected = Set(Row(0L, 1L, 2L, 0L), Row(0L, 1L, 2L, 3L), Row(0L, 1L, 0L, 1L))
@@ -568,12 +568,12 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val fixedLengthEdge1 = g
       .find("(u)-[*2]->(v);(v)-[]->(k)")
       .where("u.id == 0")
-      .select("u.id", "_v1.id", "v.id", "k.id")
+      .select("u.id", "_uv1.id", "v.id", "k.id")
 
     val fixedLengthEdge2 = g
       .find("(u)-[]->(v);(v)-[*2]->(k)")
       .where("u.id == 0")
-      .select("u.id", "v.id", "_v1.id", "k.id")
+      .select("u.id", "v.id", "_vk1.id", "k.id")
 
     val res1 = fixedLengthEdge1.collect().toSet
     val res2 = fixedLengthEdge2.collect().toSet
@@ -588,7 +588,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .find("(u)-[e*3]->(v)")
       .where("u.id == 0")
 
-    val expectedCols = Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v")
+    val expectedCols = Seq("u", "_e1", "_uv1", "_e2", "_uv2", "_e3", "v")
 
     assert(fixedLengthNamedEdge.schema.map(_.name) == expectedCols)
   }
@@ -597,7 +597,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val fixedLengthEdge = g
       .find("(u)-[*5]->(v)")
       .where("u.id == 0")
-      .select("u.id", "_v1.id", "_v2.id", "_v3.id", "_v4.id", "v.id")
+      .select("u.id", "_uv1.id", "_uv2.id", "_uv3.id", "_uv4.id", "v.id")
 
     val res = fixedLengthEdge.collect().toSet
     val expected = Set(
@@ -607,6 +607,30 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       Row(0L, 1L, 0L, 1L, 2L, 0L),
       Row(0L, 1L, 0L, 1L, 2L, 3L))
     compareResultToExpected(res, expected)
+  }
+
+  test("fixed-length 5 can be expressed with a chain") {
+    val fixedLengthEdge1 = g
+      .find("(u)-[*5]->(v)")
+      .where("u.id == 0")
+      .select("u.id", "_uv1.id", "_uv2.id", "_uv3.id", "_uv4.id", "v.id")
+
+    val fixedLengthEdge2 = g
+      .find("(u)-[*2]->(v);(v)-[*3]->(g)")
+      .where("u.id == 0")
+      .select("u.id", "_uv1.id", "v.id", "_vg1.id", "_vg2.id", "g.id")
+
+    val fixedLengthEdge3 = g
+      .find("(u)-[*2]->(v);(v)-[*2]->(g);(g)-[e]->(k)")
+      .where("u.id == 0")
+      .select("u.id", "_uv1.id", "v.id", "_vg1.id", "g.id", "k.id")
+
+    val res1 = fixedLengthEdge1.collect().toSet
+    val res2 = fixedLengthEdge2.collect().toSet
+    val res3 = fixedLengthEdge3.collect().toSet
+
+    compareResultToExpected(res1, res2)
+    compareResultToExpected(res1, res3)
   }
 
   test("var-length pattern 2..2") {
@@ -650,7 +674,7 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .where("u.id == 0")
 
     val expectedCols =
-      Seq("u", "_e1", "_v1", "_e2", "_v2", "_e3", "v", "_hop", "_pattern", "_direction")
+      Seq("u", "_e1", "_uv1", "_e2", "_uv2", "_e3", "v", "_hop", "_pattern", "_direction")
 
     assert(varEdge.schema.map(_.name) == expectedCols)
   }

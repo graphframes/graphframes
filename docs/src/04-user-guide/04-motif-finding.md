@@ -12,7 +12,7 @@ DSL for expressing structural patterns:
    square brackets `[e]`.
 * A pattern is expressed as a join of edges. Edge patterns can be joined with semicolons.
    Motif `"(a)-[e1]->(b); (b)-[e2]->(c)"` specifies two edges from `a` to `b` to `c`.
-* Simply, you can also quantify the fixed length like `"(a)-[e*2]->(c)"`. The motif parser decompose it into multiple patterns `"(a)-[e1]->(_v1);(_v1)-[e1]->(c)"` by inserting interim vertexes arbitrarily. It specifies two edges from `a` to `_v1` to `c`.
+* Simply, you can also quantify the fixed length like `"(a)-[e*2]->(c)"`. The motif parser decompose it into multiple patterns `"(a)-[e1]->(_ac1);(_ac1)-[e1]->(c)"` by inserting interim vertexes arbitrarily. It specifies two edges from `a` to `_ac1` to `c`.
 * In order to search for variable-length motifs, you can specify the range `"(a)-[e*1..3]->(c)"`. It unions the results from each possible length `"(a)-[e*1]->(c)"`, `"(a)-[e*2]->(c)"`, and `"(a)-[e*3]->(c)"` into a DataFrame.
 * If the direction is omitted `"(a)-[e]-(b)"`, it represents an undirected pattern — that is, either `"(a)-[e]->(b)"` or `"(a)<-[e]-(b)"`, which includes edges that are incoming or outgoing.
 * Within a pattern, names can be assigned to vertices and edges.  For example,
@@ -47,7 +47,7 @@ Restrictions:
 * Motifs are not allowed to contain named edges within negated terms (since these named edges would never appear within results).  E.g., `"!(a)-[ab]->(b)"` is invalid, but `"!(a)-[]->(b)"` is valid.
 * Negation is not supported for the variable-length pattern, bidirectional pattern and undirected pattern: `"!(a)-[*1..3]->(b)"`, `"!(a)<-[]->(b)"` and `"!(a)-[]-(b)"` are not allowed.
 * Unbounded length patten is not supported: `"(a)-[*..3]->(b)"` and `"(a)-[*1..]->(b)"` are not allowed.
-* You cannot join additional edges with quantified length patterns: `"(a)-[*3]->(b);(b)-[]->(c)"` and `"(a)-[*1..3]->(b);(b)-[]->(c)"` are not allowed.
+* You cannot join additional edges with a variable length pattern: `"(a)-[*1..3]->(b);(b)-[]->(c)"` is not allowed.
 
 More complex queries, such as queries which operate on vertex or edge attributes,
 can be expressed by applying filters to the result `DataFrame`.
