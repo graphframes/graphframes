@@ -83,3 +83,4 @@ spark-*
 # Emacs
 .dir-locals.el
 *~
+.aider*

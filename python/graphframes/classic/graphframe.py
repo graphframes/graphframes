@@ -399,7 +399,6 @@ class GraphFrame:
             params.word2vec_max_iter,
             params.word2vec_embeddings_dim,
             params.word2vec_window_size,
-            params.word2vec_window_size,
             params.word2vec_num_partitions,
             params.word2vec_min_count,
             params.word2vec_max_sentence_length,

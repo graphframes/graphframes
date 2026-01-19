@@ -26,7 +26,7 @@ from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.graphframe import _from_java_gf
 from graphframes.examples import BeliefPropagation, Graphs
-from graphframes.graphframe import GraphFrame
+from graphframes.graphframe import GraphFrame, RandomWalkEmbeddings
 
 
 @dataclass
@@ -568,6 +568,25 @@ def test_shortest_paths2(spark: SparkSession) -> None:
     assert distances[4]["distances"] == {1: 4}
 
     _ = result.unpersist()
+
+
+def test_random_walk_embeddings_api(local_g: GraphFrame) -> None:
+    rwe = RandomWalkEmbeddings(local_g)
+    rwe.set_rw_model("/tmp/")
+    rwe.set_hash2vec()
+
+    result = rwe.run()
+    result.write.mode("overwrite").format("noop").save()
+
+
+def test_random_walk_embeddings_invalid_args(local_g: GraphFrame) -> None:
+    rwe = RandomWalkEmbeddings(local_g)
+    
+    with pytest.raises(ValueError, match="supported decay functions are"):
+        rwe.set_hash2vec(decay_function="invalid_function")
+
+    with pytest.raises(ValueError, match="TMP path or cached walks path should be provided!"):
+        rwe.run()
 
 
 def test_strongly_connected_components(spark: SparkSession) -> None:

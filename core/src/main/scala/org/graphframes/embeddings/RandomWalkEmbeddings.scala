@@ -243,7 +243,7 @@ object RandomWalkEmbeddings extends Serializable {
       rwNumWalksPerNode: Int,
       rwBatchSize: Int,
       rwNumBatches: Int,
-      rwSeed: Long,
+      rwSeed: Int,
       rwRestartProbability: Double,
       rwTemporaryPrefix: String,
       rwCachedWalks: String,
@@ -263,11 +263,11 @@ object RandomWalkEmbeddings extends Serializable {
       word2vecNumPartitions: Int,
       word2vecMinCount: Int,
       word2vecMaxSentenceLength: Int,
-      word2vecSeed: Long,
+      word2vecSeed: Int,
       word2vecStepSize: Double,
       aggregateNeighbors: Boolean,
       aggregateNeighborsMaxNbrs: Int,
-      aggregateNeighborsSeed: Long): DataFrame = {
+      aggregateNeighborsSeed: Int): DataFrame = {
     val randomWalksModel: RandomWalkBase = rwModel match {
       case "rw_with_restart" =>
         new RandomWalkWithRestart()
@@ -278,7 +278,7 @@ object RandomWalkEmbeddings extends Serializable {
           .setNumWalksPerNode(rwNumWalksPerNode)
           .setUseEdgeDirection(useEdgeDirection)
           .setTemporaryPrefix(rwTemporaryPrefix)
-          .setGlobalSeed(rwSeed)
+          .setGlobalSeed(rwSeed.toLong)
       case _: String =>
         throw new GraphFramesW2VException(
           s"unsupported RW $rwModel, supported: ${rwModels.mkString}")
@@ -303,7 +303,7 @@ object RandomWalkEmbeddings extends Serializable {
             .setMaxSentenceLength(word2vecMaxSentenceLength)
             .setMinCount(word2vecMinCount)
             .setNumPartitions(word2vecNumPartitions)
-            .setSeed(word2vecSeed)
+            .setSeed(word2vecSeed.toLong)
             .setStepSize(word2vecStepSize)
             .setVectorSize(word2vecEmbeddingsDim)
             .setWindowSize(word2vecWindowSize))
@@ -318,7 +318,7 @@ object RandomWalkEmbeddings extends Serializable {
       .setAggregateNeighbors(aggregateNeighbors)
       .setMaxNbrs(aggregateNeighborsMaxNbrs)
       .setUseEdgeDirections(useEdgeDirection)
-      .setSeed(aggregateNeighborsSeed)
+      .setSeed(aggregateNeighborsSeed.toLong)
 
     if (rwCachedWalks == "") {
       embeddingsGenerator.run()

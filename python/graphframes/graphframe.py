@@ -997,4 +997,7 @@ class RandomWalkEmbeddings:
         self._params.aggregate_neighbors_seed = seed
 
     def run(self) -> DataFrame:
-        self._graph._impl.rw_embeddings(self._params)
+        if self._params.rw_temporary_prefix == "":
+            if self._params.rw_cached_walks == "":
+                raise ValueError("TMP path or cached walks path should be provided!")
+        return self._graph._impl.rw_embeddings(self._params)
