@@ -1239,6 +1239,7 @@ class GraphFrameConnect:
                         rw_max_nbrs=self.params.rw_max_nbrs,
                         rw_num_walks_per_node=self.params.rw_num_walks_per_node,
                         rw_batch_size=self.params.rw_batch_size,
+                        rw_num_batches=self.params.rw_num_batches,
                         rw_seed=self.params.rw_seed,
                         rw_restart_probability=self.params.rw_restart_probability,
                         rw_temporary_prefix=self.params.rw_temporary_prefix,
