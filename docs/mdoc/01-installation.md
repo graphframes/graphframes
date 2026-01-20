@@ -2,6 +2,31 @@
 
 If you are new to using Apache Spark, refer to the [Apache Spark Documentation](http://spark.apache.org/docs/latest/index.html) and its [Quick-Start Guide](http://spark.apache.org/docs/latest/quick-start.html) for more information.
 
+## Maven Central Coordinates
+
+GraphFrames core is [published](https://central.sonatype.com/namespace/io.graphframes) in the Maven Central under namespace `io.graphframes`. All the artifacts are groupped using the following logic.
+
+```
+graphframes-{component-name}-{spark-major-version}_{scala-version}
+```
+
+Examples:
+- `graphframes-spark3_2.12`, graphframes core for spark 3.x and scala version 2.12
+- `graphframes-graphx-spark4_2.13`, graphframes internal fork of GraphX for spark 4.x and scala version 2.13
+- `graphframes-connect-spark3_2.13`, graphframes Spark Connect plugin for spark 3.x and scala version 2.13
+
+### Core
+
+GraphFrames core is the main package that should be used.
+
+### Spark-Connect plugin
+
+Only for users who want to use GraphFrames with Spark Connect.
+
+### GraphFrames-GraphX
+
+Runtime dependency of graphframes, should be resolved automatically. Contains internal modified and updated fork of the Apache Saprk GraphX.
+
 ## Spark Versions Compatibility
 
 | Component           | Spark 3.x (Scala 2.12) | Spark 3.x (Scala 2.13) | Spark 4.x (Scala 2.13) |
