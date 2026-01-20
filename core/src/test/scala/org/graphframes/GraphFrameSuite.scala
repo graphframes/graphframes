@@ -588,6 +588,39 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(Seq(0, 0, 0, 0, 1, 0) == clusters)
   }
 
+  test("power iteration clustering string ids") {
+    val spark = this.spark
+    import spark.implicits._
+    val edges = spark
+      .createDataFrame(
+        Seq(
+          ("1", "0", 0.5),
+          ("2", "0", 0.5),
+          ("2", "1", 0.7),
+          ("3", "0", 0.5),
+          ("3", "1", 0.7),
+          ("3", "2", 0.9),
+          ("4", "0", 0.5),
+          ("4", "1", 0.7),
+          ("4", "2", 0.9),
+          ("4", "3", 1.1),
+          ("5", "0", 0.5),
+          ("5", "1", 0.7),
+          ("5", "2", 0.9),
+          ("5", "3", 1.1),
+          ("5", "4", 1.3)))
+      .toDF("src", "dst", "weight")
+    val vertices = Seq("0", "1", "2", "3", "4", "5").toDF("id")
+    val gf = GraphFrame(vertices, edges)
+    val clusters = gf
+      .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
+      .collect()
+      .sortBy(_.getAs[String]("id"))
+      .map(_.getAs[Int]("cluster"))
+      .toSeq
+    assert(Seq(1, 1, 1, 1, 1, 0) == clusters)
+  }
+
   test("convert directed graph to undirected") {
     val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "name")
     val e = spark.createDataFrame(Seq((1L, 2L), (2L, 3L))).toDF("src", "dst")

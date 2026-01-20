@@ -689,14 +689,40 @@ class GraphFrame private (
    * @return
    */
   def powerIterationClustering(k: Int, maxIter: Int, weightCol: Option[String]): DataFrame = {
+    val integralTypeEdges = if (hasIntegralIdType) {
+      edges
+    } else {
+      val pureIds =
+        indexedEdges.drop(SRC, DST).withColumnsRenamed(Map(LONG_SRC -> SRC, LONG_DST -> DST))
+      if (weightCol.isDefined) {
+        pureIds.select(
+          col(SRC),
+          col(DST),
+          col("attr").getField(weightCol.get).alias(weightCol.get))
+      } else {
+        pureIds
+      }
+    }
     val powerIterationClustering =
       new PowerIterationClustering().setK(k).setMaxIter(maxIter).setDstCol(DST).setSrcCol(SRC)
-    weightCol match {
-      case Some(col) => powerIterationClustering.setWeightCol(col).assignClusters(edges)
+    val result = weightCol match {
+      case Some(col) =>
+        powerIterationClustering.setWeightCol(col).assignClusters(integralTypeEdges)
       case None =>
         powerIterationClustering
           .setWeightCol("_weight")
-          .assignClusters(edges.withColumn("_weight", lit(1.0)))
+          .assignClusters(integralTypeEdges.withColumn("_weight", lit(1.0)))
+    }
+
+    if (hasIntegralIdType) {
+      result
+    } else {
+      result
+        .join(
+          indexedVertices.select(col(LONG_ID).alias(ID), col(ID).alias("_ID")),
+          Seq(ID),
+          "inner")
+        .select(col("_ID").alias(ID), col("cluster"))
     }
   }
 
