@@ -1,6 +1,7 @@
 import click
 
 from graphframes.tutorials import download
+from graphframes.tutorials.neo4j import neo4j
 
 
 @click.group()
@@ -10,6 +11,7 @@ def cli():
 
 
 cli.add_command(download.stackexchange)
+cli.add_command(neo4j)
 
 
 def main():
