@@ -157,6 +157,45 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .collect()
       .toSet
     assert(idsFromVerticesSet === idsFromEdgesSet)
+    g.vertices.unpersist()
+  }
+
+  test("construction from edges DataFrame, string IDs") {
+    val edges = spark
+      .createDataFrame(Seq(("a", "b", "love"), ("b", "a", "hate"), ("b", "c", "follow")))
+      .toDF("src", "dst", "action")
+
+    val g = GraphFrame.fromEdges(edges)
+    assert(g.vertices.columns === Array("id"))
+    val idsFromVertices = g.vertices.select("id").rdd.map(_.getString(0)).collect()
+    val idsFromVerticesSet = idsFromVertices.toSet
+    assert(idsFromVertices.length === idsFromVerticesSet.size)
+    val idsFromEdgesSet = g.edges
+      .select("src", "dst")
+      .rdd
+      .flatMap {
+        case Row(src: String, dst: String) =>
+          Seq(src, dst)
+        case _: Row => throw new GraphFramesUnreachableException()
+      }
+      .collect()
+      .toSet
+    assert(idsFromVerticesSet === idsFromEdgesSet)
+    g.vertices.unpersist()
+  }
+
+  test("construction from edges DataFrame, different storage level") {
+    val edges = spark
+      .createDataFrame(Seq((1L, 2L, "love"), (2L, 1L, "hate"), (2L, 3L, "follow")))
+      .toDF("src", "dst", "action")
+
+    var g = GraphFrame.fromEdges(edges)
+    assert(g.vertices.storageLevel === StorageLevel.MEMORY_AND_DISK)
+    g.vertices.unpersist()
+
+    g = GraphFrame.fromEdges(edges, StorageLevel.MEMORY_AND_DISK_SER)
+    assert(g.vertices.storageLevel === StorageLevel.MEMORY_AND_DISK_SER)
+    g.vertices.unpersist()
   }
 
   test("construction from GraphX") {
