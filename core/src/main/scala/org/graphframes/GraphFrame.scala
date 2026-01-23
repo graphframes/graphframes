@@ -1081,10 +1081,31 @@ object GraphFrame extends Serializable with Logging {
    * @group conversions
    */
   def fromEdges(e: DataFrame): GraphFrame = {
+    fromEdges(e, StorageLevel.MEMORY_AND_DISK)
+  }
+
+  /**
+   * Create a new [[GraphFrame]] from an edge `DataFrame`. The resulting [[GraphFrame]] will have
+   * [[GraphFrame.vertices]] with a single "id" column.
+   *
+   * Note: The [[GraphFrame.vertices]] DataFrame will be persisted at level
+   * `StorageLevel.MEMORY_AND_DISK`.
+   * @param e
+   *   Edge DataFrame. This must include columns "src" and "dst" containing source and destination
+   *   vertex IDs. All other columns are treated as edge attributes.
+   * @param storageLevel
+   *   StorageLevel to persist the graph vertices
+   * @return
+   *   New [[GraphFrame]] instance
+   *
+   * @group conversions
+   */
+  def fromEdges(e: DataFrame, storageLevel: StorageLevel): GraphFrame = {
+    logWarn(
+      s"this method persists graph vertices with storage level ${storageLevel.toString()}, users should manually unpersist it when the graph is not needed!")
     val srcs = e.select(e("src").as("id"))
     val dsts = e.select(e("dst").as("id"))
-    val v = srcs.unionAll(dsts).distinct()
-    v.persist(StorageLevel.MEMORY_AND_DISK)
+    val v = srcs.unionAll(dsts).distinct().persist(storageLevel)
     apply(v, e)
   }
 
