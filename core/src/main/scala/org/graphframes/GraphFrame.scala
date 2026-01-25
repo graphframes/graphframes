@@ -470,19 +470,14 @@ class GraphFrame private (
    */
   def find(pattern: String): DataFrame = {
     val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
+    val FixedLengthUndirectedPattern = """\((\w+)\)-\[(\w*)\*(\d*)\]-\((\w+)\)""".r
 
-    pattern match {
-      case VarLengthPattern(src, name, min, max, direction, dst) =>
-        if (min.isEmpty || max.isEmpty) {
-          throw new InvalidParseException(
-            s"Unbounded length patten ${pattern} is not supported! " +
-              "Please a pattern of defined length.")
-        }
-        val strToSeq: Seq[(Int, String)] = (min.toInt to max.toInt).reverse.map { hop =>
+    def findVarLengthPattern(src: String, name: String, min: Int, max: Int, direction: String, dst: String): DataFrame = {
+        val strToSeq: Seq[(Int, String)] = (min to max).reverse.map { hop =>
           (hop, s"($src)-[$name*$hop]->($dst)")
         }
         val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
-          (min.toInt to max.toInt).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
+          (min to max).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
         } else {
           Seq.empty[(Int, String)]
         }
@@ -503,6 +498,22 @@ class GraphFrame private (
 
         val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
         ret.orderBy("_hop", "_direction")
+    }
+
+    pattern match {
+      case VarLengthPattern(src, name, min, max, direction, dst) =>
+        if (min.isEmpty || max.isEmpty) {
+          throw new InvalidParseException(
+            s"Unbounded length patten ${pattern} is not supported! " +
+              "Please a pattern of defined length.")
+        }
+        findVarLengthPattern(src, name, min.toInt, max.toInt, direction, dst)
+
+      case FixedLengthUndirectedPattern(src, name, hop, dst) =>
+        if (hop.isEmpty) {
+          throw new InvalidParseException(s"Missing hop!")
+        }
+        findVarLengthPattern(src, name, hop.toInt, hop.toInt, "", dst)
 
       case _ =>
         findAugmentedPatterns(pattern)

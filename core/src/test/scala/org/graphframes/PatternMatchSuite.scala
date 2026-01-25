@@ -790,6 +790,14 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(res.except(expected).isEmpty && expected.except(res).isEmpty)
   }
 
+  test("undirected fixed-length pattern") {
+    val res = g.find("(u)-[e*3]-(v)")
+    val expected = g.find("(u)-[e*3..3]-(v)")
+
+     assert(res.schema === expected.schema)
+     assert(res.except(expected).isEmpty && expected.except(res).isEmpty)
+  }
+
   test("stateful predicates via UDFs") {
     val chain4 = g
       .find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
