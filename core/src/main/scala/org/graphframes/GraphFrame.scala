@@ -472,32 +472,38 @@ class GraphFrame private (
     val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
     val FixedLengthUndirectedPattern = """\((\w+)\)-\[(\w*)\*(\d*)\]-\((\w+)\)""".r
 
-    def findVarLengthPattern(src: String, name: String, min: Int, max: Int, direction: String, dst: String): DataFrame = {
-        val strToSeq: Seq[(Int, String)] = (min to max).reverse.map { hop =>
-          (hop, s"($src)-[$name*$hop]->($dst)")
-        }
-        val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
-          (min to max).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
-        } else {
-          Seq.empty[(Int, String)]
-        }
+    def findVarLengthPattern(
+        src: String,
+        name: String,
+        min: Int,
+        max: Int,
+        direction: String,
+        dst: String): DataFrame = {
+      val strToSeq: Seq[(Int, String)] = (min to max).reverse.map { hop =>
+        (hop, s"($src)-[$name*$hop]->($dst)")
+      }
+      val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
+        (min to max).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
+      } else {
+        Seq.empty[(Int, String)]
+      }
 
-        val out: Seq[DataFrame] = strToSeq.map { case (hop, patternStr) =>
-          findAugmentedPatterns(patternStr)
-            .withColumn("_hop", lit(hop))
-            .withColumn("_pattern", lit(patternStr))
-            .withColumn("_direction", lit("out"))
-        }
+      val out: Seq[DataFrame] = strToSeq.map { case (hop, patternStr) =>
+        findAugmentedPatterns(patternStr)
+          .withColumn("_hop", lit(hop))
+          .withColumn("_pattern", lit(patternStr))
+          .withColumn("_direction", lit("out"))
+      }
 
-        val in: Seq[DataFrame] = strToSeqReverse.map { case (hop, patternStr) =>
-          findAugmentedPatterns(patternStr)
-            .withColumn("_hop", lit(hop))
-            .withColumn("_pattern", lit(patternStr))
-            .withColumn("_direction", lit("in"))
-        }
+      val in: Seq[DataFrame] = strToSeqReverse.map { case (hop, patternStr) =>
+        findAugmentedPatterns(patternStr)
+          .withColumn("_hop", lit(hop))
+          .withColumn("_pattern", lit(patternStr))
+          .withColumn("_direction", lit("in"))
+      }
 
-        val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
-        ret.orderBy("_hop", "_direction")
+      val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+      ret.orderBy("_hop", "_direction")
     }
 
     pattern match {
