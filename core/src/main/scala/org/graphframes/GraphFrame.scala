@@ -517,7 +517,7 @@ class GraphFrame private (
 
       case FixedLengthUndirectedPattern(src, name, hop, dst) =>
         if (hop.isEmpty) {
-          throw new InvalidParseException(s"Missing hop!")
+          throw new InvalidParseException("Missing hop!")
         }
         findVarLengthPattern(src, name, hop.toInt, hop.toInt, "", dst)
 
