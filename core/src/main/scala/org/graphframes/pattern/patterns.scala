@@ -71,9 +71,9 @@ private[graphframes] object Pattern {
    */
   private[graphframes] def rewriteIncomingEdges(patterns: String): String = {
     val reversedEdge =
-      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
+      """(!?)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
     val bidirectionalEdge =
-      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
+      """(!?)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
 
     val outgoingEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
       pattern.trim match {
@@ -101,7 +101,7 @@ private[graphframes] object Pattern {
    */
   private[graphframes] def rewriteFixedLengthPattern(patterns: String): String = {
     val fixedLengthPattern =
-      """(!*)\(([a-zA-Z0-9_]*)\)-\[([a-zA-Z0-9_]*)\*([0-9]+)\]->\(([a-zA-Z0-9_]*)\)""".r
+      """(!?)\(([a-zA-Z0-9_]*)\)-\[([a-zA-Z0-9_]*)\*([0-9]+)\]->\(([a-zA-Z0-9_]*)\)""".r
     val expandedEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
       pattern.trim match {
         case fixedLengthPattern(negation, src, name, num, dst) =>
