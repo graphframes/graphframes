@@ -90,8 +90,8 @@ object ConnectedComponents extends Logging {
 
   import org.graphframes.GraphFrame.*
 
-  private val COMPONENT = "component"
-  private val ORIG_ID = "orig_id"
+  private[graphframes] val COMPONENT = "component"
+  private[graphframes] val ORIG_ID = "orig_id"
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
@@ -101,7 +101,7 @@ object ConnectedComponents extends Logging {
    * @param ee
    *   non-bidirectional edges
    */
-  private def symmetrize(ee: DataFrame): DataFrame = {
+  private[graphframes] def symmetrize(ee: DataFrame): DataFrame = {
     val EDGE = "_edge"
     ee.select(explode(
       array(struct(col(SRC), col(DST)), struct(col(DST).as(SRC), col(SRC).as(DST)))).as(EDGE))
