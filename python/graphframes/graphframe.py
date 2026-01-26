@@ -762,13 +762,51 @@ class GraphFrame:
         gamma6: float = 0.005,
         gamma7: float = 0.015,
     ) -> tuple[DataFrame, float]:
-        """
-        Runs the SVD++ algorithm.
+        """Runs the SVD++ algorithm for Collaborative Filtering.
 
-        See Scala documentation for more details.
+        Based on the paper "Factorization Meets the Neighborhood: a Multifaceted Collaborative
+        Filtering Model" by Yehuda Koren (2008).
 
-        :return: Tuple of DataFrame with new vertex columns storing learned model, and loss value
-        """
+        **Algorithm Description**
+        SVD++ improves upon standard Matrix Factorization by incorporating implicit feedback
+        (the history of items a user has interacted with) alongside explicit ratings.
+        The prediction rule is:
+        ``r_ui = µ + b_u + b_i + q_i^T * (p_u + |N(u)|^-0.5 * sum(y_j for j in N(u)))``
+
+        **Input Requirements**
+        The input graph must be a **Directed Bipartite Graph**:
+        - **Vertices**: A mix of Users and Items.
+        - **Edges**: Directed strictly from **User (src) -> Item (dst)**.
+        - **Edge Attribute**: Represents the rating (weight).
+
+        :param rank: The number of latent factors (embedding size).
+        :param maxIter: The maximum number of iterations.
+        :param minValue: The minimum possible rating value (used for clipping predictions).
+        :param maxValue: The maximum possible rating value (used for clipping predictions).
+        :param gamma1: Learning rate for bias parameters (`b_u`, `b_i`).
+        :param gamma2: Learning rate for factor parameters (`p_u`, `q_i`, `y_j`).
+        :param gamma6: Regularization coefficient for bias parameters.
+        :param gamma7: Regularization coefficient for factor parameters.
+        :return: A tuple ``(v, loss)`` where:
+            - ``v`` is a DataFrame of vertices containing the trained model parameters (embeddings).
+            - ``loss`` is the final training loss (double).
+
+        **Output DataFrame Columns**
+        The returned DataFrame ``v`` contains the following new columns containing the model parameters:
+
+        - **column1** (Array[Double]): Primary Latent Factors (Explicit Embedding).
+            - For Users: Preferences vector (`p_u`).
+            - For Items: Characteristics vector (`q_i`).
+        - **column2** (Array[Double]): Implicit Factors (Implicit Embedding).
+            - For Items: Influence vector (`y_i`).
+            - For Users: Unused/Zero (users aggregate `y` from neighbors).
+        - **column3** (Double): Bias term.
+            - For Users: User bias (`b_u`).
+            - For Items: Item bias (`b_i`).
+        - **column4** (Double): Implicit Normalization term.
+            - For Users: Precomputed ``|N(u)|^-0.5``.
+            - For Items: Unused.
+        """  # noqa: E501
         return self._impl.svdPlusPlus(
             rank=rank,
             maxIter=maxIter,
