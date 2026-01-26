@@ -47,36 +47,14 @@ private[graphframes] object PatternParser extends RegexParsers {
     "!" ~ edge ^^ { case _ ~ e =>
       Negation(e)
     }
-  private val fixedLengthPattern: Parser[List[Edge]] =
-    vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]*".r ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
-      case src ~ "-" ~ "[" ~ name ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
-        val hop: Int = num.toInt
-        if (hop > 0) {
-          val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
-          val vertices = src +: midVertices :+ dst
-          vertices
-            .sliding(2)
-            .zipWithIndex
-            .map {
-              case (Seq(v1, v2), i) =>
-                if (name.isEmpty) AnonymousEdge(v1, v2) else NamedEdge(s"_$name${i + 1}", v1, v2)
-              case _ => throw new GraphFramesUnreachableException()
-            }
-            .toList
-        } else {
-          throw new GraphFramesUnreachableException()
-        }
-      }
-      case _ => throw new GraphFramesUnreachableException()
-    }
   private val pattern: Parser[Pattern] = edge | vertex | negatedEdge
-  val patterns: Parser[List[Pattern]] = fixedLengthPattern | repsep(pattern, ";")
+  val patterns: Parser[List[Pattern]] = repsep(pattern, ";")
 }
 
 private[graphframes] object Pattern {
   def parse(s: String): Seq[Pattern] = {
     import PatternParser._
-    val rewrittenStr: String = rewriteIncomingEdges(s)
+    val rewrittenStr: String = rewriteFixedLengthPattern(rewriteIncomingEdges(s))
     val result = parseAll(patterns, rewrittenStr) match {
       case result: Success[_] =>
         result.asInstanceOf[Success[Seq[Pattern]]].get
@@ -93,9 +71,9 @@ private[graphframes] object Pattern {
    */
   private[graphframes] def rewriteIncomingEdges(patterns: String): String = {
     val reversedEdge =
-      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
+      """(!?)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
     val bidirectionalEdge =
-      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
+      """(!?)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
 
     val outgoingEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
       pattern.trim match {
@@ -116,6 +94,41 @@ private[graphframes] object Pattern {
     }
 
     outgoingEdges.mkString(";")
+  }
+
+  /**
+   * Rewrite fixed-length pattern
+   */
+  private[graphframes] def rewriteFixedLengthPattern(patterns: String): String = {
+    val fixedLengthPattern =
+      """(!?)\(([a-zA-Z0-9_]*)\)-\[([a-zA-Z0-9_]*)\*([0-9]+)\]->\(([a-zA-Z0-9_]*)\)""".r
+    val expandedEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
+      pattern.trim match {
+        case fixedLengthPattern(negation, src, name, num, dst) =>
+          val hop: Int = num.toInt
+          if (hop > 0) {
+            val midVertices = (1 until hop).map(i => s"_${src}${dst}${i}")
+            val vertices = src +: midVertices :+ dst
+            vertices
+              .sliding(2)
+              .zipWithIndex
+              .map {
+                case (Seq(v1, v2), i) =>
+                  if (name.isEmpty) s"${negation}(${v1})-[]->(${v2})"
+                  else s"${negation}(${v1})-[_${name}${i + 1}]->(${v2})"
+                case _ =>
+                  throw new InvalidParseException(
+                    s"Cannot rewrite fixed-length pattern as a chain: '$pattern'.")
+              }
+              .mkString(";")
+          } else {
+            throw new InvalidParseException(s"Hop must be greater than 0: '$pattern'.")
+          }
+        case original => original
+      }
+    }
+
+    expandedEdges.mkString(";")
   }
 
   /**
