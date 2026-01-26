@@ -12,9 +12,9 @@ import org.graphframes.examples.Graphs
 
 class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  test("ConnectedComponentsV2: empty graph") {
+  test("RandomizedContraction: empty graph") {
     val graph = Graphs.empty[Long]
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -23,12 +23,12 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: single isolated vertex") {
+  test("RandomizedContraction: single isolated vertex") {
     val vertices = spark.createDataFrame(List((0L, "a", "b"))).toDF("id", "vattr", "gender")
     val e =
       spark.createDataFrame(List((0L, 0L, 1L))).toDF("src", "dst", "test").filter("src > 10")
     val graph = GraphFrame(vertices, e)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -38,12 +38,12 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: two connected vertices") {
+  test("RandomizedContraction: two connected vertices") {
     val vertices =
       spark.createDataFrame(List((0L, "a0", "b0"), (1L, "a1", "b1"))).toDF("id", "A", "B")
     val edges = spark.createDataFrame(List((0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -55,10 +55,10 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: chain graph") {
+  test("RandomizedContraction: chain graph") {
     val n = 5L
     val graph = Graphs.chain(n)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -68,13 +68,13 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: disconnected vertices") {
+  test("RandomizedContraction: disconnected vertices") {
     val n = 5L
     val vertices = spark.range(n).toDF(GraphFrame.ID)
     val edges =
       spark.createDataFrame(Seq.empty[(Long, Long)]).toDF(GraphFrame.SRC, GraphFrame.DST)
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -84,13 +84,13 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: two separate components") {
+  test("RandomizedContraction: two separate components") {
     val vertices = spark.range(6L).toDF(GraphFrame.ID)
     val edges = spark
       .createDataFrame(Seq((0L, 1L), (1L, 2L), (2L, 0L), (3L, 4L), (4L, 5L), (5L, 3L)))
       .toDF(GraphFrame.SRC, GraphFrame.DST)
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -102,13 +102,13 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: with dangling vertices") {
+  test("RandomizedContraction: with dangling vertices") {
     val vertices = spark.range(8L).toDF(GraphFrame.ID)
     val edges = spark
       .createDataFrame(Seq((0L, 1L), (1L, 2L), (2L, 0L), (3L, 4L), (4L, 5L), (5L, 3L)))
       .toDF(GraphFrame.SRC, GraphFrame.DST)
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -120,13 +120,13 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: useLabelsAsComponents with string IDs") {
+  test("RandomizedContraction: useLabelsAsComponents with string IDs") {
     val vertices =
       spark.createDataFrame(Seq("a", "b", "c", "d").map(Tuple1.apply)).toDF(GraphFrame.ID)
     val edges =
       spark.createDataFrame(Seq(("a", "b"), ("b", "c"))).toDF(GraphFrame.SRC, GraphFrame.DST)
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = true,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -138,13 +138,13 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: useLabelsAsComponents with long IDs") {
+  test("RandomizedContraction: useLabelsAsComponents with long IDs") {
     val vertices =
       spark.createDataFrame(Seq(1L, 2L, 3L, 4L).map(Tuple1.apply)).toDF(GraphFrame.ID)
     val edges =
       spark.createDataFrame(Seq((1L, 2L), (2L, 3L))).toDF(GraphFrame.SRC, GraphFrame.DST)
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = true,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -156,11 +156,11 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: no parquet file leaks") {
+  test("RandomizedContraction: no parquet file leaks") {
     val graph = Graphs.chain(3L)
     val initialParquetFiles = listParquetFiles()
 
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -172,11 +172,11 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: no memory leaks") {
+  test("RandomizedContraction: no memory leaks") {
     val priorCachedCount = spark.sparkContext.getPersistentRDDs.size
 
     val graph = Graphs.chain(10L)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -189,7 +189,7 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: large long IDs") {
+  test("RandomizedContraction: large long IDs") {
     val max = Long.MaxValue
     val chain = Graphs.chain(10L)
     val vertices = chain.vertices.select((col(GraphFrame.ID) - lit(max)).as(GraphFrame.ID))
@@ -197,7 +197,7 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       (col(GraphFrame.SRC) - lit(max)).as(GraphFrame.SRC),
       (col(GraphFrame.DST) - lit(max)).as(GraphFrame.DST))
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
@@ -207,13 +207,13 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
-  test("ConnectedComponentsV2: directed edges still produce connected components") {
+  test("RandomizedContraction: directed edges still produce connected components") {
     val vertices = spark.range(5L).toDF(GraphFrame.ID)
     val edges = spark
       .createDataFrame(Seq((0L, 4L), (4L, 3L), (2L, 3L), (2L, 1L)))
       .toDF(GraphFrame.SRC, GraphFrame.DST)
     val graph = GraphFrame(vertices, edges)
-    val components = ConnectedComponentsV2.run(
+    val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,

@@ -9,6 +9,12 @@ import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.graphframes.expressions.FiniteAXPlusB
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFrame.DST
+import org.graphframes.GraphFrame.ID
+import org.graphframes.GraphFrame.LONG_DST
+import org.graphframes.GraphFrame.LONG_ID
+import org.graphframes.GraphFrame.LONG_SRC
+import org.graphframes.GraphFrame.SRC
 import org.graphframes.Logging
 
 import java.io.IOException
@@ -24,10 +30,8 @@ import scala.util.Random
  * The algorithm contracts the graph iteratively using random linear functions, until no edges
  * remain, then reconstructs the component identifiers.
  */
-private[graphframes] object ConnectedComponentsV2 extends Logging with Serializable {
+private[graphframes] object RandomizedContraction extends Logging with Serializable {
   private val CHECKPOINT_NAME_PREFIX = "randomized-contraction"
-
-  import GraphFrame.{ID, SRC, DST, LONG_SRC, LONG_DST, LONG_ID}
 
   private def prepare(graph: GraphFrame): GraphFrame = {
     val vertices = graph.indexedVertices
@@ -228,7 +232,7 @@ private[graphframes] object ConnectedComponentsV2 extends Logging with Serializa
       }
 
       outputComponents.persist(intermediateStorageLevel)
-      // meterialize to be able to clean up everything
+      // materialize to be able to clean up everything
       outputComponents.count()
 
       // clean-up
