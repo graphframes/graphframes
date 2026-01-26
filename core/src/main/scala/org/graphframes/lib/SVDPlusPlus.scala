@@ -170,7 +170,7 @@ class SVDPlusPlus private[graphframes] (private val graph: GraphFrame)
     }
 
     val (df, l) = SVDPlusPlus.run(g, conf)
-    val result = if (!graph.hasIntegralIdType) {
+    val result = if (graph.hasIntegralIdType) {
       df.persist()
     } else {
       val iV = graph.indexedVertices
