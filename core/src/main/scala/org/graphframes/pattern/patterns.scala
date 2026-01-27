@@ -107,7 +107,9 @@ private[graphframes] object Pattern {
         case fixedLengthPattern(negation, src, name, num, dst) =>
           val hop: Int = num.toInt
           if (hop > 0) {
-            val midVertices = (1 until hop).map(i => s"_${src}${dst}${i}")
+            val midVertices =
+              if (src.isEmpty && dst.isEmpty) (1 until hop).map(i => s"__tmpv${i}")
+              else (1 until hop).map(i => s"_${src}${dst}${i}")
             val vertices = src +: midVertices :+ dst
             vertices
               .sliding(2)

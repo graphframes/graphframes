@@ -469,8 +469,8 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
-    val FixedLengthUndirectedPattern = """\((\w+)\)-\[(\w*)\*(\d*)\]-\((\w+)\)""".r
+    val VarLengthPattern = """\((\w*)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w*)\)""".r
+    val FixedLengthUndirectedPattern = """\((\w*)\)-\[(\w*)\*(\d*)\]-\((\w*)\)""".r
 
     pattern match {
       case VarLengthPattern(src, name, min, max, direction, dst) =>
@@ -537,7 +537,9 @@ class GraphFrame private (
     val augmentedPatterns = extraPositivePatterns ++ patterns
     val df = findSimple(augmentedPatterns)
 
-    val names = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
+    val names = Pattern
+      .findNamedElementsInOrder(patterns, includeEdges = true)
+      .filter(x => !x.startsWith("__tmpv"))
     if (names.isEmpty) df else df.select(quote(names.head), names.tail.map(quote): _*)
   }
 
