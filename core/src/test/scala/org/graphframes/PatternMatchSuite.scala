@@ -798,6 +798,21 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(res.except(expected).isEmpty && expected.except(res).isEmpty)
   }
 
+  test("undirected edge without vertex name") {
+    val res = g.find("()-[e*3]-()").drop("_pattern").collect().toSet
+    val expected =
+      g.find("(u)-[e*3]-(v)").select("_e1", "_e2", "_e3", "_hop", "_direction").collect().toSet
+
+    compareResultToExpected(res, expected)
+  }
+
+  test("directed edge name without vertex name") {
+    val res = g.find("()-[e*3]->()").collect().toSet
+    val expected = g.find("(u)-[e*3]->(v)").select("_e1", "_e2", "_e3").collect().toSet
+
+    compareResultToExpected(res, expected)
+  }
+
   test("stateful predicates via UDFs") {
     val chain4 = g
       .find("(a)-[ab]->(b); (b)-[bc]->(c); (c)-[cd]->(d)")
