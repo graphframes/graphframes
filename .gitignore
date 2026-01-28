@@ -79,3 +79,8 @@ spark-*
 
 # Zed
 .zed
+
+# Emacs
+.dir-locals.el
+*~
+.aider*

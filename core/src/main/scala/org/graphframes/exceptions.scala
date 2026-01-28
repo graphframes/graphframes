@@ -43,3 +43,7 @@ class InvalidPropertyGroupException(message: String) extends Exception(message)
  *   A descriptive error message providing details about why the graph operation is invalid.
  */
 class InvalidGraphException(message: String) extends Exception(message)
+
+class GraphFramesW2VException(message: String) extends Exception(message)
+
+class GraphFramesUnsupportedVertexTypeException(message: String) extends Exception(message)
