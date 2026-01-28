@@ -12,10 +12,11 @@ jobs:
             java-version: 11
           - spark-version: 4.0.1
             scala-version: 2.13
-            python-version: 3.12
+            python-version: "3.12"
             java-version: 17
           - spark-version: 4.1.0
             scala-version: 2.13
+            python-version: "3.13"
             java-version: 17
     runs-on: ubuntu-latest
     env:
