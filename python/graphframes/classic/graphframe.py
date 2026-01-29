@@ -323,9 +323,13 @@ class GraphFrame:
         v = DataFrame(jdf, self._spark)
         return (v, loss)
 
-    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+    def triangleCount(
+        self, storage_level: StorageLevel, algorithm: str, log_nom_entries: int
+    ) -> DataFrame:
         builder = self._jvm_graph.triangleCount()
         builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        builder.setAlgorithm(algorithm)
+        builder.setLgNomEntries(log_nom_entries)
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 

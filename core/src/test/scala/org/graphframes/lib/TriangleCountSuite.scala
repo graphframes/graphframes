@@ -148,4 +148,83 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
     v2.unpersist()
   }
+
+  test("Approximate triangle count") {
+    val sparkVersion = spark.version
+    if (sparkVersion.substring(0, 3) >= "4.1") {
+      val edges = spark
+        .createDataFrame(
+          Seq(0L -> 1L, 1L -> 2L, 2L -> 0L) ++
+            Seq(0L -> -1L, -1L -> -2L, -2L -> 0L))
+        .toDF("src", "dst")
+      val g = GraphFrame.fromEdges(edges)
+      val v2 = g.triangleCount.setAlgorithm("approx").run()
+
+      v2.select("id", "count").collect().foreach {
+        case Row(id: Long, count: Long) =>
+          if (id == 0L) {
+            // Approx might have variation but for this small graph should be exact
+            assert(count >= 1)
+          } else {
+            assert(count >= 0)
+          }
+        case _ => throw new GraphFramesUnreachableException()
+      }
+      v2.unpersist()
+    } else {
+      cancel(s"skip for spark $sparkVersion")
+    }
+  }
+
+  test("Approximate triangle count - no triangles") {
+    val sparkVersion = spark.version
+    if (sparkVersion.substring(0, 3) >= "4.1") {
+      val edges = spark.createDataFrame(Seq(0L -> 1L, 1L -> 2L, 3L -> 4L)).toDF("src", "dst")
+      val g = GraphFrame.fromEdges(edges)
+      val v2 = g.triangleCount.setAlgorithm("approx").run()
+      v2.select("count").collect().foreach {
+        case Row(count: Long) => assert(count === 0)
+        case _ => throw new GraphFramesUnreachableException()
+      }
+      v2.unpersist()
+    } else {
+      cancel(s"skip for spark $sparkVersion")
+    }
+  }
+
+  test("Approximate triangle count - bipartite graph") {
+    val sparkVersion = spark.version
+    if (sparkVersion.substring(0, 3) >= "4.1") {
+      val edges =
+        spark.createDataFrame(Seq(0L -> 2L, 0L -> 3L, 1L -> 2L, 1L -> 3L)).toDF("src", "dst")
+      val g = GraphFrame.fromEdges(edges)
+      val v2 = g.triangleCount.setAlgorithm("approx").run()
+      v2.select("count").collect().foreach {
+        case Row(count: Long) => assert(count === 0)
+        case _ => throw new GraphFramesUnreachableException()
+      }
+      v2.unpersist()
+    } else {
+      cancel(s"skip for spark $sparkVersion")
+    }
+  }
+
+  test("Approximate triangle count - large lgNomEntries") {
+    val sparkVersion = spark.version
+    if (sparkVersion.substring(0, 3) >= "4.1") {
+      val edges = spark.createDataFrame(Seq(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
+      val g = GraphFrame.fromEdges(edges)
+      val v2 = g.triangleCount
+        .setAlgorithm("approx")
+        .setLgNomEntries(16)
+        .run()
+      v2.select("count").collect().foreach {
+        case Row(count: Long) => assert(count === 1)
+        case _ => throw new GraphFramesUnreachableException()
+      }
+      v2.unpersist()
+    } else {
+      cancel(s"skip for spark $sparkVersion")
+    }
+  }
 }

@@ -43,3 +43,13 @@ class InvalidPropertyGroupException(message: String) extends Exception(message)
  *   A descriptive error message providing details about why the graph operation is invalid.
  */
 class InvalidGraphException(message: String) extends Exception(message)
+
+/**
+ * Exception thrown when a Spark version requirement is not met.
+ *
+ * @param version
+ *   The minimum version of Apache Spark required.
+ */
+class GraphFramesRequireSpark(version: String)
+    extends Exception(
+      s"Called GraphFrames feature require at least $version or above version of Apache Spark")

@@ -818,21 +818,34 @@ class GraphFrame:
             gamma7=gamma7,
         )
 
-    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+    def triangleCount(
+        self, storage_level: StorageLevel, algorithm: str = "exact", log_nom_entries: int = 12
+    ) -> DataFrame:
         """
-        Counts the number of triangles passing through each vertex in this graph.
-        This impementation is based on the computing the intersection of
-        vertices neighborhoods. It requires to collect the whole neighborhood of
-        each vertex. It may fail because of memory errors on graphs with power law
-        degrees distribution (graphs with a few very high-degree vertices). Consider
-        edges sampling for that case to get an approximate count of trangles.
+        Computes the number of triangles passing through each vertex.
+        This algorithm identifies sets of three vertices where each pair is connected by an edge.
 
-        :param storage_level: storage level that is used for both
-                              intermediate and final dataframes.
+        The implementation provides two algorithms:
+        - "exact": Computes the exact triangle count using set intersection of neighbor lists.
+          Note: This method can fail or encounter OOM errors on power-law graphs or graphs with
+          very high-degree nodes, as it requires collecting and intersecting the full neighbor
+          lists for the source and destination vertices of every edge.
+        - "approx": Uses DataSketches (Theta sketches) to estimate the triangle count. This
+          trades off perfect accuracy for significantly improved performance and lower memory
+          overhead, making it suitable for large-scale or dense graphs.
 
-        :return:  DataFrame with new vertex column "count"
-        """
-        return self._impl.triangleCount(storage_level=storage_level)
+        :param storage_level: Storage level for caching intermediate DataFrames.
+        :param algorithm: The triangle counting algorithm to use, "exact" or "approx" (default: "exact").
+        :param log_nom_entries: The log2 of the nominal entries for the Theta sketch (only used
+                                if algorithm="approx"). Higher values increase accuracy at the
+                                cost of memory. (default: 12).
+        :return: A DataFrame containing the vertex "id" and the triangle "count".
+        """  # noqa: E501
+        if (__version__[:3] < "4.1") and (algorithm == "approx"):
+            raise ValueError("approximate algorithm requires Spark 4.1+")
+        return self._impl.triangleCount(
+            storage_level=storage_level, algorithm=algorithm, log_nom_entries=log_nom_entries
+        )
 
     def powerIterationClustering(
         self, k: int, maxIter: int, weightCol: str | None = None

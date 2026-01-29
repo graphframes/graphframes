@@ -405,7 +405,20 @@ object GraphFramesConnectUtils {
         svdResult.withColumn("loss", lit(svd.loss))
       }
       case proto.GraphFramesAPI.MethodCase.TRIANGLE_COUNT => {
-        val trCounter = graphFrame.triangleCount
+        val message = apiMessage.getTriangleCount()
+
+        val algorithm = if (message.hasAlgorithm) {
+          message.getAlgorithm
+        } else {
+          "exact"
+        }
+
+        val lgNomEntries = if (message.hasLgNomEntries) {
+          message.getLgNomEntries
+        } else { 12 }
+
+        val trCounter =
+          graphFrame.triangleCount.setAlgorithm(algorithm).setLgNomEntries(lgNomEntries)
 
         if (apiMessage.getTriangleCount.hasStorageLevel) {
           trCounter
