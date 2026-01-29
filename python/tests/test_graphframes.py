@@ -594,6 +594,15 @@ def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel) -> No
     _ = c.unpersist()
 
 
+def test_approx_triangle_counts(spark: SparkSession) -> None:
+    edges = spark.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
+    vertices = spark.createDataFrame([(0,), (1,), (2,)], ["id"])
+    g = GraphFrame(vertices, edges)
+    c = g.triangleCount(storage_level=StorageLevel.MEMORY_AND_DISK, algorithm="approx")
+    for row in c.select("id", "count").collect():
+        assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
+    _ = c.unpersist()
+
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
 def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
     vertices = spark.createDataFrame(

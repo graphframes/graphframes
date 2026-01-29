@@ -11,7 +11,30 @@ from google.protobuf.internal import containers as _containers
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class GraphFramesAPI(_message.Message):
-    __slots__ = ()
+    __slots__ = (
+        "vertices",
+        "edges",
+        "aggregate_messages",
+        "bfs",
+        "connected_components",
+        "drop_isolated_vertices",
+        "detecting_cycles",
+        "filter_edges",
+        "filter_vertices",
+        "find",
+        "label_propagation",
+        "page_rank",
+        "parallel_personalized_page_rank",
+        "power_iteration_clustering",
+        "pregel",
+        "shortest_paths",
+        "strongly_connected_components",
+        "svd_plus_plus",
+        "triangle_count",
+        "triplets",
+        "mis",
+        "kcore",
+    )
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_MESSAGES_FIELD_NUMBER: _ClassVar[int]
@@ -87,7 +110,16 @@ class GraphFramesAPI(_message.Message):
     ) -> None: ...
 
 class StorageLevel(_message.Message):
-    __slots__ = ()
+    __slots__ = (
+        "disk_only",
+        "disk_only_2",
+        "disk_only_3",
+        "memory_and_disk",
+        "memory_and_disk_2",
+        "memory_and_disk_deser",
+        "memory_only",
+        "memory_only_2",
+    )
     DISK_ONLY_FIELD_NUMBER: _ClassVar[int]
     DISK_ONLY_2_FIELD_NUMBER: _ClassVar[int]
     DISK_ONLY_3_FIELD_NUMBER: _ClassVar[int]
@@ -117,7 +149,7 @@ class StorageLevel(_message.Message):
     ) -> None: ...
 
 class ColumnOrExpression(_message.Message):
-    __slots__ = ()
+    __slots__ = ("col", "expr")
     COL_FIELD_NUMBER: _ClassVar[int]
     EXPR_FIELD_NUMBER: _ClassVar[int]
     col: bytes
@@ -125,7 +157,7 @@ class ColumnOrExpression(_message.Message):
     def __init__(self, col: _Optional[bytes] = ..., expr: _Optional[str] = ...) -> None: ...
 
 class StringOrLongID(_message.Message):
-    __slots__ = ()
+    __slots__ = ("long_id", "string_id")
     LONG_ID_FIELD_NUMBER: _ClassVar[int]
     STRING_ID_FIELD_NUMBER: _ClassVar[int]
     long_id: int
@@ -133,7 +165,7 @@ class StringOrLongID(_message.Message):
     def __init__(self, long_id: _Optional[int] = ..., string_id: _Optional[str] = ...) -> None: ...
 
 class AggregateMessages(_message.Message):
-    __slots__ = ()
+    __slots__ = ("agg_col", "send_to_src", "send_to_dst", "storage_level")
     AGG_COL_FIELD_NUMBER: _ClassVar[int]
     SEND_TO_SRC_FIELD_NUMBER: _ClassVar[int]
     SEND_TO_DST_FIELD_NUMBER: _ClassVar[int]
@@ -151,7 +183,7 @@ class AggregateMessages(_message.Message):
     ) -> None: ...
 
 class BFS(_message.Message):
-    __slots__ = ()
+    __slots__ = ("from_expr", "to_expr", "edge_filter", "max_path_length")
     FROM_EXPR_FIELD_NUMBER: _ClassVar[int]
     TO_EXPR_FIELD_NUMBER: _ClassVar[int]
     EDGE_FILTER_FIELD_NUMBER: _ClassVar[int]
@@ -169,7 +201,15 @@ class BFS(_message.Message):
     ) -> None: ...
 
 class ConnectedComponents(_message.Message):
-    __slots__ = ()
+    __slots__ = (
+        "algorithm",
+        "checkpoint_interval",
+        "broadcast_threshold",
+        "use_labels_as_components",
+        "use_local_checkpoints",
+        "max_iter",
+        "storage_level",
+    )
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     BROADCAST_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
@@ -196,7 +236,7 @@ class ConnectedComponents(_message.Message):
     ) -> None: ...
 
 class DetectingCycles(_message.Message):
-    __slots__ = ()
+    __slots__ = ("use_local_checkpoints", "checkpoint_interval", "storage_level")
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
@@ -215,7 +255,7 @@ class DropIsolatedVertices(_message.Message):
     def __init__(self) -> None: ...
 
 class FilterEdges(_message.Message):
-    __slots__ = ()
+    __slots__ = ("condition",)
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     condition: ColumnOrExpression
     def __init__(
@@ -223,7 +263,7 @@ class FilterEdges(_message.Message):
     ) -> None: ...
 
 class FilterVertices(_message.Message):
-    __slots__ = ()
+    __slots__ = ("condition",)
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     condition: ColumnOrExpression
     def __init__(
@@ -231,13 +271,19 @@ class FilterVertices(_message.Message):
     ) -> None: ...
 
 class Find(_message.Message):
-    __slots__ = ()
+    __slots__ = ("pattern",)
     PATTERN_FIELD_NUMBER: _ClassVar[int]
     pattern: str
     def __init__(self, pattern: _Optional[str] = ...) -> None: ...
 
 class LabelPropagation(_message.Message):
-    __slots__ = ()
+    __slots__ = (
+        "algorithm",
+        "max_iter",
+        "use_local_checkpoints",
+        "checkpoint_interval",
+        "storage_level",
+    )
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
@@ -258,7 +304,7 @@ class LabelPropagation(_message.Message):
     ) -> None: ...
 
 class PageRank(_message.Message):
-    __slots__ = ()
+    __slots__ = ("reset_probability", "source_id", "max_iter", "tol")
     RESET_PROBABILITY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_ID_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
@@ -276,7 +322,7 @@ class PageRank(_message.Message):
     ) -> None: ...
 
 class ParallelPersonalizedPageRank(_message.Message):
-    __slots__ = ()
+    __slots__ = ("reset_probability", "source_ids", "max_iter")
     RESET_PROBABILITY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_IDS_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
@@ -291,7 +337,7 @@ class ParallelPersonalizedPageRank(_message.Message):
     ) -> None: ...
 
 class PowerIterationClustering(_message.Message):
-    __slots__ = ()
+    __slots__ = ("k", "max_iter", "weight_col")
     K_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     WEIGHT_COL_FIELD_NUMBER: _ClassVar[int]
@@ -306,7 +352,25 @@ class PowerIterationClustering(_message.Message):
     ) -> None: ...
 
 class Pregel(_message.Message):
-    __slots__ = ()
+    __slots__ = (
+        "agg_msgs",
+        "send_msg_to_dst",
+        "send_msg_to_src",
+        "checkpoint_interval",
+        "max_iter",
+        "additional_col_name",
+        "additional_col_initial",
+        "additional_col_upd",
+        "early_stopping",
+        "use_local_checkpoints",
+        "storage_level",
+        "stop_if_all_non_active",
+        "initial_active_expr",
+        "update_active_expr",
+        "skip_messages_from_non_active",
+        "required_src_columns",
+        "required_dst_columns",
+    )
     AGG_MSGS_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_DST_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_SRC_FIELD_NUMBER: _ClassVar[int]
@@ -363,7 +427,14 @@ class Pregel(_message.Message):
     ) -> None: ...
 
 class ShortestPaths(_message.Message):
-    __slots__ = ()
+    __slots__ = (
+        "landmarks",
+        "algorithm",
+        "use_local_checkpoints",
+        "checkpoint_interval",
+        "storage_level",
+        "is_directed",
+    )
     LANDMARKS_FIELD_NUMBER: _ClassVar[int]
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
@@ -387,13 +458,22 @@ class ShortestPaths(_message.Message):
     ) -> None: ...
 
 class StronglyConnectedComponents(_message.Message):
-    __slots__ = ()
+    __slots__ = ("max_iter",)
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     max_iter: int
     def __init__(self, max_iter: _Optional[int] = ...) -> None: ...
 
 class SVDPlusPlus(_message.Message):
-    __slots__ = ()
+    __slots__ = (
+        "rank",
+        "max_iter",
+        "min_value",
+        "max_value",
+        "gamma1",
+        "gamma2",
+        "gamma6",
+        "gamma7",
+    )
     RANK_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -423,17 +503,26 @@ class SVDPlusPlus(_message.Message):
     ) -> None: ...
 
 class TriangleCount(_message.Message):
-    __slots__ = ()
+    __slots__ = ("storage_level", "algorithm", "lg_nom_entries")
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    ALGORITHM_FIELD_NUMBER: _ClassVar[int]
+    LG_NOM_ENTRIES_FIELD_NUMBER: _ClassVar[int]
     storage_level: StorageLevel
-    def __init__(self, storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
+    algorithm: str
+    lg_nom_entries: int
+    def __init__(
+        self,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        algorithm: _Optional[str] = ...,
+        lg_nom_entries: _Optional[int] = ...,
+    ) -> None: ...
 
 class Triplets(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class MaximalIndependentSet(_message.Message):
-    __slots__ = ()
+    __slots__ = ("checkpoint_interval", "storage_level", "use_local_checkpoints", "seed")
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
@@ -451,7 +540,7 @@ class MaximalIndependentSet(_message.Message):
     ) -> None: ...
 
 class KCore(_message.Message):
-    __slots__ = ()
+    __slots__ = ("use_local_checkpoints", "checkpoint_interval", "storage_level")
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]

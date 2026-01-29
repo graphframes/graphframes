@@ -190,6 +190,8 @@ message SVDPlusPlus {
 
 message TriangleCount {
   optional StorageLevel storage_level = 1;
+  optional string algorithm = 2;
+  optional int32 lg_nom_entries = 3;
 }
 
 message Triplets {}
