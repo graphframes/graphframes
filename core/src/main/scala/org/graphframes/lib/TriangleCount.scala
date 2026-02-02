@@ -21,7 +21,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.*
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
-import org.graphframes.GraphFramesRequireSpark
+import org.graphframes.GraphFramesSparkVersionException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
 
@@ -47,11 +47,14 @@ class TriangleCount private[graphframes] (private val graph: GraphFrame)
   private val supportedAlgorithms: Set[String] = Set("exact", "approx")
   private var lgNomEntries: Int = 12
 
+  private def supportedAlgorithmsRepr: String = supportedAlgorithms.mkString(", ")
+
   /**
    * Sets the log2 of the nominal entries for the Theta sketch (only for "approx" algorithm).
    * Default is 12 (4096 entries).
    */
   def setLgNomEntries(value: Int): this.type = {
+    require((value >= 4) && (value <= 24), "lg_nom must be between 4 and 26, defaults to 12")
     lgNomEntries = value
     this
   }
@@ -62,7 +65,7 @@ class TriangleCount private[graphframes] (private val graph: GraphFrame)
   def setAlgorithm(value: String): this.type = {
     require(
       supportedAlgorithms.contains(value),
-      s"supported algorithms: ${supportedAlgorithms.mkString}")
+      s"supported algorithms: ${supportedAlgorithmsRepr}")
     algorithm = value
     this
   }
@@ -101,7 +104,7 @@ private object TriangleCount extends Logging {
     val sparkVersion = spark.version
 
     if (sparkVersion.substring(0, 3) < "4.1") {
-      throw new GraphFramesRequireSpark("4.1.0")
+      throw new GraphFramesSparkVersionException("4.1.0")
     }
 
     val thetaSketchAgg = (colName: String) => expr(s"theta_sketch_agg($colName, $lgNomEntries)")
@@ -115,6 +118,7 @@ private object TriangleCount extends Logging {
       .sendToSrc(AggregateMessages.dst(ID))
       .sendToDst(AggregateMessages.src(ID))
       .agg(thetaSketchAgg(AggregateMessages.MSG_COL_NAME).alias("neighbors"))
+      .persist(intermediateStorageLevel)
 
     val triangles = verticesWithNeighbors
       .select(col(ID), col("neighbors").alias("src_set"))
@@ -139,10 +143,9 @@ private object TriangleCount extends Logging {
       .withColumn(
         COUNT_ID,
         floor(
-          when(col("src_triplets").isNull && col("dst_triplets").isNull, lit(0))
-            .when(col("src_triplets").isNull, col("dst_triplets"))
-            .when(col("dst_triplets").isNull, col("src_triplets"))
-            .otherwise(col("src_triplets") + col("dst_triplets")) / lit(2)))
+          (coalesce(col("src_triplets"), lit(0)) + coalesce(col("dst_triplets"), lit(0))) / lit(
+            2)))
+      .select(col(ID), col(COUNT_ID))
 
     result.persist(intermediateStorageLevel)
     result.count()
@@ -160,6 +163,7 @@ private object TriangleCount extends Logging {
       .sendToSrc(AggregateMessages.dst(ID))
       .sendToDst(AggregateMessages.src(ID))
       .agg(collect_set(AggregateMessages.msg).alias("neighbors"))
+      .persist(intermediateStorageLevel)
 
     val triangles = verticesWithNeighbors
       .select(col(ID), col("neighbors").alias("src_set"))
@@ -184,10 +188,9 @@ private object TriangleCount extends Logging {
       .withColumn(
         COUNT_ID,
         floor(
-          when(col("src_triplets").isNull && col("dst_triplets").isNull, lit(0))
-            .when(col("src_triplets").isNull, col("dst_triplets"))
-            .when(col("dst_triplets").isNull, col("src_triplets"))
-            .otherwise(col("src_triplets") + col("dst_triplets")) / lit(2)))
+          (coalesce(col("src_triplets"), lit(0)) + coalesce(col("dst_triplets"), lit(0))) / lit(
+            2)))
+      .select(col(ID), col(COUNT_ID))
 
     result.persist(intermediateStorageLevel)
     result.count()

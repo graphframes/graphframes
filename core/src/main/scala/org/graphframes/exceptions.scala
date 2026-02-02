@@ -50,6 +50,6 @@ class InvalidGraphException(message: String) extends Exception(message)
  * @param version
  *   The minimum version of Apache Spark required.
  */
-class GraphFramesRequireSpark(version: String)
+class GraphFramesSparkVersionException(version: String)
     extends Exception(
-      s"Called GraphFrames feature require at least $version or above version of Apache Spark")
+      s"Called GraphFrames feature requires at least $version or above version of Apache Spark")

@@ -406,24 +406,20 @@ object GraphFramesConnectUtils {
       }
       case proto.GraphFramesAPI.MethodCase.TRIANGLE_COUNT => {
         val message = apiMessage.getTriangleCount()
+        var trCounter =
+          graphFrame.triangleCount
 
-        val algorithm = if (message.hasAlgorithm) {
-          message.getAlgorithm
-        } else {
-          "exact"
+        if (message.hasAlgorithm) {
+          trCounter = trCounter.setAlgorithm(message.getAlgorithm)
         }
 
-        val lgNomEntries = if (message.hasLgNomEntries) {
-          message.getLgNomEntries
-        } else { 12 }
+        if (message.hasLgNomEntries) {
+          trCounter = trCounter.setLgNomEntries(message.getLgNomEntries)
+        }
 
-        val trCounter =
-          graphFrame.triangleCount.setAlgorithm(algorithm).setLgNomEntries(lgNomEntries)
-
-        if (apiMessage.getTriangleCount.hasStorageLevel) {
+        if (message.hasStorageLevel) {
           trCounter
-            .setIntermediateStorageLevel(
-              parseStorageLevel(apiMessage.getTriangleCount.getStorageLevel))
+            .setIntermediateStorageLevel(parseStorageLevel(message.getStorageLevel))
             .run()
         } else {
           trCounter.run()
