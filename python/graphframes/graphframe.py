@@ -819,7 +819,7 @@ class GraphFrame:
         )
 
     def triangleCount(
-        self, storage_level: StorageLevel, algorithm: str = "exact", log_nom_entries: int = 12
+        self, storage_level: StorageLevel, algorithm: str = "exact", lg_nom_entries: int = 12
     ) -> DataFrame:
         """
         Computes the number of triangles passing through each vertex.
@@ -836,15 +836,15 @@ class GraphFrame:
 
         :param storage_level: Storage level for caching intermediate DataFrames.
         :param algorithm: The triangle counting algorithm to use, "exact" or "approx" (default: "exact").
-        :param log_nom_entries: The log2 of the nominal entries for the Theta sketch (only used
-                                if algorithm="approx"). Higher values increase accuracy at the
-                                cost of memory. (default: 12).
+        :param lg_nom_entries: The log2 of the nominal entries for the Theta sketch (only used
+                               if algorithm="approx"). Higher values increase accuracy at the
+                               cost of memory. (default: 12).
         :return: A DataFrame containing the vertex "id" and the triangle "count".
         """  # noqa: E501
         if (__version__[:3] < "4.1") and (algorithm == "approx"):
             raise ValueError("approximate algorithm requires Spark 4.1+")
         return self._impl.triangleCount(
-            storage_level=storage_level, algorithm=algorithm, log_nom_entries=log_nom_entries
+            storage_level=storage_level, algorithm=algorithm, log_nom_entries=lg_nom_entries
         )
 
     def powerIterationClustering(
