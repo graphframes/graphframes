@@ -1,13 +1,12 @@
 package org.graphframes.lib
 
-import org.graphframes.GraphFrame
-import org.graphframes.Logging
-import org.graphframes.WithIntermediateStorageLevel
-import org.graphframes.WithCheckpointInterval
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
-
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
+import org.graphframes.GraphFrame
+import org.graphframes.Logging
+import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 
 class AggregateNeighbors private[graphframes] (graph: GraphFrame)
@@ -17,12 +16,13 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     with WithCheckpointInterval
     with WithLocalCheckpoints {
 
-  import AggregateNeighbors._
+  import AggregateNeighbors.*
 
   private var startingVertices: Column = lit(true)
 
   private var maxHops: Int = 3
   private var stoppingConditions: Seq[Column] = Seq.empty
+  private var targetConditions: Seq[Column] = Seq.empty
   private var accumulatorsNames: Seq[String] = Seq.empty
   private var accumulatorsInits: Seq[Column] = Seq.empty
   private var accumulatorsUpdates: Seq[Column] = Seq.empty
@@ -44,6 +44,11 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
 
   def setStoppingConditions(values: Column*): this.type = {
     this.stoppingConditions = values
+    this
+  }
+
+  def setTargetConditions(values: Column*): this.type = {
+    this.targetConditions = values
     this
   }
 
@@ -92,13 +97,13 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     val reqAttrs = (if (requiredVertexAttributes.isEmpty) {
                       graph.vertices.columns.toSeq
                     } else {
-                      requiredVertexAttributes :+ GraphFrame.ID
+                      requiredVertexAttributes
                     }).map(col(_))
 
     val reqEdgeAttr = (if (requiredEdgeAttributes.isEmpty) {
                          graph.edges.columns.toSeq
                        } else {
-                         requiredEdgeAttributes ++ Seq(GraphFrame.SRC, GraphFrame.DST)
+                         requiredEdgeAttributes
                        }).map(col(_))
 
     val verticesWithAttributes = graph.vertices.select(
@@ -124,14 +129,14 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
         currentPathLenColName,
         stoppingCondColName)).map(col(_))
     val finishedColumns =
-      (accumulatorsNames ++ Seq(srcAttributes, "src_id", currentPathLenColName)).map(col(_))
+      (accumulatorsNames ++ Seq("src_id", currentPathLenColName)).map(col(_))
 
     // holder of the current state of accumulators
     var states: DataFrame = graph.vertices
       .filter(startingVertices)
       .withColumns(accumulatorsNames.zip(accumulatorsInits).toMap)
-      .withColumnRenamed(GraphFrame.ID, "src_id")
       .withColumn(srcAttributes, struct(reqAttrs: _*))
+      .withColumnRenamed(GraphFrame.ID, "src_id")
       .withColumn(currentPathLenColName, lit(0))
       .withColumn(stoppingCondColName, lit(false))
       .select(statesColumns: _*)
@@ -163,19 +168,41 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
         .map(r => r._1.alias(r._2))
         .toSeq
 
-      colsToSelect =
-        colsToSelect :+ stoppingConditions.reduce((a, b) => a || b).alias(stoppingCondColName)
+      // Build expressions for stopping and targeting
+      val (shouldStopExpr, isTargetExpr) = if (targetConditions.nonEmpty) {
+        val targetExpr = targetConditions.reduce((a, b) => a || b)
+        val stopExpr = stoppingConditions.reduce((a, b) => a || b) || targetExpr
+        (stopExpr, targetExpr)
+      } else {
+        val stopExpr = stoppingConditions.reduce((a, b) => a || b)
+        (stopExpr, lit(true)) // Backward compatibility: all stopped rows are targets
+      }
+
+      colsToSelect = colsToSelect :+ shouldStopExpr.alias(stoppingCondColName)
+      if (targetConditions.nonEmpty) {
+        colsToSelect = colsToSelect :+ isTargetExpr.alias("_is_target")
+      }
       colsToSelect = colsToSelect :+ lit(iter).alias(currentPathLenColName) :+
         col(GraphFrame.DST).alias("src_id") :+
         col(dstAttributes).alias(srcAttributes)
       val updatedStates = fullTriplets.select(colsToSelect: _*)
 
       var newStates = updatedStates.filter(!col(stoppingCondColName)).select(statesColumns: _*)
-      var newFinished = finished.unionByName(
-        updatedStates
-          .filter(col(stoppingCondColName))
-          .select(finishedColumns: _*)
-          .withColumnRenamed("src_id", GraphFrame.ID))
+      var newFinished = if (targetConditions.nonEmpty) {
+        // Only collect rows that satisfy target conditions
+        finished.unionByName(
+          updatedStates
+            .filter(col("_is_target"))
+            .select(finishedColumns: _*)
+            .withColumnRenamed("src_id", GraphFrame.ID))
+      } else {
+        // Alternative behavior: collect all rows that stopped
+        finished.unionByName(
+          updatedStates
+            .filter(col(stoppingCondColName))
+            .select(finishedColumns: _*)
+            .withColumnRenamed("src_id", GraphFrame.ID))
+      }
 
       if ((checkpointInterval > 0) && (iter % checkpointInterval == 0)) {
         if (useLocalCheckpoints) {
@@ -195,7 +222,7 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
 
       // materialize to unpersist
       collected = newFinished.count()
-      converged = newStates.take(1).isEmpty
+      converged = newStates.isEmpty
 
       // upersist
       persistanceQueue.dequeue().unpersist(true)

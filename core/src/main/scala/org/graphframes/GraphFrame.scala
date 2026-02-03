@@ -555,6 +555,57 @@ class GraphFrame private (
   def bfs: BFS = new BFS(this)
 
   /**
+   * Aggregate information from neighboring vertices and edges through a controlled traversal.
+   *
+   * This method provides a flexible way to perform graph traversals while accumulating state at
+   * each vertex. It can be used to implement various graph algorithms that require propagating
+   * information through the graph, such as influence propagation, belief propagation, or custom
+   * message-passing algorithms.
+   *
+   * The traversal starts from a set of starting vertices (by default all vertices) and proceeds
+   * for up to a specified number of hops. At each step, accumulators are updated based on
+   * neighboring vertices and edges. The traversal can be stopped early based on conditions, and
+   * results can be collected when target conditions are met.
+   *
+   * Key features:
+   *   - Configurable starting vertices via `setStartingVertices()`
+   *   - Maximum number of hops via `setMaxHops()`
+   *   - Accumulators to maintain state during traversal via `setAccumulators()` or
+   *     `addAccumulator()`
+   *   - Stopping conditions to terminate traversal early via `setStoppingConditions()`
+   *   - Target conditions to collect results when specific conditions are met via
+   *     `setTargetConditions()`
+   *   - Edge filtering via `setEdgeFilter()`
+   *   - Control over intermediate storage and checkpointing
+   *
+   * The algorithm works as follows:
+   *   1. Initialize accumulators for starting vertices
+   *   2. For each iteration up to maxHops:
+   *      - Join current frontier with edges to get neighbors
+   *      - Update accumulators using the provided update expressions
+   *      - Apply stopping conditions to determine which vertices should stop
+   *      - Apply target conditions to determine which stopped vertices should be collected
+   *      - Continue with vertices that haven't stopped
+   *   3. Return collected results as a DataFrame
+   *
+   * The result DataFrame contains:
+   *   - The accumulators' final values for collected vertices
+   *   - The vertex ID (in column "src_id")
+   *   - The number of hops taken (in column "hop")
+   *
+   * Note: This is a stateful iterative algorithm that may be performance-intensive for large
+   * graphs or large maxHops values. Consider using appropriate storage levels and checkpoint
+   * intervals for stability.
+   *
+   * @see
+   *   [[org.graphframes.lib.AggregateNeighbors]] for implementation details
+   * @return
+   *   an [[org.graphframes.lib.AggregateNeighbors]] instance for configuration
+   * @group stdlib
+   */
+  def aggregateNeighbors: AggregateNeighbors = new AggregateNeighbors(this)
+
+  /**
    * This is a primitive for implementing graph algorithms. This method aggregates values from the
    * neighboring edges and vertices of each vertex. See
    * [[org.graphframes.lib.AggregateMessages AggregateMessages]] for detailed documentation.
