@@ -7,7 +7,7 @@ import org.graphframes.WithCheckpointInterval
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 
-import org.apache.spark.sql.functions.*
+import org.apache.spark.sql.functions._
 import org.graphframes.WithLocalCheckpoints
 
 class AggregateNeighbors private[graphframes] (graph: GraphFrame)
@@ -17,7 +17,7 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     with WithCheckpointInterval
     with WithLocalCheckpoints {
 
-  import AggregateNeighbors.*
+  import AggregateNeighbors._
 
   private var startingVertices: Column = lit(true)
 
@@ -111,14 +111,15 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     val persistanceQueue = collection.mutable.Queue.empty[DataFrame]
 
     val statesColumns =
-      (accumulatorsNames ++ Seq("src_id", currentPathLenColName, stoppingCondColName)).map(col(_))
-    val finishedColumns = (accumulatorsNames ++ Seq("src_id", currentPathLenColName)).map(col(_))
+      (accumulatorsNames ++ Seq(srcAttributes, "src_id", currentPathLenColName, stoppingCondColName)).map(col(_))
+    val finishedColumns = (accumulatorsNames ++ Seq(srcAttributes, "src_id", currentPathLenColName)).map(col(_))
 
     // holder of the current state of accumulators
     var states: DataFrame = graph.vertices
       .filter(startingVertices)
       .withColumns(accumulatorsNames.zip(accumulatorsInits).toMap)
       .withColumnRenamed(GraphFrame.ID, "src_id")
+      .withColumn(srcAttributes, struct(reqAttrs: _*))
       .withColumn(currentPathLenColName, lit(0))
       .withColumn(stoppingCondColName, lit(false))
       .select(statesColumns: _*)
@@ -141,8 +142,8 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
 
     while ((!converged) && (iter < maxHops)) {
       iter += 1
-      // get full triplets
-      val fullTriplets = semiTriplets.join(states, col(GraphFrame.SRC) === col("src_id"), "left")
+      // get full triplets by joining states (frontier) with semiTriplets
+      val fullTriplets = states.join(semiTriplets, col("src_id") === col(GraphFrame.SRC))
       var colsToSelect = accumulatorsUpdates
         .zip(accumulatorsNames)
         .map(r => r._1.alias(r._2))
@@ -150,7 +151,9 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
 
       colsToSelect =
         colsToSelect :+ stoppingConditions.reduce((a, b) => a || b).alias(stoppingCondColName)
-      colsToSelect = colsToSelect :+ lit(iter).alias(currentPathLenColName) :+ col("src_id")
+      colsToSelect = colsToSelect :+ lit(iter).alias(currentPathLenColName) :+ 
+        col(GraphFrame.DST).alias("src_id") :+ 
+        col(dstAttributes).alias(srcAttributes)
       val updatedStates = fullTriplets.select(colsToSelect: _*)
 
       var newStates = updatedStates.filter(!col(stoppingCondColName)).select(statesColumns: _*)
