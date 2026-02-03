@@ -190,7 +190,6 @@ private object TriangleCount extends Logging {
         floor(
           (coalesce(col("src_triplets"), lit(0)) + coalesce(col("dst_triplets"), lit(0))) / lit(
             2)))
-      .select(col(ID), col(COUNT_ID))
 
     result.persist(intermediateStorageLevel)
     result.count()
