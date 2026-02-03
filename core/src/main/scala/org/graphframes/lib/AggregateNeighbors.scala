@@ -30,6 +30,8 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
   private var requiredVertexAttributes: Seq[String] = Seq.empty
   private var requiredEdgeAttributes: Seq[String] = Seq.empty
 
+  private var edgeFilter: Column = lit(true)
+
   def setStartingVertices(value: Column): this.type = {
     this.startingVertices = value
     this
@@ -72,6 +74,11 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     this
   }
 
+  def setEdgeFilter(value: Column): this.type = {
+    this.edgeFilter = value
+    this
+  }
+
   def run(): DataFrame = {
     require(maxHops > 0, "maxHops must be greater than 0")
     if (maxHops > 10)
@@ -111,8 +118,13 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     val persistanceQueue = collection.mutable.Queue.empty[DataFrame]
 
     val statesColumns =
-      (accumulatorsNames ++ Seq(srcAttributes, "src_id", currentPathLenColName, stoppingCondColName)).map(col(_))
-    val finishedColumns = (accumulatorsNames ++ Seq(srcAttributes, "src_id", currentPathLenColName)).map(col(_))
+      (accumulatorsNames ++ Seq(
+        srcAttributes,
+        "src_id",
+        currentPathLenColName,
+        stoppingCondColName)).map(col(_))
+    val finishedColumns =
+      (accumulatorsNames ++ Seq(srcAttributes, "src_id", currentPathLenColName)).map(col(_))
 
     // holder of the current state of accumulators
     var states: DataFrame = graph.vertices
@@ -143,7 +155,9 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     while ((!converged) && (iter < maxHops)) {
       iter += 1
       // get full triplets by joining states (frontier) with semiTriplets
-      val fullTriplets = states.join(semiTriplets, col("src_id") === col(GraphFrame.SRC))
+      val fullTriplets =
+        states.join(semiTriplets, col("src_id") === col(GraphFrame.SRC)).filter(edgeFilter)
+
       var colsToSelect = accumulatorsUpdates
         .zip(accumulatorsNames)
         .map(r => r._1.alias(r._2))
@@ -151,8 +165,8 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
 
       colsToSelect =
         colsToSelect :+ stoppingConditions.reduce((a, b) => a || b).alias(stoppingCondColName)
-      colsToSelect = colsToSelect :+ lit(iter).alias(currentPathLenColName) :+ 
-        col(GraphFrame.DST).alias("src_id") :+ 
+      colsToSelect = colsToSelect :+ lit(iter).alias(currentPathLenColName) :+
+        col(GraphFrame.DST).alias("src_id") :+
         col(dstAttributes).alias(srcAttributes)
       val updatedStates = fullTriplets.select(colsToSelect: _*)
 
@@ -181,7 +195,7 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
 
       // materialize to unpersist
       collected = newFinished.count()
-      converged = newStates.isEmpty
+      converged = newStates.take(1).isEmpty
 
       // upersist
       persistanceQueue.dequeue().unpersist(true)
