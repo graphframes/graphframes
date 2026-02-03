@@ -78,6 +78,10 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
       logWarn(s"maxHops is very large ($maxHops). This might be performance-intensive.")
     require(accumulatorsNames.nonEmpty, "At least one accumulator must be added")
 
+    if (stoppingConditions.isEmpty) {
+      stoppingConditions = Seq(lit(false))
+    }
+
     val reqAttrs = (if (requiredVertexAttributes.isEmpty) {
                       graph.vertices.columns.toSeq
                     } else {
@@ -106,29 +110,33 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     // memory-tracking
     val persistanceQueue = collection.mutable.Queue.empty[DataFrame]
 
+    val statesColumns =
+      (accumulatorsNames ++ Seq("src_id", currentPathLenColName, stoppingCondColName)).map(col(_))
+    val finishedColumns = (accumulatorsNames ++ Seq("src_id", currentPathLenColName)).map(col(_))
+
     // holder of the current state of accumulators
-    var states = graph.vertices
+    var states: DataFrame = graph.vertices
       .filter(startingVertices)
       .withColumns(accumulatorsNames.zip(accumulatorsInits).toMap)
       .withColumnRenamed(GraphFrame.ID, "src_id")
-      .withColum(currentPathLenColName, lit(0))
+      .withColumn(currentPathLenColName, lit(0))
       .withColumn(stoppingCondColName, lit(false))
-      .select(accumulatorsNames ++ Seq("src_id", currentPathLenColName, stoppingCondColName): _*)
+      .select(statesColumns: _*)
       .persist(intermediateStorageLevel)
 
     // holder of the finished accumulators
-    var finished = states
+    var finished: DataFrame = states
       .filter(col(stoppingCondColName))
-      .select(accumulatorsNames ++ Seq("src_id", currentPathLenColName))
-      .withColumnRanamed("src_id", GraphFrame.ID)
+      .select(finishedColumns: _*)
+      .withColumnRenamed("src_id", GraphFrame.ID)
       .persist(intermediateStorageLevel)
 
     var collected = finished.count()
 
-    persistanceQueue += states
-    persistanceQueue += finished
+    persistanceQueue.enqueue(states)
+    persistanceQueue.enqueue(finished)
 
-    var converged = states.isEmpty()
+    var converged = states.isEmpty
     var iter = 0
 
     while ((!converged) && (iter < maxHops)) {
@@ -145,12 +153,12 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
       colsToSelect = colsToSelect :+ lit(iter).alias(currentPathLenColName) :+ col("src_id")
       val updatedStates = fullTriplets.select(colsToSelect: _*)
 
-      var newStates = updatedStates.filter(!col(stoppingCondColName))
+      var newStates = updatedStates.filter(!col(stoppingCondColName)).select(statesColumns: _*)
       var newFinished = finished.unionByName(
-        updatedStates.filter(
-          col(stoppingCondColName)
-            .select(accumulatorsNames ++ Seq("src_id", currentPathLenColName))
-            .withColumnRenamed("src_id", GraphFrame.ID)))
+        updatedStates
+          .filter(col(stoppingCondColName))
+          .select(finishedColumns: _*)
+          .withColumnRenamed("src_id", GraphFrame.ID))
 
       if ((checkpointInterval > 0) && (iter % checkpointInterval == 0)) {
         if (useLocalCheckpoints) {
@@ -160,15 +168,33 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
           newStates = newStates.checkpoint()
           newFinished = newFinished.checkpoint()
         }
-      } else {
-        newStates = newStates.persist(intermediateStorageLevel)
-        newFinished = newFinished.persist(intermediateStorageLevel)
-
-        
       }
+
+      newStates = newStates.persist(intermediateStorageLevel)
+      newFinished = newFinished.persist(intermediateStorageLevel)
+
+      persistanceQueue.enqueue(newStates)
+      persistanceQueue.enqueue(newFinished)
+
+      // materialize to unpersist
+      collected = newFinished.count()
+      converged = newStates.isEmpty
+
+      // upersist
+      persistanceQueue.dequeue().unpersist(true)
+      persistanceQueue.dequeue().unpersist(true)
+
+      logInfo(s"iteration $iter, collected $collected rows")
+
+      states = newStates
+      finished = newFinished
     }
 
-    null
+    persistanceQueue.dequeue().unpersist(true) // clear states
+    semiTriplets.unpersist(true) // clear triplets
+
+    resultIsPersistent()
+    finished
   }
 }
 
