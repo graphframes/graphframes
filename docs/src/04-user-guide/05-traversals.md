@@ -245,15 +245,34 @@ result.select("id", "component").orderBy("component").show()
 
 ## Triangle count
 
-Computes the number of triangles passing through each vertex.
+Triangle count computes the number of triangles passing through each vertex. A triangle is a set of three vertices where each pair is connected by an edge (A is connected to B, B to C, and C to A).
 
----
-**WARNING!**
+### Performance and Use Cases
 
+Counting triangles is a fundamental task in network analysis:
+- **Clustering Coefficient**: It is used to compute the local and global clustering coefficients, which measure the degree to which nodes in a graph tend to cluster together.
+- **Community Detection**: A high density of triangles often indicates the presence of a tightly knit community or "clique."
+- **Spam and Fraud Detection**: In social networks and financial transactions, unusual triangle patterns can help identify botnets or money-laundering rings.
 
-*The current implementation is based on collecting neighbor sets for vertices and compute a pairwise intersection of them. While this works for regular graphs, it will most probably fail on any kind of power-law graphs (graphs with a few very high-degree vertices) or at least will require a lot of memory for Spark Cluster. Consider edge sampling strategies before running the algorithm to get an approximate count of triangles.*
+### How it works
 
----
+The core logic of the algorithm is based on **neighborhood intersection**. For every edge (u, v) in the graph, the algorithm finds the intersection of the neighbor sets of u and v. Every common neighbor w completes a triangle with u and v.
+
+### Algorithms and Trade-offs
+
+GraphFrames provides two implementations with different performance characteristics:
+
+- **Exact**: This is the default algorithm. It computes the precise intersection of adjacency lists.
+    - **Pros**: 100% accuracy.
+    - **Cons**: Extremely memory-intensive. For high-degree nodes (hubs), collecting and intersecting large neighbor sets can lead to Out-of-Memory (OOM) errors or severe skew.
+- **Approximate** (Starting from Spark 4.1): This version uses **DataSketches (Theta sketches)** to estimate the size of the intersection.
+    - **Pros**: Highly scalable. It uses a fixed-size probabilistic structure to represent neighborhoods, dramatically reducing memory overhead and execution time.
+    - **Cons**: Provides an estimate rather than an exact count.
+
+### Selection Guide
+
+- **Sparse/Regular Graphs**: For graphs like grids, spatial meshes, or infrastructure networks where the maximum degree is relatively low and there is no power-law distribution, the **Exact** algorithm is recommended.
+- **Power-Law/Scale-Free Networks**: For social networks, web graphs, or biological networks containing "hubs" (vertices with thousands or millions of connections), the **Approximate** algorithm is often the only viable choice to avoid job failures.
 
 ### Python API
 
