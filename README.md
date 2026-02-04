@@ -8,7 +8,7 @@
 
 # GraphFrames: graph algorithms at scale
 
-This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. It provides built-in and easy to use distributed graph algorithms as well as a flexible APIs like `Pregel` or `AggregateMessages` to make custom graph processing. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
+This is a package for graphs processing and analytics at scale. It is built on top of Apache Spark and relies on DataFrame abstraction. It provides built-in and easy to use distributed graph algorithms as well as flexible APIs like `Pregel` or `AggregateMessages` to make custom graph processing. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
 ## GraphFrames usecases
 
@@ -16,7 +16,7 @@ There are some popular use cases when GraphFrames is almost irreplaceable, inclu
 
 - Compliance analytics with a scalable shortest paths algorithm and motif analysis;
 - Anti-fraud with scalable cycles detection in large networks;
-- Identity resolution on the scale of billions with highly efficient connected components;
+- Identity resolution at the scale of billions with highly efficient connected components;
 - Search result ranking with a distributed, Pregel-based PageRank;
 - Clustering huge graphs with Label Propagation and Power Iteration Clustering;
 - Building a knowledge graph systems with Property Graph Model.
@@ -146,7 +146,7 @@ To learn more about GraphFrames, check out these resources:
 
 ### Community Resources
 
-This resources are provided by the community:
+These resources are provided by the community:
 
 - [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
 - [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
@@ -163,7 +163,7 @@ This resources are provided by the community:
 
 ## Contributing
 
-GraphFrames was made as collaborative effort among UC Berkeley, MIT, Databricks and the open source community. At the moment GraphFrames is maintained by the group of individual contributors.
+GraphFrames was made as a collaborative effort among UC Berkeley, MIT, Databricks and the open source community. At the moment GraphFrames is maintained by a group of individual contributors.
 
 See [contribution guide](./CONTRIBUTING.md) and the [local development setup walkthrough](https://graphframes.io/06-contributing/01-contributing-guide.html) for step-by-step instructions on preparing your environment, running tests, and submitting changes.
 
