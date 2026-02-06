@@ -45,6 +45,10 @@ object SparkShims {
    * This handles both unresolved expressions (UnresolvedAttribute, UnresolvedExtractValue) and
    * resolved expressions (AttributeReference, GetStructField).
    *
+   * Note: Deeply nested struct access (e.g., "dst.location.city") is not fully parsed. In such
+   * cases, the prefix is recorded with an empty field set, which causes callers to conservatively
+   * assume the entire struct is needed. This is the safe/correct fallback behavior.
+   *
    * @param spark
    *   the SparkSession (unused in Spark 3, included for API compatibility with Spark 4)
    * @param expr
@@ -74,7 +78,7 @@ object SparkShims {
               case Literal(fieldName: String, _) => addRef(nameParts.head, Some(fieldName))
               case _ => addRef(nameParts.head, None) // Unknown field access
             }
-          case _ => // Nested extraction we can't easily parse
+          case _ => // Nested extraction we can't easily parse - conservative fallback
         }
 
       // Resolved: AttributeReference for top-level columns
@@ -82,10 +86,11 @@ object SparkShims {
         addRef(attr.name, None)
 
       // Resolved: GetStructField for nested field access like struct.field
+      // Note: Only handles single-level nesting; deeper nesting falls through to default case
       case GetStructField(child, _, Some(fieldName)) =>
         child match {
           case attr: AttributeReference => addRef(attr.name, Some(fieldName))
-          case _ => // Nested struct access we can't easily parse
+          case _ => // Deeply nested struct access - conservative fallback (join will be used)
         }
 
       case _ => // ignore other expression types
@@ -93,23 +98,6 @@ object SparkShims {
 
     refs.map { case (k, v) => k -> v.toSet }.toMap
   }
-
-  /**
-   * Extracts all top-level column name prefixes from a Column expression.
-   *
-   * For nested column references like "src.id" or "edge.weight", this extracts the first
-   * component ("src", "edge"). This is useful for analyzing which struct columns are referenced
-   * in an expression.
-   *
-   * @param spark
-   *   the SparkSession (unused in Spark 3, included for API compatibility with Spark 4)
-   * @param expr
-   *   the Column expression to analyze
-   * @return
-   *   a Set of column name prefixes found in the expression
-   */
-  def extractColumnPrefixes(spark: SparkSession, expr: Column): Set[String] =
-    extractColumnReferences(spark, expr).keySet
 
   /**
    * Apply the given SQL expression (such as `id = 3`) to the field in a column, rather than to
