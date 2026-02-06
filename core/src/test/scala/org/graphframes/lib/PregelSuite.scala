@@ -462,4 +462,28 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(received(2) === 1L) // vertex 2: edge 1->2, receives src.id = 1
     assert(received(3) === 2L) // vertex 3: edge 2->3, receives src.id = 2
   }
+
+  test("automatic dst join skipping - message references only dst.id") {
+    // When message expressions only reference dst.id (not other dst fields),
+    // the join should still be skipped since dst.id is available from the edge.
+
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 3L)).toDF("src", "dst").cache()
+    val vertices = (0L to 3L).toDF("id").cache()
+    val graph = GraphFrame(vertices, edges)
+
+    // Message uses Pregel.dst("id") - but since only id is used, dst join should be skipped
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      .sendMsgToDst(Pregel.src("id") + Pregel.dst("id")) // Uses dst.id only
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Each dst vertex receives src.id + dst.id from incoming edges
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming edges
+    assert(received(1) === 1L) // vertex 1: edge 0->1, receives 0 + 1 = 1
+    assert(received(2) === 3L) // vertex 2: edge 1->2, receives 1 + 2 = 3
+    assert(received(3) === 5L) // vertex 3: edge 2->3, receives 2 + 3 = 5
+  }
 }

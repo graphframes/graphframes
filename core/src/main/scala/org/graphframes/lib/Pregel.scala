@@ -431,14 +431,23 @@ class Pregel(val graph: GraphFrame)
     // available from the edge). If no message expression references dst.* columns,
     // we can skip the second join entirely.
     // However, if skipMessagesFromNonActiveVertices is enabled, we need dst._pregel_is_active.
+    // Additionally, if the only dst field referenced is "id", we can still skip since
+    // dst.id is available from the edge's dst column.
     val messageExpressions = sendMsgs.toList.map { case (_, msgExpr) => msgExpr }
-    val referencedPrefixesInMessages = messageExpressions.flatMap { expr =>
-      SparkShims.extractColumnPrefixes(graph.spark, expr)
+    val dstFieldsReferenced = messageExpressions.flatMap { expr =>
+      SparkShims.extractColumnReferences(graph.spark, expr).getOrElse(DST, Set.empty)
     }.toSet
-    val needsDstState =
-      referencedPrefixesInMessages.contains(DST) || skipMessagesFromNonActiveVertices
+    val dstPrefixReferenced = messageExpressions.exists { expr =>
+      SparkShims.extractColumnReferences(graph.spark, expr).contains(DST)
+    }
+    // We need the dst join if:
+    // 1. skipMessagesFromNonActiveVertices is enabled (needs dst._pregel_is_active), OR
+    // 2. dst is referenced AND fields other than just "id" are accessed
+    //    (empty set means whole struct access like col("dst"), which also needs the join)
+    val needsDstState = skipMessagesFromNonActiveVertices ||
+      (dstPrefixReferenced && (dstFieldsReferenced.isEmpty || dstFieldsReferenced != Set(ID)))
     if (!needsDstState) {
-      logInfo(
+      logDebug(
         "Optimization: skipping second join (dst state not required by message expressions)")
     }
 
