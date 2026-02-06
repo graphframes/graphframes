@@ -26,8 +26,34 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
 import scala.annotation.nowarn
+import scala.collection.mutable
 
 object SparkShims {
+
+  /**
+   * Extracts all column name prefixes (e.g., "src", "dst", "edge") from a Column expression.
+   *
+   * This is used to detect which triplet columns are referenced in message expressions,
+   * enabling automatic optimization to skip the second join when destination columns
+   * are not needed.
+   *
+   * @param spark
+   *   the SparkSession (unused in Spark 3, included for API compatibility with Spark 4)
+   * @param expr
+   *   the Column expression to analyze
+   * @return
+   *   a Set of column name prefixes found in the expression
+   */
+  @nowarn
+  def extractColumnPrefixes(spark: SparkSession, expr: Column): Set[String] = {
+    val prefixes = mutable.Set.empty[String]
+    expr.expr.foreach {
+      case UnresolvedAttribute(nameParts) if nameParts.nonEmpty =>
+        prefixes += nameParts.head
+      case _ => // ignore other expression types
+    }
+    prefixes.toSet
+  }
 
   /**
    * Apply the given SQL expression (such as `id = 3`) to the field in a column, rather than to
