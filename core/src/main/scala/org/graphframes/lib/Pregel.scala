@@ -427,16 +427,15 @@ class Pregel(val graph: GraphFrame)
       else (Seq(ID, Pregel.ACTIVE_FLAG_COL) ++ requiredDstColumnsList).distinct.map(col)
 
     // Automatic optimization: detect if destination vertex state is needed by analyzing
-    // all message expressions. If no expression references dst.* columns (other than dst.id
-    // which is implicitly available), we can skip the second join entirely.
+    // the MESSAGE expressions only (not the target ID expressions, since dst.id is always
+    // available from the edge). If no message expression references dst.* columns,
+    // we can skip the second join entirely.
     // However, if skipMessagesFromNonActiveVertices is enabled, we need dst._pregel_is_active.
-    val allMessageExpressions = sendMsgs.toList.flatMap { case (idExpr, msgExpr) =>
-      Seq(idExpr, msgExpr)
-    }
-    val allReferencedPrefixes = allMessageExpressions.flatMap { expr =>
+    val messageExpressions = sendMsgs.toList.map { case (_, msgExpr) => msgExpr }
+    val referencedPrefixesInMessages = messageExpressions.flatMap { expr =>
       SparkShims.extractColumnPrefixes(graph.spark, expr)
     }.toSet
-    val needsDstState = allReferencedPrefixes.contains(DST) || skipMessagesFromNonActiveVertices
+    val needsDstState = referencedPrefixesInMessages.contains(DST) || skipMessagesFromNonActiveVertices
     if (!needsDstState) {
       logInfo("Optimization: skipping second join (dst state not required by message expressions)")
     }
@@ -460,8 +459,11 @@ class Pregel(val graph: GraphFrame)
               col("edge_dst") === Pregel.dst(ID))
             .drop(col("edge_src"), col("edge_dst"))
         } else {
-          // Skip second join - dst state not needed by any message expression
-          srcWithEdges.drop(col("edge_src"), col("edge_dst"))
+          // Skip second join - dst state not needed by any message expression.
+          // Create a minimal dst struct with just the id from edge_dst for sendMsgToDst to work.
+          srcWithEdges
+            .withColumn(DST, struct(col("edge_dst").as(ID)))
+            .drop(col("edge_src"), col("edge_dst"))
         }
 
         if (skipMessagesFromNonActiveVertices) {
