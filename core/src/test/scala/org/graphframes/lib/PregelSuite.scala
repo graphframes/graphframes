@@ -299,14 +299,9 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     // so the second join (for dst vertex state) should be automatically skipped.
     // This test verifies the optimization produces correct results.
 
-    val edges = Seq(
-      (0L, 1L),
-      (1L, 2L),
-      (2L, 4L),
-      (2L, 0L),
-      (3L, 4L),
-      (4L, 0L),
-      (4L, 2L)).toDF("src", "dst").cache()
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 4L), (2L, 0L), (3L, 4L), (4L, 0L), (4L, 2L))
+      .toDF("src", "dst")
+      .cache()
     val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
     val numVertices = vertices.count()
     val graph = GraphFrame(vertices, edges)
@@ -395,11 +390,9 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("automatic dst join skipping - sendMsgToSrc with only edge columns") {
     // When sending messages to src using only edge columns, dst join should be skipped
 
-    val edges = Seq(
-      (1L, 0L, 10L),
-      (2L, 1L, 20L),
-      (3L, 2L, 30L),
-      (4L, 3L, 40L)).toDF("src", "dst", "weight").cache()
+    val edges = Seq((1L, 0L, 10L), (2L, 1L, 20L), (3L, 2L, 30L), (4L, 3L, 40L))
+      .toDF("src", "dst", "weight")
+      .cache()
     val vertices = (0L to 4L).toDF("id").cache()
 
     val graph = GraphFrame(vertices, edges)
@@ -407,17 +400,14 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     // Only uses Pregel.edge("weight") - dst join should be skipped
     val resultDF = graph.pregel
       .setMaxIter(1)
-      .withVertexColumn(
-        "received",
-        lit(0L),
-        coalesce(Pregel.msg, col("received")))
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
       .sendMsgToSrc(Pregel.edge("weight"))
       .aggMsgs(sum(Pregel.msg))
       .run()
 
     // Each src vertex receives the weight from its outgoing edge
     val received = resultDF.sort("id").select("received").as[Long].collect()
-    assert(received(0) === 0L)  // vertex 0: no outgoing edges
+    assert(received(0) === 0L) // vertex 0: no outgoing edges
     assert(received(1) === 10L) // vertex 1: edge 1->0 with weight 10
     assert(received(2) === 20L) // vertex 2: edge 2->1 with weight 20
     assert(received(3) === 30L) // vertex 3: edge 3->2 with weight 30
@@ -427,20 +417,15 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   test("automatic dst join skipping - edge columns only") {
     // When message expressions only reference edge columns, dst join should be skipped
 
-    val edges = Seq(
-      (0L, 1L, 1.0),
-      (1L, 2L, 2.0),
-      (2L, 3L, 3.0)).toDF("src", "dst", "weight").cache()
+    val edges =
+      Seq((0L, 1L, 1.0), (1L, 2L, 2.0), (2L, 3L, 3.0)).toDF("src", "dst", "weight").cache()
     val vertices = Seq(0L, 1L, 2L, 3L).toDF("id").cache()
     val graph = GraphFrame(vertices, edges)
 
     // Only uses Pregel.edge("weight") - dst join should be skipped
     val result = graph.pregel
       .setMaxIter(1) // Single iteration to simplify testing
-      .withVertexColumn(
-        "total",
-        lit(0.0),
-        coalesce(Pregel.msg, col("total")))
+      .withVertexColumn("total", lit(0.0), coalesce(Pregel.msg, col("total")))
       .sendMsgToDst(Pregel.edge("weight"))
       .aggMsgs(sum(Pregel.msg))
       .run()
@@ -458,20 +443,14 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     // the second join should be skipped. The dst.id needed for message routing is
     // obtained from the edge's dst column, not from a vertex join.
 
-    val edges = Seq(
-      (0L, 1L),
-      (1L, 2L),
-      (2L, 3L)).toDF("src", "dst").cache()
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 3L)).toDF("src", "dst").cache()
     val vertices = (0L to 3L).toDF("id").cache()
     val graph = GraphFrame(vertices, edges)
 
     // sendMsgToDst but message only uses Pregel.src("id") - dst join should be skipped
     val result = graph.pregel
       .setMaxIter(1)
-      .withVertexColumn(
-        "received",
-        lit(0L),
-        coalesce(Pregel.msg, col("received")))
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
       .sendMsgToDst(Pregel.src("id")) // Message only uses src.id
       .aggMsgs(sum(Pregel.msg))
       .run()
