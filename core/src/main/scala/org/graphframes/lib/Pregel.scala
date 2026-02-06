@@ -24,6 +24,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.struct
+import org.apache.spark.sql.graphframes.SparkShims
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.*
 import org.graphframes.Logging
@@ -425,19 +426,43 @@ class Pregel(val graph: GraphFrame)
       if (requiredDstColumnsList.isEmpty) Seq(col("*"))
       else (Seq(ID, Pregel.ACTIVE_FLAG_COL) ++ requiredDstColumnsList).distinct.map(col)
 
+    // Automatic optimization: detect if destination vertex state is needed by analyzing
+    // all message expressions. If no expression references dst.* columns (other than dst.id
+    // which is implicitly available), we can skip the second join entirely.
+    // However, if skipMessagesFromNonActiveVertices is enabled, we need dst._pregel_is_active.
+    val allMessageExpressions = sendMsgs.toList.flatMap { case (idExpr, msgExpr) =>
+      Seq(idExpr, msgExpr)
+    }
+    val allReferencedPrefixes = allMessageExpressions.flatMap { expr =>
+      SparkShims.extractColumnPrefixes(graph.spark, expr)
+    }.toSet
+    val needsDstState = allReferencedPrefixes.contains(DST) || skipMessagesFromNonActiveVertices
+    if (!needsDstState) {
+      logInfo("Optimization: skipping second join (dst state not required by message expressions)")
+    }
+
     breakable {
       while (iteration <= maxIter) {
         logInfo(s"start Pregel iteration $iteration / $maxIter")
         val currRoundPersistent = scala.collection.mutable.Queue[DataFrame]()
         currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
 
-        var tripletsDF = currentVertices
+        // Build triplets: start with src vertex state joined with edges
+        val srcWithEdges = currentVertices
           .select(struct(srcCols: _*).as(SRC))
           .join(edges, Pregel.src(ID) === col("edge_src"))
-          .join(
-            currentVertices.select(struct(dstCols: _*).as(DST)),
-            col("edge_dst") === Pregel.dst(ID))
-          .drop(col("edge_src"), col("edge_dst"))
+
+        // Only perform the second join (adding dst vertex state) if needed
+        var tripletsDF = if (needsDstState) {
+          srcWithEdges
+            .join(
+              currentVertices.select(struct(dstCols: _*).as(DST)),
+              col("edge_dst") === Pregel.dst(ID))
+            .drop(col("edge_src"), col("edge_dst"))
+        } else {
+          // Skip second join - dst state not needed by any message expression
+          srcWithEdges.drop(col("edge_src"), col("edge_dst"))
+        }
 
         if (skipMessagesFromNonActiveVertices) {
           tripletsDF = tripletsDF.filter(
