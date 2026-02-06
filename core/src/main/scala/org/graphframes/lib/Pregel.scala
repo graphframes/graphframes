@@ -435,9 +435,11 @@ class Pregel(val graph: GraphFrame)
     val referencedPrefixesInMessages = messageExpressions.flatMap { expr =>
       SparkShims.extractColumnPrefixes(graph.spark, expr)
     }.toSet
-    val needsDstState = referencedPrefixesInMessages.contains(DST) || skipMessagesFromNonActiveVertices
+    val needsDstState =
+      referencedPrefixesInMessages.contains(DST) || skipMessagesFromNonActiveVertices
     if (!needsDstState) {
-      logInfo("Optimization: skipping second join (dst state not required by message expressions)")
+      logInfo(
+        "Optimization: skipping second join (dst state not required by message expressions)")
     }
 
     breakable {

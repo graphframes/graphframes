@@ -34,11 +34,11 @@ import scala.collection.mutable
 object SparkShims {
 
   /**
-   * Extracts all column name prefixes (e.g., "src", "dst", "edge") from a Column expression.
+   * Extracts all top-level column name prefixes from a Column expression.
    *
-   * This is used to detect which triplet columns are referenced in message expressions,
-   * enabling automatic optimization to skip the second join when destination columns
-   * are not needed.
+   * For nested column references like "src.id" or "edge.weight", this extracts
+   * the first component ("src", "edge"). This is useful for analyzing which
+   * struct columns are referenced in an expression.
    *
    * @param spark
    *   the SparkSession (needed for expression conversion in Spark 4)
