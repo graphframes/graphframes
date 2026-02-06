@@ -434,12 +434,11 @@ class Pregel(val graph: GraphFrame)
     // Additionally, if the only dst field referenced is "id", we can still skip since
     // dst.id is available from the edge's dst column.
     val messageExpressions = sendMsgs.toList.map { case (_, msgExpr) => msgExpr }
-    val dstFieldsReferenced = messageExpressions.flatMap { expr =>
-      SparkShims.extractColumnReferences(graph.spark, expr).getOrElse(DST, Set.empty)
-    }.toSet
-    val dstPrefixReferenced = messageExpressions.exists { expr =>
-      SparkShims.extractColumnReferences(graph.spark, expr).contains(DST)
+    val allDstRefs = messageExpressions.flatMap { expr =>
+      SparkShims.extractColumnReferences(graph.spark, expr).get(DST)
     }
+    val dstPrefixReferenced = allDstRefs.nonEmpty
+    val dstFieldsReferenced = allDstRefs.flatten.toSet
     // We need the dst join if:
     // 1. skipMessagesFromNonActiveVertices is enabled (needs dst._pregel_is_active), OR
     // 2. dst is referenced AND fields other than just "id" are accessed
