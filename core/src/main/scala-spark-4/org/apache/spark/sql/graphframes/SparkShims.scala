@@ -79,6 +79,9 @@ object SparkShims {
           case UnresolvedAttribute(nameParts) if nameParts.nonEmpty =>
             extraction match {
               case Literal(fieldName: String, _) => addRef(nameParts.head, Some(fieldName))
+              case Literal(fieldName, _) if fieldName != null =>
+                // Handle UTF8String (Spark's internal string representation)
+                addRef(nameParts.head, Some(fieldName.toString))
               case _ => addRef(nameParts.head, None) // Unknown field access
             }
           case _ => // Nested extraction we can't easily parse - conservative fallback
