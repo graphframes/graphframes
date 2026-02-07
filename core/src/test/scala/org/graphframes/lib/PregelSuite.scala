@@ -486,4 +486,100 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(received(2) === 3L) // vertex 2: edge 1->2, receives 1 + 2 = 3
     assert(received(3) === 5L) // vertex 3: edge 2->3, receives 2 + 3 = 5
   }
+
+  // ============================================================================
+  // Integration tests for complex expression patterns
+  // These verify that dst join is correctly performed when dst columns are used
+  // in non-trivial ways (map keys, array indices, conditionals, nested structs)
+  // ============================================================================
+
+  test("dst join required when dst column used in conditional") {
+    // when(Pregel.dst("flag"), Pregel.src("value")) - dst.flag requires the join
+    val vertices = Seq((0L, true, 10L), (1L, false, 20L), (2L, true, 30L))
+      .toDF("id", "flag", "value")
+    val edges = Seq((0L, 1L), (1L, 2L)).toDF("src", "dst")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      .sendMsgToDst(when(Pregel.dst("flag"), Pregel.src("value")).otherwise(lit(null)))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify correct behavior: message only sent when dst.flag is true
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming
+    assert(received(1) === 0L) // vertex 1: dst.flag=false, so null message (filtered)
+    assert(received(2) === 20L) // vertex 2: dst.flag=true, receives src.value=20
+  }
+
+  test("dst join required when dst column used as map key") {
+    // Create edges with a map column, use dst vertex attribute as key
+    val vertices = Seq((0L, "a"), (1L, "b"), (2L, "a")).toDF("id", "key")
+    val edges = Seq((0L, 1L, Map("a" -> 10L, "b" -> 20L)), (1L, 2L, Map("a" -> 30L, "b" -> 40L)))
+      .toDF("src", "dst", "weights")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      // Use dst.key to look up value in edge.weights map
+      .sendMsgToDst(element_at(Pregel.edge("weights"), Pregel.dst("key")))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify: dst.key is used to index into map
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming
+    assert(received(1) === 20L) // vertex 1: key="b", edge weights has b->20
+    assert(received(2) === 30L) // vertex 2: key="a", edge weights has a->30
+  }
+
+  test("dst join required when dst column used as array index") {
+    // Create edges with array column, use dst vertex attribute as index
+    val vertices = Seq((0L, 1), (1L, 2), (2L, 1)).toDF("id", "idx")
+    val edges = Seq((0L, 1L, Array(100L, 200L)), (1L, 2L, Array(300L, 400L)))
+      .toDF("src", "dst", "values")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      // Use dst.idx to index into edge.values array (element_at is 1-based)
+      .sendMsgToDst(element_at(Pregel.edge("values"), Pregel.dst("idx")))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify: dst.idx is used to index into array
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming
+    assert(received(1) === 200L) // vertex 1: idx=2, array element 2 = 200
+    assert(received(2) === 300L) // vertex 2: idx=1, array element 1 = 300
+  }
+
+  test("dst join required for nested struct field access") {
+    // Create vertices with nested struct
+    val vertices = spark
+      .createDataFrame(Seq((0L, 1.0, 2.0), (1L, 3.0, 4.0), (2L, 5.0, 6.0)))
+      .toDF("id", "x", "y")
+      .selectExpr("id", "named_struct('x', x, 'y', y) as location")
+
+    val edges = Seq((0L, 1L), (1L, 2L)).toDF("src", "dst")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0.0), coalesce(Pregel.msg, col("received")))
+      // Access nested field dst.location.x and src.location.y
+      .sendMsgToDst(Pregel.dst("location")("x") + Pregel.src("location")("y"))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify: nested struct fields are accessed correctly
+    val received = result.sort("id").select("received").as[Double].collect()
+    assert(received(0) === 0.0 +- 1e-6) // vertex 0: no incoming
+    assert(received(1) === 5.0 +- 1e-6) // vertex 1: dst.location.x=3.0 + src.location.y=2.0
+    assert(received(2) === 9.0 +- 1e-6) // vertex 2: dst.location.x=5.0 + src.location.y=4.0
+  }
 }
