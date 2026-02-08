@@ -157,8 +157,6 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
    *   edge
    * @return
    *   this AggregateNeighbors instance for method chaining
-   * @throws IllegalArgumentException
-   *   if the three sequences have different sizes
    */
   def setAccumulators(names: Seq[String], inits: Seq[Column], updates: Seq[Column]): this.type = {
     require(
@@ -263,9 +261,6 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
    *
    * @return
    *   DataFrame with aggregation results
-   * @throws java.lang.IllegalArgumentException
-   *   if maxHops ≤ 0, no accumulators are defined, or neither stopping nor target condition is
-   *   provided
    */
   def run(): DataFrame = {
     require(maxHops > 0, "maxHops must be greater than 0")
