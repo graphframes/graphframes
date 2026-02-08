@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.graphframes.lib
 
 import org.apache.spark.sql.functions.*
@@ -28,7 +45,9 @@ class AggregateNeighborsSuite extends SparkFunSuite with GraphFrameTestSparkCont
     val agg = graph.aggregateNeighbors
       .setStartingVertices(col("id") === sourceId)
       .setMaxHops(5) // Enough to reach vertex 4
-      .setTargetConditions(col("dst_id") === targetId) // Using dst_id from the internal join
+      .setTargetCondition(
+        AggregateNeighbors.dstAttr("id") === lit(targetId)
+      ) // Using dst_id from the internal join
       .addAccumulator(
         "path",
         // Initialize accumulator: start with source vertex ID
@@ -88,7 +107,7 @@ class AggregateNeighborsSuite extends SparkFunSuite with GraphFrameTestSparkCont
     val agg = graph.aggregateNeighbors
       .setStartingVertices(col("id") === sourceId)
       .setMaxHops(3)
-      .setTargetConditions(col("dst_id") === targetId)
+      .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(targetId))
       .addAccumulator(
         "sum_values",
         lit(0L),
@@ -138,7 +157,7 @@ class AggregateNeighborsSuite extends SparkFunSuite with GraphFrameTestSparkCont
     val agg = graph.aggregateNeighbors
       .setStartingVertices(col("id") === sourceId)
       .setMaxHops(10)
-      .setStoppingConditions(
+      .setStoppingCondition(
         // Stop when we've already visited the destination vertex
         array_contains(col("visited_vertices"), AggregateNeighbors.dstAttr("id")))
       .addAccumulator(
@@ -189,7 +208,7 @@ class AggregateNeighborsSuite extends SparkFunSuite with GraphFrameTestSparkCont
     val agg = graph.aggregateNeighbors
       .setStartingVertices(col("id") === sourceId)
       .setMaxHops(5)
-      .setTargetConditions(AggregateNeighbors.dstAttr("id") === targetId)
+      .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(targetId))
       .setEdgeFilter(AggregateNeighbors.edgeAttr("type") === lit("allowed"))
       .addAccumulator(
         "path",
