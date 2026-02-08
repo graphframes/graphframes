@@ -590,7 +590,7 @@ class GraphFrame private (
    *
    * The result DataFrame contains:
    *   - The accumulators' final values for collected vertices
-   *   - The vertex ID (in column "src_id")
+   *   - The vertex ID (in column "id")
    *   - The number of hops taken (in column "hop")
    *
    * Note: This is a stateful iterative algorithm that may be performance-intensive for large
