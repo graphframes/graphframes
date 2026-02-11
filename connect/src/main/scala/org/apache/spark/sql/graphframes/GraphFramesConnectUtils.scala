@@ -406,12 +406,21 @@ object GraphFramesConnectUtils {
         svdResult.withColumn("loss", lit(svd.loss))
       }
       case proto.GraphFramesAPI.MethodCase.TRIANGLE_COUNT => {
-        val trCounter = graphFrame.triangleCount
+        val message = apiMessage.getTriangleCount()
+        var trCounter =
+          graphFrame.triangleCount
 
-        if (apiMessage.getTriangleCount.hasStorageLevel) {
+        if (message.hasAlgorithm) {
+          trCounter = trCounter.setAlgorithm(message.getAlgorithm)
+        }
+
+        if (message.hasLgNomEntries) {
+          trCounter = trCounter.setLgNomEntries(message.getLgNomEntries)
+        }
+
+        if (message.hasStorageLevel) {
           trCounter
-            .setIntermediateStorageLevel(
-              parseStorageLevel(apiMessage.getTriangleCount.getStorageLevel))
+            .setIntermediateStorageLevel(parseStorageLevel(message.getStorageLevel))
             .run()
         } else {
           trCounter.run()

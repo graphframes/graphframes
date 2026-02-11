@@ -47,3 +47,13 @@ class InvalidGraphException(message: String) extends Exception(message)
 class GraphFramesW2VException(message: String) extends Exception(message)
 
 class GraphFramesUnsupportedVertexTypeException(message: String) extends Exception(message)
+
+/**
+ * Exception thrown when a Spark version requirement is not met.
+ *
+ * @param version
+ *   The minimum version of Apache Spark required.
+ */
+class GraphFramesSparkVersionException(version: String)
+    extends Exception(
+      s"Called GraphFrames feature requires at least $version or above version of Apache Spark")

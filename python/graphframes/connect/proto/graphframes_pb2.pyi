@@ -507,10 +507,19 @@ class SVDPlusPlus(_message.Message):
     ) -> None: ...
 
 class TriangleCount(_message.Message):
-    __slots__ = ("storage_level",)
+    __slots__ = ("storage_level", "algorithm", "lg_nom_entries")
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    ALGORITHM_FIELD_NUMBER: _ClassVar[int]
+    LG_NOM_ENTRIES_FIELD_NUMBER: _ClassVar[int]
     storage_level: StorageLevel
-    def __init__(self, storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
+    algorithm: str
+    lg_nom_entries: int
+    def __init__(
+        self,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        algorithm: _Optional[str] = ...,
+        lg_nom_entries: _Optional[int] = ...,
+    ) -> None: ...
 
 class Triplets(_message.Message):
     __slots__ = ()

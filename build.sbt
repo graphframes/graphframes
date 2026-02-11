@@ -3,12 +3,12 @@ import laika.config.SyntaxHighlighting
 import laika.format.Markdown.GitHubFlavor
 import org.typelevel.scalacoptions.ScalacOptions
 
-lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.6")
+lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.7")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val scalaVersions = sparkMajorVer match {
-  case "4" => Seq("2.13.16")
-  case "3" => Seq("2.12.20", "2.13.16")
+  case "4" => Seq("2.13.18")
+  case "3" => Seq("2.12.21", "2.13.18")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions.head)
@@ -65,7 +65,7 @@ ThisBuild / crossScalaVersions := scalaVersions
 
 // Scalafix configuration
 ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := "4.12.3" // The maximal version that supports both 2.13.12 and 2.12.18
+ThisBuild / semanticdbVersion := "4.14.5"
 
 // Don't publish the root project
 publishArtifact := false

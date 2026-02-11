@@ -767,13 +767,51 @@ class GraphFrame:
         gamma6: float = 0.005,
         gamma7: float = 0.015,
     ) -> tuple[DataFrame, float]:
-        """
-        Runs the SVD++ algorithm.
+        """Runs the SVD++ algorithm for Collaborative Filtering.
 
-        See Scala documentation for more details.
+        Based on the paper "Factorization Meets the Neighborhood: a Multifaceted Collaborative
+        Filtering Model" by Yehuda Koren (2008).
 
-        :return: Tuple of DataFrame with new vertex columns storing learned model, and loss value
-        """
+        **Algorithm Description**
+        SVD++ improves upon standard Matrix Factorization by incorporating implicit feedback
+        (the history of items a user has interacted with) alongside explicit ratings.
+        The prediction rule is:
+        ``r_ui = µ + b_u + b_i + q_i^T * (p_u + |N(u)|^-0.5 * sum(y_j for j in N(u)))``
+
+        **Input Requirements**
+        The input graph must be a **Directed Bipartite Graph**:
+        - **Vertices**: A mix of Users and Items.
+        - **Edges**: Directed strictly from **User (src) -> Item (dst)**.
+        - **Edge Attribute**: Represents the rating (weight).
+
+        :param rank: The number of latent factors (embedding size).
+        :param maxIter: The maximum number of iterations.
+        :param minValue: The minimum possible rating value (used for clipping predictions).
+        :param maxValue: The maximum possible rating value (used for clipping predictions).
+        :param gamma1: Learning rate for bias parameters (`b_u`, `b_i`).
+        :param gamma2: Learning rate for factor parameters (`p_u`, `q_i`, `y_j`).
+        :param gamma6: Regularization coefficient for bias parameters.
+        :param gamma7: Regularization coefficient for factor parameters.
+        :return: A tuple ``(v, loss)`` where:
+            - ``v`` is a DataFrame of vertices containing the trained model parameters (embeddings).
+            - ``loss`` is the final training loss (double).
+
+        **Output DataFrame Columns**
+        The returned DataFrame ``v`` contains the following new columns containing the model parameters:
+
+        - **column1** (Array[Double]): Primary Latent Factors (Explicit Embedding).
+            - For Users: Preferences vector (`p_u`).
+            - For Items: Characteristics vector (`q_i`).
+        - **column2** (Array[Double]): Implicit Factors (Implicit Embedding).
+            - For Items: Influence vector (`y_i`).
+            - For Users: Unused/Zero (users aggregate `y` from neighbors).
+        - **column3** (Double): Bias term.
+            - For Users: User bias (`b_u`).
+            - For Items: Item bias (`b_i`).
+        - **column4** (Double): Implicit Normalization term.
+            - For Users: Precomputed ``|N(u)|^-0.5``.
+            - For Items: Unused.
+        """  # noqa: E501
         return self._impl.svdPlusPlus(
             rank=rank,
             maxIter=maxIter,
@@ -785,21 +823,34 @@ class GraphFrame:
             gamma7=gamma7,
         )
 
-    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+    def triangleCount(
+        self, storage_level: StorageLevel, algorithm: str = "exact", lg_nom_entries: int = 12
+    ) -> DataFrame:
         """
-        Counts the number of triangles passing through each vertex in this graph.
-        This impementation is based on the computing the intersection of
-        vertices neighborhoods. It requires to collect the whole neighborhood of
-        each vertex. It may fail because of memory errors on graphs with power law
-        degrees distribution (graphs with a few very high-degree vertices). Consider
-        edges sampling for that case to get an approximate count of trangles.
+        Computes the number of triangles passing through each vertex.
+        This algorithm identifies sets of three vertices where each pair is connected by an edge.
 
-        :param storage_level: storage level that is used for both
-                              intermediate and final dataframes.
+        The implementation provides two algorithms:
+        - "exact": Computes the exact triangle count using set intersection of neighbor lists.
+          Note: This method can fail or encounter OOM errors on power-law graphs or graphs with
+          very high-degree nodes, as it requires collecting and intersecting the full neighbor
+          lists for the source and destination vertices of every edge.
+        - "approx": Uses DataSketches (Theta sketches) to estimate the triangle count. This
+          trades off perfect accuracy for significantly improved performance and lower memory
+          overhead, making it suitable for large-scale or dense graphs.
 
-        :return:  DataFrame with new vertex column "count"
-        """
-        return self._impl.triangleCount(storage_level=storage_level)
+        :param storage_level: Storage level for caching intermediate DataFrames.
+        :param algorithm: The triangle counting algorithm to use, "exact" or "approx" (default: "exact").
+        :param lg_nom_entries: The log2 of the nominal entries for the Theta sketch (only used
+                               if algorithm="approx"). Higher values increase accuracy at the
+                               cost of memory. (default: 12).
+        :return: A DataFrame containing the vertex "id" and the triangle "count".
+        """  # noqa: E501
+        if (__version__[:3] < "4.1") and (algorithm == "approx"):
+            raise ValueError("approximate algorithm requires Spark 4.1+")
+        return self._impl.triangleCount(
+            storage_level=storage_level, algorithm=algorithm, log_nom_entries=lg_nom_entries
+        )
 
     def powerIterationClustering(
         self, k: int, maxIter: int, weightCol: str | None = None

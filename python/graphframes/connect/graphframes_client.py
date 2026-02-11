@@ -1086,7 +1086,9 @@ class GraphFrameConnect:
         else:
             return (output.drop("loss"), -1.0)
 
-    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+    def triangleCount(
+        self, storage_level: StorageLevel, algorithm: str, log_nom_entries: int
+    ) -> DataFrame:
         @final
         class TriangleCount(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, storage_level: StorageLevel) -> None:
@@ -1101,7 +1103,11 @@ class GraphFrameConnect:
                     self.v, self.e, session
                 )
                 graphframes_api_call.triangle_count.CopyFrom(
-                    pb.TriangleCount(storage_level=storage_level_to_proto(self.storage_level))
+                    pb.TriangleCount(
+                        storage_level=storage_level_to_proto(self.storage_level),
+                        algorithm=algorithm,
+                        lg_nom_entries=log_nom_entries,
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
