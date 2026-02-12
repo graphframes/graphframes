@@ -378,9 +378,6 @@ class Hash2Vec extends Serializable {
 }
 
 object Hash2Vec {
-  // ==================================================================
-  // HELPER: Paged Matrix for Double (Unlimited Memory)
-  // ==================================================================
   /**
     * A paged matrix of double-precision vectors that stores vectors contiguously in large
     * fixed‑sized pages, each holding PAGE_SIZE (65536) vectors of dimension `dim`.
