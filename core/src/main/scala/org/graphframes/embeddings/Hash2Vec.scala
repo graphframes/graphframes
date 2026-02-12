@@ -230,7 +230,7 @@ class Hash2Vec extends Serializable {
           StructType(Seq(StructField("id", LongType), StructField("vector", VectorType))))
       case _ =>
         throw new GraphFramesUnsupportedVertexTypeException(
-          s"Hash2vec supports only string or numeric types of elements but gor ${elDataType.toString()}")
+          s"Hash2vec supports only string or numeric types of elements but got ${elDataType.toString()}")
     }
 
     val embeddings = spark
