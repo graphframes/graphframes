@@ -26,11 +26,9 @@ import org.apache.spark.unsafe.hash.Murmur3_x86_32.*
 import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.rw.RandomWalkBase
 
-import scala.annotation.nowarn
-import scala.collection.mutable.ArraySeq
 import scala.reflect.ClassTag
-import org.apache.spark.unsafe.Platform
 import org.apache.spark.sql.Column
+import scala.util.hashing.MurmurHash3
 
 /**
  * Implementation of Hash2Vec, an efficient word embedding technique using feature hashing. Based
@@ -158,26 +156,19 @@ class Hash2Vec extends Serializable {
 
   private var weightFunction: (Int) => Double = _
 
-  // To avoid "asInstance" in a hot loop,
-  // it is better to duplicate the code for each data type.
-
-  // Hash function factories for different types
-  private def getStringHashFunc(seed: Int): String => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (s: String) => {
-      val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
-      nonNegativeMod(
-        hashUnsafeBytes(bytes, Platform.BYTE_ARRAY_OFFSET.toLong, bytes.length, localSeed),
-        localDim)
+  private def seededStringHashFunc(s: String, seed: Int, dim: Int): Int = {
+    var h = seed
+    var i = 0
+    val len = s.length
+    while (i < len) {
+      h = MurmurHash3.mix(h, s.charAt(i).toInt)
+      i += 1
     }
+    nonNegativeMod(MurmurHash3.finalizeHash(h, len), dim)
   }
 
-  private def getLongHashFunc(seed: Int): Long => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (l: Long) => nonNegativeMod(hashLong(l, localSeed), localDim)
-  }
+  private def seededLongHashFunc(l: Long, seed: Int, dim: Int): Int =
+    nonNegativeMod(hashLong(l, seed), dim)
 
   private def normalize(vector: linalg.Vector, addChannel: Boolean): linalg.Vector = {
     val blas = BLAS.getInstance()
@@ -250,7 +241,6 @@ class Hash2Vec extends Serializable {
     }
   }
 
-  @nowarn
   private def runTyped[T: ClassTag](data: DataFrame): RDD[(T, Array[Double])] = {
     // we should put sequences starts from the same vertex
     // to the same partition when possible
@@ -260,7 +250,7 @@ class Hash2Vec extends Serializable {
       .sortWithinPartitions(col("hash_id"))
       .select(col(sequenceCol))
       .rdd
-      .map(_.getAs[ArraySeq[T]](0).toSeq)
+      .map(_.getSeq[T](0))
       .mapPartitions { iter =>
         val elemType = implicitly[ClassTag[T]].runtimeClass
         elemType match {
@@ -281,14 +271,15 @@ class Hash2Vec extends Serializable {
   private def processStringPartition(
       iter: Iterator[Seq[String]]): Iterator[(String, Array[Double])] = {
 
-    val localVocab = collection.mutable.HashMap[String, Array[Double]]()
+    val localHashSeed = hashingSeed
+    val localSignHashSeed = signHashingSeed
+    val localEmbeddingsDim = embeddingsDim
+
+    val localVocab = new collection.mutable.HashMap[String, Array[Double]]()
 
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
     val signs = Array[Double](-1.0, 1.0)
-
-    val valueHashFunc = getStringHashFunc(hashingSeed)
-    val signHashFunc = getStringHashFunc(signHashingSeed)
 
     while (iter.hasNext) {
       val seq = iter.next()
@@ -299,7 +290,7 @@ class Hash2Vec extends Serializable {
         val currentWord = seq(idx)
         var embedding: Array[Double] = localVocab.getOrElse(currentWord, null)
         if (embedding == null) {
-          embedding = new Array[Double](embeddingsDim)
+          embedding = new Array[Double](localEmbeddingsDim)
           localVocab.put(currentWord, embedding)
         }
         val start = math.max(0, idx - contextSize)
@@ -309,8 +300,8 @@ class Hash2Vec extends Serializable {
         while (cIdx <= end) {
           if (cIdx != idx) {
             val word = seq(cIdx)
-            val embeddingIdx = valueHashFunc(word)
-            val sign = signs(signHashFunc(word) % 2)
+            val embeddingIdx = seededStringHashFunc(word, localHashSeed, localEmbeddingsDim)
+            val sign = signs(seededStringHashFunc(word, localSignHashSeed, 2))
             val weight = weightCache(math.abs(cIdx - idx))
             embedding(embeddingIdx) += sign * weight
           }
@@ -326,14 +317,17 @@ class Hash2Vec extends Serializable {
   // Specialized partition processing for Long
   private def processLongPartition(iter: Iterator[Seq[Long]]): Iterator[(Long, Array[Double])] = {
 
-    val localVocab = collection.mutable.HashMap[Long, Array[Double]]()
+    val localHashSeed = hashingSeed
+    val localSignHashSeed = signHashingSeed
+    val localEmbeddingsDim = embeddingsDim
+
+    val vocabIndex = new collection.mutable.HashMap[Long, Int]()
+    vocabIndex.sizeHint(100000)
+    val matrix = Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
 
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
     val signs = Array[Double](-1.0, 1.0)
-
-    val valueHashFunc = getLongHashFunc(hashingSeed)
-    val signHashFunc = getLongHashFunc(signHashingSeed)
 
     while (iter.hasNext) {
       val seq = iter.next()
@@ -342,11 +336,14 @@ class Hash2Vec extends Serializable {
 
       while (idx < currentSeqSize) {
         val currentWord = seq(idx)
-        var embedding: Array[Double] = localVocab.getOrElse(currentWord, null)
-        if (embedding == null) {
-          embedding = new Array[Double](embeddingsDim)
-          localVocab.put(currentWord, embedding)
+
+        var vectorId = vocabIndex.getOrElse(currentWord, -1)
+
+        if (vectorId == -1) {
+          vectorId = matrix.allocateVector()
+          vocabIndex.put(currentWord, vectorId)
         }
+
         val start = math.max(0, idx - contextSize)
         val end = math.min(currentSeqSize - 1, idx + contextSize)
         var cIdx = start
@@ -354,10 +351,11 @@ class Hash2Vec extends Serializable {
         while (cIdx <= end) {
           if (cIdx != idx) {
             val word = seq(cIdx)
-            val embeddingIdx = valueHashFunc(word)
-            val sign = signs(signHashFunc(word) % 2)
+            val embeddingIdx = seededLongHashFunc(word, localHashSeed, localEmbeddingsDim)
+            val sign = signs(seededLongHashFunc(word, localSignHashSeed, 2))
             val weight = weightCache(math.abs(cIdx - idx))
-            embedding(embeddingIdx) += sign * weight
+
+            matrix.add(vectorId, embeddingIdx, sign * weight)
           }
           cIdx += 1
         }
@@ -365,7 +363,66 @@ class Hash2Vec extends Serializable {
       }
     }
 
-    localVocab.iterator
+    vocabIndex.iterator.map { case (word, vectorId) =>
+      (word, matrix.getVector(vectorId))
+    }
   }
+}
 
+object Hash2Vec {
+  // ==================================================================
+  // HELPER: Paged Matrix for Double (Unlimited Memory)
+  // ==================================================================
+  private[graphframes] case class PagedMatrixDouble(val dim: Int) {
+    private final val PAGE_BITS = 16
+    private final val PAGE_SIZE = 1 << PAGE_BITS // 65536 -> 2^16
+    private final val PAGE_MASK = PAGE_SIZE - 1 // 0xFFFF
+
+    private val pages = new collection.mutable.ArrayBuffer[Array[Double]]()
+    private var vectorCount = 0
+
+    addPage()
+
+    private def addPage(): Unit = {
+      val size = PAGE_SIZE.toLong * dim
+      if (size > Int.MaxValue) {
+        throw new RuntimeException(s"Dimension $dim is too large for current Page Size.")
+      }
+      pages += new Array[Double](size.toInt)
+    }
+
+    def allocateVector(): Int = {
+      val id = vectorCount
+      val localIdx = id & PAGE_MASK // ~id % 65536
+
+      if (localIdx == 0 && id > 0) {
+        addPage()
+      }
+
+      vectorCount += 1
+      id
+    }
+
+    @inline
+    def add(vectorId: Int, offset: Int, value: Double): Unit = {
+      // vectorId / 65536
+      val pageIdx = vectorId >>> PAGE_BITS
+      // vectorId % 65536
+      val localRow = vectorId & PAGE_MASK
+
+      val idx = (localRow * dim) + offset
+      pages(pageIdx)(idx) += value
+    }
+
+    def getVector(vectorId: Int): Array[Double] = {
+      val pageIdx = vectorId >>> PAGE_BITS
+      val localRow = vectorId & PAGE_MASK
+      val page = pages(pageIdx)
+
+      val res = new Array[Double](dim)
+      val startPos = localRow * dim
+      System.arraycopy(page, startPos, res, 0, dim)
+      res
+    }
+  }
 }
