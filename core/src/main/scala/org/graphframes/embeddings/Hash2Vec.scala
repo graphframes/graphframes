@@ -13,6 +13,7 @@ import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.functions.hash
 import org.apache.spark.sql.functions.pmod
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.transform
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.ByteType
 import org.apache.spark.sql.types.IntegerType
@@ -29,6 +30,7 @@ import scala.annotation.nowarn
 import scala.collection.mutable.ArraySeq
 import scala.reflect.ClassTag
 import org.apache.spark.unsafe.Platform
+import org.apache.spark.sql.Column
 
 /**
  * Implementation of Hash2Vec, an efficient word embedding technique using feature hashing. Based
@@ -156,56 +158,25 @@ class Hash2Vec extends Serializable {
 
   private var weightFunction: (Int) => Double = _
 
+  // To avoid "asInstance" in a hot loop,
+  // it is better to duplicate the code for each data type.
+
   // Hash function factories for different types
   private def getStringHashFunc(seed: Int): String => Int = {
     val localSeed = seed
     val localDim = embeddingsDim
     (s: String) => {
       val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
-      nonNegativeMod(hashUnsafeBytes(bytes, Platform.BYTE_ARRAY_OFFSET, bytes.length, localSeed), localDim)
+      nonNegativeMod(
+        hashUnsafeBytes(bytes, Platform.BYTE_ARRAY_OFFSET.toLong, bytes.length, localSeed),
+        localDim)
     }
-  }
-
-  private def getIntHashFunc(seed: Int): Int => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (i: Int) => nonNegativeMod(hashInt(i, localSeed), localDim)
   }
 
   private def getLongHashFunc(seed: Int): Long => Int = {
     val localSeed = seed
     val localDim = embeddingsDim
     (l: Long) => nonNegativeMod(hashLong(l, localSeed), localDim)
-  }
-
-  private def getByteHashFunc(seed: Int): Byte => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (b: Byte) => nonNegativeMod(hashInt(b.toInt, localSeed), localDim)
-  }
-
-  private def getShortHashFunc(seed: Int): Short => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (s: Short) => nonNegativeMod(hashInt(s.toInt, localSeed), localDim)
-  }
-
-  private def getFloatHashFunc(seed: Int): Float => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (f: Float) => nonNegativeMod(hashInt(java.lang.Float.floatToIntBits(f), localSeed), localDim)
-  }
-
-  private def getDoubleHashFunc(seed: Int): Double => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (d: Double) => nonNegativeMod(hashLong(java.lang.Double.doubleToLongBits(d), localSeed), localDim)
-  }
-
-  private def getBooleanHashFunc(seed: Int): Boolean => Int = {
-    val localSeed = seed
-    val localDim = embeddingsDim
-    (b: Boolean) => nonNegativeMod(hashInt(if (b) 1 else 0, localSeed), localDim)
   }
 
   private def normalize(vector: linalg.Vector, addChannel: Boolean): linalg.Vector = {
@@ -228,10 +199,22 @@ class Hash2Vec extends Serializable {
    * "id" (element ID, same type as elements) and "vector" (embedding vector, VectorType).
    * Embeddings are summed across all partitions and occurrences.
    */
-  def run(data: DataFrame): DataFrame = {
-    val spark = data.sparkSession
-    require(data.schema(sequenceCol).dataType.isInstanceOf[ArrayType], "sequence should be array")
-    val elDataType = data.schema(sequenceCol).dataType.asInstanceOf[ArrayType].elementType
+  def run(rawData: DataFrame): DataFrame = {
+    val spark = rawData.sparkSession
+    require(
+      rawData.schema(sequenceCol).dataType.isInstanceOf[ArrayType],
+      "sequence should be array")
+    val elDataType = rawData.schema(sequenceCol).dataType.asInstanceOf[ArrayType].elementType
+
+    val data =
+      if (elDataType.isInstanceOf[ByteType] || elDataType.isInstanceOf[ShortType] || elDataType
+          .isInstanceOf[IntegerType]) {
+        rawData.withColumn(
+          sequenceCol,
+          transform(col(sequenceCol), (f: Column) => f.cast(LongType)))
+      } else {
+        rawData
+      }
 
     weightFunction = decayFunction match {
       case "gaussian" => (d: Int) => decayGaussian(d, gaussianSigma)
@@ -239,26 +222,11 @@ class Hash2Vec extends Serializable {
       case _ => throw new RuntimeException(s"unsupported decay functions $decayFunction")
     }
 
-    valueHash = (el: Any) => nonNegativeMod(hashFunc(el, hashingSeed), embeddingsDim)
-    signHash = (el: Any) => nonNegativeMod(hashFunc(el, signHashingSeed), 2)
-
     val (rowRDD, schema) = elDataType match {
       case _: StringType =>
         (
           runTyped[String](data).map(f => Row(f._1, Vectors.dense(f._2))),
           StructType(Seq(StructField("id", StringType), StructField("vector", VectorType))))
-      case _: ByteType =>
-        (
-          runTyped[Byte](data).map(f => Row(f._1, Vectors.dense(f._2))),
-          StructType(Seq(StructField("id", ByteType), StructField("vector", VectorType))))
-      case _: ShortType =>
-        (
-          runTyped[Short](data).map(f => Row(f._1, Vectors.dense(f._2))),
-          StructType(Seq(StructField("id", ShortType), StructField("vector", VectorType))))
-      case _: IntegerType =>
-        (
-          runTyped[Int](data).map(f => Row(f._1, Vectors.dense(f._2))),
-          StructType(Seq(StructField("id", IntegerType), StructField("vector", VectorType))))
       case _: LongType =>
         (
           runTyped[Long](data).map(f => Row(f._1, Vectors.dense(f._2))),
@@ -287,8 +255,9 @@ class Hash2Vec extends Serializable {
     // we should put sequences starts from the same vertex
     // to the same partition when possible
     data
-      .withColumn("hash_id", pmod(hash(col(sequenceCol).getItem(1)), lit(numPartitions)))
+      .withColumn("hash_id", pmod(hash(col(sequenceCol).getItem(0)), lit(numPartitions)))
       .repartition(numPartitions, col("hash_id"))
+      .sortWithinPartitions(col("hash_id"))
       .select(col(sequenceCol))
       .rdd
       .map(_.getAs[ArraySeq[T]](0).toSeq)
@@ -298,17 +267,8 @@ class Hash2Vec extends Serializable {
           case clazz if clazz == classOf[String] =>
             processStringPartition(iter.asInstanceOf[Iterator[Seq[String]]])
               .asInstanceOf[Iterator[(T, Array[Double])]]
-          case clazz if clazz == classOf[Int] =>
-            processIntPartition(iter.asInstanceOf[Iterator[Seq[Int]]])
-              .asInstanceOf[Iterator[(T, Array[Double])]]
           case clazz if clazz == classOf[Long] =>
             processLongPartition(iter.asInstanceOf[Iterator[Seq[Long]]])
-              .asInstanceOf[Iterator[(T, Array[Double])]]
-          case clazz if clazz == classOf[Byte] =>
-            processBytePartition(iter.asInstanceOf[Iterator[Seq[Byte]]])
-              .asInstanceOf[Iterator[(T, Array[Double])]]
-          case clazz if clazz == classOf[Short] =>
-            processShortPartition(iter.asInstanceOf[Iterator[Seq[Short]]])
               .asInstanceOf[Iterator[(T, Array[Double])]]
           case _ =>
             throw new GraphFramesUnsupportedVertexTypeException(
@@ -318,21 +278,12 @@ class Hash2Vec extends Serializable {
   }
 
   // Specialized partition processing for String
-  private def processStringPartition(iter: Iterator[Seq[String]]): Iterator[(String, Array[Double])] = {
+  private def processStringPartition(
+      iter: Iterator[Seq[String]]): Iterator[(String, Array[Double])] = {
     processPartitionGeneric[String](
       iter,
       getStringHashFunc(hashingSeed),
-      getStringHashFunc(signHashingSeed)
-    )
-  }
-
-  // Specialized partition processing for Int
-  private def processIntPartition(iter: Iterator[Seq[Int]]): Iterator[(Int, Array[Double])] = {
-    processPartitionGeneric[Int](
-      iter,
-      getIntHashFunc(hashingSeed),
-      getIntHashFunc(signHashingSeed)
-    )
+      getStringHashFunc(signHashingSeed))
   }
 
   // Specialized partition processing for Long
@@ -340,26 +291,7 @@ class Hash2Vec extends Serializable {
     processPartitionGeneric[Long](
       iter,
       getLongHashFunc(hashingSeed),
-      getLongHashFunc(signHashingSeed)
-    )
-  }
-
-  // Specialized partition processing for Byte
-  private def processBytePartition(iter: Iterator[Seq[Byte]]): Iterator[(Byte, Array[Double])] = {
-    processPartitionGeneric[Byte](
-      iter,
-      getByteHashFunc(hashingSeed),
-      getByteHashFunc(signHashingSeed)
-    )
-  }
-
-  // Specialized partition processing for Short
-  private def processShortPartition(iter: Iterator[Seq[Short]]): Iterator[(Short, Array[Double])] = {
-    processPartitionGeneric[Short](
-      iter,
-      getShortHashFunc(hashingSeed),
-      getShortHashFunc(signHashingSeed)
-    )
+      getLongHashFunc(signHashingSeed))
   }
 
   // Generic implementation used by all specialized methods
@@ -367,24 +299,25 @@ class Hash2Vec extends Serializable {
       iter: Iterator[Seq[T]],
       valueHashFunc: T => Int,
       signHashFunc: T => Int): Iterator[(T, Array[Double])] = {
-    
+
     val localVocab = collection.mutable.HashMap[T, Array[Double]]()
-    // Cache for computed value hashes
-    val valueHashCache = collection.mutable.HashMap[T, Int]()
-    // Cache for computed sign hashes (0 or 1)
-    val signHashCache = collection.mutable.HashMap[T, Int]()
-    
+
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
+    val signs = Array[Double](-1.0, 1.0)
 
     while (iter.hasNext) {
       val seq = iter.next()
       val currentSeqSize = seq.length
       var idx = 0
-      
+
       while (idx < currentSeqSize) {
         val currentWord = seq(idx)
-        val embedding = localVocab.getOrElseUpdate(currentWord, new Array[Double](embeddingsDim))
+        var embedding: Array[Double] = localVocab.getOrElse(currentWord, null)
+        if (embedding == null) {
+          embedding = new Array[Double](embeddingsDim)
+          localVocab.put(currentWord, embedding)
+        }
         val start = math.max(0, idx - contextSize)
         val end = math.min(currentSeqSize - 1, idx + contextSize)
         var cIdx = start
@@ -392,17 +325,8 @@ class Hash2Vec extends Serializable {
         while (cIdx <= end) {
           if (cIdx != idx) {
             val word = seq(cIdx)
-            
-            // Get or compute value hash (embedding index)
-            val embeddingIdx = valueHashCache.getOrElseUpdate(word, valueHashFunc(word))
-            
-            // Get or compute sign hash (0 or 1) and convert to -1.0 or 1.0
-            val signIdx = signHashCache.getOrElseUpdate(word, {
-              val hash = signHashFunc(word)
-              if (hash % 2 == 0) 0 else 1
-            })
-            val sign = if (signIdx == 0) -1.0 else 1.0
-            
+            val embeddingIdx = valueHashFunc(word)
+            val sign = signs(signHashFunc(word) % 2)
             val weight = weightCache(math.abs(cIdx - idx))
             embedding(embeddingIdx) += sign * weight
           }
