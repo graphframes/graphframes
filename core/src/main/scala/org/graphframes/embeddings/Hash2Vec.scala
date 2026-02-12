@@ -275,7 +275,9 @@ class Hash2Vec extends Serializable {
     val localSignHashSeed = signHashingSeed
     val localEmbeddingsDim = embeddingsDim
 
-    val localVocab = new collection.mutable.HashMap[String, Array[Double]]()
+    val vocabIndex = new collection.mutable.HashMap[String, Int]()
+    vocabIndex.sizeHint(100000)
+    val matrix = Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
 
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
@@ -288,11 +290,14 @@ class Hash2Vec extends Serializable {
 
       while (idx < currentSeqSize) {
         val currentWord = seq(idx)
-        var embedding: Array[Double] = localVocab.getOrElse(currentWord, null)
-        if (embedding == null) {
-          embedding = new Array[Double](localEmbeddingsDim)
-          localVocab.put(currentWord, embedding)
+
+        var vectorId = vocabIndex.getOrElse(currentWord, -1)
+
+        if (vectorId == -1) {
+          vectorId = matrix.allocateVector()
+          vocabIndex.put(currentWord, vectorId)
         }
+
         val start = math.max(0, idx - contextSize)
         val end = math.min(currentSeqSize - 1, idx + contextSize)
         var cIdx = start
@@ -303,7 +308,8 @@ class Hash2Vec extends Serializable {
             val embeddingIdx = seededStringHashFunc(word, localHashSeed, localEmbeddingsDim)
             val sign = signs(seededStringHashFunc(word, localSignHashSeed, 2))
             val weight = weightCache(math.abs(cIdx - idx))
-            embedding(embeddingIdx) += sign * weight
+
+            matrix.add(vectorId, embeddingIdx, sign * weight)
           }
           cIdx += 1
         }
@@ -311,7 +317,9 @@ class Hash2Vec extends Serializable {
       }
     }
 
-    localVocab.iterator
+    vocabIndex.iterator.map { case (word, vectorId) =>
+      (word, matrix.getVector(vectorId))
+    }
   }
 
   // Specialized partition processing for Long
