@@ -214,4 +214,151 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
       assert(vecSecondPage(idx) == 0.0)
     }
   }
+
+  test("Hash2Vec - cosine distances reflect co‑occurrence patterns") {
+    // Create a tiny dataset where some words co‑occur often, others rarely.
+    // We'll use string sequences for simplicity.
+    val sequences = Seq(
+      Seq("apple", "banana", "apple", "cherry", "banana"),
+      Seq("apple", "banana", "cherry", "banana"),
+      Seq("apple", "banana", "apple", "banana", "banana"),
+      Seq("cherry", "date", "cherry", "date"),
+      Seq("date", "elderberry", "date"),
+      Seq("elderberry", "fig", "elderberry"),
+      Seq("fig", "fig", "fig")                 // fig appears often alone
+    )
+
+    import spark.implicits._
+    val df = spark.createDataFrame(sequences.map(Tuple1(_))).toDF("seq")
+
+    val embeddings = new Hash2Vec()
+      .setSequenceCol("seq")
+      .setEmbeddingsDim(128)       // enough dimensions to capture patterns
+      .setContextSize(2)
+      .setDecayFunction("constant")
+      .setHashingSeed(777)
+      .setSignHashSeed(888)
+      .run(df)
+
+    // Collect embeddings into a local map
+    val embMap = embeddings.collect().map { row =>
+      val id = row.getString(0)
+      val vec = row.getAs[DenseVector](1)
+      id -> vec
+    }.toMap
+
+    // Helper to compute cosine similarity between two vectors
+    def cosineSimilarity(v1: DenseVector, v2: DenseVector): Double = {
+      val a = v1.values
+      val b = v2.values
+      require(a.length == b.length)
+      var dot = 0.0
+      var norm1 = 0.0
+      var norm2 = 0.0
+      var i = 0
+      while (i < a.length) {
+        dot += a(i) * b(i)
+        norm1 += a(i) * a(i)
+        norm2 += b(i) * b(i)
+        i += 1
+      }
+      dot / (math.sqrt(norm1) * math.sqrt(norm2))
+    }
+
+    // apple and banana co‑occur very frequently → high similarity
+    val appleBananaSim = cosineSimilarity(embMap("apple"), embMap("banana"))
+    // cherry and date also co‑occur frequently (in the fourth sequence)
+    val cherryDateSim = cosineSimilarity(embMap("cherry"), embMap("date"))
+    // apple and fig almost never appear together → low similarity
+    val appleFigSim = cosineSimilarity(embMap("apple"), embMap("fig"))
+    // banana and fig also rarely together
+    val bananaFigSim = cosineSimilarity(embMap("banana"), embMap("fig"))
+    // elderberry and fig co‑occur (sixth sequence)
+    val elderberryFigSim = cosineSimilarity(embMap("elderberry"), embMap("fig"))
+    // apple and cherry appear together a few times (first two sequences)
+    val appleCherrySim = cosineSimilarity(embMap("apple"), embMap("cherry"))
+
+    // Assert ordering of similarities matches expected co‑occurrence patterns
+    // apple‑banana should be among the highest similarities
+    assert(appleBananaSim > 0.3, s"apple‑banana similarity $appleBananaSim should be > 0.3")
+    // apple‑fig should be low (close to zero or negative)
+    assert(appleFigSim < appleBananaSim, s"apple‑fig ($appleFigSim) should be < apple‑banana ($appleBananaSim)")
+    assert(bananaFigSim < appleBananaSim, s"banana‑fig ($bananaFigSim) should be < apple‑banana ($appleBananaSim)")
+    // cherry‑date similarity should be relatively high (they co‑occur exclusively)
+    assert(cherryDateSim > 0.2, s"cherry‑date similarity $cherryDateSim should be > 0.2")
+    // elderberry‑fig should be higher than apple‑fig (because they co‑occur)
+    assert(elderberryFigSim > appleFigSim, s"elderberry‑fig ($elderberryFigSim) should be > apple‑fig ($appleFigSim)")
+
+    // Self‑similarity should be 1.0 (or close after normalization)
+    val appleSelf = cosineSimilarity(embMap("apple"), embMap("apple"))
+    assert(math.abs(appleSelf - 1.0) < 1e-6, s"self‑similarity should be ~1.0, got $appleSelf")
+  }
+
+  test("Hash2Vec - long‑typed co‑occurrence") {
+    // Use numeric ids to test long sequences.
+    val sequences = Seq(
+      Seq(1L, 2L, 1L, 3L, 2L),    // 1‑2 frequent, 3 appears with 2
+      Seq(1L, 2L, 3L, 2L),
+      Seq(1L, 2L, 1L, 2L, 2L),
+      Seq(3L, 4L, 3L, 4L),        // 3‑4 frequent pair
+      Seq(4L, 5L, 4L),
+      Seq(5L, 6L, 5L),
+      Seq(6L, 6L, 6L)
+    )
+
+    import spark.implicits._
+    val df = spark.createDataFrame(sequences.map(Tuple1(_))).toDF("seq")
+
+    val embeddings = new Hash2Vec()
+      .setSequenceCol("seq")
+      .setEmbeddingsDim(128)
+      .setContextSize(2)
+      .setDecayFunction("constant")
+      .setHashingSeed(777)
+      .setSignHashSeed(888)
+      .run(df)
+
+    val embMap = embeddings.collect().map { row =>
+      val id = row.getLong(0)
+      val vec = row.getAs[DenseVector](1)
+      id -> vec
+    }.toMap
+
+    def cosineSimilarity(v1: DenseVector, v2: DenseVector): Double = {
+      val a = v1.values
+      val b = v2.values
+      var dot = 0.0
+      var norm1 = 0.0
+      var norm2 = 0.0
+      var i = 0
+      while (i < a.length) {
+        dot += a(i) * b(i)
+        norm1 += a(i) * a(i)
+        norm2 += b(i) * b(i)
+        i += 1
+      }
+      dot / (math.sqrt(norm1) * math.sqrt(norm2))
+    }
+
+    val sim12 = cosineSimilarity(embMap(1L), embMap(2L))
+    val sim13 = cosineSimilarity(embMap(1L), embMap(3L))
+    val sim34 = cosineSimilarity(embMap(3L), embMap(4L))
+    val sim16 = cosineSimilarity(embMap(1L), embMap(6L))
+    val sim56 = cosineSimilarity(embMap(5L), embMap(6L))
+
+    // 1‑2 co‑occur very often
+    assert(sim12 > 0.3, s"1‑2 similarity $sim12 should be > 0.3")
+    // 1‑3 appear together less often than 1‑2
+    assert(sim13 < sim12, s"1‑3 ($sim13) should be < 1‑2 ($sim12)")
+    // 3‑4 are exclusive pair
+    assert(sim34 > 0.2, s"3‑4 similarity $sim34 should be > 0.2")
+    // 1 and 6 almost never together
+    assert(sim16 < 0.1, s"1‑6 similarity $sim16 should be near zero")
+    // 5‑6 co‑occur in a sequence
+    assert(sim56 > sim16, s"5‑6 ($sim56) should be > 1‑6 ($sim16)")
+
+    // Self similarity
+    val self = cosineSimilarity(embMap(1L), embMap(1L))
+    assert(math.abs(self - 1.0) < 1e-6, s"self‑similarity should be ~1.0, got $self")
+  }
 }
