@@ -364,51 +364,79 @@ class Hash2Vec extends Serializable {
     val localHashSeed = hashingSeed
     val localSignHashSeed = signHashingSeed
     val localEmbeddingsDim = embeddingsDim
+    val localContextSize = contextSize
+    val localMaxVectors = maxVectorsPerPartition
 
-    val vocabIndex = new collection.mutable.LongMap[Int]()
-    vocabIndex.sizeHint(100000)
-    val matrix = new Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
-
-    val weightCache = new Array[Double](contextSize + 1)
-    for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
+    val weightCache = new Array[Double](localContextSize + 1)
+    for (d <- 1 to localContextSize) weightCache(d) = weightFunction(d)
     val signs = Array[Double](-1.0, 1.0)
 
-    while (iter.hasNext) {
-      val seq = iter.next()
-      val currentSeqSize = seq.length
-      var idx = 0
+    new Iterator[(Long, Array[Double])] {
+      
+      var currentBatchResult: Iterator[(Long, Array[Double])] = Iterator.empty
+      
+      var vocabIndex: collection.mutable.LongMap[Int] = _
+      var matrix: Hash2Vec.PagedMatrixDouble = _
 
-      while (idx < currentSeqSize) {
-        val currentWord = seq(idx)
-
-        var vectorId = vocabIndex.getOrElse(currentWord, -1)
-
-        if (vectorId == -1) {
-          vectorId = matrix.allocateVector()
-          vocabIndex.put(currentWord, vectorId)
-        }
-
-        val start = math.max(0, idx - contextSize)
-        val end = math.min(currentSeqSize - 1, idx + contextSize)
-        var cIdx = start
-
-        while (cIdx <= end) {
-          if (cIdx != idx) {
-            val word = seq(cIdx)
-            val embeddingIdx = seededLongHashFunc(word, localHashSeed, localEmbeddingsDim)
-            val sign = signs(seededLongHashFunc(word, localSignHashSeed, 2))
-            val weight = weightCache(math.abs(cIdx - idx))
-
-            matrix.add(vectorId, embeddingIdx, sign * weight)
-          }
-          cIdx += 1
-        }
-        idx += 1
+      override def hasNext: Boolean = {
+        if (currentBatchResult.hasNext) return true
+        if (!iter.hasNext) return false
+        
+        fetchNextBatch()
+        currentBatchResult.hasNext
       }
-    }
 
-    vocabIndex.iterator.map { case (word, vectorId) =>
-      (word, matrix.getVector(vectorId))
+      override def next(): (Long, Array[Double]) = {
+        currentBatchResult.next()
+      }
+
+      private def fetchNextBatch(): Unit = {
+        vocabIndex = new collection.mutable.LongMap[Int]()
+        vocabIndex.sizeHint(math.min(localMaxVectors, 100000))
+        
+        matrix = new Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
+        
+        var currentBatchSize = 0
+        
+        while (iter.hasNext && currentBatchSize < localMaxVectors) {
+          val seq = iter.next()
+          val currentSeqSize = seq.length
+          var idx = 0
+
+          while (idx < currentSeqSize) {
+            val currentWord = seq(idx)
+
+            var vectorId = vocabIndex.getOrElse(currentWord, -1)
+
+            if (vectorId == -1) {
+               vectorId = matrix.allocateVector()
+               vocabIndex.put(currentWord, vectorId)
+               currentBatchSize += 1
+            }
+
+            val start = math.max(0, idx - localContextSize)
+            val end = math.min(currentSeqSize - 1, idx + localContextSize)
+            var cIdx = start
+
+            while (cIdx <= end) {
+              if (cIdx != idx) {
+                val word = seq(cIdx)
+                val embeddingIdx = seededLongHashFunc(word, localHashSeed, localEmbeddingsDim)
+                val sign = signs(seededLongHashFunc(word, localSignHashSeed, 2))
+                val weight = weightCache(math.abs(cIdx - idx))
+
+                matrix.add(vectorId, embeddingIdx, sign * weight)
+              }
+              cIdx += 1
+            }
+            idx += 1
+          }
+        }
+        
+        currentBatchResult = vocabIndex.iterator.map { case (word, id) =>
+          (word, matrix.getVector(id))
+        }
+      }
     }
   }
 }
