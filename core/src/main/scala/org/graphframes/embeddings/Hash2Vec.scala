@@ -329,7 +329,7 @@ class Hash2Vec extends Serializable {
     val localSignHashSeed = signHashingSeed
     val localEmbeddingsDim = embeddingsDim
 
-    val vocabIndex = new collection.mutable.LongMap[Long, Int]()
+    val vocabIndex = new collection.mutable.LongMap[Int]()
     vocabIndex.sizeHint(100000)
     val matrix = new Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
 
@@ -378,6 +378,7 @@ class Hash2Vec extends Serializable {
 }
 
 object Hash2Vec {
+
   /**
    * A paged matrix of double-precision vectors that stores vectors contiguously in large
    * fixed‑sized pages, each holding PAGE_SIZE (65536) vectors of dimension `dim`.
