@@ -10,6 +10,9 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.hash
+import org.apache.spark.sql.functions.pmod
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.ByteType
 import org.apache.spark.sql.types.IntegerType
@@ -19,13 +22,13 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.hash.Murmur3_x86_32.*
-import org.apache.spark.unsafe.types.UTF8String
 import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.rw.RandomWalkBase
 
 import scala.annotation.nowarn
 import scala.collection.mutable.ArraySeq
 import scala.reflect.ClassTag
+import org.apache.spark.unsafe.Platform
 
 /**
  * Implementation of Hash2Vec, an efficient word embedding technique using feature hashing. Based
@@ -165,9 +168,14 @@ class Hash2Vec extends Serializable {
       case l: Long => hashLong(l, seed)
       case f: Float => hashInt(java.lang.Float.floatToIntBits(f), seed)
       case d: Double => hashLong(java.lang.Double.doubleToLongBits(d), seed)
-      case s: String =>
-        val utf8 = UTF8String.fromString(s)
-        hashUnsafeBytes(utf8.getBaseObject, utf8.getBaseOffset, utf8.numBytes(), seed)
+      case s: String => {
+        val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        hashUnsafeBytes(
+          bytes,
+          Platform.BYTE_ARRAY_OFFSET.toLong,
+          bytes.length,
+          seed)
+      }
       case _ =>
         throw new GraphFramesUnsupportedVertexTypeException(
           "Hashing2vec with murmur3 algorithm does not " +
@@ -251,11 +259,14 @@ class Hash2Vec extends Serializable {
 
   @nowarn
   private def runTyped[T: ClassTag](data: DataFrame): RDD[(T, Array[Double])] = {
+    // we should put sequences starts from the same vertex
+    // to the same partition when possible
     data
+      .withColumn("hash_id", pmod(hash(col(sequenceCol).getItem(1)), lit(numPartitions)))
+      .repartition(numPartitions, col("hash_id"))
       .select(col(sequenceCol))
       .rdd
       .map(_.getAs[ArraySeq[T]](0).toSeq)
-      .repartition(numPartitions)
       .mapPartitions(processPartition[T])
   }
 
@@ -264,9 +275,6 @@ class Hash2Vec extends Serializable {
     val signMultiplier: Array[Double] = Array(-1.0, 1.0)
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
-
-    val valueHashCache = collection.mutable.HashMap[T, Int]()
-    val signHashCache = collection.mutable.HashMap[T, Int]()
 
     while (iter.hasNext) {
       val seq = iter.next()
@@ -283,9 +291,8 @@ class Hash2Vec extends Serializable {
           if (cIdx != idx) {
             val word = seq(cIdx)
             val weight = weightCache(math.abs(cIdx - idx))
-            val currentSignHash = signHashCache.getOrElseUpdate(word, signHash(word))
-            val sign = signMultiplier(currentSignHash)
-            val embeddingIdx = valueHashCache.getOrElseUpdate(word, valueHash(word))
+            val sign = signHash(word)
+            val embeddingIdx = valueHash(word)
             embedding(embeddingIdx) += sign * weight
           }
           cIdx += 1
