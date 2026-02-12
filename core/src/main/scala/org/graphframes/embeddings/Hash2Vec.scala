@@ -280,31 +280,15 @@ class Hash2Vec extends Serializable {
   // Specialized partition processing for String
   private def processStringPartition(
       iter: Iterator[Seq[String]]): Iterator[(String, Array[Double])] = {
-    processPartitionGeneric[String](
-      iter,
-      getStringHashFunc(hashingSeed),
-      getStringHashFunc(signHashingSeed))
-  }
 
-  // Specialized partition processing for Long
-  private def processLongPartition(iter: Iterator[Seq[Long]]): Iterator[(Long, Array[Double])] = {
-    processPartitionGeneric[Long](
-      iter,
-      getLongHashFunc(hashingSeed),
-      getLongHashFunc(signHashingSeed))
-  }
-
-  // Generic implementation used by all specialized methods
-  private def processPartitionGeneric[T](
-      iter: Iterator[Seq[T]],
-      valueHashFunc: T => Int,
-      signHashFunc: T => Int): Iterator[(T, Array[Double])] = {
-
-    val localVocab = collection.mutable.HashMap[T, Array[Double]]()
+    val localVocab = collection.mutable.HashMap[String, Array[Double]]()
 
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
     val signs = Array[Double](-1.0, 1.0)
+
+    val valueHashFunc = getStringHashFunc(hashingSeed)
+    val signHashFunc = getStringHashFunc(signHashingSeed)
 
     while (iter.hasNext) {
       val seq = iter.next()
@@ -338,4 +322,50 @@ class Hash2Vec extends Serializable {
 
     localVocab.iterator
   }
+
+  // Specialized partition processing for Long
+  private def processLongPartition(iter: Iterator[Seq[Long]]): Iterator[(Long, Array[Double])] = {
+
+    val localVocab = collection.mutable.HashMap[Long, Array[Double]]()
+
+    val weightCache = new Array[Double](contextSize + 1)
+    for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
+    val signs = Array[Double](-1.0, 1.0)
+
+    val valueHashFunc = getLongHashFunc(hashingSeed)
+    val signHashFunc = getLongHashFunc(signHashingSeed)
+
+    while (iter.hasNext) {
+      val seq = iter.next()
+      val currentSeqSize = seq.length
+      var idx = 0
+
+      while (idx < currentSeqSize) {
+        val currentWord = seq(idx)
+        var embedding: Array[Double] = localVocab.getOrElse(currentWord, null)
+        if (embedding == null) {
+          embedding = new Array[Double](embeddingsDim)
+          localVocab.put(currentWord, embedding)
+        }
+        val start = math.max(0, idx - contextSize)
+        val end = math.min(currentSeqSize - 1, idx + contextSize)
+        var cIdx = start
+
+        while (cIdx <= end) {
+          if (cIdx != idx) {
+            val word = seq(cIdx)
+            val embeddingIdx = valueHashFunc(word)
+            val sign = signs(signHashFunc(word) % 2)
+            val weight = weightCache(math.abs(cIdx - idx))
+            embedding(embeddingIdx) += sign * weight
+          }
+          cIdx += 1
+        }
+        idx += 1
+      }
+    }
+
+    localVocab.iterator
+  }
+
 }
