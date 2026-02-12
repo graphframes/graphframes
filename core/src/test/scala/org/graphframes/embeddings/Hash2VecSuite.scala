@@ -129,10 +129,10 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
   test("PagedMatrixDouble helper - page extension") {
     val dim = 50
     val matrix = new Hash2Vec.PagedMatrixDouble(dim)
-    // Allocate enough vectors to force a second page (PAGE_SIZE = 65536)
+    // Allocate enough vectors to force a second page (PAGE_SIZE = 4096)
     // We'll allocate two pages' worth to be sure.
     // For simplicity, allocate 2 * PAGE_SIZE vectors.
-    val PAGE_SIZE = 1 << 16 // 65536
+    val PAGE_SIZE = 1 << 12 // 4096
     val totalVectors = 2 * PAGE_SIZE
     val ids = (0 until totalVectors).map { _ =>
       matrix.allocateVector()
@@ -183,7 +183,7 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
   test("PagedMatrixDouble helper - cross-page addressing") {
     val dim = 20
     val matrix = new Hash2Vec.PagedMatrixDouble(dim)
-    val PAGE_SIZE = 1 << 16
+    val PAGE_SIZE = 1 << 12
     // Allocate vectors up to the end of first page
     for (_ <- 0 until PAGE_SIZE) matrix.allocateVector()
     val firstPageLastId = PAGE_SIZE - 1

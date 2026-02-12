@@ -381,7 +381,7 @@ object Hash2Vec {
 
   /**
    * A paged matrix of double-precision vectors that stores vectors contiguously in large
-   * fixed‑sized pages, each holding PAGE_SIZE (65536) vectors of dimension `dim`.
+   * fixed‑sized pages, each holding PAGE_SIZE (4096) vectors of dimension `dim`.
    *
    * This layout replaces a HashMap[T, Array[Double]] with two separate structures:
    *   1. A mapping from element identifier (T) to a vector ID (Int), maintained by the caller.
@@ -402,7 +402,7 @@ object Hash2Vec {
    * shifts and masks) compared to the GC and memory overhead it saves.
    *
    * Implementation notes:
-   *   1. PAGE_BITS = 16, PAGE_SIZE = 65536 (2^16). This keeps pageIdx =
+   *   1. PAGE_BITS = 12, PAGE_SIZE = 4096 (2^12). This keeps pageIdx =
    * vectorId >>> PAGE_BITS and localRow = vectorId & PAGE_MASK cheap, while limiting page memory
    * to PAGE_SIZE * dim doubles.
    *   2. The first page is pre‑allocated in the constructor; subsequent
@@ -415,9 +415,9 @@ object Hash2Vec {
    *      instance.
    */
   private[graphframes] class PagedMatrixDouble(val dim: Int) {
-    private final val PAGE_BITS = 16
-    private final val PAGE_SIZE = 1 << PAGE_BITS // 65536 -> 2^16
-    private final val PAGE_MASK = PAGE_SIZE - 1 // 0xFFFF
+    private final val PAGE_BITS = 12
+    private final val PAGE_SIZE = 1 << PAGE_BITS // 4096 -> 2^12
+    private final val PAGE_MASK = PAGE_SIZE - 1 // 0xFFF
 
     private val pages = new collection.mutable.ArrayBuffer[Array[Double]]()
     private var vectorCount = 0
@@ -435,7 +435,7 @@ object Hash2Vec {
     /** Allocate a new zero‑initialized vector and return its unique integer ID. */
     def allocateVector(): Int = {
       val id = vectorCount
-      val localIdx = id & PAGE_MASK // ~id % 65536
+      val localIdx = id & PAGE_MASK // ~id % 4096
 
       if (localIdx == 0 && id > 0) {
         addPage()
