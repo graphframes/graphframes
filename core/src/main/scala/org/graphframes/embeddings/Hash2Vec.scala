@@ -25,7 +25,6 @@ import org.graphframes.rw.RandomWalkBase
 
 import scala.annotation.nowarn
 import scala.collection.mutable.ArraySeq
-import scala.jdk.CollectionConverters.*
 import scala.reflect.ClassTag
 
 /**
@@ -261,33 +260,36 @@ class Hash2Vec extends Serializable {
   }
 
   private def processPartition[T](iter: Iterator[Seq[T]]): Iterator[(T, Array[Double])] = {
-    val localVocab = new java.util.concurrent.ConcurrentHashMap[T, Array[Double]]()
+    val localVocab = collection.mutable.HashMap[T, Array[Double]]()
+    val signMultiplier: Array[Double] = Array(-1.0, 1.0)
+    val weightCache = new Array[Double](contextSize + 1)
+    for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
 
-    for (seq <- iter) {
+    while (iter.hasNext) {
+      val seq = iter.next()
       val currentSeqSize = seq.length
-      for (idx <- (0 until currentSeqSize)) {
+      var idx = 0
+      while (idx < currentSeqSize) {
         val currentWord = seq(idx)
-        if (!localVocab.containsKey(currentWord)) {
-          localVocab.put(currentWord, Array.fill(embeddingsDim)(0.0))
-        }
-        val context = ((idx - contextSize) to (idx + contextSize)).filter(i =>
-          (i >= 0) && (i < currentSeqSize) && (i != idx))
-        for (cIdx <- context) {
-          val word = seq(cIdx)
-          val weight = weightFunction(math.abs(cIdx - idx))
-          val sign = 2.0 * signHash(word) - 1.0
-          val embeddingIdx = valueHash(word)
+        val embedding = localVocab.getOrElseUpdate(currentWord, new Array[Double](embeddingsDim))
+        val start = math.max(0, idx - contextSize)
+        val end = math.min(currentSeqSize - 1, idx + contextSize)
+        var cIdx = start
 
-          val currentEmbedding = localVocab.get(currentWord)
-          currentEmbedding(embeddingIdx) += sign * weight
+        while (cIdx <= end) {
+          if (cIdx != idx) {
+            val word = seq(cIdx)
+            val weight = weightCache(math.abs(cIdx - idx))
+            val sign = signMultiplier(signHash(word))
+            val embeddingIdx = valueHash(word)
+            embedding(embeddingIdx) += sign * weight
+          }
+          cIdx += 1
         }
+        idx += 1
       }
     }
 
-    localVocab
-      .entrySet()
-      .asScala
-      .map(entry => (entry.getKey(), entry.getValue()))
-      .iterator
+    localVocab.iterator
   }
 }
