@@ -11,6 +11,7 @@ import org.graphframes.GraphFramesW2VException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.convolutions.SamplingConvolution
+import org.graphframes.embeddings.RandomWalkEmbeddings.rwModels
 import org.graphframes.rw.RandomWalkBase
 import org.graphframes.rw.RandomWalkWithRestart
 
@@ -162,6 +163,9 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
    *   node's embedding and the averaged embeddings of sampled neighbors.
    */
   def run(): DataFrame = {
+    if (rwModels == null) {
+      throw new GraphFramesW2VException("model should be set!")
+    }
     val spark = graph.vertices.sparkSession
     val walksGenerator = randomWalks.onGraph(graph).setUseEdgeDirection(useEdgeDirections)
     val walks = if (cachedRwPath.isDefined) {
@@ -191,13 +195,19 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
       }
     }
 
+    val persistedEmbeddings = if (aggregateNeighbors) {
+      embeddings.persist(intermediateStorageLevel)
+    } else {
+      embeddings
+    }
+
     // If requested, do the following:
     // - sample neighbors up to maxNbrs
     // - compute avg embedding of sample
     // - concatenate self and aggregated
     val aggregated = if (aggregateNeighbors) {
       new SamplingConvolution()
-        .onGraph(GraphFrame(embeddings, graph.edges))
+        .onGraph(GraphFrame(persistedEmbeddings, graph.edges))
         .setFeaturesCol(RandomWalkEmbeddings.embeddingColName)
         .setMaxNbrs(maxNbrs)
         .setSeed(seed)
@@ -205,7 +215,12 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
         .setConcatEmbeddings(true)
         .run()
     } else {
-      embeddings
+      // we need to create a new DataFrame, so unpersisting peristedEmbeddings
+      // does not accidently unpersist the result;
+      // dummy operations are cheap, but will create a different plan.
+      persistedEmbeddings
+        .withColumnRenamed(RandomWalkEmbeddings.embeddingColName, "x")
+        .withColumnRenamed("x", RandomWalkEmbeddings.embeddingColName)
     }
 
     val persistedDF = aggregated.persist(intermediateStorageLevel)
@@ -213,6 +228,9 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
     // materialize
     persistedDF.count()
     resultIsPersistent()
+
+    // clean memory
+    persistedEmbeddings.unpersist()
 
     persistedDF
   }

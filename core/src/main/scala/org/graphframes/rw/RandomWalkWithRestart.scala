@@ -57,13 +57,17 @@ class RandomWalkWithRestart extends RandomWalkBase {
         array().cast(walksDtype).alias(RandomWalkBase.rwColName))
     }
 
+    val localRandom = new util.Random(iterSeed)
+
     for (_ <- (0 until batchSize)) {
+      val currentSeed = localRandom.nextLong()
+
       walks = walks
         .join(
           neighbors,
           col(GraphFrame.ID) === col(RandomWalkBase.currVisitingVertexColName),
           "left")
-        .withColumn("doRestart", rand() <= lit(restartProbability))
+        .withColumn("doRestart", rand(currentSeed) <= lit(restartProbability))
         .withColumn(
           "nextNode",
           when(col("doRestart"), col("startingNode")).otherwise(

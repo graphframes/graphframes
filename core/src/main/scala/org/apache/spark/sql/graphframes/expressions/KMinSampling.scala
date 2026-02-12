@@ -30,7 +30,7 @@ case class KMinSampling[T: ClassTag](size: Int)(implicit
     val newWeight = a.getLong(1)
     val newValue = a.getAs[T](0)
     // fast-path: buffer is already full of "strong" elements
-    // the case of "inflencer" vertex
+    // the case of "influencer" vertex
     if (b.cnt == size) {
       val lastWeight = b.weights.last
       if ((lastWeight < newWeight) || ((lastWeight == newWeight) && (ord.compare(

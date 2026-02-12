@@ -256,8 +256,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       logInfo(s"Starting random walk with runID: $runID")
     }
 
-    val iterationsRng = new Random()
-    iterationsRng.setSeed(globalSeed)
+    val iterationsRng = new Random(globalSeed)
     val spark = graph.vertices.sparkSession
 
     for (i <- startingIteration to numBatches) {

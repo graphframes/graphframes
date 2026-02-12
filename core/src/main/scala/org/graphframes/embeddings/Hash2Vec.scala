@@ -59,28 +59,28 @@ class Hash2Vec extends Serializable {
   private var gaussianSigma: Double = 1.0
   private var hashingSeed: Int = 42
   private var signHashingSeed: Int = 18
-  private var doL2Norm: Boolean = false
+  private var doL2Norm: Boolean = true
   private var safeL2NormAsChannel: Boolean = true
   private var maxVectorsPerPartition: Int = 100000
 
   /**
-   * Sets whether final vectors are L2‑normalized after aggregation across partitions.
-   * When normalization is enabled, each vector is scaled to unit length (L2 norm = 1).
+   * Sets whether final vectors are L2‑normalized after aggregation across partitions. When
+   * normalization is enabled, each vector is scaled to unit length (L2 norm = 1).
    *
-   * When `safeNorm` is true (default), the method adds an extra channel to the vector
-   * equal to `log(L2‑norm + 1) / sqrt(dim)`. This preserves some information about the
-   * original magnitude while still making vectors comparable via cosine similarity.
+   * When `safeNorm` is true (default), the method adds an extra channel to the vector equal to
+   * `log(L2‑norm + 1) / sqrt(dim)`. This preserves some information about the original magnitude
+   * while still making vectors comparable via cosine similarity.
    *
-   * When `safeNorm` is false, normalizes without adding an extra channel,
-   * discarding magnitude entirely.
+   * When `safeNorm` is false, normalizes without adding an extra channel, discarding magnitude
+   * entirely.
    *
    * This setting applies globally to all output vectors.
    *
    * @param doNorm
    *   If true, output vectors are normalized.
    * @param safeNorm
-   *   If true (and doNorm is true), retains magnitude information in an extra dimension.
-   *   If false, performs standard L2‑normalization.
+   *   If true (and doNorm is true), retains magnitude information in an extra dimension. If
+   *   false, performs standard L2‑normalization.
    * @return
    *   This Hash2Vec instance for method chaining.
    */
@@ -95,11 +95,11 @@ class Hash2Vec extends Serializable {
    * partition before flushing intermediate results to the iterator.
    *
    * Partition processing uses a paged matrix to store vectors. When the number of allocated
-   * vectors reaches this limit within a partition, the current batch of vectors is returned
-   * (as part of the iterator) and a new empty batch is started for the remaining elements.
+   * vectors reaches this limit within a partition, the current batch of vectors is returned (as
+   * part of the iterator) and a new empty batch is started for the remaining elements.
    *
-   * This prevents a single partition from consuming unbounded memory while processing very
-   * large vocabularies, at the cost of producing multiple iterator batches per partition.
+   * This prevents a single partition from consuming unbounded memory while processing very large
+   * vocabularies, at the cost of producing multiple iterator batches per partition.
    *
    * The default value is 100000.
    *
@@ -114,8 +114,8 @@ class Hash2Vec extends Serializable {
   }
 
   /**
-   * Convenience overload for `setDoNormalization(doNorm, safeNorm)` that uses safe‑mode
-   * (extra channel) by default. Equivalent to `setDoNormalization(value, true)`.
+   * Convenience overload for `setDoNormalization(doNorm, safeNorm)` that uses safe‑mode (extra
+   * channel) by default. Equivalent to `setDoNormalization(value, true)`.
    *
    * @param value
    *   If true, output vectors are L2‑normalized with safe (extra‑channel) semantics.
@@ -148,7 +148,7 @@ class Hash2Vec extends Serializable {
 
   /**
    * Sets the dimensionality of the dense embedding vectors. Larger dimensions allow richer
-   * representations but require more memory. Corresponds to the hash table size. Default: 256.
+   * representations but require more memory. Corresponds to the hash table size. Default: 512.
    */
   def setEmbeddingsDim(value: Int): this.type = {
     embeddingsDim = value
