@@ -6,14 +6,15 @@ import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.spark.ml.stat.Summarizer
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
-import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.functions.hash
-import org.apache.spark.sql.functions.pmod
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.pmod
 import org.apache.spark.sql.functions.transform
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.ByteType
 import org.apache.spark.sql.types.IntegerType
@@ -27,7 +28,6 @@ import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.rw.RandomWalkBase
 
 import scala.reflect.ClassTag
-import org.apache.spark.sql.Column
 import scala.util.hashing.MurmurHash3
 
 /**
@@ -277,7 +277,7 @@ class Hash2Vec extends Serializable {
 
     val vocabIndex = new collection.mutable.HashMap[String, Int]()
     vocabIndex.sizeHint(100000)
-    val matrix = Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
+    val matrix = new Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
 
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
@@ -329,9 +329,9 @@ class Hash2Vec extends Serializable {
     val localSignHashSeed = signHashingSeed
     val localEmbeddingsDim = embeddingsDim
 
-    val vocabIndex = new collection.mutable.HashMap[Long, Int]()
+    val vocabIndex = new collection.mutable.LongMap[Long, Int]()
     vocabIndex.sizeHint(100000)
-    val matrix = Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
+    val matrix = new Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
 
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
@@ -379,40 +379,41 @@ class Hash2Vec extends Serializable {
 
 object Hash2Vec {
   /**
-    * A paged matrix of double-precision vectors that stores vectors contiguously in large
-    * fixed‑sized pages, each holding PAGE_SIZE (65536) vectors of dimension `dim`.
-    *
-    * This layout replaces a HashMap[T, Array[Double]] with two separate structures:
-    *   1. A mapping from element identifier (T) to a vector ID (Int), maintained by the caller.
-    *   2. The actual vector data stored in a few large arrays (pages) instead of many small
-    *      per‑element arrays.
-    *
-    * Advantages over a HashMap-of-arrays:
-    *   • Eliminates per‑vector Array object overhead (object header, reference, GC metadata).
-    *   • Reduces GC pressure because the backing store is a small number of large long‑lived
-    *     arrays, not many short‑lived small arrays that become garbage as the map is updated.
-    *   • Better memory locality: vectors of the same dimension are stored consecutively,
-    *     improving cache line utilisation during sequential access (e.g., inside a page).
-    *   • Predictable memory growth: pages are allocated only when the current page is full,
-    *     avoiding repeated resizing of a hash‑map and associated re‑hashing / copying.
-    *
-    * The cost is an extra indirection to compute the page index and offset, which is cheap
-    * (bit shifts and masks) compared to the GC and memory overhead it saves.
-    *
-    * Implementation notes:
-    *   • PAGE_BITS = 16, PAGE_SIZE = 65536 (2^16). This keeps pageIdx = vectorId >>> PAGE_BITS
-    *     and localRow = vectorId & PAGE_MASK cheap, while limiting page memory to
-    *     PAGE_SIZE * dim doubles.
-    *   • The first page is pre‑allocated in the constructor; subsequent pages are added on‑demand
-    *     when allocateVector() crosses a page boundary.
-    *   • allocateVector() returns a monotonically increasing integer ID, which is the index of
-    *     the vector across all pages. The caller stores this ID in a HashMap[T, Int] instead of
-    *     storing the whole array.
-    *   • add() and getVector() compute the flat index inside the page as localRow * dim + offset.
-    *   • Thread safety: not required; each partition processes its own local PagedMatrixDouble
-    *     instance.
-    */
-  private[graphframes] case class PagedMatrixDouble(val dim: Int) {
+   * A paged matrix of double-precision vectors that stores vectors contiguously in large
+   * fixed‑sized pages, each holding PAGE_SIZE (65536) vectors of dimension `dim`.
+   *
+   * This layout replaces a HashMap[T, Array[Double]] with two separate structures:
+   *   1. A mapping from element identifier (T) to a vector ID (Int), maintained by the caller.
+   *   2. The actual vector data stored in a few large arrays (pages) instead of many small
+   *      per‑element arrays.
+   *
+   * Advantages over a HashMap-of-arrays:
+   *   1. Eliminates per‑vector Array object overhead (object
+   * header, reference, GC metadata).
+   *   2. Reduces GC pressure because the backing store is a small number of large long‑lived
+   *      arrays, not many short‑lived small arrays that become garbage as the map is updated.
+   *   3. Better memory locality: vectors of the same dimension are stored consecutively,
+   *      improving cache line utilisation during sequential access (e.g., inside a page).
+   *   4. Predictable memory growth: pages are allocated only when the current page is full,
+   *      avoiding repeated resizing of a hash‑map and associated re‑hashing / copying.
+   *
+   * The cost is an extra indirection to compute the page index and offset, which is cheap (bit
+   * shifts and masks) compared to the GC and memory overhead it saves.
+   *
+   * Implementation notes:
+   *   1. PAGE_BITS = 16, PAGE_SIZE = 65536 (2^16). This keeps pageIdx =
+   * vectorId >>> PAGE_BITS and localRow = vectorId & PAGE_MASK cheap, while limiting page memory
+   * to PAGE_SIZE * dim doubles.
+   *   2. The first page is pre‑allocated in the constructor; subsequent
+   * pages are added on‑demand when allocateVector() crosses a page boundary.
+   *   3. allocateVector()
+   * returns a monotonically increasing integer ID, which is the index of the vector across all
+   * pages. The caller stores this ID in a HashMap[T, Int] instead of storing the whole array.
+   *   4. add() and getVector() compute the flat index inside the page as localRow * dim + offset.
+   *   5. Thread safety: not required; each partition processes its own local PagedMatrixDouble
+   *      instance.
+   */
+  private[graphframes] class PagedMatrixDouble(val dim: Int) {
     private final val PAGE_BITS = 16
     private final val PAGE_SIZE = 1 << PAGE_BITS // 65536 -> 2^16
     private final val PAGE_MASK = PAGE_SIZE - 1 // 0xFFFF
