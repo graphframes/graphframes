@@ -265,6 +265,9 @@ class Hash2Vec extends Serializable {
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
 
+    val valueHashCache = collection.mutable.HashMap[T, Int]()
+    val signHashCache = collection.mutable.HashMap[T, Int]()
+
     while (iter.hasNext) {
       val seq = iter.next()
       val currentSeqSize = seq.length
@@ -280,8 +283,9 @@ class Hash2Vec extends Serializable {
           if (cIdx != idx) {
             val word = seq(cIdx)
             val weight = weightCache(math.abs(cIdx - idx))
-            val sign = signMultiplier(signHash(word))
-            val embeddingIdx = valueHash(word)
+            val currentSignHash = signHashCache.getOrElseUpdate(word, signHash(word))
+            val sign = signMultiplier(currentSignHash)
+            val embeddingIdx = valueHashCache.getOrElseUpdate(word, valueHash(word))
             embedding(embeddingIdx) += sign * weight
           }
           cIdx += 1
