@@ -225,15 +225,14 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
       Seq("cherry", "date", "cherry", "date"),
       Seq("date", "elderberry", "date"),
       Seq("elderberry", "fig", "elderberry"),
-      Seq("fig", "fig", "fig")                 // fig appears often alone
+      Seq("fig", "fig", "fig") // fig appears often alone
     )
 
-    import spark.implicits._
     val df = spark.createDataFrame(sequences.map(Tuple1(_))).toDF("seq")
 
     val embeddings = new Hash2Vec()
       .setSequenceCol("seq")
-      .setEmbeddingsDim(128)       // enough dimensions to capture patterns
+      .setEmbeddingsDim(128) // enough dimensions to capture patterns
       .setContextSize(2)
       .setDecayFunction("constant")
       .setHashingSeed(777)
@@ -241,11 +240,14 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
       .run(df)
 
     // Collect embeddings into a local map
-    val embMap = embeddings.collect().map { row =>
-      val id = row.getString(0)
-      val vec = row.getAs[DenseVector](1)
-      id -> vec
-    }.toMap
+    val embMap = embeddings
+      .collect()
+      .map { row =>
+        val id = row.getString(0)
+        val vec = row.getAs[DenseVector](1)
+        id -> vec
+      }
+      .toMap
 
     // Helper to compute cosine similarity between two vectors
     def cosineSimilarity(v1: DenseVector, v2: DenseVector): Double = {
@@ -275,19 +277,23 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
     val bananaFigSim = cosineSimilarity(embMap("banana"), embMap("fig"))
     // elderberry and fig co‑occur (sixth sequence)
     val elderberryFigSim = cosineSimilarity(embMap("elderberry"), embMap("fig"))
-    // apple and cherry appear together a few times (first two sequences)
-    val appleCherrySim = cosineSimilarity(embMap("apple"), embMap("cherry"))
 
     // Assert ordering of similarities matches expected co‑occurrence patterns
     // apple‑banana should be among the highest similarities
     assert(appleBananaSim > 0.3, s"apple‑banana similarity $appleBananaSim should be > 0.3")
     // apple‑fig should be low (close to zero or negative)
-    assert(appleFigSim < appleBananaSim, s"apple‑fig ($appleFigSim) should be < apple‑banana ($appleBananaSim)")
-    assert(bananaFigSim < appleBananaSim, s"banana‑fig ($bananaFigSim) should be < apple‑banana ($appleBananaSim)")
+    assert(
+      appleFigSim < appleBananaSim,
+      s"apple‑fig ($appleFigSim) should be < apple‑banana ($appleBananaSim)")
+    assert(
+      bananaFigSim < appleBananaSim,
+      s"banana‑fig ($bananaFigSim) should be < apple‑banana ($appleBananaSim)")
     // cherry‑date similarity should be relatively high (they co‑occur exclusively)
     assert(cherryDateSim > 0.2, s"cherry‑date similarity $cherryDateSim should be > 0.2")
     // elderberry‑fig should be higher than apple‑fig (because they co‑occur)
-    assert(elderberryFigSim > appleFigSim, s"elderberry‑fig ($elderberryFigSim) should be > apple‑fig ($appleFigSim)")
+    assert(
+      elderberryFigSim > appleFigSim,
+      s"elderberry‑fig ($elderberryFigSim) should be > apple‑fig ($appleFigSim)")
 
     // Self‑similarity should be 1.0 (or close after normalization)
     val appleSelf = cosineSimilarity(embMap("apple"), embMap("apple"))
@@ -297,16 +303,14 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
   test("Hash2Vec - long‑typed co‑occurrence") {
     // Use numeric ids to test long sequences.
     val sequences = Seq(
-      Seq(1L, 2L, 1L, 3L, 2L),    // 1‑2 frequent, 3 appears with 2
+      Seq(1L, 2L, 1L, 3L, 2L), // 1‑2 frequent, 3 appears with 2
       Seq(1L, 2L, 3L, 2L),
       Seq(1L, 2L, 1L, 2L, 2L),
-      Seq(3L, 4L, 3L, 4L),        // 3‑4 frequent pair
+      Seq(3L, 4L, 3L, 4L), // 3‑4 frequent pair
       Seq(4L, 5L, 4L),
       Seq(5L, 6L, 5L),
-      Seq(6L, 6L, 6L)
-    )
+      Seq(6L, 6L, 6L))
 
-    import spark.implicits._
     val df = spark.createDataFrame(sequences.map(Tuple1(_))).toDF("seq")
 
     val embeddings = new Hash2Vec()
@@ -318,11 +322,14 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
       .setSignHashSeed(888)
       .run(df)
 
-    val embMap = embeddings.collect().map { row =>
-      val id = row.getLong(0)
-      val vec = row.getAs[DenseVector](1)
-      id -> vec
-    }.toMap
+    val embMap = embeddings
+      .collect()
+      .map { row =>
+        val id = row.getLong(0)
+        val vec = row.getAs[DenseVector](1)
+        id -> vec
+      }
+      .toMap
 
     def cosineSimilarity(v1: DenseVector, v2: DenseVector): Double = {
       val a = v1.values

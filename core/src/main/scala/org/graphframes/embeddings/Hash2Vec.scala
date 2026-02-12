@@ -287,16 +287,16 @@ class Hash2Vec extends Serializable {
     val signs = Array[Double](-1.0, 1.0)
 
     new Iterator[(String, Array[Double])] {
-      
+
       var currentBatchResult: Iterator[(String, Array[Double])] = Iterator.empty
-      
+
       var vocabIndex: collection.mutable.HashMap[String, Int] = _
       var matrix: Hash2Vec.PagedMatrixDouble = _
 
       override def hasNext: Boolean = {
         if (currentBatchResult.hasNext) return true
         if (!iter.hasNext) return false
-        
+
         fetchNextBatch()
         currentBatchResult.hasNext
       }
@@ -307,12 +307,12 @@ class Hash2Vec extends Serializable {
 
       private def fetchNextBatch(): Unit = {
         vocabIndex = new collection.mutable.HashMap[String, Int]()
-        vocabIndex.sizeHint(math.min(localMaxVecrtors, 50000)) 
-        
+        vocabIndex.sizeHint(math.min(localMaxVecrtors, 50000))
+
         matrix = new Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
-        
+
         var currentBatchSize = 0
-        
+
         while (iter.hasNext && currentBatchSize < localMaxVecrtors) {
           val seq = iter.next()
           val currentSeqSize = seq.length
@@ -324,9 +324,9 @@ class Hash2Vec extends Serializable {
             var vectorId = vocabIndex.getOrElse(currentWord, -1)
 
             if (vectorId == -1) {
-               vectorId = matrix.allocateVector()
-               vocabIndex.put(currentWord, vectorId)
-               currentBatchSize += 1
+              vectorId = matrix.allocateVector()
+              vocabIndex.put(currentWord, vectorId)
+              currentBatchSize += 1
             }
 
             val start = math.max(0, idx - localContextSize)
@@ -337,10 +337,10 @@ class Hash2Vec extends Serializable {
               if (cIdx != idx) {
                 val word = seq(cIdx)
                 val embeddingIdx = seededStringHashFunc(word, localHashSeed, localEmbeddingsDim)
-                
+
                 val rawSignHash = seededStringHashFunc(word, localSignHashSeed, 65536)
-                val sign = signs(rawSignHash & 1) 
-                
+                val sign = signs(rawSignHash & 1)
+
                 val weight = weightCache(math.abs(cIdx - idx))
 
                 matrix.add(vectorId, embeddingIdx, sign * weight)
@@ -350,7 +350,7 @@ class Hash2Vec extends Serializable {
             idx += 1
           }
         }
-        
+
         currentBatchResult = vocabIndex.iterator.map { case (word, id) =>
           (word, matrix.getVector(id))
         }
@@ -372,16 +372,16 @@ class Hash2Vec extends Serializable {
     val signs = Array[Double](-1.0, 1.0)
 
     new Iterator[(Long, Array[Double])] {
-      
+
       var currentBatchResult: Iterator[(Long, Array[Double])] = Iterator.empty
-      
+
       var vocabIndex: collection.mutable.LongMap[Int] = _
       var matrix: Hash2Vec.PagedMatrixDouble = _
 
       override def hasNext: Boolean = {
         if (currentBatchResult.hasNext) return true
         if (!iter.hasNext) return false
-        
+
         fetchNextBatch()
         currentBatchResult.hasNext
       }
@@ -393,11 +393,11 @@ class Hash2Vec extends Serializable {
       private def fetchNextBatch(): Unit = {
         vocabIndex = new collection.mutable.LongMap[Int]()
         vocabIndex.sizeHint(math.min(localMaxVectors, 100000))
-        
+
         matrix = new Hash2Vec.PagedMatrixDouble(localEmbeddingsDim)
-        
+
         var currentBatchSize = 0
-        
+
         while (iter.hasNext && currentBatchSize < localMaxVectors) {
           val seq = iter.next()
           val currentSeqSize = seq.length
@@ -409,9 +409,9 @@ class Hash2Vec extends Serializable {
             var vectorId = vocabIndex.getOrElse(currentWord, -1)
 
             if (vectorId == -1) {
-               vectorId = matrix.allocateVector()
-               vocabIndex.put(currentWord, vectorId)
-               currentBatchSize += 1
+              vectorId = matrix.allocateVector()
+              vocabIndex.put(currentWord, vectorId)
+              currentBatchSize += 1
             }
 
             val start = math.max(0, idx - localContextSize)
@@ -432,7 +432,7 @@ class Hash2Vec extends Serializable {
             idx += 1
           }
         }
-        
+
         currentBatchResult = vocabIndex.iterator.map { case (word, id) =>
           (word, matrix.getVector(id))
         }
