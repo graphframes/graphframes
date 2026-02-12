@@ -154,33 +154,58 @@ class Hash2Vec extends Serializable {
     rawMod + (if (rawMod < 0) mod else 0)
   }
 
-  private var valueHash: (Any) => Int = _
-  private var signHash: (Any) => Int = _
   private var weightFunction: (Int) => Double = _
 
-  private def hashFunc(term: Any, seed: Int): Int = {
-    term match {
-      case null => seed
-      case b: Boolean => hashInt(if (b) 1 else 0, seed)
-      case b: Byte => hashInt(b.toInt, seed)
-      case s: Short => hashInt(s.toInt, seed)
-      case i: Int => hashInt(i, seed)
-      case l: Long => hashLong(l, seed)
-      case f: Float => hashInt(java.lang.Float.floatToIntBits(f), seed)
-      case d: Double => hashLong(java.lang.Double.doubleToLongBits(d), seed)
-      case s: String => {
-        val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
-        hashUnsafeBytes(
-          bytes,
-          Platform.BYTE_ARRAY_OFFSET.toLong,
-          bytes.length,
-          seed)
-      }
-      case _ =>
-        throw new GraphFramesUnsupportedVertexTypeException(
-          "Hashing2vec with murmur3 algorithm does not " +
-            s"support type ${term.getClass.getCanonicalName} of input data.")
+  // Hash function factories for different types
+  private def getStringHashFunc(seed: Int): String => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (s: String) => {
+      val bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+      nonNegativeMod(hashUnsafeBytes(bytes, Platform.BYTE_ARRAY_OFFSET, bytes.length, localSeed), localDim)
     }
+  }
+
+  private def getIntHashFunc(seed: Int): Int => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (i: Int) => nonNegativeMod(hashInt(i, localSeed), localDim)
+  }
+
+  private def getLongHashFunc(seed: Int): Long => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (l: Long) => nonNegativeMod(hashLong(l, localSeed), localDim)
+  }
+
+  private def getByteHashFunc(seed: Int): Byte => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (b: Byte) => nonNegativeMod(hashInt(b.toInt, localSeed), localDim)
+  }
+
+  private def getShortHashFunc(seed: Int): Short => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (s: Short) => nonNegativeMod(hashInt(s.toInt, localSeed), localDim)
+  }
+
+  private def getFloatHashFunc(seed: Int): Float => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (f: Float) => nonNegativeMod(hashInt(java.lang.Float.floatToIntBits(f), localSeed), localDim)
+  }
+
+  private def getDoubleHashFunc(seed: Int): Double => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (d: Double) => nonNegativeMod(hashLong(java.lang.Double.doubleToLongBits(d), localSeed), localDim)
+  }
+
+  private def getBooleanHashFunc(seed: Int): Boolean => Int = {
+    val localSeed = seed
+    val localDim = embeddingsDim
+    (b: Boolean) => nonNegativeMod(hashInt(if (b) 1 else 0, localSeed), localDim)
   }
 
   private def normalize(vector: linalg.Vector, addChannel: Boolean): linalg.Vector = {
@@ -267,12 +292,88 @@ class Hash2Vec extends Serializable {
       .select(col(sequenceCol))
       .rdd
       .map(_.getAs[ArraySeq[T]](0).toSeq)
-      .mapPartitions(processPartition[T])
+      .mapPartitions { iter =>
+        val elemType = implicitly[ClassTag[T]].runtimeClass
+        elemType match {
+          case clazz if clazz == classOf[String] =>
+            processStringPartition(iter.asInstanceOf[Iterator[Seq[String]]])
+              .asInstanceOf[Iterator[(T, Array[Double])]]
+          case clazz if clazz == classOf[Int] =>
+            processIntPartition(iter.asInstanceOf[Iterator[Seq[Int]]])
+              .asInstanceOf[Iterator[(T, Array[Double])]]
+          case clazz if clazz == classOf[Long] =>
+            processLongPartition(iter.asInstanceOf[Iterator[Seq[Long]]])
+              .asInstanceOf[Iterator[(T, Array[Double])]]
+          case clazz if clazz == classOf[Byte] =>
+            processBytePartition(iter.asInstanceOf[Iterator[Seq[Byte]]])
+              .asInstanceOf[Iterator[(T, Array[Double])]]
+          case clazz if clazz == classOf[Short] =>
+            processShortPartition(iter.asInstanceOf[Iterator[Seq[Short]]])
+              .asInstanceOf[Iterator[(T, Array[Double])]]
+          case _ =>
+            throw new GraphFramesUnsupportedVertexTypeException(
+              s"Hash2vec does not support type ${elemType.getCanonicalName}")
+        }
+      }
   }
 
-  private def processPartition[T](iter: Iterator[Seq[T]]): Iterator[(T, Array[Double])] = {
+  // Specialized partition processing for String
+  private def processStringPartition(iter: Iterator[Seq[String]]): Iterator[(String, Array[Double])] = {
+    processPartitionGeneric[String](
+      iter,
+      getStringHashFunc(hashingSeed),
+      getStringHashFunc(signHashingSeed)
+    )
+  }
+
+  // Specialized partition processing for Int
+  private def processIntPartition(iter: Iterator[Seq[Int]]): Iterator[(Int, Array[Double])] = {
+    processPartitionGeneric[Int](
+      iter,
+      getIntHashFunc(hashingSeed),
+      getIntHashFunc(signHashingSeed)
+    )
+  }
+
+  // Specialized partition processing for Long
+  private def processLongPartition(iter: Iterator[Seq[Long]]): Iterator[(Long, Array[Double])] = {
+    processPartitionGeneric[Long](
+      iter,
+      getLongHashFunc(hashingSeed),
+      getLongHashFunc(signHashingSeed)
+    )
+  }
+
+  // Specialized partition processing for Byte
+  private def processBytePartition(iter: Iterator[Seq[Byte]]): Iterator[(Byte, Array[Double])] = {
+    processPartitionGeneric[Byte](
+      iter,
+      getByteHashFunc(hashingSeed),
+      getByteHashFunc(signHashingSeed)
+    )
+  }
+
+  // Specialized partition processing for Short
+  private def processShortPartition(iter: Iterator[Seq[Short]]): Iterator[(Short, Array[Double])] = {
+    processPartitionGeneric[Short](
+      iter,
+      getShortHashFunc(hashingSeed),
+      getShortHashFunc(signHashingSeed)
+    )
+  }
+
+  // Generic implementation used by all specialized methods
+  private def processPartitionGeneric[T](
+      iter: Iterator[Seq[T]],
+      valueHashFunc: T => Int,
+      signHashFunc: T => Int): Iterator[(T, Array[Double])] = {
+    
     val localVocab = collection.mutable.HashMap[T, Array[Double]]()
-    val signMultiplier: Array[Double] = Array(-1.0, 1.0)
+    // Cache for computed value hashes
+    val valueHashCache = collection.mutable.HashMap[T, Int]()
+    // Cache for computed sign hashes (0 or 1)
+    val signHashCache = collection.mutable.HashMap[T, Int]()
+    
     val weightCache = new Array[Double](contextSize + 1)
     for (d <- 1 to contextSize) weightCache(d) = weightFunction(d)
 
@@ -280,6 +381,7 @@ class Hash2Vec extends Serializable {
       val seq = iter.next()
       val currentSeqSize = seq.length
       var idx = 0
+      
       while (idx < currentSeqSize) {
         val currentWord = seq(idx)
         val embedding = localVocab.getOrElseUpdate(currentWord, new Array[Double](embeddingsDim))
@@ -290,9 +392,18 @@ class Hash2Vec extends Serializable {
         while (cIdx <= end) {
           if (cIdx != idx) {
             val word = seq(cIdx)
+            
+            // Get or compute value hash (embedding index)
+            val embeddingIdx = valueHashCache.getOrElseUpdate(word, valueHashFunc(word))
+            
+            // Get or compute sign hash (0 or 1) and convert to -1.0 or 1.0
+            val signIdx = signHashCache.getOrElseUpdate(word, {
+              val hash = signHashFunc(word)
+              if (hash % 2 == 0) 0 else 1
+            })
+            val sign = if (signIdx == 0) -1.0 else 1.0
+            
             val weight = weightCache(math.abs(cIdx - idx))
-            val sign = signHash(word)
-            val embeddingIdx = valueHash(word)
             embedding(embeddingIdx) += sign * weight
           }
           cIdx += 1
