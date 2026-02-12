@@ -125,4 +125,93 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
       .run(longSequences)
     hash2vecResults.write.mode("overwrite").format("noop").save()
   }
+
+  test("PagedMatrixDouble helper - page extension") {
+    val dim = 50
+    val matrix = new Hash2Vec.PagedMatrixDouble(dim)
+    // Allocate enough vectors to force a second page (PAGE_SIZE = 65536)
+    // We'll allocate two pages' worth to be sure.
+    // For simplicity, allocate 2 * PAGE_SIZE vectors.
+    val PAGE_SIZE = 1 << 16 // 65536
+    val totalVectors = 2 * PAGE_SIZE
+    val ids = (0 until totalVectors).map { _ =>
+      matrix.allocateVector()
+    }
+    // IDs should be 0,1,2,...,totalVectors-1
+    assert(ids.toSeq == (0 until totalVectors).toSeq)
+    // Check that internal pages count grew
+    // Since internal structure is private, we just verify no exception occurred.
+  }
+
+  test("PagedMatrixDouble helper - add and retrieve") {
+    val dim = 10
+    val matrix = new Hash2Vec.PagedMatrixDouble(dim)
+    val id0 = matrix.allocateVector()
+    val id1 = matrix.allocateVector()
+    assert(id0 == 0)
+    assert(id1 == 1)
+
+    // Add values to vector 0 at different offsets
+    matrix.add(id0, 0, 5.0)
+    matrix.add(id0, 3, 2.0)
+    matrix.add(id0, 9, -1.0)
+
+    // Add values to vector 1
+    matrix.add(id1, 0, 10.0)
+    matrix.add(id1, 5, 3.0)
+
+    // Retrieve and verify
+    val vec0 = matrix.getVector(id0)
+    assert(vec0.length == dim)
+    assert(vec0(0) == 5.0)
+    assert(vec0(3) == 2.0)
+    assert(vec0(9) == -1.0)
+    // Other positions should be zero
+    (0 until dim).filterNot(idx => idx == 0 || idx == 3 || idx == 9).foreach { idx =>
+      assert(vec0(idx) == 0.0)
+    }
+
+    val vec1 = matrix.getVector(id1)
+    assert(vec1.length == dim)
+    assert(vec1(0) == 10.0)
+    assert(vec1(5) == 3.0)
+    (0 until dim).filterNot(idx => idx == 0 || idx == 5).foreach { idx =>
+      assert(vec1(idx) == 0.0)
+    }
+  }
+
+  test("PagedMatrixDouble helper - cross-page addressing") {
+    val dim = 20
+    val matrix = new Hash2Vec.PagedMatrixDouble(dim)
+    val PAGE_SIZE = 1 << 16
+    // Allocate vectors up to the end of first page
+    for (_ <- 0 until PAGE_SIZE) matrix.allocateVector()
+    val firstPageLastId = PAGE_SIZE - 1
+    // Allocate first vector of second page
+    val secondPageFirstId = matrix.allocateVector()
+    assert(secondPageFirstId == PAGE_SIZE)
+
+    // Add to the last vector of first page
+    matrix.add(firstPageLastId, 0, 100.0)
+    matrix.add(firstPageLastId, dim - 1, 200.0)
+
+    // Add to the first vector of second page
+    matrix.add(secondPageFirstId, 0, 300.0)
+    matrix.add(secondPageFirstId, 10, 400.0)
+
+    // Retrieve and verify
+    val vecFirstPage = matrix.getVector(firstPageLastId)
+    assert(vecFirstPage(0) == 100.0)
+    assert(vecFirstPage(dim - 1) == 200.0)
+    (1 until dim - 1).foreach { idx =>
+      assert(vecFirstPage(idx) == 0.0)
+    }
+
+    val vecSecondPage = matrix.getVector(secondPageFirstId)
+    assert(vecSecondPage(0) == 300.0)
+    assert(vecSecondPage(10) == 400.0)
+    (1 until dim).filterNot(_ == 10).foreach { idx =>
+      assert(vecSecondPage(idx) == 0.0)
+    }
+  }
 }
