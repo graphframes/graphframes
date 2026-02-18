@@ -180,7 +180,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   }
 
   /**
-   * Get the generated (or provided) walkID. This method can be called after onGraph() or setWalkId().
+   * Get the generated (or provided) walkID. This method returns current walkID!
    *
    * @return
    */
