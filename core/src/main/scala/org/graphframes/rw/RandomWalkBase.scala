@@ -52,13 +52,10 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   protected var temporaryPrefix: Option[String] = None
 
   /** Unique identifier for the current random walk run. */
-  protected var walkID: Option[String] = None
+  protected var walkID: String = java.util.UUID.randomUUID().toString
 
   /** Starting batch index for continous mode */
   protected var startingIteration: Int = 1
-
-  /** Internal ID */
-  private var runID: String = ""
 
   /** Internal handler of vertex data type */
   private var idDataType: DataType = null
@@ -178,19 +175,16 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
    */
   def setWalkId(value: String): this.type = {
     require(value != "", "empty string is not supported as walk ID")
-    walkID = Some(value)
+    walkID = value
     this
   }
 
   /**
-   * Get the generated (or provided) walkID. This method can be called only after @run
+   * Get the generated (or provided) walkID. This method can be called after onGraph() or setWalkId().
    *
    * @return
    */
-  def getWalkId(): String = {
-    require(runID != "", "you cannot get walkID before running")
-    runID
-  }
+  def getWalkId(): String = walkID
 
   /**
    * Sets the startng batch index for the continous mode. See @setWalkId comment for details.
@@ -213,9 +207,9 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
    *   path string
    */
   private def iterationTmpPath(iter: Int): String = if (temporaryPrefix.get.endsWith("/")) {
-    s"${temporaryPrefix.get}${runID}_batch_${iter}"
+    s"${temporaryPrefix.get}${walkID}_batch_${iter}"
   } else {
-    s"${temporaryPrefix.get}/${runID}_batch_${iter}"
+    s"${temporaryPrefix.get}/${walkID}_batch_${iter}"
   }
 
   private def sortAndConcat(arrCol: Column): Column = {
@@ -249,12 +243,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       throw new IllegalArgumentException("Temporary prefix is required for random walks.")
     }
 
-    runID = walkID.getOrElse(java.util.UUID.randomUUID().toString)
-    if (walkID.isDefined) {
-      logInfo(s"Continue existing random walk with runID: ${runID}")
-    } else {
-      logInfo(s"Starting random walk with runID: $runID")
-    }
+    logInfo(s"Starting random walk with walkID: $walkID")
 
     val iterationsRng = new Random(globalSeed)
     val spark = graph.vertices.sparkSession
