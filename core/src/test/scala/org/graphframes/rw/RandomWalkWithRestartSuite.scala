@@ -125,13 +125,13 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       .select(col(RandomWalkBase.rwColName))
       .orderBy(col(RandomWalkBase.rwColName).asc)
       .collect()
-      .map(_.getAs[Seq[String]](0))
+      .map(_.getSeq[String](0))
 
     val walks2Sorted = walks2
       .select(col(RandomWalkBase.rwColName))
       .orderBy(col(RandomWalkBase.rwColName).asc)
       .collect()
-      .map(_.getAs[Seq[String]](0))
+      .map(_.getSeq[String](0))
 
     // Both should have the same number of walks
     assert(walks1Sorted.length === walks2Sorted.length)
