@@ -379,15 +379,18 @@ object RandomWalkBase extends Serializable {
   val batchIDColName: String = "random_walk_batch_it"
 
   /**
-   * Deletes all temporary files associated with a given runID. This method uses Hadoop
-   * FileSystem to remove the directory containing batch files for the specified run ID. The
-   * temporary prefix must be set and accessible via the current SparkContext's Hadoop
-   * configuration.
+   * Deletes all temporary files associated with a given runID. This method uses Hadoop FileSystem
+   * to remove the directory containing batch files for the specified run ID. The temporary prefix
+   * must be set and accessible via the current SparkContext's Hadoop configuration.
    *
-   * @param temporaryPrefix the temporary prefix path
-   * @param runID the run ID used to generate batch directories
-   * @param numBatches the number of batch directories to look for
-   * @param spark the SparkSession used to get the Hadoop configuration
+   * @param temporaryPrefix
+   *   the temporary prefix path
+   * @param runID
+   *   the run ID used to generate batch directories
+   * @param numBatches
+   *   the number of batch directories to look for
+   * @param spark
+   *   the SparkSession used to get the Hadoop configuration
    */
   def cleanUp(
       temporaryPrefix: String,
@@ -407,9 +410,6 @@ object RandomWalkBase extends Serializable {
     for (i <- 1 to numBatches) {
       val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
       if (fs.exists(path)) {
-        // Use the Spark's log
-        sc.setLogLevel("INFO")
-        sc.logInfo(s"Deleting temporary batch directory: $path")
         fs.delete(path, true) // recursive delete
       }
     }
