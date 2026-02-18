@@ -89,7 +89,8 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
     assert(walks1.schema.fields.length === 2)
     assert(walks1.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
     assert(walks1.count() === 60) // (7-1)*10 = 60 walks
-    assert(walks1.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(totalSteps)).count() === 0)
+    assert(
+      walks1.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(totalSteps)).count() === 0)
 
     // Second run: same runID, start from iteration 3
     val rwRunner2 = new RandomWalkWithRestart()
@@ -111,29 +112,30 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
     assert(walks2.schema.fields.length === 2)
     assert(walks2.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
     assert(walks2.count() === 60)
-    assert(walks2.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(totalSteps)).count() === 0)
+    assert(
+      walks2.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(totalSteps)).count() === 0)
 
     // Compare results: they should be identical
     // Since walk IDs are UUIDs generated during the first batch, they will be different
     // between runs. So we need to compare the walks without considering walk IDs.
     // We'll sort both DataFrames by the walk array and compare the arrays directly.
-    
-    import org.apache.spark.sql.functions._
-    
+
     // Extract just the walk arrays and sort them
-    val walks1Sorted = walks1.select(col(RandomWalkBase.rwColName))
+    val walks1Sorted = walks1
+      .select(col(RandomWalkBase.rwColName))
       .orderBy(col(RandomWalkBase.rwColName).asc)
       .collect()
       .map(_.getAs[Seq[String]](0))
-    
-    val walks2Sorted = walks2.select(col(RandomWalkBase.rwColName))
+
+    val walks2Sorted = walks2
+      .select(col(RandomWalkBase.rwColName))
       .orderBy(col(RandomWalkBase.rwColName).asc)
       .collect()
       .map(_.getAs[Seq[String]](0))
-    
+
     // Both should have the same number of walks
     assert(walks1Sorted.length === walks2Sorted.length)
-    
+
     // Compare each walk array
     walks1Sorted.zip(walks2Sorted).foreach { case (walk1, walk2) =>
       assert(walk1 === walk2, "Walk sequences should be identical")
@@ -141,7 +143,7 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     // Clean up temporary files
     rwRunner2.cleanUp()
-    
+
     // Verify cleanup
     val hadoopConf = spark.sparkContext.hadoopConfiguration
     val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
@@ -151,7 +153,7 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
       assert(!fs.exists(path), s"Temporary file not deleted: $path")
     }
-    
+
     // Unpersist
     walks1.unpersist()
     walks2.unpersist()
