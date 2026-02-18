@@ -278,7 +278,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       }
       val iterationResult: DataFrame = runIter(preparedGraph, prevIterationDF, iterSeed)
         .withColumn(RandomWalkBase.batchIDColName, lit(i))
-      iterationResult.write.parquet(iterationTmpPath(i))
+      iterationResult.write.mode("overwrite").parquet(iterationTmpPath(i))
     }
 
     logInfo("Finished all batches, merging results.")
