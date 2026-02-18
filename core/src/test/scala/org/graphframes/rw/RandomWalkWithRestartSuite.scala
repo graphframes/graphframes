@@ -23,22 +23,28 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       .setTemporaryPrefix("/tmp")
 
     val walks = rwRunner.run()
+    val walkId = rwRunner.getWalkId()
 
-    assert(walks.schema.fields.length === 2)
-    // friends has string as ID type
-    assert(walks.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
+    try {
+      assert(walks.schema.fields.length === 2)
+      // friends has string as ID type
+      assert(walks.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
 
-    // num rows should be:
-    // - 10 walks for each vertex that has edge
-    // - vertex "g" is isolated
-    // - total vertices 7
-    // - total walks (7 - 1) * 10 = 60
-    assert(walks.count() === 60)
+      // num rows should be:
+      // - 10 walks for each vertex that has edge
+      // - vertex "g" is isolated
+      // - total vertices 7
+      // - total walks (7 - 1) * 10 = 60
+      assert(walks.count() === 60)
 
-    // each walk should have length numBatches * batchSize = 25
-    assert(walks.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(25)).count() === 0)
+      // each walk should have length numBatches * batchSize = 25
+      assert(walks.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(25)).count() === 0)
 
-    // all walk IDs are unique
-    assert(walks.select(col(RandomWalkBase.walkIdCol)).distinct().count() === 60)
+      // all walk IDs are unique
+      assert(walks.select(col(RandomWalkBase.walkIdCol)).distinct().count() === 60)
+    } finally {
+      // Clean up temporary files after the test
+      rwRunner.cleanUp(walkId)
+    }
   }
 }
