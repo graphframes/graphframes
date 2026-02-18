@@ -22,10 +22,10 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       .setNumWalksPerNode(10)
       .setTemporaryPrefix("/tmp")
 
-    val walks = rwRunner.run()
     val walkId = rwRunner.getWalkId()
-
     try {
+      val walks = rwRunner.run()
+      
       assert(walks.schema.fields.length === 2)
       // friends has string as ID type
       assert(walks.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
