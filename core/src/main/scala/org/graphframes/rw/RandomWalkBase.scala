@@ -259,6 +259,15 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
     val iterationsRng = new Random(globalSeed)
     val spark = graph.vertices.sparkSession
 
+    // If we're starting from a batch index > 1, we need to skip the seeds for previous batches
+    // to ensure the same sequence of random numbers as if we started from batch 1
+    if (startingIteration > 1) {
+      logInfo(s"Skipping ${startingIteration - 1} seeds to maintain seed consistency")
+      for (_ <- 1 until startingIteration) {
+        iterationsRng.nextLong()
+      }
+    }
+
     for (i <- startingIteration to numBatches) {
       logInfo(s"Starting batch $i of $numBatches")
       val iterSeed = iterationsRng.nextLong()
