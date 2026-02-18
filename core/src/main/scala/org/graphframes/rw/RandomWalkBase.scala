@@ -299,12 +299,13 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   }
 
   /**
-   * Deletes all temporary files associated with a given walk ID.
-   * This method uses Hadoop FileSystem to remove the directory containing
-   * batch files for the specified walk ID. The temporary prefix must be set
-   * and accessible via the current SparkContext's Hadoop configuration.
+   * Deletes all temporary files associated with a given walk ID. This method uses Hadoop
+   * FileSystem to remove the directory containing batch files for the specified walk ID. The
+   * temporary prefix must be set and accessible via the current SparkContext's Hadoop
+   * configuration.
    *
-   * @param walkId the walk ID whose temporary files should be cleaned up
+   * @param walkId
+   *   the walk ID whose temporary files should be cleaned up
    */
   def cleanUp(walkId: String): Unit = {
     if (temporaryPrefix.isEmpty) {
