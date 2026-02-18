@@ -288,15 +288,12 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   }
 
   /**
-   * Deletes all temporary files associated with a given run ID. This method uses Hadoop
+   * Deletes all temporary files associated with a given instance. This method uses Hadoop
    * FileSystem to remove the directory containing batch files for the specified run ID. The
    * temporary prefix must be set and accessible via the current SparkContext's Hadoop
    * configuration.
-   *
-   * @param runId
-   *   the run ID whose temporary files should be cleaned up
    */
-  def cleanUp(runId: String): Unit = {
+  def cleanUp(): Unit = {
     if (temporaryPrefix.isEmpty) {
       throw new IllegalArgumentException("Temporary prefix is required for clean-up.")
     }
