@@ -52,7 +52,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   protected var temporaryPrefix: Option[String] = None
 
   /** Unique identifier for the current random walk run. */
-  protected var walkID: String = java.util.UUID.randomUUID().toString
+  protected var runID: String = java.util.UUID.randomUUID().toString
 
   /** Starting batch index for continous mode */
   protected var startingIteration: Int = 1
@@ -173,18 +173,18 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
    * @param value
    * @return
    */
-  def setWalkId(value: String): this.type = {
-    require(value != "", "empty string is not supported as walk ID")
-    walkID = value
+  def setRunId(value: String): this.type = {
+    require(value != "", "empty string is not supported as run ID")
+    runID = value
     this
   }
 
   /**
-   * Get the generated (or provided) walkID. This method returns current walkID!
+   * Get the generated (or provided) runID. This method returns current runID!
    *
    * @return
    */
-  def getWalkId(): String = walkID
+  def getRunId(): String = runID
 
   /**
    * Sets the startng batch index for the continous mode. See @setWalkId comment for details.
@@ -207,9 +207,9 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
    *   path string
    */
   private def iterationTmpPath(iter: Int): String = if (temporaryPrefix.get.endsWith("/")) {
-    s"${temporaryPrefix.get}${walkID}_batch_${iter}"
+    s"${temporaryPrefix.get}${runID}_batch_${iter}"
   } else {
-    s"${temporaryPrefix.get}/${walkID}_batch_${iter}"
+    s"${temporaryPrefix.get}/${runID}_batch_${iter}"
   }
 
   private def sortAndConcat(arrCol: Column): Column = {
@@ -243,7 +243,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       throw new IllegalArgumentException("Temporary prefix is required for random walks.")
     }
 
-    logInfo(s"Starting random walk with walkID: $walkID")
+    logInfo(s"Starting random walk with runID: $runID")
 
     val iterationsRng = new Random(globalSeed)
     val spark = graph.vertices.sparkSession
@@ -288,15 +288,15 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   }
 
   /**
-   * Deletes all temporary files associated with a given walk ID. This method uses Hadoop
-   * FileSystem to remove the directory containing batch files for the specified walk ID. The
+   * Deletes all temporary files associated with a given run ID. This method uses Hadoop
+   * FileSystem to remove the directory containing batch files for the specified run ID. The
    * temporary prefix must be set and accessible via the current SparkContext's Hadoop
    * configuration.
    *
-   * @param walkId
-   *   the walk ID whose temporary files should be cleaned up
+   * @param runId
+   *   the run ID whose temporary files should be cleaned up
    */
-  def cleanUp(walkId: String): Unit = {
+  def cleanUp(runId: String): Unit = {
     if (temporaryPrefix.isEmpty) {
       throw new IllegalArgumentException("Temporary prefix is required for clean-up.")
     }
@@ -305,20 +305,20 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
     val hadoopConf = sc.hadoopConfiguration
     val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
     val basePath = temporaryPrefix.get
-    val walkPath = if (basePath.endsWith("/")) {
-      s"${basePath}${walkId}_batch_"
+    val runPath = if (basePath.endsWith("/")) {
+      s"${basePath}${runId}_batch_"
     } else {
-      s"${basePath}/${walkId}_batch_"
+      s"${basePath}/${runId}_batch_"
     }
     // Delete all batch directories (1 to numBatches)
     for (i <- 1 to numBatches) {
-      val path = new org.apache.hadoop.fs.Path(s"${walkPath}${i}")
+      val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
       if (fs.exists(path)) {
         logInfo(s"Deleting temporary batch directory: $path")
         fs.delete(path, true) // recursive delete
       }
     }
-    logInfo(s"Clean-up completed for walk ID: $walkId")
+    logInfo(s"Clean-up completed for run ID: $runId")
   }
 
   /**

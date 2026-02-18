@@ -22,7 +22,7 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       .setNumWalksPerNode(10)
       .setTemporaryPrefix("/tmp")
 
-    val walkId = rwRunner.getWalkId()
+    val runId = rwRunner.getRunId()
     try {
       val walks = rwRunner.run()
       
@@ -44,7 +44,7 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       assert(walks.select(col(RandomWalkBase.walkIdCol)).distinct().count() === 60)
     } finally {
       // Clean up temporary files after the test
-      rwRunner.cleanUp(walkId)
+      rwRunner.cleanUp(runId)
     }
   }
 }
