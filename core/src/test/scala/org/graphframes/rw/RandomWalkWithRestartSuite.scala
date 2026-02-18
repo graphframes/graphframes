@@ -58,4 +58,102 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       }
     }
   }
+
+  test("test RW with restart from middle iteration") {
+    val g = Graphs.friends
+
+    val numBatches = 6
+    val batchSize = 5
+    val totalSteps = numBatches * batchSize
+
+    // First run: generate all 6 batches
+    val rwRunner1 = new RandomWalkWithRestart()
+      .onGraph(g)
+      .setRestartProbability(0.2)
+      .setGlobalSeed(42L)
+      .setBatchSize(batchSize)
+      .setNumBatches(numBatches)
+      .setNumWalksPerNode(10)
+      .setTemporaryPrefix("/tmp")
+
+    val runId = rwRunner1.getRunId()
+    println(s"Using runId: $runId")
+
+    // Run and persist the result
+    val walks1 = rwRunner1.run()
+    // Materialize and persist
+    walks1.persist()
+    walks1.count() // Force materialization
+
+    // Verify walks1 properties
+    assert(walks1.schema.fields.length === 2)
+    assert(walks1.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
+    assert(walks1.count() === 60) // (7-1)*10 = 60 walks
+    assert(walks1.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(totalSteps)).count() === 0)
+
+    // Second run: same runID, start from iteration 3
+    val rwRunner2 = new RandomWalkWithRestart()
+      .onGraph(g)
+      .setRestartProbability(0.2)
+      .setGlobalSeed(42L)
+      .setBatchSize(batchSize)
+      .setNumBatches(numBatches)
+      .setNumWalksPerNode(10)
+      .setTemporaryPrefix("/tmp")
+      .setRunId(runId)
+      .setStartingFromBatch(3)
+
+    val walks2 = rwRunner2.run()
+    walks2.persist()
+    walks2.count() // Force materialization
+
+    // Verify walks2 properties
+    assert(walks2.schema.fields.length === 2)
+    assert(walks2.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
+    assert(walks2.count() === 60)
+    assert(walks2.filter(array_size(col(RandomWalkBase.rwColName)) =!= lit(totalSteps)).count() === 0)
+
+    // Compare results: they should be identical
+    // Since walk IDs are UUIDs generated during the first batch, they will be different
+    // between runs. So we need to compare the walks without considering walk IDs.
+    // We'll sort both DataFrames by the walk array and compare the arrays directly.
+    
+    import org.apache.spark.sql.functions._
+    
+    // Extract just the walk arrays and sort them
+    val walks1Sorted = walks1.select(col(RandomWalkBase.rwColName))
+      .orderBy(col(RandomWalkBase.rwColName).asc)
+      .collect()
+      .map(_.getAs[Seq[String]](0))
+    
+    val walks2Sorted = walks2.select(col(RandomWalkBase.rwColName))
+      .orderBy(col(RandomWalkBase.rwColName).asc)
+      .collect()
+      .map(_.getAs[Seq[String]](0))
+    
+    // Both should have the same number of walks
+    assert(walks1Sorted.length === walks2Sorted.length)
+    
+    // Compare each walk array
+    walks1Sorted.zip(walks2Sorted).foreach { case (walk1, walk2) =>
+      assert(walk1 === walk2, "Walk sequences should be identical")
+    }
+
+    // Clean up temporary files
+    rwRunner2.cleanUp()
+    
+    // Verify cleanup
+    val hadoopConf = spark.sparkContext.hadoopConfiguration
+    val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+    val basePath = "/tmp"
+    val runPath = s"$basePath/${runId}_batch_"
+    (1 to numBatches).foreach { i =>
+      val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
+      assert(!fs.exists(path), s"Temporary file not deleted: $path")
+    }
+    
+    // Unpersist
+    walks1.unpersist()
+    walks2.unpersist()
+  }
 }
