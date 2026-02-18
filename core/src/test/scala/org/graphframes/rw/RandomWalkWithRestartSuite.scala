@@ -45,6 +45,16 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
     } finally {
       // Clean up temporary files after the test
       rwRunner.cleanUp()
+
+      // Verify that all temporary files have been deleted
+      val hadoopConf = spark.sparkContext.hadoopConfiguration
+      val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+      val basePath = "/tmp"
+      val runPath = s"$basePath/${rwRunner.getRunId()}_batch_"
+      (1 to rwRunner.numBatches).foreach { i =>
+        val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
+        assert(!fs.exists(path), s"Temporary file not deleted: $path")
+      }
     }
   }
 }
