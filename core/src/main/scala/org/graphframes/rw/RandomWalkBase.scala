@@ -299,6 +299,39 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   }
 
   /**
+   * Deletes all temporary files associated with a given walk ID.
+   * This method uses Hadoop FileSystem to remove the directory containing
+   * batch files for the specified walk ID. The temporary prefix must be set
+   * and accessible via the current SparkContext's Hadoop configuration.
+   *
+   * @param walkId the walk ID whose temporary files should be cleaned up
+   */
+  def cleanUp(walkId: String): Unit = {
+    if (temporaryPrefix.isEmpty) {
+      throw new IllegalArgumentException("Temporary prefix is required for clean-up.")
+    }
+    val spark = graph.vertices.sparkSession
+    val sc = spark.sparkContext
+    val hadoopConf = sc.hadoopConfiguration
+    val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+    val basePath = temporaryPrefix.get
+    val walkPath = if (basePath.endsWith("/")) {
+      s"${basePath}${walkId}_batch_"
+    } else {
+      s"${basePath}/${walkId}_batch_"
+    }
+    // Delete all batch directories (1 to numBatches)
+    for (i <- 1 to numBatches) {
+      val path = new org.apache.hadoop.fs.Path(s"${walkPath}${i}")
+      if (fs.exists(path)) {
+        logInfo(s"Deleting temporary batch directory: $path")
+        fs.delete(path, true) // recursive delete
+      }
+    }
+    logInfo(s"Clean-up completed for walk ID: $walkId")
+  }
+
+  /**
    * Prepares the graph for random walk by limiting neighbors and handling direction.
    *
    * @return
