@@ -13,19 +13,20 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
   test("test RW base") {
     val g = Graphs.friends
 
+    val numBatches = 5
     val rwRunner = new RandomWalkWithRestart()
       .onGraph(g)
       .setRestartProbability(0.2)
       .setGlobalSeed(42L)
       .setBatchSize(5)
-      .setNumBatches(5)
+      .setNumBatches(numBatches)
       .setNumWalksPerNode(10)
       .setTemporaryPrefix("/tmp")
 
     val runId = rwRunner.getRunId()
     try {
       val walks = rwRunner.run()
-      
+
       assert(walks.schema.fields.length === 2)
       // friends has string as ID type
       assert(walks.schema(RandomWalkBase.rwColName).dataType === ArrayType(StringType))
@@ -50,8 +51,8 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       val hadoopConf = spark.sparkContext.hadoopConfiguration
       val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
       val basePath = "/tmp"
-      val runPath = s"$basePath/${rwRunner.getRunId()}_batch_"
-      (1 to rwRunner.numBatches).foreach { i =>
+      val runPath = s"$basePath/${runId}_batch_"
+      (1 to numBatches).foreach { i =>
         val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
         assert(!fs.exists(path), s"Temporary file not deleted: $path")
       }
