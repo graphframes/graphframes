@@ -44,7 +44,7 @@ class RandomWalkWithRestartSuite extends SparkFunSuite with GraphFrameTestSparkC
       assert(walks.select(col(RandomWalkBase.walkIdCol)).distinct().count() === 60)
     } finally {
       // Clean up temporary files after the test
-      rwRunner.cleanUp(runId)
+      rwRunner.cleanUp()
     }
   }
 }

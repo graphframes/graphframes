@@ -298,24 +298,8 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       throw new IllegalArgumentException("Temporary prefix is required for clean-up.")
     }
     val spark = graph.vertices.sparkSession
-    val sc = spark.sparkContext
-    val hadoopConf = sc.hadoopConfiguration
-    val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    val basePath = temporaryPrefix.get
-    val runPath = if (basePath.endsWith("/")) {
-      s"${basePath}${runId}_batch_"
-    } else {
-      s"${basePath}/${runId}_batch_"
-    }
-    // Delete all batch directories (1 to numBatches)
-    for (i <- 1 to numBatches) {
-      val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
-      if (fs.exists(path)) {
-        logInfo(s"Deleting temporary batch directory: $path")
-        fs.delete(path, true) // recursive delete
-      }
-    }
-    logInfo(s"Clean-up completed for run ID: $runId")
+    RandomWalkBase.cleanUp(temporaryPrefix.get, runID, numBatches, spark)
+    logInfo(s"Clean-up completed for run ID: $runID")
   }
 
   /**
@@ -393,4 +377,41 @@ object RandomWalkBase extends Serializable {
 
   /** Column name for batch ID inside walk. */
   val batchIDColName: String = "random_walk_batch_it"
+
+  /**
+   * Deletes all temporary files associated with a given runID. This method uses Hadoop
+   * FileSystem to remove the directory containing batch files for the specified run ID. The
+   * temporary prefix must be set and accessible via the current SparkContext's Hadoop
+   * configuration.
+   *
+   * @param temporaryPrefix the temporary prefix path
+   * @param runID the run ID used to generate batch directories
+   * @param numBatches the number of batch directories to look for
+   * @param spark the SparkSession used to get the Hadoop configuration
+   */
+  def cleanUp(
+      temporaryPrefix: String,
+      runID: String,
+      numBatches: Int,
+      spark: org.apache.spark.sql.SparkSession): Unit = {
+    val sc = spark.sparkContext
+    val hadoopConf = sc.hadoopConfiguration
+    val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+    val basePath = temporaryPrefix
+    val runPath = if (basePath.endsWith("/")) {
+      s"${basePath}${runID}_batch_"
+    } else {
+      s"${basePath}/${runID}_batch_"
+    }
+    // Delete all batch directories (1 to numBatches)
+    for (i <- 1 to numBatches) {
+      val path = new org.apache.hadoop.fs.Path(s"${runPath}${i}")
+      if (fs.exists(path)) {
+        // Use the Spark's log
+        sc.setLogLevel("INFO")
+        sc.logInfo(s"Deleting temporary batch directory: $path")
+        fs.delete(path, true) // recursive delete
+      }
+    }
+  }
 }
