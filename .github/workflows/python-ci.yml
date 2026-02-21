@@ -6,13 +6,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.6
+          - spark-version: 3.5.7
             scala-version: 2.12
             python-version: "3.10"
             java-version: 11
           - spark-version: 4.0.1
             scala-version: 2.13
-            python-version: 3.12
+            python-version: "3.12"
+            java-version: 17
+          - spark-version: 4.1.0
+            scala-version: 2.13
+            python-version: "3.13"
             java-version: 17
     runs-on: ubuntu-latest
     env:
@@ -23,17 +27,17 @@ jobs:
       SCALA_VERSION: ${{ matrix.scala-version }}
       PIP_REQUESTS_TIMEOUT: 100
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-java@v5
       with:
         distribution: "zulu"
         java-version: "${{ matrix.java-version }}"
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: |
           ~/.ivy2/cache
         key: sbt-ivy-cache-spark-${{ matrix.spark-version}}-scala-${{ matrix.scala-version }}
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install and configure Poetry

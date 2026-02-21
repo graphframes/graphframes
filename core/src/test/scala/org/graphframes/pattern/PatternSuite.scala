@@ -17,7 +17,6 @@
 
 package org.graphframes.pattern
 
-import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.InvalidParseException
 import org.graphframes.SparkFunSuite
 
@@ -37,9 +36,19 @@ class PatternSuite extends SparkFunSuite {
     assert(
       Pattern.parse("(u)-[e*3]->(v)") ===
         Seq(
-          NamedEdge("_e1", NamedVertex("u"), NamedVertex("_v1")),
-          NamedEdge("_e2", NamedVertex("_v1"), NamedVertex("_v2")),
-          NamedEdge("_e3", NamedVertex("_v2"), NamedVertex("v"))))
+          NamedEdge("_e1", NamedVertex("u"), NamedVertex("_uv1")),
+          NamedEdge("_e2", NamedVertex("_uv1"), NamedVertex("_uv2")),
+          NamedEdge("_e3", NamedVertex("_uv2"), NamedVertex("v"))))
+
+    assert(
+      Pattern.parse("(u)-[e*3]->(v);(v)-[l*2]->(w);(w)-[k*1]->(p)") ===
+        Seq(
+          NamedEdge("_e1", NamedVertex("u"), NamedVertex("_uv1")),
+          NamedEdge("_e2", NamedVertex("_uv1"), NamedVertex("_uv2")),
+          NamedEdge("_e3", NamedVertex("_uv2"), NamedVertex("v")),
+          NamedEdge("_l1", NamedVertex("v"), NamedVertex("_vw1")),
+          NamedEdge("_l2", NamedVertex("_vw1"), NamedVertex("w")),
+          NamedEdge("_k1", NamedVertex("w"), NamedVertex("p"))))
 
     assert(
       Pattern.parse("()-[]->(v)") ===
@@ -67,32 +76,32 @@ class PatternSuite extends SparkFunSuite {
     assert(
       Pattern.parse("(u)-[*3]->(v)") ===
         Seq(
-          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
-          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
-          AnonymousEdge(NamedVertex("_v2"), NamedVertex("v"))))
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_uv1")),
+          AnonymousEdge(NamedVertex("_uv1"), NamedVertex("_uv2")),
+          AnonymousEdge(NamedVertex("_uv2"), NamedVertex("v"))))
 
     assert(
       Pattern.parse("(u)-[*5]->(v)") ===
         Seq(
-          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
-          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
-          AnonymousEdge(NamedVertex("_v2"), NamedVertex("_v3")),
-          AnonymousEdge(NamedVertex("_v3"), NamedVertex("_v4")),
-          AnonymousEdge(NamedVertex("_v4"), NamedVertex("v"))))
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_uv1")),
+          AnonymousEdge(NamedVertex("_uv1"), NamedVertex("_uv2")),
+          AnonymousEdge(NamedVertex("_uv2"), NamedVertex("_uv3")),
+          AnonymousEdge(NamedVertex("_uv3"), NamedVertex("_uv4")),
+          AnonymousEdge(NamedVertex("_uv4"), NamedVertex("v"))))
 
     assert(
       Pattern.parse("(u)-[*10]->(v)") ===
         Seq(
-          AnonymousEdge(NamedVertex("u"), NamedVertex("_v1")),
-          AnonymousEdge(NamedVertex("_v1"), NamedVertex("_v2")),
-          AnonymousEdge(NamedVertex("_v2"), NamedVertex("_v3")),
-          AnonymousEdge(NamedVertex("_v3"), NamedVertex("_v4")),
-          AnonymousEdge(NamedVertex("_v4"), NamedVertex("_v5")),
-          AnonymousEdge(NamedVertex("_v5"), NamedVertex("_v6")),
-          AnonymousEdge(NamedVertex("_v6"), NamedVertex("_v7")),
-          AnonymousEdge(NamedVertex("_v7"), NamedVertex("_v8")),
-          AnonymousEdge(NamedVertex("_v8"), NamedVertex("_v9")),
-          AnonymousEdge(NamedVertex("_v9"), NamedVertex("v"))))
+          AnonymousEdge(NamedVertex("u"), NamedVertex("_uv1")),
+          AnonymousEdge(NamedVertex("_uv1"), NamedVertex("_uv2")),
+          AnonymousEdge(NamedVertex("_uv2"), NamedVertex("_uv3")),
+          AnonymousEdge(NamedVertex("_uv3"), NamedVertex("_uv4")),
+          AnonymousEdge(NamedVertex("_uv4"), NamedVertex("_uv5")),
+          AnonymousEdge(NamedVertex("_uv5"), NamedVertex("_uv6")),
+          AnonymousEdge(NamedVertex("_uv6"), NamedVertex("_uv7")),
+          AnonymousEdge(NamedVertex("_uv7"), NamedVertex("_uv8")),
+          AnonymousEdge(NamedVertex("_uv8"), NamedVertex("_uv9")),
+          AnonymousEdge(NamedVertex("_uv9"), NamedVertex("v"))))
   }
 
   test("good parses - undirected pattern") {
@@ -219,7 +228,7 @@ class PatternSuite extends SparkFunSuite {
 
   test("unsupported parse on the fixed length patterns") {
     withClue("Failed to catch parse error with graph frame unreachable") {
-      intercept[GraphFramesUnreachableException] {
+      intercept[InvalidParseException] {
         Pattern.parse("(u)-[*0]->(v)")
       }
     }
@@ -227,12 +236,6 @@ class PatternSuite extends SparkFunSuite {
     withClue("Failed to catch parse error with bad motif string") {
       intercept[InvalidParseException] {
         Pattern.parse("(u)-[*]->(v)")
-      }
-    }
-
-    withClue("Failed to catch parse error with chaining quantified length pattern") {
-      intercept[InvalidParseException] {
-        Pattern.parse("(u)-[*2]->(v);(v)-[e]->(w)")
       }
     }
   }
