@@ -232,4 +232,232 @@ class AggregateNeighborsSuite extends SparkFunSuite with GraphFrameTestSparkCont
     val expectedPath = s"$sourceId->2->3->$targetId"
     assert(actualPath === expectedPath)
   }
+
+  test("AggregateNeighbors with empty graph") {
+    // Create an empty graph with no vertices and no edges
+    val vertices = spark.createDataFrame(Seq.empty[(Long, String)]).toDF("id", "name")
+    val edges = spark.createDataFrame(Seq.empty[(Long, Long)]).toDF("src", "dst")
+
+    val graph = GraphFrame(vertices, edges)
+
+    // Run aggregate neighbors with arbitrary starting vertex
+    val agg = graph.aggregateNeighbors
+      .setStartingVertices(col("id") === 1L)
+      .setStoppingCondition(lit(false))
+      .setMaxHops(3)
+      .addAccumulator("count", lit(0L), col("count") + lit(1L))
+      .run()
+
+    val results = agg.collect()
+
+    // Should return empty results without errors
+    assert(results.length === 0)
+  }
+
+  test("AggregateNeighbors with disconnected vertices") {
+    // Create a graph with disconnected components
+    // Component 1: 1 -> 2
+    // Component 2: 3 -> 4 (disconnected from component 1)
+    val vertices = spark
+      .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "C"), (4L, "D")))
+      .toDF("id", "name")
+
+    val edges = spark
+      .createDataFrame(Seq((1L, 2L, "edge1"), (3L, 4L, "edge2")))
+      .toDF("src", "dst", "edgeAttr")
+
+    val graph = GraphFrame(vertices, edges)
+
+    // Start from vertex 1, try to reach vertex 4 (disconnected)
+    val sourceId = 1L
+    val targetId = 4L
+
+    val agg = graph.aggregateNeighbors
+      .setStartingVertices(col("id") === sourceId)
+      .setMaxHops(5)
+      .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(targetId))
+      .addAccumulator(
+        "path",
+        lit(sourceId.toString),
+        concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("id").cast("string")))
+      .setRequiredVertexAttributes(Seq("id"))
+      .setRequiredEdgeAttributes(Seq("edgeAttr"))
+      .run()
+
+    val results = agg.collect()
+
+    // No path should exist to disconnected vertex 4
+    assert(results.length === 0)
+
+    // Now test within connected component
+    val agg2 = graph.aggregateNeighbors
+      .setStartingVertices(col("id") === sourceId)
+      .setMaxHops(5)
+      .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(2L))
+      .addAccumulator(
+        "path",
+        lit(sourceId.toString),
+        concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("id").cast("string")))
+      .setRequiredVertexAttributes(Seq("id"))
+      .setRequiredEdgeAttributes(Seq("edgeAttr"))
+      .run()
+
+    val results2 = agg2.collect()
+
+    // Path should exist within connected component
+    assert(results2.length === 1)
+    assert(results2(0).getAs[String]("path") === s"$sourceId->2")
+  }
+
+  test("AggregateNeighbors with self-loops") {
+    // Create a graph with a self-loop
+    val vertices =
+      spark.createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "C"))).toDF("id", "name")
+
+    val edges = spark
+      .createDataFrame(
+        Seq(
+          (1L, 2L, "edge1"),
+          (2L, 2L, "self-loop"), // Self-loop on vertex 2
+          (2L, 3L, "edge2")))
+      .toDF("src", "dst", "edgeAttr")
+
+    val graph = GraphFrame(vertices, edges)
+
+    val sourceId = 1L
+    val targetId = 3L
+
+    // Test without stopping condition to see self-loop behavior
+    val agg = graph.aggregateNeighbors
+      .setStartingVertices(col("id") === sourceId)
+      .setMaxHops(3)
+      .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(targetId))
+      .addAccumulator(
+        "path",
+        lit(sourceId.toString),
+        concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("id").cast("string")))
+      .setRequiredVertexAttributes(Seq("id"))
+      .setRequiredEdgeAttributes(Seq("edgeAttr"))
+      .run()
+
+    val results = agg.collect()
+
+    // Should find at least one path to target
+    assert(results.length >= 1)
+
+    // Verify direct path exists
+    val paths = results.map(_.getAs[String]("path")).toSet
+    assert(paths.contains(s"$sourceId->2->3"))
+  }
+
+  test("AggregateNeighbors with multiple edge types") {
+    // Create a graph with multiple edge types
+    val vertices = spark
+      .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "C"), (4L, "D")))
+      .toDF("id", "name")
+
+    val edges = spark
+      .createDataFrame(
+        Seq(
+          (1L, 2L, "friend"),
+          (2L, 3L, "colleague"),
+          (3L, 4L, "friend"),
+          (1L, 3L, "colleague"),
+          (2L, 4L, "friend")))
+      .toDF("src", "dst", "edgeType")
+
+    val graph = GraphFrame(vertices, edges)
+
+    val sourceId = 1L
+    val targetId = 4L
+
+    // Test with edge type filter for "friend" edges only
+    val agg = graph.aggregateNeighbors
+      .setStartingVertices(col("id") === sourceId)
+      .setMaxHops(5)
+      .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(targetId))
+      .setEdgeFilter(AggregateNeighbors.edgeAttr("edgeType") === lit("friend"))
+      .addAccumulator(
+        "path",
+        lit(sourceId.toString),
+        concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("id").cast("string")))
+      .setRequiredVertexAttributes(Seq("id"))
+      .setRequiredEdgeAttributes(Seq("edgeType"))
+      .run()
+
+    val results = agg.collect()
+
+    // With friend-only filter, should find paths using only friend edges
+    // Path: 1 -> 2 -> 4 (all friend edges)
+    assert(results.length === 1)
+    assert(results(0).getAs[String]("path") === s"$sourceId->2->$targetId")
+
+    // Test without filter - should find all paths
+    val agg2 = graph.aggregateNeighbors
+      .setStartingVertices(col("id") === sourceId)
+      .setMaxHops(5)
+      .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(targetId))
+      .addAccumulator(
+        "path",
+        lit(sourceId.toString),
+        concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("id").cast("string")))
+      .setRequiredVertexAttributes(Seq("id"))
+      .setRequiredEdgeAttributes(Seq("edgeType"))
+      .run()
+
+    val results2 = agg2.collect()
+
+    // Should find multiple paths without filtering
+    assert(results2.length > 1)
+  }
+
+  test("AggregateNeighbors with large vertex degrees") {
+    // Create a star graph: center vertex (1) connected to many leaf vertices
+    val numLeaves = 100
+
+    // Center vertex
+    val centerVertex = (1L, "center")
+
+    // Leaf vertices (2 to numLeaves+1)
+    val leafVertices = (2L to (numLeaves + 1).toLong).map(id => (id, s"leaf_$id"))
+
+    val vertices = spark
+      .createDataFrame(centerVertex +: leafVertices)
+      .toDF("id", "name")
+
+    // Edges from center to all leaves
+    val edges = leafVertices
+      .map { case (leafId, _) =>
+        (1L, leafId, "connects")
+      }
+
+    val edgesDF = spark
+      .createDataFrame(edges)
+      .toDF("src", "dst", "edgeType")
+
+    val graph = GraphFrame(vertices, edgesDF)
+
+    val sourceId = 1L
+
+    // Test aggregation from high-degree vertex
+    val agg = graph.aggregateNeighbors
+      .setStartingVertices(col("id") === sourceId)
+      .setMaxHops(2)
+      .addAccumulator("count", lit(0L), col("count") + lit(1L))
+      .setTargetCondition(
+        AggregateNeighbors.dstAttr("id").isInCollection((2L to (numLeaves + 1).toLong).toSeq))
+      .setRequiredVertexAttributes(Seq("id"))
+      .setRequiredEdgeAttributes(Seq("edgeType"))
+      .run()
+
+    val results = agg.collect()
+
+    // Should find all leaf vertices without performance issues
+    assert(results.length === numLeaves)
+
+    // Verify all accumulators are correctly computed
+    results.foreach { row =>
+      assert(row.getAs[Long]("count") === 1L)
+    }
+  }
 }

@@ -34,6 +34,7 @@ class GraphFramesAPI(_message.Message):
         "triplets",
         "mis",
         "kcore",
+        "aggregate_neighbors",
     )
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
@@ -57,6 +58,7 @@ class GraphFramesAPI(_message.Message):
     TRIPLETS_FIELD_NUMBER: _ClassVar[int]
     MIS_FIELD_NUMBER: _ClassVar[int]
     KCORE_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATE_NEIGHBORS_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -79,6 +81,7 @@ class GraphFramesAPI(_message.Message):
     triplets: Triplets
     mis: MaximalIndependentSet
     kcore: KCore
+    aggregate_neighbors: AggregateNeighbors
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -107,6 +110,7 @@ class GraphFramesAPI(_message.Message):
         triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
         mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
         kcore: _Optional[_Union[KCore, _Mapping]] = ...,
+        aggregate_neighbors: _Optional[_Union[AggregateNeighbors, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -551,5 +555,68 @@ class KCore(_message.Message):
         self,
         use_local_checkpoints: _Optional[bool] = ...,
         checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+    ) -> None: ...
+
+class AggregateNeighbors(_message.Message):
+    __slots__ = (
+        "starting_vertices",
+        "max_hops",
+        "accumulator_names",
+        "accumulator_inits",
+        "accumulator_updates",
+        "stopping_condition",
+        "target_condition",
+        "required_vertex_attributes",
+        "required_edge_attributes",
+        "edge_filter",
+        "remove_loops",
+        "checkpoint_interval",
+        "use_local_checkpoints",
+        "storage_level",
+    )
+    STARTING_VERTICES_FIELD_NUMBER: _ClassVar[int]
+    MAX_HOPS_FIELD_NUMBER: _ClassVar[int]
+    ACCUMULATOR_NAMES_FIELD_NUMBER: _ClassVar[int]
+    ACCUMULATOR_INITS_FIELD_NUMBER: _ClassVar[int]
+    ACCUMULATOR_UPDATES_FIELD_NUMBER: _ClassVar[int]
+    STOPPING_CONDITION_FIELD_NUMBER: _ClassVar[int]
+    TARGET_CONDITION_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_VERTEX_ATTRIBUTES_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_EDGE_ATTRIBUTES_FIELD_NUMBER: _ClassVar[int]
+    EDGE_FILTER_FIELD_NUMBER: _ClassVar[int]
+    REMOVE_LOOPS_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    starting_vertices: ColumnOrExpression
+    max_hops: int
+    accumulator_names: _containers.RepeatedScalarFieldContainer[str]
+    accumulator_inits: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
+    accumulator_updates: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
+    stopping_condition: ColumnOrExpression
+    target_condition: ColumnOrExpression
+    required_vertex_attributes: _containers.RepeatedScalarFieldContainer[str]
+    required_edge_attributes: _containers.RepeatedScalarFieldContainer[str]
+    edge_filter: ColumnOrExpression
+    remove_loops: bool
+    checkpoint_interval: int
+    use_local_checkpoints: bool
+    storage_level: StorageLevel
+    def __init__(
+        self,
+        starting_vertices: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        max_hops: _Optional[int] = ...,
+        accumulator_names: _Optional[_Iterable[str]] = ...,
+        accumulator_inits: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        accumulator_updates: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        stopping_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        target_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        required_vertex_attributes: _Optional[_Iterable[str]] = ...,
+        required_edge_attributes: _Optional[_Iterable[str]] = ...,
+        edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        remove_loops: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
     ) -> None: ...
