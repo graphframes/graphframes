@@ -968,7 +968,7 @@ class RandomWalkEmbeddings:
 
     def use_cached_random_walks(self, cached_walks_path: str) -> None:
         if cached_walks_path == "":
-            raise ValueError("cahced walks path cannot be empty")
+            raise ValueError("cached walks path cannot be empty")
         self._params.rw_cached_walks = cached_walks_path
 
     def set_rw_model(
@@ -998,7 +998,7 @@ class RandomWalkEmbeddings:
         num_partitions: int = 5,
         embeddings_dim: int = 512,
         decay_function: str = "gaussian",
-        guassian_sigma: float = 1.0,
+        gaussian_sigma: float = 1.0,
         hashing_seed: int = 42,
         sign_seed: int = 18,
         l2_norm: bool = True,
@@ -1012,7 +1012,7 @@ class RandomWalkEmbeddings:
         self._params.hash2vec_num_partitions = num_partitions
         self._params.hash2vec_embeddings_dim = embeddings_dim
         self._params.hash2vec_decay_function = decay_function
-        self._params.hash2vec_gaussian_sigma = guassian_sigma
+        self._params.hash2vec_gaussian_sigma = gaussian_sigma
         self._params.hash2vec_hashing_seed = hashing_seed
         self._params.hash2vec_sign_seed = sign_seed
         self._params.hash2vec_do_l2_norm = l2_norm

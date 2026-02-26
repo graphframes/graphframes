@@ -466,7 +466,7 @@ object GraphFramesConnectUtils {
           rwNumWalksPerNode = message.getRwNumWalksPerNode(),
           rwBatchSize = message.getRwBatchSize(),
           rwNumBatches = message.getRwNumBatches(),
-          rwSeed = message.getRwSeed().toInt,
+          rwSeed = message.getRwSeed(),
           rwRestartProbability = message.getRwRestartProbability(),
           rwTemporaryPrefix = message.getRwTemporaryPrefix(),
           rwCachedWalks = message.getRwCachedWalks(),
@@ -486,11 +486,11 @@ object GraphFramesConnectUtils {
           word2vecNumPartitions = message.getWord2VecNumPartitions(),
           word2vecMinCount = message.getWord2VecMinCount(),
           word2vecMaxSentenceLength = message.getWord2VecMaxSentenceLength(),
-          word2vecSeed = message.getWord2VecSeed().toInt,
+          word2vecSeed = message.getWord2VecSeed(),
           word2vecStepSize = message.getWord2VecStepSize(),
           aggregateNeighbors = message.getAggregateNeighbors(),
           aggregateNeighborsMaxNbrs = message.getAggregateNeighborsMaxNbrs(),
-          aggregateNeighborsSeed = message.getAggregateNeighborsSeed().toInt)
+          aggregateNeighborsSeed = message.getAggregateNeighborsSeed())
       }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }

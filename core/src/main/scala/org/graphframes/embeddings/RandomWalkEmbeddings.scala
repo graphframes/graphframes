@@ -261,7 +261,7 @@ object RandomWalkEmbeddings extends Serializable {
       rwNumWalksPerNode: Int,
       rwBatchSize: Int,
       rwNumBatches: Int,
-      rwSeed: Int,
+      rwSeed: Long,
       rwRestartProbability: Double,
       rwTemporaryPrefix: String,
       rwCachedWalks: String,
@@ -281,11 +281,11 @@ object RandomWalkEmbeddings extends Serializable {
       word2vecNumPartitions: Int,
       word2vecMinCount: Int,
       word2vecMaxSentenceLength: Int,
-      word2vecSeed: Int,
+      word2vecSeed: Long,
       word2vecStepSize: Double,
       aggregateNeighbors: Boolean,
       aggregateNeighborsMaxNbrs: Int,
-      aggregateNeighborsSeed: Int): DataFrame = {
+      aggregateNeighborsSeed: Long): DataFrame = {
     val randomWalksModel: RandomWalkBase = rwModel match {
       case "rw_with_restart" =>
         new RandomWalkWithRestart()
@@ -296,7 +296,7 @@ object RandomWalkEmbeddings extends Serializable {
           .setNumWalksPerNode(rwNumWalksPerNode)
           .setUseEdgeDirection(useEdgeDirection)
           .setTemporaryPrefix(rwTemporaryPrefix)
-          .setGlobalSeed(rwSeed.toLong)
+          .setGlobalSeed(rwSeed)
       case _: String =>
         throw new GraphFramesW2VException(
           s"unsupported RW $rwModel, supported: ${rwModels.mkString}")
@@ -321,7 +321,7 @@ object RandomWalkEmbeddings extends Serializable {
             .setMaxSentenceLength(word2vecMaxSentenceLength)
             .setMinCount(word2vecMinCount)
             .setNumPartitions(word2vecNumPartitions)
-            .setSeed(word2vecSeed.toLong)
+            .setSeed(word2vecSeed)
             .setStepSize(word2vecStepSize)
             .setVectorSize(word2vecEmbeddingsDim)
             .setWindowSize(word2vecWindowSize))
@@ -336,7 +336,7 @@ object RandomWalkEmbeddings extends Serializable {
       .setAggregateNeighbors(aggregateNeighbors)
       .setMaxNbrs(aggregateNeighborsMaxNbrs)
       .setUseEdgeDirections(useEdgeDirection)
-      .setSeed(aggregateNeighborsSeed.toLong)
+      .setSeed(aggregateNeighborsSeed)
 
     if (rwCachedWalks == "") {
       embeddingsGenerator.run()
