@@ -49,6 +49,7 @@ class _RandomWalksEmbeddingsParameters:
     aggregate_neighbors: bool = True
     aggregate_neighbors_max_nbrs: int = 50
     aggregate_neighbors_seed: int = 42
+    clean_up_after_run: bool = False
 
     def validate(self) -> None:
         if self.sequence_model not in _SEQUENCE_MODELS:
