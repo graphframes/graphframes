@@ -58,11 +58,13 @@ Random walks are generated using the `RandomWalkWithRestart` algorithm, which in
 Word2Vec is based on the skip-gram model, which provides high-quality embeddings by learning to predict context nodes from target nodes through gradient descent optimization.
 
 **Strengths:**
+
 - High-quality embeddings that capture semantic relationships
 - Well-established model with proven performance across domains
 - Smooth optimization through gradient descent
 
 **Limitations:**
+
 - Computationally expensive, requiring more memory and processing time
 - Scales to approximately 20 million vertices maximum
 - Requires building a vocabulary from all sequences
@@ -73,12 +75,14 @@ Word2Vec is based on the skip-gram model, which provides high-quality embeddings
 Hash2Vec uses random projection hashing to create embeddings through a much faster, memory-efficient process. It employs feature hashing to map nodes to embedding dimensions.
 
 **Strengths:**
+
 - Extremely fast and memory-efficient
 - Excellent horizontal scaling properties
 - No vocabulary building required
 - Suitable for graphs with billions of vertices
 
 **Limitations:**
+
 - Requires wider embedding dimensions (typically 512+) for good quality
 - Lower quality compared to Word2Vec due to sparse, randomized projections
 - Less ability to capture fine-grained semantic relationships
@@ -92,11 +96,13 @@ To bridge the quality gap between Hash2Vec and Word2Vec, GraphFrames offers opti
 3. Concatenates this aggregated embedding with the node's own embedding
 
 **Benefits:**
+
 - Improves predictive power by over 20% in synthetic tests
 - Particularly effective for Hash2Vec (adds neighborhood context that Word2Vec already captures through skip-gram)
 - Computationally efficient, especially for Hash2Vec
 
 **When to use:**
+
 - Always enable for Hash2Vec embeddings
 - Consider disabling for Word2Vec (redundant with skip-gram learning)
 
@@ -110,14 +116,14 @@ To bridge the quality gap between Hash2Vec and Word2Vec, GraphFrames offers opti
 
 #### Performance Tradeoffs
 
-| Aspect | Word2Vec | Hash2Vec |
-|--------|----------|----------|
-| Quality | High | Moderate |
-| Memory Usage | High | Low |
-| Training Speed | Slow | Very Fast |
-| Horizontal Scaling | Limited | Excellent |
-| Embedding Dimension | 50-300 | 512+ |
-| Out-of-core Support | Limited | Good |
+| Aspect              | Word2Vec | Hash2Vec  |
+| ------------------- | -------- | --------- |
+| Quality             | High     | Moderate  |
+| Memory Usage        | High     | Low       |
+| Training Speed      | Slow     | Very Fast |
+| Horizontal Scaling  | Limited  | Excellent |
+| Embedding Dimension | 50-300   | 512+      |
+| Out-of-core Support | Limited  | Good      |
 
 #### Infrastructure Requirements
 
@@ -308,51 +314,51 @@ An implementation of `RandomWalk` supports also continue from the batch. See ref
 
 #### Random Walk Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `temporary_prefix` | String | Required | Path prefix for storing temporary walk data |
-| `use_edge_direction` | Boolean | `false` | Whether to respect edge directions |
-| `max_neighbors_per_vertex` | Integer | `50` | Maximum neighbors to consider per vertex |
-| `num_walks_per_node` | Integer | `5` | Number of walks to generate per node |
-| `num_batches` | Integer | `5` | Number of batches for walk generation |
-| `walks_per_batch` | Integer | `10` | Walks per batch (controls walk length) |
-| `restart_probability` | Float | `0.1` | Probability of restarting walk at origin |
-| `seed` | Integer | `42` | Random seed for reproducibility |
+| Parameter                  | Type    | Default  | Description                                 |
+| -------------------------- | ------- | -------- | ------------------------------------------- |
+| `temporary_prefix`         | String  | Required | Path prefix for storing temporary walk data |
+| `use_edge_direction`       | Boolean | `false`  | Whether to respect edge directions          |
+| `max_neighbors_per_vertex` | Integer | `50`     | Maximum neighbors to consider per vertex    |
+| `num_walks_per_node`       | Integer | `5`      | Number of walks to generate per node        |
+| `num_batches`              | Integer | `5`      | Number of batches for walk generation       |
+| `walks_per_batch`          | Integer | `10`     | Walks per batch (controls walk length)      |
+| `restart_probability`      | Float   | `0.1`    | Probability of restarting walk at origin    |
+| `seed`                     | Integer | `42`     | Random seed for reproducibility             |
 
 #### Hash2Vec Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `context_size` | Integer | `5` | Size of context window for learning |
-| `num_partitions` | Integer | `5` | Number of partitions for distributed processing |
-| `embeddings_dim` | Integer | `512` | Dimension of output embeddings |
-| `decay_function` | String | `"gaussian"` | Distance decay function (`gaussian` or `linear`) |
-| `gaussian_sigma` | Float | `1.0` | Sigma parameter for Gaussian decay |
-| `hashing_seed` | Integer | `42` | Seed for feature hashing |
-| `sign_seed` | Integer | `18` | Seed for sign hashing |
-| `l2_norm` | Boolean | `true` | Whether to L2-normalize embeddings |
-| `save_norm` | Boolean | `true` | Whether to preserve normalization safely |
+| Parameter        | Type    | Default      | Description                                        |
+| ---------------- | ------- | ------------ | -------------------------------------------------- |
+| `context_size`   | Integer | `5`          | Size of context window for learning                |
+| `num_partitions` | Integer | `5`          | Number of partitions for distributed processing    |
+| `embeddings_dim` | Integer | `512`        | Dimension of output embeddings                     |
+| `decay_function` | String  | `"gaussian"` | Distance decay function (`gaussian` or `constant`) |
+| `gaussian_sigma` | Float   | `1.0`        | Sigma parameter for Gaussian decay                 |
+| `hashing_seed`   | Integer | `42`         | Seed for feature hashing                           |
+| `sign_seed`      | Integer | `18`         | Seed for sign hashing                              |
+| `l2_norm`        | Boolean | `true`       | Whether to L2-normalize embeddings                 |
+| `save_norm`      | Boolean | `true`       | Whether to preserve normalization safely           |
 
 #### Word2Vec Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `max_iter` | Integer | `1` | Maximum iterations for training |
-| `embeddings_dim` | Integer | `100` | Dimension of output embeddings |
-| `window_size` | Integer | `5` | Size of context window |
-| `num_partitions` | Integer | `1` | Number of partitions for training |
-| `min_count` | Integer | `5` | Minimum frequency for vocabulary inclusion |
-| `max_sentence_length` | Integer | `1000` | Maximum sequence length |
-| `seed` | Integer | `42` | Random seed |
-| `step_size` | Float | `0.025` | Learning rate for gradient descent |
+| Parameter             | Type    | Default | Description                                |
+| --------------------- | ------- | ------- | ------------------------------------------ |
+| `max_iter`            | Integer | `1`     | Maximum iterations for training            |
+| `embeddings_dim`      | Integer | `100`   | Dimension of output embeddings             |
+| `window_size`         | Integer | `5`     | Size of context window                     |
+| `num_partitions`      | Integer | `1`     | Number of partitions for training          |
+| `min_count`           | Integer | `5`     | Minimum frequency for vocabulary inclusion |
+| `max_sentence_length` | Integer | `1000`  | Maximum sequence length                    |
+| `seed`                | Integer | `42`    | Random seed                                |
+| `step_size`           | Float   | `0.025` | Learning rate for gradient descent         |
 
 #### Neighbor Aggregation Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `aggregate_neighbors` | Boolean | `true` | Whether to aggregate neighbor embeddings |
-| `max_neighbors` | Integer | `50` | Maximum neighbors to sample for aggregation |
-| `seed` | Integer | `42` | Random seed for neighbor sampling |
+| Parameter             | Type    | Default | Description                                 |
+| --------------------- | ------- | ------- | ------------------------------------------- |
+| `aggregate_neighbors` | Boolean | `true`  | Whether to aggregate neighbor embeddings    |
+| `max_neighbors`       | Integer | `50`    | Maximum neighbors to sample for aggregation |
+| `seed`                | Integer | `42`    | Random seed for neighbor sampling           |
 
 ### Recommendations
 
