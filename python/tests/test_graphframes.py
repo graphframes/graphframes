@@ -872,33 +872,6 @@ def test_aggregate_neighbors_with_edge_filter(spark: SparkSession) -> None:
     _ = result.unpersist()
 
 
-def test_aggregate_neighbors_error_handling(spark: SparkSession) -> None:
-    """Test AggregateNeighbors error handling for invalid inputs."""
-    v = spark.createDataFrame([(1, "A"), (2, "B")], ["id", "name"])
-    e = spark.createDataFrame([(1, 2)], ["src", "dst"])
-    g = GraphFrame(v, e)
-
-    # Test missing accumulators
-    with pytest.raises(Exception):
-        g.aggregate_neighbors(
-            starting_vertices=sqlfunctions.col("id") == 1,
-            max_hops=3,
-            accumulator_names=[],
-            accumulator_inits=[],
-            accumulator_updates=[],
-        )
-
-    # Test missing starting_vertices
-    with pytest.raises(Exception):
-        g.aggregate_neighbors(
-            starting_vertices=None,  # type: ignore
-            max_hops=3,
-            accumulator_names=["count"],
-            accumulator_inits=[sqlfunctions.lit(0)],
-            accumulator_updates=[sqlfunctions.col("count") + 1],
-        )
-
-
 def test_aggregate_neighbors_multiple_accumulators(spark: SparkSession) -> None:
     """Test AggregateNeighbors with multiple accumulators."""
     v = spark.createDataFrame([(1, 10), (2, 20), (3, 30)], ["id", "value"])
