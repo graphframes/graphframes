@@ -386,3 +386,220 @@ For `graphframes` only. By default, GraphFrames uses persistent checkpoints. The
 - `storage_level`
 
 The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarious, using `DISK_ONLY` may be faster.
+
+## Aggregate Neighbors
+
+Aggregate Neighbors is a powerful multi-hop traversal algorithm that allows you to explore the graph up to a specified number of hops while accumulating values along paths using customizable accumulator expressions. It supports both stopping conditions (when to stop exploring) and target conditions (when to collect a result).
+
+### Motivation and Use Cases
+
+This algorithm is particularly useful for:
+
+- **Path Finding**: Finding all paths between vertices while tracking accumulated values (distance, cost, etc.)
+- **Graph Exploration**: Systematically exploring neighborhoods with custom aggregation logic
+- **Pattern Matching**: Finding vertices that satisfy complex conditions based on path properties
+- **Accumulative Computations**: Computing values that depend on the entire path (e.g., product of edge weights, sum of node values)
+
+Unlike single-hop algorithms like BFS or shortest paths, Aggregate Neighbors allows you to:
+- Track multiple accumulators simultaneously
+- Define custom stopping criteria
+- Access vertex and edge attributes during traversal
+- Filter which edges can be traversed
+
+---
+
+**NOTE**
+
+*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+
+---
+
+### How It Works
+
+The algorithm performs a breadth-first traversal from starting vertices:
+
+1. **Initialization**: Starting vertices are marked as active with accumulators initialized
+2. **Iteration**: For each hop, active vertices send messages to their neighbors
+3. **Accumulation**: Accumulator values are updated based on traversal state
+4. **Stopping**: Paths stop when stopping condition is met or max hops reached
+5. **Collection**: Results are collected when target condition is satisfied
+
+### Python API
+
+For API details, refer to the @:pydoc(graphframes.GraphFrame.aggregate_neighbors).
+
+```python
+from graphframes import GraphFrame
+from graphframes.graphframe import AggregateNeighbors
+from pyspark.sql import functions as F
+
+# Create a graph
+vertices = spark.createDataFrame(
+    [(1, "A"), (2, "B"), (3, "C"), (4, "D")], ["id", "name"]
+)
+edges = spark.createDataFrame(
+    [(1, 2), (2, 3), (3, 4), (1, 3)], ["src", "dst"]
+)
+g = GraphFrame(vertices, edges)
+
+# Find all paths from vertex 1 to vertex 4, tracking path length
+result = g.aggregate_neighbors(
+    starting_vertices=F.col("id") == 1,
+    max_hops=5,
+    accumulator_names=["path"],
+    accumulator_inits=[F.lit("1")],
+    accumulator_updates=[F.concat(F.col("path"), F.lit("->"), F.col("dst_id").cast("string"))],
+    target_condition=F.col("dst.id") == 4
+)
+
+result.select("id", "hop", "path").show()
+```
+
+### Scala API
+
+For API details, refer to the @:scaladoc(org.graphframes.lib.AggregateNeighbors).
+
+```scala
+import org.graphframes.GraphFrame
+import org.graphframes.lib.AggregateNeighbors
+import org.apache.spark.sql.functions._
+
+// Create a graph
+val vertices = spark.createDataFrame(
+  Seq((1L, "A"), (2L, "B"), (3L, "C"), (4L, "D"))
+).toDF("id", "name")
+
+val edges = spark.createDataFrame(
+  Seq((1L, 2L), (2L, 3L), (3L, 4L), (1L, 3L))
+).toDF("src", "dst")
+
+val g = GraphFrame(vertices, edges)
+
+// Find all paths from vertex 1 to vertex 4, tracking path length
+val result = g.aggregateNeighbors
+  .setStartingVertices(col("id") === 1)
+  .setMaxHops(5)
+  .addAccumulator(
+    "path",
+    lit("1"),
+    concat(col("path"), lit("->"), col("dst_id").cast("string"))
+  )
+  .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(4))
+  .run()
+
+result.select("id", "hop", "path").show()
+```
+
+### Accumulators
+
+Accumulators are the core concept of Aggregate Neighbors. Each accumulator tracks a value as the algorithm traverses the graph:
+
+- **Name**: Becomes a column in the result DataFrame
+- **Initial Value**: Expression evaluated on starting vertices
+- **Update Expression**: Evaluated at each hop, can reference:
+  - Source vertex attributes via `src_attr("attrName")`
+  - Destination vertex attributes via `dst_attr("attrName")`
+  - Edge attributes via `edge_attr("attrName")`
+  - Current accumulator value via its column name
+
+**Example with Multiple Accumulators:**
+
+```python
+# Track both path length and sum of node values
+result = g.aggregate_neighbors(
+    starting_vertices=F.col("id") == 1,
+    max_hops=5,
+    accumulator_names=["path_length", "sum_values"],
+    accumulator_inits=[F.lit(0), F.lit(0)],
+    accumulator_updates=[
+        F.col("path_length") + 1,
+        F.col("sum_values") + AggregateNeighbors.dst_attr("value")
+    ],
+    target_condition=AggregateNeighbors.dst_attr("id") == 10,
+    required_vertex_attributes=["id", "value"]
+)
+```
+
+### Stopping vs Target Conditions
+
+- **Stopping Condition**: Stops traversal along a path when true. Use for avoiding cycles or limiting search depth.
+- **Target Condition**: Marks vertices as results when true. Only accumulators reaching target vertices are returned.
+- At least one must be provided.
+
+**Example with Stopping Condition:**
+
+```python
+# Stop when revisiting a vertex (avoid cycles)
+result = g.aggregate_neighbors(
+    starting_vertices=F.col("id") == 1,
+    max_hops=10,
+    accumulator_names=["visited", "path_length"],
+    accumulator_inits=[F.array(F.lit(1)), F.lit(0)],
+    accumulator_updates=[
+        F.array_append(F.col("visited"), AggregateNeighbors.dst_attr("id")),
+        F.col("path_length") + 1
+    ],
+    stopping_condition=F.array_contains(
+        F.col("visited"), 
+        AggregateNeighbors.dstAttr("id")
+    )
+)
+```
+
+### Performance Considerations
+
+- **Required Attributes**: Use `required_vertex_attributes` and `required_edge_attributes` to limit columns carried through traversal, reducing memory usage.
+- **Edge Filtering**: Use `edge_filter` to limit traversable edges early in the pipeline.
+- **Self-Loops**: Set `remove_loops=True` to exclude self-loop edges if not needed.
+- **Checkpointing**: Use `checkpoint_interval` to prevent logical plan growth on deep traversals.
+- **Max Hops**: Be cautious with high `max_hops` on dense graphs (risk of OOM).
+
+### Arguments
+
+- `starting_vertices`
+
+Column expression selecting seed vertices for the traversal (e.g., `F.col("id") == 1`).
+
+- `max_hops`
+
+Maximum number of hops to explore from starting vertices. Must be a positive integer.
+
+- `accumulator_names`, `accumulator_inits`, `accumulator_updates`
+
+Lists defining the accumulators to track. All three lists must have the same length.
+
+- `stopping_condition` (optional)
+
+Boolean column expression that stops traversal along a path when true.
+
+- `target_condition` (optional)
+
+Boolean column expression that marks vertices as results when true.
+
+- `required_vertex_attributes` (optional)
+
+List of vertex column names to carry through traversal. If None, all columns are carried.
+
+- `required_edge_attributes` (optional)
+
+List of edge column names to carry through traversal. If None, all columns are carried.
+
+- `edge_filter` (optional)
+
+Boolean column expression to filter which edges can be traversed.
+
+- `remove_loops`
+
+If True, exclude self-loop edges (where src == dst). Default: False.
+
+- `checkpoint_interval`
+
+Checkpoint every N iterations to prevent logical plan growth. 0 = disabled (default).
+
+- `use_local_checkpoints`
+
+Use local checkpoints (faster but less reliable than persistent checkpoints).
+
+- `storage_level`
+
+Storage level for intermediate results. Default: MEMORY_AND_DISK_DESER.

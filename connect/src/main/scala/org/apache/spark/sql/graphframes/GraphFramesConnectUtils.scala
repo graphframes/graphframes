@@ -495,8 +495,8 @@ object GraphFramesConnectUtils {
         }
 
         if (anProto.hasEdgeFilter) {
-          anBuilder = anBuilder.setEdgeFilter(
-            parseColumnOrExpression(anProto.getEdgeFilter, planner))
+          anBuilder =
+            anBuilder.setEdgeFilter(parseColumnOrExpression(anProto.getEdgeFilter, planner))
         }
 
         anBuilder = anBuilder.setRemoveLoops(anProto.getRemoveLoops)
@@ -508,8 +508,8 @@ object GraphFramesConnectUtils {
         anBuilder = anBuilder.setUseLocalCheckpoints(anProto.getUseLocalCheckpoints)
 
         if (anProto.hasStorageLevel) {
-          anBuilder = anBuilder.setIntermediateStorageLevel(
-            parseStorageLevel(anProto.getStorageLevel))
+          anBuilder =
+            anBuilder.setIntermediateStorageLevel(parseStorageLevel(anProto.getStorageLevel))
         }
 
         anBuilder.run()
