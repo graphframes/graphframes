@@ -53,6 +53,9 @@ DST = "dst"
 """Constant for the edge column name."""
 EDGE = "edge"
 
+"""Constant for the weight column name."""
+WEIGHT = "weight"
+
 
 class GraphFrame:
     """
@@ -76,6 +79,7 @@ class GraphFrame:
     SRC: str = SRC
     DST: str = DST
     EDGE: str = EDGE
+    WEIGHT: str = WEIGHT
 
     @staticmethod
     def _from_impl(impl: "GraphFrameClassic | GraphFrameConnect") -> "GraphFrame":
