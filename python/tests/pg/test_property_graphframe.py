@@ -182,7 +182,7 @@ def test_projection_with_custom_weight(people_movies_graph: PropertyGraphFrame) 
 
 
 def test_to_graph_frame_messages_only(people_movies_graph: PropertyGraphFrame) -> None:
-    graph = people_movies_graph.to_graph_frame(
+    graph = people_movies_graph.to_graphframe(
         vertex_property_groups=["people"],
         edge_property_groups=["messages"],
         edge_group_filters={"messages": lit(True)},
@@ -206,7 +206,7 @@ def test_to_graph_frame_messages_only(people_movies_graph: PropertyGraphFrame) -
 
 
 def test_to_graph_frame_all_groups(people_movies_graph: PropertyGraphFrame) -> None:
-    graph = people_movies_graph.to_graph_frame(
+    graph = people_movies_graph.to_graphframe(
         vertex_property_groups=["people", "movies"],
         edge_property_groups=["messages", "likes"],
         edge_group_filters={"messages": lit(True), "likes": lit(True)},
@@ -259,7 +259,7 @@ def test_to_graph_frame_unmasked_ids(
         [new_likes_group, messages_group],
     )
 
-    graph = modified_graph.to_graph_frame(
+    graph = modified_graph.to_graphframe(
         vertex_property_groups=["people", "movies"],
         edge_property_groups=["messages", "likes"],
         edge_group_filters={"messages": lit(True), "likes": lit(True)},
@@ -286,7 +286,7 @@ def test_to_graph_frame_unmasked_ids(
 def test_join_vertices_with_connected_components(
     people_movies_graph: PropertyGraphFrame,
 ) -> None:
-    graph = people_movies_graph.to_graph_frame(
+    graph = people_movies_graph.to_graphframe(
         vertex_property_groups=["people", "movies"],
         edge_property_groups=["messages", "likes"],
         edge_group_filters={"messages": lit(True), "likes": lit(True)},
@@ -367,13 +367,13 @@ def test_edge_property_group_validation(
 
 def test_to_graph_frame_invalid_group(people_movies_graph: PropertyGraphFrame) -> None:
     with pytest.raises(ValueError):
-        people_movies_graph.to_graph_frame(
+        people_movies_graph.to_graphframe(
             vertex_property_groups=["nonexistent"],
             edge_property_groups=["likes"],
         )
 
     with pytest.raises(ValueError):
-        people_movies_graph.to_graph_frame(
+        people_movies_graph.to_graphframe(
             vertex_property_groups=["people"],
             edge_property_groups=["nonexistent"],
         )
@@ -393,7 +393,7 @@ def test_projection_by_invalid_group(people_movies_graph: PropertyGraphFrame) ->
 def test_property_graph_frame_to_graph_frame_conversion(
     people_movies_graph: PropertyGraphFrame,
 ) -> None:
-    graph = people_movies_graph.to_graph_frame(
+    graph = people_movies_graph.to_graphframe(
         vertex_property_groups=["people"],
         edge_property_groups=["messages"],
     )

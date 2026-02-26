@@ -159,20 +159,20 @@ people_movies_graph = PropertyGraphFrame(
 
 ### Conversion to GraphFrames
 
-The `PropertyGraphFrame` can be converted to a `GraphFrame` by calling `toGraphFrame` (Scala) or `to_graph_frame` (Python). Users can select a subset of vertex and edge property groups to be included in the resulting `GraphFrame`. Under the hood, the conversion will take care about handling potential vertex and edge ID collisions by applying hashing to both vertex and edge IDs.
+The `PropertyGraphFrame` can be converted to a `GraphFrame` by calling `toGraphFrame` (Scala) or `to_graphframe` (Python). Users can select a subset of vertex and edge property groups to be included in the resulting `GraphFrame`. Under the hood, the conversion will take care about handling potential vertex and edge ID collisions by applying hashing to both vertex and edge IDs.
 
-````scala
+```scala
 val graph = peopleMoviesGraph.toGraphFrame(
   Seq("people"),
   Seq("messages"),
   Map("messages" -> lit(true)),
   Map("people" -> lit(true)))
-````
+```
 
 ```python
 from pyspark.sql.functions import lit
 
-graph = people_movies_graph.to_graph_frame(
+graph = people_movies_graph.to_graphframe(
     vertex_property_groups=["people"],
     edge_property_groups=["messages"],
     edge_group_filters={"messages": lit(True)},
@@ -180,7 +180,7 @@ graph = people_movies_graph.to_graph_frame(
 )
 ```
 
-For more details see @:scaladoc(org.graphframes.propertygraph.PropertyGraphFrame) (Scala) or `graphframes.pg.PropertyGraphFrame` (Python).
+For more details see @:scaladoc(org.graphframes.propertygraph.PropertyGraphFrame) (Scala) or @:pydoc(graphframes.pg.PropertyGraphFrame) (Python).
 
 This operation is not free, so user can also explicitly specify for each of `VertexGroup` does it need to be hashed or not.
 
@@ -206,9 +206,9 @@ movies_group = VertexPropertyGroup(
 
 The `PropertyGraphFrame` support projection of edges groups to a new edge group. For example, if we have a property graph, where people can like movies, we can do a projection of such a bi-graph to a graph of only peoples where two people are connected if they like the same movie. This operation creates a new `PropertyGraphFrame` with a new edge group and without the original edge group through which the projection was done.
 
-````scala
+```scala
 val projectedGraph = peopleMoviesGraph.projectionBy("people", "movies", "likes")
-````
+```
 
 ```python
 projected_graph = people_movies_graph.projection_by("people", "movies", "likes")
@@ -218,10 +218,10 @@ projected_graph = people_movies_graph.projection_by("people", "movies", "likes")
 
 After running graph algorithms on a `GraphFrame` created from a `PropertyGraphFrame`, you can join the results back to the original vertex data using `join_vertices` (Python) or `joinVertices` (Scala).
 
-````scala
+```scala
 val components = graph.connectedComponents()
 val joinedBack = peopleMoviesGraph.joinVertices(components, Seq("people", "movies"))
-````
+```
 
 ```python
 components = graph.connectedComponents()

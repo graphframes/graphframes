@@ -127,13 +127,13 @@ class PropertyGraphFrame:
 
         return self._edges_property_groups
 
-    def to_graph_frame(
+    def to_graphframe(
         self,
         vertex_property_groups: Sequence[str],
         edge_property_groups: Sequence[str],
         edge_group_filters: dict[str, Column] | None = None,
         vertex_group_filters: dict[str, Column] | None = None,
-    ) -> "GraphFrame":
+    ) -> GraphFrame:
         """
         Convert the property graph to a unified GraphFrame representation.
 
