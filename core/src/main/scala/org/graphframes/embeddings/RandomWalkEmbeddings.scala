@@ -150,8 +150,8 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
   }
 
   /**
-   * Sets whether to clean up temporary random walk files after generating embeddings.
-   * Default: false.
+   * Sets whether to clean up temporary random walk files after generating embeddings. Default:
+   * false.
    * @param value
    *   Boolean flag for clean-up.
    * @return

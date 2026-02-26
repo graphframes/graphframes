@@ -591,6 +591,7 @@ class RandomWalkEmbeddings(_message.Message):
         "aggregate_neighbors",
         "aggregate_neighbors_max_nbrs",
         "aggregate_neighbors_seed",
+        "clean_up_after_run",
     )
     USE_EDGE_DIRECTION_FIELD_NUMBER: _ClassVar[int]
     RW_MODEL_FIELD_NUMBER: _ClassVar[int]
@@ -623,6 +624,7 @@ class RandomWalkEmbeddings(_message.Message):
     AGGREGATE_NEIGHBORS_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_NEIGHBORS_MAX_NBRS_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_NEIGHBORS_SEED_FIELD_NUMBER: _ClassVar[int]
+    CLEAN_UP_AFTER_RUN_FIELD_NUMBER: _ClassVar[int]
     use_edge_direction: bool
     rw_model: str
     rw_max_nbrs: int
@@ -654,6 +656,7 @@ class RandomWalkEmbeddings(_message.Message):
     aggregate_neighbors: bool
     aggregate_neighbors_max_nbrs: int
     aggregate_neighbors_seed: int
+    clean_up_after_run: bool
     def __init__(
         self,
         use_edge_direction: _Optional[bool] = ...,
@@ -687,4 +690,5 @@ class RandomWalkEmbeddings(_message.Message):
         aggregate_neighbors: _Optional[bool] = ...,
         aggregate_neighbors_max_nbrs: _Optional[int] = ...,
         aggregate_neighbors_seed: _Optional[int] = ...,
+        clean_up_after_run: _Optional[bool] = ...,
     ) -> None: ...
