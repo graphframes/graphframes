@@ -396,7 +396,7 @@ class GraphFrame:
         An implementation of the Rocha–Thatte cycle detection algorithm.
         Rocha, Rodrigo Caetano, and Bhalchandra D. Thatte. "Distributed cycle detection in
         large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
-        (SBPO’15) (2015): 1-11.
+        (SBPO'15) (2015): 1-11.
 
         Returns a DataFrame with unique cycles.
 
@@ -1046,6 +1046,9 @@ class RandomWalkEmbeddings:
         self._params.aggregate_neighbors = True
         self._params.aggregate_neighbors_max_nbrs = max_neighbors
         self._params.aggregate_neighbors_seed = seed
+
+    def set_clean_up_after_run(self, clean_up: bool = True) -> None:
+        self._params.clean_up_after_run = clean_up
 
     def run(self) -> DataFrame:
         if self._params.rw_temporary_prefix == "":

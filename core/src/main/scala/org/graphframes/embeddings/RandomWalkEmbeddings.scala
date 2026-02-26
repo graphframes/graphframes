@@ -54,6 +54,7 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
   private var maxNbrs: Int = 50
   private var seed: Long = 42L
   private var cachedRwPath: Option[String] = None
+  private var cleanUpAfterRun: Boolean = false
 
   /**
    * Sets the sequence model to use for generating embeddings. This can be either a Word2Vec model
@@ -149,6 +150,19 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
   }
 
   /**
+   * Sets whether to clean up temporary random walk files after generating embeddings.
+   * Default: false.
+   * @param value
+   *   Boolean flag for clean-up.
+   * @return
+   *   This instance for method chaining.
+   */
+  def setCleanUpAfterRun(value: Boolean): this.type = {
+    cleanUpAfterRun = value
+    this
+  }
+
+  /**
    * Executes the random walk embedding generation process. Requires that sequenceModel and
    * randomWalks are set. The input GraphFrame must have valid vertex and edge DataFrames, with
    * vertices containing an ID column.
@@ -232,6 +246,10 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
     // clean memory
     persistedEmbeddings.unpersist()
 
+    if (cleanUpAfterRun) {
+      walksGenerator.cleanUp()
+    }
+
     persistedDF
   }
 }
@@ -285,7 +303,8 @@ object RandomWalkEmbeddings extends Serializable {
       word2vecStepSize: Double,
       aggregateNeighbors: Boolean,
       aggregateNeighborsMaxNbrs: Int,
-      aggregateNeighborsSeed: Long): DataFrame = {
+      aggregateNeighborsSeed: Long,
+      cleanUpAfterRun: Boolean): DataFrame = {
     val randomWalksModel: RandomWalkBase = rwModel match {
       case "rw_with_restart" =>
         new RandomWalkWithRestart()
@@ -337,6 +356,7 @@ object RandomWalkEmbeddings extends Serializable {
       .setMaxNbrs(aggregateNeighborsMaxNbrs)
       .setUseEdgeDirections(useEdgeDirection)
       .setSeed(aggregateNeighborsSeed)
+      .setCleanUpAfterRun(cleanUpAfterRun)
 
     if (rwCachedWalks == "") {
       embeddingsGenerator.run()

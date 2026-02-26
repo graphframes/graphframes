@@ -1271,6 +1271,7 @@ class GraphFrameConnect:
                         aggregate_neighbors=self.params.aggregate_neighbors,
                         aggregate_neighbors_max_nbrs=self.params.aggregate_neighbors_max_nbrs,
                         aggregate_neighbors_seed=self.params.aggregate_neighbors_seed,
+                        clean_up_after_run=self.params.clean_up_after_run,
                     )
                 )
                 plan = self._create_proto_relation()

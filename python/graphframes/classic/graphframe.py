@@ -411,6 +411,7 @@ class GraphFrame:
             params.aggregate_neighbors,
             params.aggregate_neighbors_max_nbrs,
             params.aggregate_neighbors_seed,
+            params.clean_up_after_run,
         )
         assert jdf is not None
 

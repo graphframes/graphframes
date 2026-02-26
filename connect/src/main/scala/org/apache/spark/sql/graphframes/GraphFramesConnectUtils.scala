@@ -490,7 +490,8 @@ object GraphFramesConnectUtils {
           word2vecStepSize = message.getWord2VecStepSize(),
           aggregateNeighbors = message.getAggregateNeighbors(),
           aggregateNeighborsMaxNbrs = message.getAggregateNeighborsMaxNbrs(),
-          aggregateNeighborsSeed = message.getAggregateNeighborsSeed())
+          aggregateNeighborsSeed = message.getAggregateNeighborsSeed(),
+          cleanUpAfterRun = message.getCleanUpAfterRun())
       }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }

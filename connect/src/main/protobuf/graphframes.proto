@@ -242,4 +242,5 @@ message RandomWalkEmbeddings {
   bool aggregate_neighbors = 29;
   int32 aggregate_neighbors_max_nbrs = 30;
   int64 aggregate_neighbors_seed = 31;
+  bool clean_up_after_run = 32;
 }
