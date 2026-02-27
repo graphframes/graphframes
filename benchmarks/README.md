@@ -20,15 +20,15 @@ sbt "benchmarks/jmh:run -i 3 -wi 1 -f 1 -p graphName=wiki-Talk org.graphframes.b
 
 ### Parameters
 
-| Parameter            | Values                      | Description                                                                                                                          |
-| -------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `graphName`          | See Available Graphs        | LDBC graph dataset to use                                                                                                            |
-| `algorithm`          | `graphframes`, `graphx`     | Algorithm implementation                                                                                                             |
-| `maxIter`            | integer (default: 10)       | Max iterations (iterative algorithms only, e.g. `LabelPropagationBenchmark`)                                                         |
-| `useLocalCheckpoints`| `true`, `false` (default: `true`) | Use local checkpoints instead of regular checkpoints; faster but less reliable (not applicable to `graphx` algorithm)          |
-| `broadcastThreshold` | integer (default: 1000000, or `-1` for AQE) | Max vertex degree for join-based propagation; above this threshold a broadcast is used (`ConnectedComponentsBenchmark` only) |
-| `checkPointInterval` | integer (default: 1)        | Number of iterations between checkpoints (`ShortestPathsBenchmark` only, `graphframes` algorithm)                                    |
-| `startingVertex`     | long integer (default: 1)   | Source vertex ID for shortest paths computation (`ShortestPathsBenchmark` only)                                                      |
+| Parameter             | Values                                      | Description                                                                                                                  |
+| --------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `graphName`           | See Available Graphs                        | LDBC graph dataset to use                                                                                                    |
+| `algorithm`           | `graphframes`, `graphx`                     | Algorithm implementation                                                                                                     |
+| `maxIter`             | integer (default: 10)                       | Max iterations (iterative algorithms only, e.g. `LabelPropagationBenchmark`)                                                 |
+| `useLocalCheckpoints` | `true`, `false` (default: `true`)           | Use local checkpoints instead of regular checkpoints; faster but less reliable (not applicable to `graphx` algorithm)        |
+| `broadcastThreshold`  | integer (default: 1000000, or `-1` for AQE) | Max vertex degree for join-based propagation; above this threshold a broadcast is used (`ConnectedComponentsBenchmark` only) |
+| `checkPointInterval`  | integer (default: 1)                        | Number of iterations between checkpoints (`ShortestPathsBenchmark` only, `graphframes` algorithm)                            |
+| `startingVertex`      | long integer (default: 1)                   | Source vertex ID for shortest paths computation (`ShortestPathsBenchmark` only)                                              |
 
 ### Examples
 

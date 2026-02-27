@@ -17,6 +17,13 @@ import java.nio.file.Path
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
+/**
+ * @deprecated
+ *   Use ShortestPathsBenchmark, ConnectedComponentsBenchmark, or LabelPropagationBenchmark
+ *   instead. These new benchmarks support CLI parameters for algorithm selection and graph
+ *   choice. See benchmarks/README.md for usage instructions.
+ */
+@deprecated("use the new benchmarks set", since = "0.11")
 @State(Scope.Benchmark)
 @Warmup(iterations = 1)
 @Measurement(iterations = 3)
