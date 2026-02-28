@@ -202,7 +202,7 @@ object LaikaCustoms {
         version = Some(v),
         language = Some("en"))
       .all
-      .tableOfContent("Table of Content", depth = 4)
+      .tableOfContent("Table of Content", depth = 3)
       .site
       .topNavigationBar(navLinks = Seq(
         IconLink.external("https://github.com/graphframes/graphframes", HeliumIcon.github),
@@ -256,6 +256,8 @@ object LaikaCustoms {
           Teaser(
             "PySpark support",
             "Not only scala, but also Python with a full support of Spark Connect protocol")))
+      .site
+      .pageNavigation(depth = 2)
       .build
   }
 

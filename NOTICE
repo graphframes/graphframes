@@ -8,3 +8,10 @@ Copyright 2014-2025 The Apache Software Foundation.
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
+
+Part of the code of the project is heavily inspired or copied from the Apache Spark ML project, which are licensed under the Apache Software License, Version 2.0. The Apache Spark project has the following NOTICE:
+Apache Spark
+Copyright 2014 and onwards The Apache Software Foundation.
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).

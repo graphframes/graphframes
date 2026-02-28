@@ -33,6 +33,7 @@ import org.apache.spark.sql.functions.monotonically_increasing_id
 import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.types.*
 import org.apache.spark.storage.StorageLevel
+import org.graphframes.embeddings.RandomWalkEmbeddings
 import org.graphframes.lib.*
 import org.graphframes.pattern.*
 
@@ -48,6 +49,8 @@ import scala.reflect.runtime.universe.TypeTag
  * @groupname subgraph Subgraph selection
  * @groupname degree Graph topology
  * @groupname motif Motif finding
+ * @groupname gml Graph Machine Learning
+ * @groupname utils Utility Methods
  */
 class GraphFrame private (
     @transient private val _vertices: DataFrame,
@@ -60,6 +63,11 @@ class GraphFrame private (
   /** Default constructor is provided to support serialization */
   protected def this() = this(null, null)
 
+  /**
+   * Return a string representation of the GraphFrame
+   *
+   * @group utils
+   */
   override def toString: String = {
     // We call select on the vertices and edges to ensure that ID, SRC, DST always come first
     // in the printed schema.
@@ -75,6 +83,8 @@ class GraphFrame private (
 
   /**
    * Persist the dataframe representation of vertices and edges of the graph with the default
+   *
+   * @group utils
    * storage level.
    */
   def cache(): this.type = {
@@ -83,6 +93,8 @@ class GraphFrame private (
 
   /**
    * Persist the dataframe representation of vertices and edges of the graph with the default
+   *
+   * @group utils
    * storage level.
    */
   def persist(): this.type = {
@@ -96,7 +108,9 @@ class GraphFrame private (
    * storage level.
    * @param newLevel
    *   One of: `MEMORY_ONLY`, `MEMORY_AND_DISK`, `MEMORY_ONLY_SER`, `MEMORY_AND_DISK_SER`,
-   *   `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc..
+   *
+   * @group utils
+   * `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc..
    */
   def persist(newLevel: StorageLevel): this.type = {
     vertices.persist(newLevel)
@@ -107,6 +121,8 @@ class GraphFrame private (
   /**
    * Mark the dataframe representation of vertices and edges of the graph as non-persistent, and
    * remove all blocks for it from memory and disk.
+   *
+   * @group utils
    */
   def unpersist(): this.type = {
     vertices.unpersist()
@@ -119,11 +135,105 @@ class GraphFrame private (
    * remove all blocks for it from memory and disk.
    * @param blocking
    *   Whether to block until all blocks are deleted.
+   *
+   * @group utils
    */
   def unpersist(blocking: Boolean): this.type = {
     vertices.unpersist(blocking)
     edges.unpersist(blocking)
     this
+  }
+
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   *
+   * @group utils
+   */
+  def validate(): Unit =
+    validate(checkVertices = true, intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK)
+
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @param checkVertices
+   *   a flag to indicate whether additional vertex consistency checks should be performed. If
+   *   true, the method will verify that all vertices in the vertex DataFrame are represented in
+   *   the edge DataFrame and vice versa. It is slow on big graphs.
+   * @param intermediateStorageLevel
+   *   the storage level to be used when persisting intermediate DataFrame computations during the
+   *   validation process.
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   *
+   * @group utils
+   */
+  def validate(checkVertices: Boolean, intermediateStorageLevel: StorageLevel): Unit = {
+    val persistedVertices = vertices.persist(intermediateStorageLevel)
+    val countDistinctVertices = persistedVertices.select(countDistinct(ID)).first().getLong(0)
+    val verticesCount = persistedVertices.count()
+    if (countDistinctVertices != verticesCount) {
+      throw new InvalidGraphException(
+        s"Graph contains (${verticesCount - countDistinctVertices}) duplicate vertices.")
+    }
+    if (checkVertices) {
+      val verticesSetFromEdges = edges
+        .select(col(SRC).alias(ID))
+        .union(edges.select(col(DST).alias(ID)))
+        .distinct()
+        .persist(intermediateStorageLevel)
+      val countVerticesFromEdges = verticesSetFromEdges.count()
+      if (countVerticesFromEdges > countDistinctVertices) {
+        throw new InvalidGraphException(
+          s"Graph is inconsistent: edges has ${countVerticesFromEdges} " +
+            s"vertices, but vertices has ${countDistinctVertices} vertices.")
+      }
+
+      val combined = verticesSetFromEdges.join(vertices, ID, "left_anti")
+      val countOfBadVertices = combined.count()
+      if (countOfBadVertices > 0) {
+        throw new InvalidGraphException(
+          "Vertices DataFrame does not contain all edges src/dst. " +
+            s"Found ${countOfBadVertices} edges src/dst that are not in the vertices DataFrame.")
+      }
+      persistedVertices.unpersist()
+      verticesSetFromEdges.unpersist()
+      ()
+    }
+  }
+
+  /**
+   * Converts the directed graph into an undirected graph by ensuring that all directed edges are
+   * bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
+   *
+   * @return
+   *   a new GraphFrame representing the undirected graph.
+   *
+   * @group utils
+   */
+  def asUndirected(): GraphFrame = {
+    val newEdges = edges
+      .select(col(SRC), col(DST), nestAsCol(edges, ATTR))
+      .union(edges
+        .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR)))
+      .select(SRC, DST, ATTR)
+    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
+      .filter(c => (c != SRC) && (c != DST))
+      .map(c => col(ATTR).getField(c).alias(c))
+      .toSeq
+    GraphFrame(vertices, newEdges.select(newColumns: _*))
   }
 
   // ============== Basic structural methods ============
@@ -558,6 +668,8 @@ class GraphFrame private (
    * This is a primitive for implementing graph algorithms. This method aggregates values from the
    * neighboring edges and vertices of each vertex. See
    * [[org.graphframes.lib.AggregateMessages AggregateMessages]] for detailed documentation.
+   *
+   * @group stdlib
    */
   def aggregateMessages: AggregateMessages = new AggregateMessages(this)
 
@@ -705,7 +817,8 @@ class GraphFrame private (
    *   Param for maximum number of iterations (>= 0).
    * @param weightCol
    *   Param for weight column name.
-   * @return
+   *
+   * @group stdlib
    */
   def powerIterationClustering(k: Int, maxIter: Int, weightCol: Option[String]): DataFrame = {
     val integralTypeEdges = if (hasIntegralIdType) {
@@ -755,72 +868,6 @@ class GraphFrame private (
   def kCore: KCore = new KCore(this)
 
   /**
-   * Validates the consistency and integrity of a graph by performing checks on the vertices and
-   * edges.
-   *
-   * @return
-   *   Unit, as the method, performs validation checks and throws an exception if validation
-   *   fails.
-   * @throws InvalidGraphException
-   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
-   *   vertices between edges and vertex DataFrames or missing connections.
-   */
-  def validate(): Unit =
-    validate(checkVertices = true, intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK)
-
-  /**
-   * Validates the consistency and integrity of a graph by performing checks on the vertices and
-   * edges.
-   *
-   * @param checkVertices
-   *   a flag to indicate whether additional vertex consistency checks should be performed. If
-   *   true, the method will verify that all vertices in the vertex DataFrame are represented in
-   *   the edge DataFrame and vice versa. It is slow on big graphs.
-   * @param intermediateStorageLevel
-   *   the storage level to be used when persisting intermediate DataFrame computations during the
-   *   validation process.
-   * @return
-   *   Unit, as the method, performs validation checks and throws an exception if validation
-   *   fails.
-   * @throws InvalidGraphException
-   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
-   *   vertices between edges and vertex DataFrames or missing connections.
-   */
-  def validate(checkVertices: Boolean, intermediateStorageLevel: StorageLevel): Unit = {
-    val persistedVertices = vertices.persist(intermediateStorageLevel)
-    val countDistinctVertices = persistedVertices.select(countDistinct(ID)).first().getLong(0)
-    val verticesCount = persistedVertices.count()
-    if (countDistinctVertices != verticesCount) {
-      throw new InvalidGraphException(
-        s"Graph contains (${verticesCount - countDistinctVertices}) duplicate vertices.")
-    }
-    if (checkVertices) {
-      val verticesSetFromEdges = edges
-        .select(col(SRC).alias(ID))
-        .union(edges.select(col(DST).alias(ID)))
-        .distinct()
-        .persist(intermediateStorageLevel)
-      val countVerticesFromEdges = verticesSetFromEdges.count()
-      if (countVerticesFromEdges > countDistinctVertices) {
-        throw new InvalidGraphException(
-          s"Graph is inconsistent: edges has ${countVerticesFromEdges} " +
-            s"vertices, but vertices has ${countDistinctVertices} vertices.")
-      }
-
-      val combined = verticesSetFromEdges.join(vertices, ID, "left_anti")
-      val countOfBadVertices = combined.count()
-      if (countOfBadVertices > 0) {
-        throw new InvalidGraphException(
-          "Vertices DataFrame does not contain all edges src/dst. " +
-            s"Found ${countOfBadVertices} edges src/dst that are not in the vertices DataFrame.")
-      }
-      persistedVertices.unpersist()
-      verticesSetFromEdges.unpersist()
-      ()
-    }
-  }
-
-  /**
    * Find all cycles in the graph. An implementation of the Rocha–Thatte cycle detection
    * algorithm.
    *
@@ -832,6 +879,8 @@ class GraphFrame private (
    *
    * @return
    *   an instance of DetectingCycles initialized with the current context
+   *
+   * @group stdlib
    */
   def detectingCycles: DetectingCycles = new DetectingCycles(this)
 
@@ -844,25 +893,16 @@ class GraphFrame private (
    */
   def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
 
+  // ========= Graph Machine Learning ==========
+
   /**
-   * Converts the directed graph into an undirected graph by ensuring that all directed edges are
-   * bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
+   * Random Walks Based node embeddings.
    *
-   * @return
-   *   a new GraphFrame representing the undirected graph.
+   * See [[org.graphframes.embeddings.RandomWalkEmbeddings]] for more details.
+   *
+   * @group gml
    */
-  def asUndirected(): GraphFrame = {
-    val newEdges = edges
-      .select(col(SRC), col(DST), nestAsCol(edges, ATTR))
-      .union(edges
-        .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR)))
-      .select(SRC, DST, ATTR)
-    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
-      .filter(c => (c != SRC) && (c != DST))
-      .map(c => col(ATTR).getField(c).alias(c))
-      .toSeq
-    GraphFrame(vertices, newEdges.select(newColumns: _*))
-  }
+  def randomWalksBasedEmbedding: RandomWalkEmbeddings = new RandomWalkEmbeddings(this)
 
   // ========= Motif finding (private) =========
 

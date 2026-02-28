@@ -32,6 +32,7 @@ else:
 from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.utils import storage_level_to_jvm
+from graphframes.internal.utils import _RandomWalksEmbeddingsParameters
 from graphframes.lib import Pregel
 
 
@@ -68,6 +69,7 @@ class GraphFrame:
         self._spark = v.sparkSession
         self._sc = self._spark._sc
         self._jvm_gf_api = _java_api(self._sc)
+        self._jvm = self._spark._jvm
 
         self._ATTR: str = self._jvm_gf_api.ATTR()
 
@@ -369,5 +371,48 @@ class GraphFrame:
         java_kcore.setCheckpointInterval(checkpoint_interval)
         java_kcore.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
         jdf = java_kcore.run()
+
+        return DataFrame(jdf, self._spark)
+
+    def rw_embeddings(self, params: _RandomWalksEmbeddingsParameters) -> DataFrame:
+        assert self._jvm is not None
+        j_rw_embeddings = self._jvm.org.graphframes.embeddings.RandomWalkEmbeddings
+        assert j_rw_embeddings is not None
+        jdf: JavaObject = j_rw_embeddings.pythonAPI(
+            self._jvm_graph,
+            params.use_edge_direction,
+            params.rw_model,
+            params.rw_max_nbrs,
+            params.rw_num_walks_per_node,
+            params.rw_batch_size,
+            params.rw_num_batches,
+            params.rw_seed,
+            params.rw_restart_probability,
+            params.rw_temporary_prefix,
+            params.rw_cached_walks,
+            params.sequence_model,
+            params.hash2vec_context_size,
+            params.hash2vec_num_partitions,
+            params.hash2vec_embeddings_dim,
+            params.hash2vec_decay_function,
+            params.hash2vec_gaussian_sigma,
+            params.hash2vec_hashing_seed,
+            params.hash2vec_sign_seed,
+            params.hash2vec_do_l2_norm,
+            params.hash2vec_safe_l2,
+            params.word2vec_max_iter,
+            params.word2vec_embeddings_dim,
+            params.word2vec_window_size,
+            params.word2vec_num_partitions,
+            params.word2vec_min_count,
+            params.word2vec_max_sentence_length,
+            params.word2vec_seed,
+            params.word2vec_step_size,
+            params.aggregate_neighbors,
+            params.aggregate_neighbors_max_nbrs,
+            params.aggregate_neighbors_seed,
+            params.clean_up_after_run,
+        )
+        assert jdf is not None
 
         return DataFrame(jdf, self._spark)

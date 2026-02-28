@@ -18,12 +18,17 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, final
 
 from pyspark.sql import functions as F
 from pyspark.storagelevel import StorageLevel
 from pyspark.version import __version__
-from typing_extensions import override
+
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
+
 
 if __version__[:3] >= "3.4":
     from pyspark.sql.utils import is_remote
@@ -34,6 +39,10 @@ else:
 
 
 from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
+from graphframes.internal.utils import (
+    _HASH2VEC_DECAY_FUNCTIONS,
+    _RandomWalksEmbeddingsParameters,
+)
 from graphframes.lib import Pregel
 
 if TYPE_CHECKING:
@@ -229,9 +238,7 @@ class GraphFrame:
             .agg(F.count("*").alias("degree"))
         )
 
-    def type_out_degree(
-        self, edge_type_col: str, edge_types: Optional[List[Any]] = None
-    ) -> DataFrame:
+    def type_out_degree(self, edge_type_col: str, edge_types: list[Any] | None = None) -> DataFrame:
         """
         The out-degree of each vertex per edge type, returned as a DataFrame with two columns:
          - "id": the ID of the vertex
@@ -260,9 +267,7 @@ class GraphFrame:
 
         return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("outDegrees"))
 
-    def type_in_degree(
-        self, edge_type_col: str, edge_types: Optional[List[Any]] = None
-    ) -> DataFrame:
+    def type_in_degree(self, edge_type_col: str, edge_types: list[Any] | None = None) -> DataFrame:
         """
         The in-degree of each vertex per edge type, returned as a DataFrame with two columns:
          - "id": the ID of the vertex
@@ -290,7 +295,7 @@ class GraphFrame:
         ]
         return count_df.select(F.col(self.ID), F.struct(*struct_cols).alias("inDegrees"))
 
-    def type_degree(self, edge_type_col: str, edge_types: Optional[List[Any]] = None) -> DataFrame:
+    def type_degree(self, edge_type_col: str, edge_types: list[Any] | None = None) -> DataFrame:
         """
         The total degree of each vertex per edge type (both in and out), returned as a DataFrame
         with two columns:
@@ -395,7 +400,7 @@ class GraphFrame:
         An implementation of the Rocha–Thatte cycle detection algorithm.
         Rocha, Rodrigo Caetano, and Bhalchandra D. Thatte. "Distributed cycle detection in
         large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
-        (SBPO’15) (2015): 1-11.
+        (SBPO'15) (2015): 1-11.
 
         Returns a DataFrame with unique cycles.
 
@@ -957,3 +962,100 @@ class GraphFrame:
         new_edges = new_edges.select(*selected_columns)
 
         return GraphFrame(self.vertices, new_edges)
+
+
+@final
+class RandomWalkEmbeddings:
+    def __init__(self, graph: GraphFrame) -> None:
+        self._graph: GraphFrame = graph
+        self._params: _RandomWalksEmbeddingsParameters = _RandomWalksEmbeddingsParameters()
+
+    def use_cached_random_walks(self, cached_walks_path: str) -> None:
+        if cached_walks_path == "":
+            raise ValueError("cached walks path cannot be empty")
+        self._params.rw_cached_walks = cached_walks_path
+
+    def set_rw_model(
+        self,
+        temporary_prefix: str,
+        use_edge_direction: bool = False,
+        max_neighbors_per_vertex: int = 50,
+        num_walks_per_node: int = 5,
+        num_batches: int = 5,
+        walks_per_batch: int = 10,
+        restart_probability: float = 0.1,
+        seed: int = 42,
+    ) -> None:
+        self._params.rw_model = "rw_with_restart"
+        self._params.rw_temporary_prefix = temporary_prefix
+        self._params.use_edge_direction = use_edge_direction
+        self._params.rw_max_nbrs = max_neighbors_per_vertex
+        self._params.rw_num_walks_per_node = num_walks_per_node
+        self._params.rw_num_batches = num_batches
+        self._params.rw_batch_size = walks_per_batch
+        self._params.rw_restart_probability = restart_probability
+        self._params.rw_seed = seed
+
+    def set_hash2vec(
+        self,
+        context_size: int = 5,
+        num_partitions: int = 5,
+        embeddings_dim: int = 512,
+        decay_function: str = "gaussian",
+        gaussian_sigma: float = 1.0,
+        hashing_seed: int = 42,
+        sign_seed: int = 18,
+        l2_norm: bool = True,
+        save_norm: bool = True,
+    ) -> None:
+        if decay_function not in _HASH2VEC_DECAY_FUNCTIONS:
+            raise ValueError(f"supported decay functions are {str(_HASH2VEC_DECAY_FUNCTIONS)}")
+
+        self._params.sequence_model = "hash2vec"
+        self._params.hash2vec_context_size = context_size
+        self._params.hash2vec_num_partitions = num_partitions
+        self._params.hash2vec_embeddings_dim = embeddings_dim
+        self._params.hash2vec_decay_function = decay_function
+        self._params.hash2vec_gaussian_sigma = gaussian_sigma
+        self._params.hash2vec_hashing_seed = hashing_seed
+        self._params.hash2vec_sign_seed = sign_seed
+        self._params.hash2vec_do_l2_norm = l2_norm
+        self._params.hash2vec_safe_l2 = save_norm
+
+    def set_word2vec(
+        self,
+        max_iter: int = 1,
+        embeddings_dim: int = 100,
+        window_size: int = 5,
+        num_partitions: int = 1,
+        min_count: int = 5,
+        max_sentence_length: int = 1000,
+        seed: int = 42,
+        step_size: float = 0.025,
+    ) -> None:
+        self._params.sequence_model = "word2vec"
+        self._params.word2vec_max_iter = max_iter
+        self._params.word2vec_embeddings_dim = embeddings_dim
+        self._params.word2vec_window_size = window_size
+        self._params.word2vec_num_partitions = num_partitions
+        self._params.word2vec_min_count = min_count
+        self._params.word2vec_max_sentence_length = max_sentence_length
+        self._params.word2vec_seed = seed
+        self._params.word2vec_step_size = step_size
+
+    def unset_neighbors_aggregation(self) -> None:
+        self._params.aggregate_neighbors = False
+
+    def set_neighbors_aggregation(self, max_neighbors: int = 50, seed: int = 42) -> None:
+        self._params.aggregate_neighbors = True
+        self._params.aggregate_neighbors_max_nbrs = max_neighbors
+        self._params.aggregate_neighbors_seed = seed
+
+    def set_clean_up_after_run(self, clean_up: bool = True) -> None:
+        self._params.clean_up_after_run = clean_up
+
+    def run(self) -> DataFrame:
+        if self._params.rw_temporary_prefix == "":
+            if self._params.rw_cached_walks == "":
+                raise ValueError("TMP path or cached walks path should be provided!")
+        return self._graph._impl.rw_embeddings(self._params)
