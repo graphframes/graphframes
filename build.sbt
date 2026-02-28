@@ -32,7 +32,7 @@ lazy val siteBaseUri = sys.props.getOrElse("docs.mode", "preview") match {
 
 lazy val protocVersion = sparkMajorVer match {
   case "4" => "4.29.3"
-  case "3" => "3.23.4"
+  case "3" => "3.21.12"
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 

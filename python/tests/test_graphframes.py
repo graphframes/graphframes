@@ -18,6 +18,8 @@
 
 from dataclasses import dataclass
 
+import graphframes
+
 import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as sqlfunctions
@@ -27,6 +29,7 @@ from pyspark.storagelevel import StorageLevel
 from graphframes.classic.graphframe import _from_java_gf
 from graphframes.examples import BeliefPropagation, Graphs
 from graphframes.graphframe import GraphFrame
+from graphframes.graphframe import AggregateNeighbors
 
 
 @dataclass
@@ -803,5 +806,97 @@ def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
         assert kcore_map[i] <= 2, (
             f"Outer vertex {i} should have low k-core, got {kcore_map[i]}"
         )
+
+    _ = result.unpersist()
+
+
+def test_aggregate_neighbors_basic(spark: SparkSession) -> None:
+    """Test basic AggregateNeighbors functionality with argument verification."""
+    # Create a simple graph: 1 -> 2 -> 3
+    v = spark.createDataFrame([(1, "A"), (2, "B"), (3, "C")], ["id", "name"])
+    e = spark.createDataFrame([(1, 2), (2, 3)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    # Test basic path finding from vertex 1 to vertex 3
+    result = g.aggregate_neighbors(
+        starting_vertices=sqlfunctions.col("id") == 1,
+        max_hops=3,
+        accumulator_names=["path_length"],
+        accumulator_inits=[sqlfunctions.lit(0)],
+        accumulator_updates=[sqlfunctions.col("path_length") + 1],
+        target_condition=AggregateNeighbors.dst_attr("id") == 3,
+        required_vertex_attributes=["id"],
+    )
+
+    # Verify result structure
+    assert "id" in result.columns
+    assert "hop" in result.columns
+    assert "path_length" in result.columns
+
+    # Should find one path: 1 -> 2 -> 3
+    rows = result.collect()
+    assert len(rows) == 1
+    assert rows[0]["id"] == 3
+    assert rows[0]["hop"] == 2
+    assert rows[0]["path_length"] == 2
+
+    _ = result.unpersist()
+
+
+def test_aggregate_neighbors_with_edge_filter(spark: SparkSession) -> None:
+    """Test AggregateNeighbors with edge filtering."""
+    # Create a graph with different edge types
+    v = spark.createDataFrame([(1, "A"), (2, "B"), (3, "C"), (4, "D")], ["id", "name"])
+    e = spark.createDataFrame(
+        [(1, 2, "allowed"), (2, 3, "allowed"), (1, 3, "blocked")],
+        ["src", "dst", "edge_type"],
+    )
+    g = GraphFrame(v, e)
+
+    result = g.aggregate_neighbors(
+        starting_vertices=sqlfunctions.col("id") == 1,
+        max_hops=3,
+        accumulator_names=["count"],
+        accumulator_inits=[sqlfunctions.lit(0)],
+        accumulator_updates=[sqlfunctions.col("count") + 1],
+        target_condition=AggregateNeighbors.dst_attr("id") == 3,
+        edge_filter=AggregateNeighbors.edge_attr("edge_type") == "allowed",
+        required_edge_attributes=["edge_type"],
+    )
+
+    rows = result.collect()
+    # Should only find path 1 -> 2 -> 3 (not 1 -> 3 directly due to filter)
+    assert len(rows) == 1
+    assert rows[0]["count"] == 2  # Two hops
+
+    _ = result.unpersist()
+
+
+def test_aggregate_neighbors_multiple_accumulators(spark: SparkSession) -> None:
+    """Test AggregateNeighbors with multiple accumulators."""
+    v = spark.createDataFrame([(1, 10), (2, 20), (3, 30)], ["id", "value"])
+    e = spark.createDataFrame([(1, 2, 5.0), (2, 3, 6.0)], ["src", "dst", "weight"])
+    g = GraphFrame(v, e)
+
+    result = g.aggregate_neighbors(
+        starting_vertices=sqlfunctions.col("id") == 1,
+        max_hops=3,
+        accumulator_names=["sum_values", "sum_weights"],
+        accumulator_inits=[sqlfunctions.lit(0), sqlfunctions.lit(0.0)],
+        accumulator_updates=[
+            sqlfunctions.col("sum_values") + AggregateNeighbors.dst_attr("value"),
+            sqlfunctions.col("sum_weights") + AggregateNeighbors.edge_attr("weight"),
+        ],
+        target_condition=AggregateNeighbors.dst_attr("id") == 3,
+        required_vertex_attributes=["id", "value"],
+        required_edge_attributes=["weight"],
+    )
+
+    rows = result.collect()
+    assert len(rows) == 1
+    # sum_values: 20 + 30 = 50
+    assert rows[0]["sum_values"] == 50
+    # sum_weights: 5.0 + 6.0 = 11.0
+    assert abs(rows[0]["sum_weights"] - 11.0) < 0.001
 
     _ = result.unpersist()

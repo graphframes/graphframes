@@ -25,6 +25,55 @@ from pyspark.storagelevel import StorageLevel
 from pyspark.version import __version__
 from typing_extensions import override
 
+
+class AggregateNeighbors:
+    """Helper class for referencing attributes in AggregateNeighbors expressions.
+
+    Use these static methods in accumulator update expressions, stopping conditions,
+    and target conditions to reference vertex and edge attributes.
+
+    **Example:**
+
+    >>> result = g.aggregate_neighbors(
+    ...     starting_vertices=F.col("id") == 1,
+    ...     max_hops=5,
+    ...     accumulator_names=["sum_values"],
+    ...     accumulator_inits=[F.lit(0)],
+    ...     accumulator_updates=[
+    ...         F.col("sum_values") + AggregateNeighbors.dst_attr("value")
+    ...     ],
+    ...     target_condition=AggregateNeighbors.dst_attr("id") == 10
+    ... )
+    """
+
+    @staticmethod
+    def src_attr(colName: str) -> Column:
+        """Reference a source vertex attribute.
+
+        :param colName: Name of the source vertex attribute
+        :return: Column expression referencing the attribute
+        """
+        return F.col("src_attributes").getField(colName)
+
+    @staticmethod
+    def dst_attr(colName: str) -> Column:
+        """Reference a destination vertex attribute.
+
+        :param colName: Name of the destination vertex attribute
+        :return: Column expression referencing the attribute
+        """
+        return F.col("dst_attributes").getField(colName)
+
+    @staticmethod
+    def edge_attr(colName: str) -> Column:
+        """Reference an edge attribute.
+
+        :param colName: Name of the edge attribute
+        :return: Column expression referencing the attribute
+        """
+        return F.col("edge_attributes").getField(colName)
+
+
 if __version__[:3] >= "3.4":
     from pyspark.sql.utils import is_remote
 else:
@@ -953,3 +1002,121 @@ class GraphFrame:
         new_edges = new_edges.select(*selected_columns)
 
         return GraphFrame(self.vertices, new_edges)
+
+    def aggregate_neighbors(
+        self,
+        starting_vertices: Column | str,
+        max_hops: int,
+        accumulator_names: list[str],
+        accumulator_inits: list[Column | str],
+        accumulator_updates: list[Column | str],
+        stopping_condition: Column | str | None = None,
+        target_condition: Column | str | None = None,
+        required_vertex_attributes: list[str] | None = None,
+        required_edge_attributes: list[str] | None = None,
+        edge_filter: Column | str | None = None,
+        remove_loops: bool = False,
+        checkpoint_interval: int = 0,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """Multi-hop neighbor aggregation with customizable accumulators.
+
+        AggregateNeighbors allows you to explore the graph up to a specified number of hops,
+        accumulating values along paths using customizable accumulator expressions. It supports
+        both stopping conditions (when to stop exploring) and target conditions (when to
+        collect a result).
+
+        **Basic Example:**
+
+        >>> from pyspark.sql import functions as F
+        >>> g = GraphFrame(vertices, edges)
+        >>> result = g.aggregate_neighbors(
+        ...     starting_vertices=F.col("id") == 1,
+        ...     max_hops=3,
+        ...     accumulator_names=["path_length"],
+        ...     accumulator_inits=[F.lit(0)],
+        ...     accumulator_updates=[F.col("path_length") + 1],
+        ...     target_condition=F.col("dst.id") == 4
+        ... )
+
+        **Using Accumulators:**
+
+        Accumulators track values as the algorithm traverses the graph. Each accumulator has:
+        - A name (becomes a column in the result)
+        - An initial value expression (evaluated on starting vertices)
+        - An update expression (evaluated when traversing each edge)
+
+        In update expressions, you can reference:
+        - Source vertex attributes via ``srcAttr("attrName")``
+        - Destination vertex attributes via ``dstAttr("attrName")``
+        - Edge attributes via ``edgeAttr("attrName")``
+
+        **Example with Multiple Accumulators:**
+
+        >>> result = g.aggregate_neighbors(
+        ...     starting_vertices=F.col("id") == 1,
+        ...     max_hops=5,
+        ...     accumulator_names=["sum_values", "product_weights"],
+        ...     accumulator_inits=[F.lit(0), F.lit(1.0)],
+        ...     accumulator_updates=[
+        ...         F.col("sum_values") + AggregateNeighbors.dstAttr("value"),
+        ...         F.col("product_weights") * AggregateNeighbors.edgeAttr("weight")
+        ...     ],
+        ...     target_condition=F.col("dst.id") == 10
+        ... )
+
+        **Stopping vs Target Conditions:**
+
+        - ``stopping_condition``: Stops traversal along a path when true. Useful for avoiding
+          cycles or limiting search depth based on custom criteria.
+        - ``target_condition``: Marks vertices as results when true. Only accumulators reaching
+          target vertices are returned.
+        - If both are provided, only accumulators that reach ``target_condition`` are saved.
+        - At least one must be provided.
+
+        **Performance Considerations:**
+
+        - Use ``required_vertex_attributes`` and ``required_edge_attributes`` to limit the
+          columns carried through traversal, reducing memory usage.
+        - Use ``edge_filter`` to limit traversable edges.
+        - Set ``remove_loops=True`` to exclude self-loop edges.
+        - Use ``checkpoint_interval`` to prevent logical plan growth on deep traversals.
+        - Be cautious with high ``max_hops`` on dense graphs (risk of OOM).
+
+        **Warning:** The result is a persisted DataFrame. Call ``.unpersist()`` when done
+        to release memory.
+
+        :param starting_vertices: Column expression selecting seed vertices (e.g., ``F.col("id") == 1``)
+        :param max_hops: Maximum number of hops to explore (positive integer)
+        :param accumulator_names: List of names for accumulators (become result columns)
+        :param accumulator_inits: List of initial value expressions for accumulators
+        :param accumulator_updates: List of update expressions for accumulators
+        :param stopping_condition: Optional condition to stop traversal along a path
+        :param target_condition: Optional condition to mark vertices as results
+        :param required_vertex_attributes: Vertex columns to carry (None = all columns)
+        :param required_edge_attributes: Edge columns to carry (None = all columns)
+        :param edge_filter: Optional condition to filter traversable edges
+        :param remove_loops: If True, exclude self-loop edges (default: False)
+        :param checkpoint_interval: Checkpoint every N iterations, 0 = disabled (default: 0)
+        :param use_local_checkpoints: Use local checkpoints (faster but less reliable)
+        :param storage_level: Storage level for intermediate results
+        :return: DataFrame with columns: ``id`` (target vertex), ``hop`` (path length), and
+                 one column per accumulator with its final value
+        """  # noqa: E501
+        return self._impl.aggregate_neighbors(
+            starting_vertices=starting_vertices,
+            max_hops=max_hops,
+            accumulator_names=accumulator_names,
+            accumulator_inits=accumulator_inits,
+            accumulator_updates=accumulator_updates,
+            stopping_condition=stopping_condition,
+            target_condition=target_condition,
+            required_vertex_attributes=required_vertex_attributes,
+            required_edge_attributes=required_edge_attributes,
+            edge_filter=edge_filter,
+            remove_loops=remove_loops,
+            checkpoint_interval=checkpoint_interval,
+            use_local_checkpoints=use_local_checkpoints,
+            storage_level=storage_level,
+        )
