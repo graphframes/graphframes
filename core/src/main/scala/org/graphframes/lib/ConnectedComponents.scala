@@ -27,6 +27,8 @@ import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
 import org.graphframes.WithUseLabelsAsComponents
+import org.apache.spark.graphframes.graphx
+import org.graphframes.GraphFramesUnreachableException
 
 /**
  * Connected Components algorithm.
@@ -49,8 +51,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
 
   import ConnectedComponents._
 
-  private var algorithm: String = GraphFramesConf
-    .getConnectedComponentsAlgorithm
+  private var algorithm: String = GraphFramesConf.getConnectedComponentsAlgorithm
     .getOrElse(ALGO_TWO_PHASE)
 
   setCheckpointInterval(
@@ -98,7 +99,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   def run(): DataFrame = {
     algorithm match {
       case ALGO_GRAPHX =>
-        TwoPhase.runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
+        ConnectedComponents.runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
       case ALGO_TWO_PHASE =>
         TwoPhase.run(
           graph,
@@ -106,7 +107,6 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
           checkpointInterval = checkpointInterval,
           intermediateStorageLevel = intermediateStorageLevel,
           useLabelsAsComponents = useLabelsAsComponents,
-          maxIter = maxIter,
           useLocalCheckpoints = useLocalCheckpoints)
       case ALGO_RANDOMIZED_CONTRACTION =>
         RandomizedContraction.run(
@@ -114,6 +114,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
           useLabelsAsComponents = useLabelsAsComponents,
           intermediateStorageLevel = intermediateStorageLevel,
           isGraphPrepared = false)
+      // the check is inside the setter
+      case _ => throw new GraphFramesUnreachableException()
     }
   }
 }
@@ -131,13 +133,17 @@ object ConnectedComponents extends Logging {
    */
   val ALGO_GRAPHFRAMES = "graphframes"
 
-  val ALGO_TWO_PHASE = "two-phase"
+  val ALGO_TWO_PHASE = "two_phase"
   val ALGO_RANDOMIZED_CONTRACTION = "randomized_contraction"
 
   /**
-   * Runs connected components with default parameters.
+   * Runs the GraphX connected components implementation.
    */
-  def run(graph: GraphFrame): DataFrame = {
-    new ConnectedComponents(graph).run()
+  private[graphframes] def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
+    val components =
+      graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
+    GraphXConversions
+      .fromGraphX(graph, components, vertexNames = Seq(ConnectedComponents.COMPONENT))
+      .vertices
   }
 }
