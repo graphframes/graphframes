@@ -94,6 +94,11 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   }
 
   /**
+   * Gets the algorithm used for computing connected components.
+   */
+  def getAlgorithm: String = algorithm
+
+  /**
    * Runs the algorithm.
    */
   def run(): DataFrame = {
