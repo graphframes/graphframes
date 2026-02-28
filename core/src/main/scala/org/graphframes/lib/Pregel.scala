@@ -424,7 +424,7 @@ class Pregel(val graph: GraphFrame)
 
     val edges = graph.edges
       .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), struct(col("*")).as(EDGE))
-      .repartition(if (needsDstState) Seq(col("edge_src"), col("edge_dst")): _* else Seq(col("edge_src")): _*)
+      .repartition((if (needsDstState) Seq(col("edge_src"), col("edge_dst")) else Seq(col("edge_src"))): _*)
       .persist(intermediateStorageLevel)
 
     var iteration = 1
