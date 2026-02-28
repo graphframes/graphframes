@@ -293,4 +293,293 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .collect()
     assert(result.sum === 1.0 +- 1e-6)
   }
+
+  test("automatic dst join skipping - PageRank only uses src columns") {
+    // PageRank only references Pregel.src("rank") and Pregel.src("outDegree"),
+    // so the second join (for dst vertex state) should be automatically skipped.
+    // This test verifies the optimization produces correct results.
+
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 4L), (2L, 0L), (3L, 4L), (4L, 0L), (4L, 2L))
+      .toDF("src", "dst")
+      .cache()
+    val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
+    val numVertices = vertices.count()
+    val graph = GraphFrame(vertices, edges)
+
+    val alpha = 0.15
+    // PageRank only uses Pregel.src(...) - dst state should be automatically skipped
+    val ranks = graph.pregel
+      .setMaxIter(5)
+      .withVertexColumn(
+        "rank",
+        lit(1.0 / numVertices),
+        coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
+      .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    val result = ranks
+      .sort(col("id"))
+      .select("rank")
+      .as[Double]
+      .collect()
+    assert(result.sum === 1.0 +- 1e-6)
+    val expected = Seq(0.245, 0.224, 0.303, 0.03, 0.197)
+    result.zip(expected).foreach { case (r, e) =>
+      assert(r === e +- 1e-3)
+    }
+  }
+
+  test("automatic dst join NOT skipped when dst columns are referenced") {
+    // This test uses Pregel.dst("value") in the message expression,
+    // so the second join must NOT be skipped.
+
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x, x + 1))
+      .toDF("src", "dst")
+      .repartition(3)
+
+    val graph = GraphFrame(verDF, edgeDF)
+
+    val resultDF = graph.pregel
+      .setMaxIter(n - 1)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      // This references BOTH src and dst - dst join should NOT be skipped
+      .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
+      .aggMsgs(max(Pregel.msg))
+      .run()
+
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
+
+  test("automatic dst join NOT skipped when skipMessagesFromNonActiveVertices is enabled") {
+    // When skipMessagesFromNonActiveVertices is true, we need dst._pregel_is_active,
+    // so the second join must NOT be skipped even if message expressions don't use dst.
+
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x, x + 1))
+      .toDF("src", "dst")
+      .repartition(3)
+
+    val graph = GraphFrame(verDF, edgeDF)
+
+    // This only uses Pregel.src("value"), but skipMessagesFromNonActiveVertices
+    // requires dst._pregel_is_active, so dst join should NOT be skipped
+    val resultDF = graph.pregel
+      .setMaxIter(n - 1)
+      .setSkipMessagesFromNonActiveVertices(true)
+      .setUpdateActiveVertexExpression(Pregel.msg.isNotNull)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      .sendMsgToDst(Pregel.src("value"))
+      .aggMsgs(max(Pregel.msg))
+      .run()
+
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
+
+  test("automatic dst join skipping - sendMsgToSrc with only edge columns") {
+    // When sending messages to src using only edge columns, dst join should be skipped
+
+    val edges = Seq((1L, 0L, 10L), (2L, 1L, 20L), (3L, 2L, 30L), (4L, 3L, 40L))
+      .toDF("src", "dst", "weight")
+      .cache()
+    val vertices = (0L to 4L).toDF("id").cache()
+
+    val graph = GraphFrame(vertices, edges)
+
+    // Only uses Pregel.edge("weight") - dst join should be skipped
+    val resultDF = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      .sendMsgToSrc(Pregel.edge("weight"))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Each src vertex receives the weight from its outgoing edge
+    val received = resultDF.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no outgoing edges
+    assert(received(1) === 10L) // vertex 1: edge 1->0 with weight 10
+    assert(received(2) === 20L) // vertex 2: edge 2->1 with weight 20
+    assert(received(3) === 30L) // vertex 3: edge 3->2 with weight 30
+    assert(received(4) === 40L) // vertex 4: edge 4->3 with weight 40
+  }
+
+  test("automatic dst join skipping - edge columns only") {
+    // When message expressions only reference edge columns, dst join should be skipped
+
+    val edges =
+      Seq((0L, 1L, 1.0), (1L, 2L, 2.0), (2L, 3L, 3.0)).toDF("src", "dst", "weight").cache()
+    val vertices = Seq(0L, 1L, 2L, 3L).toDF("id").cache()
+    val graph = GraphFrame(vertices, edges)
+
+    // Only uses Pregel.edge("weight") - dst join should be skipped
+    val result = graph.pregel
+      .setMaxIter(1) // Single iteration to simplify testing
+      .withVertexColumn("total", lit(0.0), coalesce(Pregel.msg, col("total")))
+      .sendMsgToDst(Pregel.edge("weight"))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify results: vertex 1 gets weight 1.0, vertex 2 gets 2.0, vertex 3 gets 3.0
+    val totals = result.sort("id").select("total").as[Double].collect()
+    assert(totals(0) === 0.0 +- 1e-6) // vertex 0: no incoming edges
+    assert(totals(1) === 1.0 +- 1e-6) // vertex 1: edge 0->1 with weight 1.0
+    assert(totals(2) === 2.0 +- 1e-6) // vertex 2: edge 1->2 with weight 2.0
+    assert(totals(3) === 3.0 +- 1e-6) // vertex 3: edge 2->3 with weight 3.0
+  }
+
+  test("automatic dst join skipping - sendMsgToDst with only src columns in message") {
+    // When sendMsgToDst is used but the message expression only references src columns,
+    // the second join should be skipped. The dst.id needed for message routing is
+    // obtained from the edge's dst column, not from a vertex join.
+
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 3L)).toDF("src", "dst").cache()
+    val vertices = (0L to 3L).toDF("id").cache()
+    val graph = GraphFrame(vertices, edges)
+
+    // sendMsgToDst but message only uses Pregel.src("id") - dst join should be skipped
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      .sendMsgToDst(Pregel.src("id")) // Message only uses src.id
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Each dst vertex receives the src.id from incoming edges
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming edges
+    assert(received(1) === 0L) // vertex 1: edge 0->1, receives src.id = 0
+    assert(received(2) === 1L) // vertex 2: edge 1->2, receives src.id = 1
+    assert(received(3) === 2L) // vertex 3: edge 2->3, receives src.id = 2
+  }
+
+  test("automatic dst join skipping - message references only dst.id") {
+    // When message expressions only reference dst.id (not other dst fields),
+    // the join should still be skipped since dst.id is available from the edge.
+
+    val edges = Seq((0L, 1L), (1L, 2L), (2L, 3L)).toDF("src", "dst").cache()
+    val vertices = (0L to 3L).toDF("id").cache()
+    val graph = GraphFrame(vertices, edges)
+
+    // Message uses Pregel.dst("id") - but since only id is used, dst join should be skipped
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      .sendMsgToDst(Pregel.src("id") + Pregel.dst("id")) // Uses dst.id only
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Each dst vertex receives src.id + dst.id from incoming edges
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming edges
+    assert(received(1) === 1L) // vertex 1: edge 0->1, receives 0 + 1 = 1
+    assert(received(2) === 3L) // vertex 2: edge 1->2, receives 1 + 2 = 3
+    assert(received(3) === 5L) // vertex 3: edge 2->3, receives 2 + 3 = 5
+  }
+
+  // ============================================================================
+  // Integration tests for complex expression patterns
+  // These verify that dst join is correctly performed when dst columns are used
+  // in non-trivial ways (map keys, array indices, conditionals, nested structs)
+  // ============================================================================
+
+  test("dst join required when dst column used in conditional") {
+    // when(Pregel.dst("flag"), Pregel.src("value")) - dst.flag requires the join
+    val vertices = Seq((0L, true, 10L), (1L, false, 20L), (2L, true, 30L))
+      .toDF("id", "flag", "value")
+    val edges = Seq((0L, 1L), (1L, 2L)).toDF("src", "dst")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      .sendMsgToDst(when(Pregel.dst("flag"), Pregel.src("value")).otherwise(lit(null)))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify correct behavior: message only sent when dst.flag is true
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming
+    assert(received(1) === 0L) // vertex 1: dst.flag=false, so null message (filtered)
+    assert(received(2) === 20L) // vertex 2: dst.flag=true, receives src.value=20
+  }
+
+  test("dst join required when dst column used as map key") {
+    // Create edges with a map column, use dst vertex attribute as key
+    val vertices = Seq((0L, "a"), (1L, "b"), (2L, "a")).toDF("id", "key")
+    val edges = Seq((0L, 1L, Map("a" -> 10L, "b" -> 20L)), (1L, 2L, Map("a" -> 30L, "b" -> 40L)))
+      .toDF("src", "dst", "weights")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      // Use dst.key to look up value in edge.weights map
+      .sendMsgToDst(element_at(Pregel.edge("weights"), Pregel.dst("key")))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify: dst.key is used to index into map
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming
+    assert(received(1) === 20L) // vertex 1: key="b", edge weights has b->20
+    assert(received(2) === 30L) // vertex 2: key="a", edge weights has a->30
+  }
+
+  test("dst join required when dst column used as array index") {
+    // Create edges with array column, use dst vertex attribute as index
+    val vertices = Seq((0L, 1), (1L, 2), (2L, 1)).toDF("id", "idx")
+    val edges = Seq((0L, 1L, Array(100L, 200L)), (1L, 2L, Array(300L, 400L)))
+      .toDF("src", "dst", "values")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
+      // Use dst.idx to index into edge.values array (element_at is 1-based)
+      .sendMsgToDst(element_at(Pregel.edge("values"), Pregel.dst("idx")))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify: dst.idx is used to index into array
+    val received = result.sort("id").select("received").as[Long].collect()
+    assert(received(0) === 0L) // vertex 0: no incoming
+    assert(received(1) === 200L) // vertex 1: idx=2, array element 2 = 200
+    assert(received(2) === 300L) // vertex 2: idx=1, array element 1 = 300
+  }
+
+  test("dst join required for nested struct field access") {
+    // Create vertices with nested struct
+    val vertices = spark
+      .createDataFrame(Seq((0L, 1.0, 2.0), (1L, 3.0, 4.0), (2L, 5.0, 6.0)))
+      .toDF("id", "x", "y")
+      .selectExpr("id", "named_struct('x', x, 'y', y) as location")
+
+    val edges = Seq((0L, 1L), (1L, 2L)).toDF("src", "dst")
+    val graph = GraphFrame(vertices, edges)
+
+    val result = graph.pregel
+      .setMaxIter(1)
+      .withVertexColumn("received", lit(0.0), coalesce(Pregel.msg, col("received")))
+      // Access nested field dst.location.x and src.location.y
+      .sendMsgToDst(Pregel.dst("location")("x") + Pregel.src("location")("y"))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
+
+    // Verify: nested struct fields are accessed correctly
+    val received = result.sort("id").select("received").as[Double].collect()
+    assert(received(0) === 0.0 +- 1e-6) // vertex 0: no incoming
+    assert(received(1) === 5.0 +- 1e-6) // vertex 1: dst.location.x=3.0 + src.location.y=2.0
+    assert(received(2) === 9.0 +- 1e-6) // vertex 2: dst.location.x=5.0 + src.location.y=4.0
+  }
 }
