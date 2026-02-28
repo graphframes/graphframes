@@ -66,7 +66,7 @@ object SparkShims {
     }
 
     expr.expr.foreach {
-      // Unresolved: col("src.id") or Pregel.src("id") -> UnresolvedAttribute(Seq("src", "id"))
+      // Unresolved: col("src.id") -> UnresolvedAttribute(Seq("src", "id"))
       case UnresolvedAttribute(nameParts) if nameParts.nonEmpty =>
         addRef(nameParts.head, nameParts.lift(1))
 
