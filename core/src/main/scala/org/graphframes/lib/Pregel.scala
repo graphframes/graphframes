@@ -398,9 +398,33 @@ class Pregel(val graph: GraphFrame)
       ((initialAttributes :+ initialActiveVertexExpression.alias(
         Pregel.ACTIVE_FLAG_COL)) ++ initVertexCols): _*)
 
+    // Automatic optimization: detect if destination vertex state is needed by analyzing
+    // the MESSAGE expressions only (not the target ID expressions, since dst.id is always
+    // available from the edge). If no message expression references dst.* columns,
+    // we can skip the second join entirely.
+    // However, if skipMessagesFromNonActiveVertices is enabled, we need dst._pregel_is_active.
+    // Additionally, if the only dst field referenced is "id", we can still skip since
+    // dst.id is available from the edge's dst column.
+    val messageExpressions = sendMsgs.toList.map { case (_, msgExpr) => msgExpr }
+    val allDstRefs = messageExpressions.flatMap { expr =>
+      SparkShims.extractColumnReferences(graph.spark, expr).get(DST)
+    }
+    val dstPrefixReferenced = allDstRefs.nonEmpty
+    val dstFieldsReferenced = allDstRefs.flatten.toSet
+    // We need the dst join if:
+    // 1. skipMessagesFromNonActiveVertices is enabled (needs dst._pregel_is_active), OR
+    // 2. dst is referenced AND fields other than just "id" are accessed
+    //    (empty set means whole struct access like col("dst"), which also needs the join)
+    val needsDstState = skipMessagesFromNonActiveVertices ||
+      (dstPrefixReferenced && (dstFieldsReferenced.isEmpty || dstFieldsReferenced != Set(ID)))
+    if (!needsDstState) {
+      logDebug(
+        "Optimization: skipping second join (dst state not required by message expressions)")
+    }
+
     val edges = graph.edges
       .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), struct(col("*")).as(EDGE))
-      .repartition(col("edge_src"), col("edge_dst"))
+      .repartition((if (needsDstState) Seq(col("edge_src"), col("edge_dst")) else Seq(col("edge_src"))): _*)
       .persist(intermediateStorageLevel)
 
     var iteration = 1
@@ -426,30 +450,6 @@ class Pregel(val graph: GraphFrame)
       if (requiredDstColumnsList.isEmpty) Seq(col("*"))
       else (Seq(ID, Pregel.ACTIVE_FLAG_COL) ++ requiredDstColumnsList).distinct.map(col)
 
-    // Automatic optimization: detect if destination vertex state is needed by analyzing
-    // the MESSAGE expressions only (not the target ID expressions, since dst.id is always
-    // available from the edge). If no message expression references dst.* columns,
-    // we can skip the second join entirely.
-    // However, if skipMessagesFromNonActiveVertices is enabled, we need dst._pregel_is_active.
-    // Additionally, if the only dst field referenced is "id", we can still skip since
-    // dst.id is available from the edge's dst column.
-    val messageExpressions = sendMsgs.toList.map { case (_, msgExpr) => msgExpr }
-    val allDstRefs = messageExpressions.flatMap { expr =>
-      SparkShims.extractColumnReferences(graph.spark, expr).get(DST)
-    }
-    val dstPrefixReferenced = allDstRefs.nonEmpty
-    val dstFieldsReferenced = allDstRefs.flatten.toSet
-    // We need the dst join if:
-    // 1. skipMessagesFromNonActiveVertices is enabled (needs dst._pregel_is_active), OR
-    // 2. dst is referenced AND fields other than just "id" are accessed
-    //    (empty set means whole struct access like col("dst"), which also needs the join)
-    val needsDstState = skipMessagesFromNonActiveVertices ||
-      (dstPrefixReferenced && (dstFieldsReferenced.isEmpty || dstFieldsReferenced != Set(ID)))
-    if (!needsDstState) {
-      logDebug(
-        "Optimization: skipping second join (dst state not required by message expressions)")
-    }
-
     breakable {
       while (iteration <= maxIter) {
         logInfo(s"start Pregel iteration $iteration / $maxIter")
@@ -457,9 +457,15 @@ class Pregel(val graph: GraphFrame)
         currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
 
         // Build triplets: start with src vertex state joined with edges
-        val srcWithEdges = currentVertices
+        var srcWithEdges = currentVertices
           .select(struct(srcCols: _*).as(SRC))
           .join(edges, Pregel.src(ID) === col("edge_src"))
+
+        // Optimization: persist srcWithEdges when skipping dst join to avoid recomputation
+        if (!needsDstState) {
+          srcWithEdges = srcWithEdges.persist(intermediateStorageLevel)
+          currRoundPersistent.enqueue(srcWithEdges)
+        }
 
         // Only perform the second join (adding dst vertex state) if needed
         var tripletsDF = if (needsDstState) {
