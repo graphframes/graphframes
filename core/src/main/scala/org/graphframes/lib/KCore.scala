@@ -28,6 +28,11 @@ import org.graphframes.WithLocalCheckpoints
  *
  * Mandal, Aritra, and Mohammad Al Hasan. "A distributed k-core decomposition algorithm on spark."
  * 2017 IEEE International Conference on Big Data (Big Data). IEEE, 2017.
+ *
+ * '''Edge representation''': K-core decomposition is defined for undirected graphs. Since
+ * GraphFrames represents edges as directed, each undirected edge `{u, v}` should be supplied
+ * as a single directed edge in either direction — the algorithm symmetrizes internally.
+ * Supplying both `(u, v)` and `(v, u)` will double-count the edge and produce incorrect results.
  */
 class KCore private[graphframes] (private val graph: GraphFrame)
     extends Serializable
@@ -80,8 +85,8 @@ object KCore extends Serializable with Logging {
           kCoreColumnName,
           col("degree"),
           call_function("_kcoreMerge", Pregel.msg, col(kCoreColumnName)))
-        .sendMsgToSrc(Pregel.src(kCoreColumnName))
-        .sendMsgToDst(Pregel.dst(kCoreColumnName))
+        .sendMsgToSrc(Pregel.dst(kCoreColumnName))
+        .sendMsgToDst(Pregel.src(kCoreColumnName))
         .setInitialActiveVertexExpression(lit(true))
         .setUpdateActiveVertexExpression(
           col(kCoreColumnName) =!= call_function("_kcoreMerge", Pregel.msg, col(kCoreColumnName)))
