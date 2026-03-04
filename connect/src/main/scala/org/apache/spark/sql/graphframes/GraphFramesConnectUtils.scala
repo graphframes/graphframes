@@ -454,6 +454,66 @@ object GraphFramesConnectUtils {
 
         kCoreBuilder.run()
       }
+      case proto.GraphFramesAPI.MethodCase.AGGREGATE_NEIGHBORS => {
+        val anProto = apiMessage.getAggregateNeighbors
+        var anBuilder = graphFrame.aggregateNeighbors
+          .setStartingVertices(parseColumnOrExpression(anProto.getStartingVertices, planner))
+          .setMaxHops(anProto.getMaxHops)
+
+        // Set accumulators
+        val accNames = anProto.getAccumulatorNamesList.asScala.toSeq
+        val accInits = anProto.getAccumulatorInitsList.asScala
+          .map(parseColumnOrExpression(_, planner))
+          .toSeq
+        val accUpdates = anProto.getAccumulatorUpdatesList.asScala
+          .map(parseColumnOrExpression(_, planner))
+          .toSeq
+
+        if (accNames.nonEmpty) {
+          anBuilder = anBuilder.setAccumulators(accNames, accInits, accUpdates)
+        }
+
+        // Optional parameters
+        if (anProto.hasStoppingCondition) {
+          anBuilder = anBuilder.setStoppingCondition(
+            parseColumnOrExpression(anProto.getStoppingCondition, planner))
+        }
+
+        if (anProto.hasTargetCondition) {
+          anBuilder = anBuilder.setTargetCondition(
+            parseColumnOrExpression(anProto.getTargetCondition, planner))
+        }
+
+        val reqVertexAttrs = anProto.getRequiredVertexAttributesList.asScala.toSeq
+        if (reqVertexAttrs.nonEmpty) {
+          anBuilder = anBuilder.setRequiredVertexAttributes(reqVertexAttrs)
+        }
+
+        val reqEdgeAttrs = anProto.getRequiredEdgeAttributesList.asScala.toSeq
+        if (reqEdgeAttrs.nonEmpty) {
+          anBuilder = anBuilder.setRequiredEdgeAttributes(reqEdgeAttrs)
+        }
+
+        if (anProto.hasEdgeFilter) {
+          anBuilder =
+            anBuilder.setEdgeFilter(parseColumnOrExpression(anProto.getEdgeFilter, planner))
+        }
+
+        anBuilder = anBuilder.setRemoveLoops(anProto.getRemoveLoops)
+
+        if (anProto.getCheckpointInterval > 0) {
+          anBuilder = anBuilder.setCheckpointInterval(anProto.getCheckpointInterval)
+        }
+
+        anBuilder = anBuilder.setUseLocalCheckpoints(anProto.getUseLocalCheckpoints)
+
+        if (anProto.hasStorageLevel) {
+          anBuilder =
+            anBuilder.setIntermediateStorageLevel(parseStorageLevel(anProto.getStorageLevel))
+        }
+
+        anBuilder.run()
+      }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }
   }

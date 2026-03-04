@@ -202,13 +202,15 @@ object LaikaCustoms {
         version = Some(v),
         language = Some("en"))
       .all
-      .tableOfContent("Table of Content", depth = 4)
+      .tableOfContent("Table of Content", depth = 3)
       .site
       .topNavigationBar(navLinks = Seq(
         IconLink.external("https://github.com/graphframes/graphframes", HeliumIcon.github),
         IconLink.external(
           "https://discord.com/channels/1162999022819225631/1326257052368113674",
           HeliumIcon.chat)))
+      .site
+      .pageNavigation(depth = 1)
       .site
       .landingPage(
         title = Some("GraphFrames"),

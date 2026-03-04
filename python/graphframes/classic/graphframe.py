@@ -371,3 +371,113 @@ class GraphFrame:
         jdf = java_kcore.run()
 
         return DataFrame(jdf, self._spark)
+
+    def aggregate_neighbors(
+        self,
+        starting_vertices: Column | str,
+        max_hops: int,
+        accumulator_names: list[str],
+        accumulator_inits: list[Column | str],
+        accumulator_updates: list[Column | str],
+        stopping_condition: Column | str | None = None,
+        target_condition: Column | str | None = None,
+        required_vertex_attributes: list[str] | None = None,
+        required_edge_attributes: list[str] | None = None,
+        edge_filter: Column | str | None = None,
+        remove_loops: bool = False,
+        checkpoint_interval: int = 0,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """AggregateNeighbors algorithm for multi-hop neighbor aggregation.
+
+        :param starting_vertices: Column expression selecting seed vertices
+        :param max_hops: Maximum number of hops to explore
+        :param accumulator_names: Names for accumulators
+        :param accumulator_inits: Initial values for accumulators
+        :param accumulator_updates: Update expressions for accumulators
+        :param stopping_condition: Optional condition to stop traversal
+        :param target_condition: Optional condition to mark target vertices
+        :param required_vertex_attributes: Vertex columns to carry (None = all)
+        :param required_edge_attributes: Edge columns to carry (None = all)
+        :param edge_filter: Optional condition to filter traversable edges
+        :param remove_loops: Whether to exclude self-loop edges
+        :param checkpoint_interval: Checkpoint every N iterations (0 = disabled)
+        :param use_local_checkpoints: Use local checkpoints (faster but less reliable)
+        :param storage_level: Storage level for intermediate results
+        :return: DataFrame with aggregation results
+        """
+        builder = self._jvm_graph.aggregateNeighbors()
+
+        # Set required parameters
+        if isinstance(starting_vertices, Column):
+            builder.setStartingVertices(starting_vertices._jc)
+        else:
+            builder.setStartingVertices(starting_vertices)
+
+        builder.setMaxHops(max_hops)
+
+        # Handle accumulators with proper py4j conversion
+        if len(accumulator_names) > 0:
+            jvm = self._sc._jvm
+            names_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(accumulator_names).toSeq()
+
+            inits_list = []
+            for init in accumulator_inits:
+                if isinstance(init, Column):
+                    inits_list.append(init._jc)
+                else:
+                    inits_list.append(init)
+            inits_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(inits_list).toSeq()
+
+            updates_list = []
+            for update in accumulator_updates:
+                if isinstance(update, Column):
+                    updates_list.append(update._jc)
+                else:
+                    updates_list.append(update)
+            updates_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(updates_list).toSeq()
+
+            builder.setAccumulators(names_seq, inits_seq, updates_seq)
+
+        # Set optional parameters
+        if stopping_condition is not None:
+            if isinstance(stopping_condition, Column):
+                builder.setStoppingCondition(stopping_condition._jc)
+            else:
+                builder.setStoppingCondition(stopping_condition)
+
+        if target_condition is not None:
+            if isinstance(target_condition, Column):
+                builder.setTargetCondition(target_condition._jc)
+            else:
+                builder.setTargetCondition(target_condition)
+
+        if required_vertex_attributes is not None and len(required_vertex_attributes) > 0:
+            attrs_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(
+                required_vertex_attributes
+            ).toSeq()
+            builder.setRequiredVertexAttributes(attrs_seq)
+
+        if required_edge_attributes is not None and len(required_edge_attributes) > 0:
+            attrs_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(
+                required_edge_attributes
+            ).toSeq()
+            builder.setRequiredEdgeAttributes(attrs_seq)
+
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.setEdgeFilter(edge_filter._jc)
+            else:
+                builder.setEdgeFilter(edge_filter)
+
+        builder.setRemoveLoops(remove_loops)
+
+        if checkpoint_interval > 0:
+            builder.setCheckpointInterval(checkpoint_interval)
+
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+
+        jdf = builder.run()
+        return DataFrame(jdf, self._spark)

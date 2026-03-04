@@ -37,6 +37,7 @@ message GraphFramesAPI {
     Triplets triplets = 20;
     MaximalIndependentSet mis = 22;
     KCore kcore = 21;
+    AggregateNeighbors aggregate_neighbors = 23;
   }
 }
 
@@ -207,4 +208,35 @@ message KCore {
   bool use_local_checkpoints = 1;
   int32 checkpoint_interval = 2;
   optional StorageLevel storage_level = 3;
+}
+
+message AggregateNeighbors {
+  // Starting vertices condition (Boolean column expression)
+  ColumnOrExpression starting_vertices = 1;
+  // Maximum number of hops to explore
+  int32 max_hops = 2;
+  // Accumulator names
+  repeated string accumulator_names = 3;
+  // Accumulator initial value expressions
+  repeated ColumnOrExpression accumulator_inits = 4;
+  // Accumulator update expressions
+  repeated ColumnOrExpression accumulator_updates = 5;
+  // Optional stopping condition (Boolean column expression)
+  optional ColumnOrExpression stopping_condition = 6;
+  // Optional target condition (Boolean column expression)
+  optional ColumnOrExpression target_condition = 7;
+  // Optional required vertex attributes to carry through traversal
+  repeated string required_vertex_attributes = 8;
+  // Optional required edge attributes to carry through traversal
+  repeated string required_edge_attributes = 9;
+  // Optional edge filter condition (Boolean column expression)
+  optional ColumnOrExpression edge_filter = 10;
+  // Whether to remove self-loops
+  bool remove_loops = 11;
+  // Checkpoint interval (0 means disabled)
+  int32 checkpoint_interval = 12;
+  // Whether to use local checkpoints
+  bool use_local_checkpoints = 13;
+  // Optional storage level for intermediate results
+  optional StorageLevel storage_level = 14;
 }

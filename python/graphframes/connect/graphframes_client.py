@@ -1220,3 +1220,124 @@ class GraphFrameConnect:
             ),
             self._spark,
         )
+
+    def aggregate_neighbors(
+        self,
+        starting_vertices: Column | str,
+        max_hops: int,
+        accumulator_names: list[str],
+        accumulator_inits: list[Column | str],
+        accumulator_updates: list[Column | str],
+        stopping_condition: Column | str | None = None,
+        target_condition: Column | str | None = None,
+        required_vertex_attributes: list[str] | None = None,
+        required_edge_attributes: list[str] | None = None,
+        edge_filter: Column | str | None = None,
+        remove_loops: bool = False,
+        checkpoint_interval: int = 0,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        @final
+        class AggregateNeighbors(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                starting_vertices: Column | str,
+                max_hops: int,
+                accumulator_names: list[str],
+                accumulator_inits: list[Column | str],
+                accumulator_updates: list[Column | str],
+                stopping_condition: Column | str | None,
+                target_condition: Column | str | None,
+                required_vertex_attributes: list[str] | None,
+                required_edge_attributes: list[str] | None,
+                edge_filter: Column | str | None,
+                remove_loops: bool,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.starting_vertices = starting_vertices
+                self.max_hops = max_hops
+                self.accumulator_names = accumulator_names
+                self.accumulator_inits = accumulator_inits
+                self.accumulator_updates = accumulator_updates
+                self.stopping_condition = stopping_condition
+                self.target_condition = target_condition
+                self.required_vertex_attributes = required_vertex_attributes or []
+                self.required_edge_attributes = required_edge_attributes or []
+                self.edge_filter = edge_filter
+                self.remove_loops = remove_loops
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                # Build the protobuf message
+                an_message = pb.AggregateNeighbors(
+                    starting_vertices=make_column_or_expr(self.starting_vertices, session),
+                    max_hops=self.max_hops,
+                    accumulator_names=self.accumulator_names,
+                    accumulator_inits=[
+                        make_column_or_expr(init, session) for init in self.accumulator_inits
+                    ],
+                    accumulator_updates=[
+                        make_column_or_expr(update, session) for update in self.accumulator_updates
+                    ],
+                    required_vertex_attributes=self.required_vertex_attributes,
+                    required_edge_attributes=self.required_edge_attributes,
+                    remove_loops=self.remove_loops,
+                    checkpoint_interval=self.checkpoint_interval,
+                    use_local_checkpoints=self.use_local_checkpoints,
+                    storage_level=storage_level_to_proto(self.storage_level),
+                )
+
+                # Add optional fields if present
+                if self.stopping_condition is not None:
+                    an_message.stopping_condition.CopyFrom(
+                        make_column_or_expr(self.stopping_condition, session)
+                    )
+
+                if self.target_condition is not None:
+                    an_message.target_condition.CopyFrom(
+                        make_column_or_expr(self.target_condition, session)
+                    )
+
+                if self.edge_filter is not None:
+                    an_message.edge_filter.CopyFrom(make_column_or_expr(self.edge_filter, session))
+
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.aggregate_neighbors.CopyFrom(an_message)
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            AggregateNeighbors(
+                self._vertices,
+                self._edges,
+                starting_vertices,
+                max_hops,
+                accumulator_names,
+                accumulator_inits,
+                accumulator_updates,
+                stopping_condition,
+                target_condition,
+                required_vertex_attributes,
+                required_edge_attributes,
+                edge_filter,
+                remove_loops,
+                checkpoint_interval,
+                use_local_checkpoints,
+                storage_level,
+            ),
+            self._spark,
+        )
