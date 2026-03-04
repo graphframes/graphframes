@@ -30,9 +30,9 @@ import org.graphframes.WithLocalCheckpoints
  * 2017 IEEE International Conference on Big Data (Big Data). IEEE, 2017.
  *
  * '''Edge representation''': K-core decomposition is defined for undirected graphs. Since
- * GraphFrames represents edges as directed, each undirected edge `{u, v}` should be supplied
- * as a single directed edge in either direction — the algorithm symmetrizes internally.
- * Supplying both `(u, v)` and `(v, u)` will double-count the edge and produce incorrect results.
+ * GraphFrames represents edges as directed, each undirected edge `{u, v}` should be supplied as a
+ * single directed edge in either direction — the algorithm symmetrizes internally. Supplying both
+ * `(u, v)` and `(v, u)` will double-count the edge and produce incorrect results.
  */
 class KCore private[graphframes] (private val graph: GraphFrame)
     extends Serializable
