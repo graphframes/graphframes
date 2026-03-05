@@ -110,13 +110,22 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
           maxIter.getOrElse(Int.MaxValue),
           intermediateStorageLevel)
       case ALGO_TWO_PHASE =>
-        TwoPhase.run(
-          graph,
-          broadcastThreshold = broadcastThreshold,
-          checkpointInterval = checkpointInterval,
-          intermediateStorageLevel = intermediateStorageLevel,
-          useLabelsAsComponents = useLabelsAsComponents,
-          useLocalCheckpoints = useLocalCheckpoints)
+        if (broadcastThreshold == -1) {
+          TwoPhase.runAQE(
+            graph,
+            checkpointInterval = checkpointInterval,
+            intermediateStorageLevel = intermediateStorageLevel,
+            useLabelsAsComponents = useLabelsAsComponents,
+            useLocalCheckpoints = useLocalCheckpoints)
+        } else {
+          TwoPhase.run(
+            graph,
+            broadcastThreshold = broadcastThreshold,
+            checkpointInterval = checkpointInterval,
+            intermediateStorageLevel = intermediateStorageLevel,
+            useLabelsAsComponents = useLabelsAsComponents,
+            useLocalCheckpoints = useLocalCheckpoints)
+        }
       case ALGO_RANDOMIZED_CONTRACTION =>
         RandomizedContraction.run(
           graph,
