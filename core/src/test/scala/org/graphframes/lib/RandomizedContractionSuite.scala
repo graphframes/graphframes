@@ -254,20 +254,6 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     val _ = assert(!functionRegistry.functionExists(FunctionIdentifier("_axpb")))
   }
 
-  private def cleanCheckpointDir(): Unit = {
-    val hadoopConf = spark.sparkContext.hadoopConfiguration
-    val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    val checkpointDir = spark.sparkContext.getCheckpointDir
-    checkpointDir.foreach { dir =>
-      val path = new org.apache.hadoop.fs.Path(dir)
-      if (fs.exists(path)) {
-        fs.listStatus(path).foreach { status =>
-          fs.delete(status.getPath, true)
-        }
-      }
-    }
-  }
-
   private def listParquetFiles(): Set[String] = {
     val hadoopConf = spark.sparkContext.hadoopConfiguration
     val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
