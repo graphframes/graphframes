@@ -11,7 +11,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Shortest_path_problem) for a backg
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
@@ -120,17 +120,17 @@ paths.show()
 
 Computes the connected component membership of each vertex and returns a graph with each vertex assigned a component ID.
 
-See [Wikipedia](https://en.wikipedia.org/wiki/Connected_component_(graph_theory)) for the background.
+See [Wikipedia](<https://en.wikipedia.org/wiki/Connected_component_(graph_theory)>) for the background.
 
 ---
 
 **NOTE:**
 
-*With GraphFrames 0.3.0 and later releases, the default Connected Components algorithm requires setting a Spark checkpoint directory. Users can revert to the old algorithm using `connectedComponents.setAlgorithm("graphx")`. Starting from GraphFrames 0.9.3 release, users can also use `localCheckpoints` that does not require setting a Spark checkpoint directory. To use `localCheckpoints` users can set the config `spark.graphframes.useLocalCheckpoints` to `true` or use the API `connectedComponents.setUseLocalCheckpoints(true)`. While `localCheckpoints` provides better performance they are not as reliable as the persistent checkpointing.*
+_With GraphFrames 0.3.0 and later releases, the default Connected Components algorithm requires setting a Spark checkpoint directory. Users can revert to the old algorithm using `connectedComponents.setAlgorithm("graphx")`. Starting from GraphFrames 0.9.3 release, users can also use `localCheckpoints` that does not require setting a Spark checkpoint directory. To use `localCheckpoints` users can set the config `spark.graphframes.useLocalCheckpoints` to `true` or use the API `connectedComponents.setUseLocalCheckpoints(true)`. While `localCheckpoints` provides better performance they are not as reliable as the persistent checkpointing._
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
@@ -174,7 +174,7 @@ A naive Pregel-based implementation backed by Apache Spark GraphX. It propagates
 
 A DataFrame-native implementation based on the large-star / small-star label propagation approach described in:
 
-> Kiveris, Raimondas, et al. *"Connected components in MapReduce and beyond."* Proceedings of the ACM Symposium on Cloud Computing. 2014. https://dl.acm.org/doi/abs/10.1145/2670979.2670997
+> Kiveris, Raimondas, et al. _"Connected components in MapReduce and beyond."_ Proceedings of the ACM Symposium on Cloud Computing. 2014. https://dl.acm.org/doi/abs/10.1145/2670979.2670997
 
 This algorithm has much better convergence complexity than `graphx` and requires significantly less memory thanks to efficient Tungsten serialization. It is the recommended default for most workloads.
 
@@ -186,7 +186,7 @@ This algorithm has two internal join modes — see [AQE-broadcast mode](#aqe-bro
 
 A DataFrame-native implementation based on randomized graph contraction, described in:
 
-> Bögeholz, Harald, Michael Brand, and Radu-Alexandru Todor. *"In-database connected component analysis."* 2020 IEEE 36th International Conference on Data Engineering (ICDE). IEEE, 2020.
+> Bögeholz, Harald, Michael Brand, and Radu-Alexandru Todor. _"In-database connected component analysis."_ 2020 IEEE 36th International Conference on Data Engineering (ICDE). IEEE, 2020.
 
 This algorithm iteratively contracts the graph using random linear functions until no edges remain, then reconstructs component identifiers in a reverse pass. It has similar convergence characteristics to `two_phase` (AQE mode) and performs comparably on benchmarks — slightly worse than `two_phase` with AQE, but significantly better than `two_phase` with manual skewed joins.
 
@@ -198,12 +198,12 @@ The algorithm name `graphframes` is a deprecated alias for `two_phase` and will 
 
 #### Performance summary
 
-| Algorithm | Convergence complexity | Memory usage | Component ID type |
-|---|---|---|---|
-| `graphx` | O(diameter) iterations | High (RDD-based) | Min vertex ID in component |
-| `two_phase` (skewed join) | Fast | Low (DataFrame) | Min original ID (integral) or random Long (String) |
-| `two_phase` (AQE, `-1`) | Fast, ~5x faster than skewed join | Low (DataFrame) | Min original ID (integral) or random Long (String) |
-| `randomized_contraction` | Fast, slightly slower than `two_phase` AQE | Low (DataFrame) | Always random Long |
+| Algorithm                 | Convergence complexity                     | Memory usage     | Component ID type                                  |
+| ------------------------- | ------------------------------------------ | ---------------- | -------------------------------------------------- |
+| `graphx`                  | O(diameter) iterations                     | High (RDD-based) | Min vertex ID in component                         |
+| `two_phase` (skewed join) | Fast                                       | Low (DataFrame)  | Min original ID (integral) or random Long (String) |
+| `two_phase` (AQE, `-1`)   | Fast, ~5x faster than skewed join          | Low (DataFrame)  | Min original ID (integral) or random Long (String) |
+| `randomized_contraction`  | Fast, slightly slower than `two_phase` AQE | Low (DataFrame)  | Always random Long                                 |
 
 ### Arguments
 
@@ -237,7 +237,7 @@ The storage level for intermediate datasets and the output DataFrame. Default is
 
 ### AQE-broadcast mode
 
-*Starting from 0.10.0*
+_Starting from 0.10.0_
 
 For `two_phase` only. During iterations, this algorithm can produce edges with highly skewed degree distributions, where some vertices have very high degree. In earlier versions of GraphFrames, this was handled by manually broadcasting high-degree nodes. However, this manual broadcasting is incompatible with Apache Spark Adaptive Query Execution (AQE), which is why AQE was previously disabled for Connected Components.
 
@@ -245,7 +245,7 @@ From GraphFrames 0.10+, you can disable manual broadcasting and instead rely on 
 
 ### Advanced: skipping graph preparation
 
-*For advanced JVM users only.*
+_For advanced JVM users only._
 
 Internally, both `two_phase` and `randomized_contraction` perform a graph preparation step before running the algorithm (re-indexing vertices, symmetrizing edges, removing self-loops, etc.). The preparation steps differ between the two algorithms and are **not interchangeable**.
 
@@ -264,7 +264,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Strongly_connected_component) for 
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
@@ -303,6 +303,7 @@ Triangle count computes the number of triangles passing through each vertex. A t
 ### Performance and Use Cases
 
 Counting triangles is a fundamental task in network analysis:
+
 - **Clustering Coefficient**: It is used to compute the local and global clustering coefficients, which measure the degree to which nodes in a graph tend to cluster together.
 - **Community Detection**: A high density of triangles often indicates the presence of a tightly knit community or "clique."
 - **Spam and Fraud Detection**: In social networks and financial transactions, unusual triangle patterns can help identify botnets or money-laundering rings.
@@ -316,11 +317,11 @@ The core logic of the algorithm is based on **neighborhood intersection**. For e
 GraphFrames provides two implementations with different performance characteristics:
 
 - **Exact**: This is the default algorithm. It computes the precise intersection of adjacency lists.
-    - **Pros**: 100% accuracy.
-    - **Cons**: Extremely memory-intensive. For high-degree nodes (hubs), collecting and intersecting large neighbor sets can lead to Out-of-Memory (OOM) errors or severe skew.
+  - **Pros**: 100% accuracy.
+  - **Cons**: Extremely memory-intensive. For high-degree nodes (hubs), collecting and intersecting large neighbor sets can lead to Out-of-Memory (OOM) errors or severe skew.
 - **Approximate** (Starting from Spark 4.1): This version uses **DataSketches (Theta sketches)** to estimate the size of the intersection.
-    - **Pros**: Highly scalable. It uses a fixed-size probabilistic structure to represent neighborhoods, dramatically reducing memory overhead and execution time.
-    - **Cons**: Provides an estimate rather than an exact count.
+  - **Pros**: Highly scalable. It uses a fixed-size probabilistic structure to represent neighborhoods, dramatically reducing memory overhead and execution time.
+  - **Cons**: Provides an estimate rather than an exact count.
 
 ### Selection Guide
 
@@ -362,11 +363,11 @@ the [Rocha–Thatte cycle detection algorithm](https://en.wikipedia.org/wiki/Roc
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 **WARNING:**
 
-- *This algorithm collects the full sequences and may require a lot of cluste memory for power-law graphs*
+- _This algorithm collects the full sequences and may require a lot of cluste memory for power-law graphs_
 
 ---
 

@@ -50,6 +50,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       inputGraph: GraphFrame,
       useLabelsAsComponents: Boolean,
       intermediateStorageLevel: StorageLevel,
+      useLocalCheckpoints: Boolean,
+      checkpointInterval: Int,
       isGraphPrepared: Boolean): DataFrame = {
     val spark = inputGraph.vertices.sparkSession
     val sc = spark.sparkContext
@@ -140,15 +142,26 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
         // save ref to unpersist
         val oldEdges = edges
 
-        edges = edges2
-          .alias("e")
-          .join(
-            ccRepresentatives.alias("r2"),
-            col(s"e.$DST") === col("r2.v") &&
-              col(s"e.$SRC") =!= col("r2.rep"))
-          .select(col(s"e.$SRC").alias(SRC), col("r2.rep").alias(DST))
-          .distinct()
-          .persist(intermediateStorageLevel)
+        edges = {
+          val te = edges2
+            .alias("e")
+            .join(
+              ccRepresentatives.alias("r2"),
+              col(s"e.$DST") === col("r2.v") &&
+                col(s"e.$SRC") =!= col("r2.rep"))
+            .select(col(s"e.$SRC").alias(SRC), col("r2.rep").alias(DST))
+            .distinct()
+
+          if ((iter > 0) && (iter % checkpointInterval == 0)) {
+            if (useLocalCheckpoints) {
+              te.localCheckpoint()
+            } else {
+              te.checkpoint()
+            }
+          } else {
+            te.persist(intermediateStorageLevel)
+          }
+        }
 
         graphSize = edges.count()
         oldEdges.unpersist()
@@ -185,6 +198,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
           .persist(intermediateStorageLevel)
 
         result.write.mode("overwrite").parquet(ccRepsR)
+
+        result.unpersist()
         val oldPath = new Path(ccRepsR1)
         val fs = oldPath.getFileSystem(sc.hadoopConfiguration)
 

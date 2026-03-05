@@ -117,8 +117,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
    *     algorithm you intend to use and replicate its exact preparation logic before enabling
    *     this flag.
    *
-   * '''Incorrect use of this flag WILL produce silently wrong results with no error or warning
-   * at runtime.''' There is no validation that the graph has been correctly prepared. You are
+   * '''Incorrect use of this flag WILL produce silently wrong results with no error or warning at
+   * runtime.''' There is no validation that the graph has been correctly prepared. You are
    * entirely responsible for ensuring correctness.
    *
    * @param value
