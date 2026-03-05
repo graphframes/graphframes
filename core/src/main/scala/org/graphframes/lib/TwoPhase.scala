@@ -110,15 +110,14 @@ private[graphframes] object TwoPhase extends Logging {
   }
 
   /**
-   * Computes the sum of all `min_nbr` values in the given DataFrame, cast to
-   * DecimalType(38, 10) for high precision. Used to detect convergence between iterations.
+   * Computes the sum of all `min_nbr` values in the given DataFrame, cast to DecimalType(38, 0)
+   * for high precision. Used to detect convergence between iterations.
    */
   private def calcMinNbrSum(minNbrsDF: DataFrame): BigDecimal = {
     minNbrsDF
-      .select(sum(col(MIN_NBR).cast(DecimalType(38, 10))))
-      .rdd
-      .map(r => r.getAs[BigDecimal](0))
+      .select(sum(col(MIN_NBR).cast(DecimalType(38, 0))))
       .first()
+      .getAs[BigDecimal](0)
   }
 
   /**
@@ -323,7 +322,6 @@ private[graphframes] object TwoPhase extends Logging {
       useLocalCheckpoints: Boolean): DataFrame = {
 
     val spark = graph.spark
-    val sc = spark.sparkContext
 
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
@@ -354,7 +352,8 @@ private[graphframes] object TwoPhase extends Logging {
 
       // large-star step
       // connect all strictly larger neighbors to the min neighbor (including self)
-      ee = ee.join(minNbrs1, SRC)
+      ee = ee
+        .join(minNbrs1, SRC)
         .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
         .distinct()
         .persist(intermediateStorageLevel)
@@ -369,7 +368,8 @@ private[graphframes] object TwoPhase extends Logging {
       currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs2
 
       // connect all smaller neighbors to the min neighbor
-      ee = ee.join(minNbrs2, SRC)
+      ee = ee
+        .join(minNbrs2, SRC)
         .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
         .filter(col(SRC) =!= col(DST)) // src < dst
       // connect self to the min neighbor
