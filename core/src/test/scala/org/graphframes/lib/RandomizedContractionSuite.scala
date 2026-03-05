@@ -206,6 +206,9 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     components.count()
     components.unpersist()
 
+    // make the test more robust
+    System.gc()
+
     val postCachedCount = spark.sparkContext.getPersistentRDDs.size
     assert(postCachedCount === priorCachedCount)
     assertFunctionRegistryClean()
