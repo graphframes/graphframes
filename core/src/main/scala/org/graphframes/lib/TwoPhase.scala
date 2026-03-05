@@ -18,10 +18,9 @@
 package org.graphframes.lib
 
 import org.apache.hadoop.fs.Path
-import org.apache.spark.graphframes.graphx
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
@@ -58,9 +57,7 @@ private[graphframes] object TwoPhase extends Logging {
   private def symmetrize(ee: DataFrame): DataFrame = {
     val EDGE = "_edge"
     ee.select(explode(
-      array(
-        struct(col(SRC), col(DST)),
-        struct(col(DST).as(SRC), col(SRC).as(DST)))).as(EDGE))
+      array(struct(col(SRC), col(DST)), struct(col(DST).as(SRC), col(SRC).as(DST)))).as(EDGE))
       .select(col(s"$EDGE.$SRC").as(SRC), col(s"$EDGE.$DST").as(DST))
   }
 
@@ -132,24 +129,14 @@ private[graphframes] object TwoPhase extends Logging {
   }
 
   /**
-   * Runs the GraphX connected components implementation.
-   */
-  private[graphframes] def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
-    val components =
-      graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
-    GraphXConversions.fromGraphX(graph, components, vertexNames = Seq(ConnectedComponents.COMPONENT)).vertices
-  }
-
-  /**
    * Runs the two-phase label propagation connected components algorithm.
    */
-  def run(
+  private[graphframes] def run(
       graph: GraphFrame,
       broadcastThreshold: Int,
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel,
       useLabelsAsComponents: Boolean,
-      maxIter: Option[Int],
       useLocalCheckpoints: Boolean): DataFrame = {
 
     val spark = graph.spark
@@ -312,7 +299,9 @@ private[graphframes] object TwoPhase extends Logging {
               .agg(min(col(ID)).as(ConnectedComponents.ORIG_ID))
               .select(col(ConnectedComponents.COMPONENT), col(ConnectedComponents.ORIG_ID)),
             ConnectedComponents.COMPONENT)
-          .select(col(s"$ATTR.*"), col(ConnectedComponents.ORIG_ID).as(ConnectedComponents.COMPONENT))
+          .select(
+            col(s"$ATTR.*"),
+            col(ConnectedComponents.ORIG_ID).as(ConnectedComponents.COMPONENT))
           .persist(intermediateStorageLevel)
       }
 
