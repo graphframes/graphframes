@@ -17,9 +17,12 @@
 
 package org.graphframes.lib
 
+import org.apache.spark.graphframes.graphx
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.graphframes.GraphFramesConf
+import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.Logging
 import org.graphframes.WithBroadcastThreshold
 import org.graphframes.WithCheckpointInterval
@@ -27,8 +30,6 @@ import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
 import org.graphframes.WithUseLabelsAsComponents
-import org.apache.spark.graphframes.graphx
-import org.graphframes.GraphFramesUnreachableException
 
 /**
  * Connected Components algorithm.
@@ -104,7 +105,10 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   def run(): DataFrame = {
     algorithm match {
       case ALGO_GRAPHX =>
-        ConnectedComponents.runGraphX(graph, maxIter.getOrElse(Int.MaxValue))
+        ConnectedComponents.runGraphX(
+          graph,
+          maxIter.getOrElse(Int.MaxValue),
+          intermediateStorageLevel)
       case ALGO_TWO_PHASE =>
         TwoPhase.run(
           graph,
@@ -144,11 +148,24 @@ object ConnectedComponents extends Logging {
   /**
    * Runs the GraphX connected components implementation.
    */
-  private[graphframes] def runGraphX(graph: GraphFrame, maxIter: Int): DataFrame = {
+  private[graphframes] def runGraphX(
+      graph: GraphFrame,
+      maxIter: Int,
+      intermediateStorageLevel: StorageLevel): DataFrame = {
+    val gx = graph.cachedTopologyGraphX
     val components =
-      graphx.lib.ConnectedComponents.run(graph.cachedTopologyGraphX, maxIter)
-    GraphXConversions
+      graphx.lib.ConnectedComponents.run(gx, maxIter)
+    val result = GraphXConversions
       .fromGraphX(graph, components, vertexNames = Seq(ConnectedComponents.COMPONENT))
       .vertices
+      .persist(intermediateStorageLevel)
+
+    val _ = result.count()
+    gx.unpersist()
+    components.unpersist()
+
+    resultIsPersistent()
+
+    result
   }
 }
