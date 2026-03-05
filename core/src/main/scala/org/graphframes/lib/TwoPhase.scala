@@ -181,7 +181,8 @@ private[graphframes] object TwoPhase extends Logging {
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel,
       useLabelsAsComponents: Boolean,
-      useLocalCheckpoints: Boolean): DataFrame = {
+      useLocalCheckpoints: Boolean,
+      isGraphPrepared: Boolean): DataFrame = {
 
     val spark = graph.spark
     val sc = spark.sparkContext
@@ -219,7 +220,7 @@ private[graphframes] object TwoPhase extends Logging {
       }
 
       logInfo(s"$logPrefix Preparing the graph for connected component computation ...")
-      val g = prepare(graph)
+      val g = if (isGraphPrepared) graph else prepare(graph)
       val vv = g.vertices
       var ee = g.edges.persist(intermediateStorageLevel) // src < dst
       logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
@@ -330,7 +331,8 @@ private[graphframes] object TwoPhase extends Logging {
       checkpointInterval: Int,
       intermediateStorageLevel: StorageLevel,
       useLabelsAsComponents: Boolean,
-      useLocalCheckpoints: Boolean): DataFrame = {
+      useLocalCheckpoints: Boolean,
+      isGraphPrepared: Boolean): DataFrame = {
 
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
@@ -339,7 +341,7 @@ private[graphframes] object TwoPhase extends Logging {
     val shouldCheckpoint = checkpointInterval > 0
 
     logInfo(s"$logPrefix Preparing the graph for connected component computation ...")
-    val g = prepare(graph)
+    val g = if (isGraphPrepared) graph else prepare(graph)
     val vv = g.vertices
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
     logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
