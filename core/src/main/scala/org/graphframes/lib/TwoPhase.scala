@@ -121,6 +121,39 @@ private[graphframes] object TwoPhase extends Logging {
   }
 
   /**
+   * Builds the output DataFrame by joining the indexed vertices with the final edge assignments
+   * and resolving component labels.
+   */
+  private def buildOutput(
+      graph: GraphFrame,
+      vv: DataFrame,
+      ee: DataFrame,
+      useLabelsAsComponents: Boolean): DataFrame = {
+    val indexedLabel = vv
+      .join(ee, vv(ID) === ee(DST), "left_outer")
+      .select(
+        vv(ATTR),
+        when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(ConnectedComponents.COMPONENT),
+        col(ATTR + "." + ID).as(ID))
+
+    if (graph.hasIntegralIdType || !useLabelsAsComponents) {
+      indexedLabel
+        .select(col(s"$ATTR.*"), col(ConnectedComponents.COMPONENT))
+    } else {
+      indexedLabel
+        .join(
+          indexedLabel
+            .groupBy(col(ConnectedComponents.COMPONENT))
+            .agg(min(col(ID)).as(ConnectedComponents.ORIG_ID))
+            .select(col(ConnectedComponents.COMPONENT), col(ConnectedComponents.ORIG_ID)),
+          ConnectedComponents.COMPONENT)
+        .select(
+          col(s"$ATTR.*"),
+          col(ConnectedComponents.ORIG_ID).as(ConnectedComponents.COMPONENT))
+    }
+  }
+
+  /**
    * Performs a possibly skewed join between edges and current component assignments. The skew
    * join is done by broadcast join for frequent keys and normal join for the rest.
    */
@@ -272,30 +305,8 @@ private[graphframes] object TwoPhase extends Logging {
       logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
       logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
 
-      val indexedLabel = vv
-        .join(ee, vv(ID) === ee(DST), "left_outer")
-        .select(
-          vv(ATTR),
-          when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(ConnectedComponents.COMPONENT),
-          col(ATTR + "." + ID).as(ID))
-
-      val output = if (graph.hasIntegralIdType || !useLabelsAsComponents) {
-        indexedLabel
-          .select(col(s"$ATTR.*"), col(ConnectedComponents.COMPONENT))
-          .persist(intermediateStorageLevel)
-      } else {
-        indexedLabel
-          .join(
-            indexedLabel
-              .groupBy(col(ConnectedComponents.COMPONENT))
-              .agg(min(col(ID)).as(ConnectedComponents.ORIG_ID))
-              .select(col(ConnectedComponents.COMPONENT), col(ConnectedComponents.ORIG_ID)),
-            ConnectedComponents.COMPONENT)
-          .select(
-            col(s"$ATTR.*"),
-            col(ConnectedComponents.ORIG_ID).as(ConnectedComponents.COMPONENT))
-          .persist(intermediateStorageLevel)
-      }
+      val output = buildOutput(graph, vv, ee, useLabelsAsComponents)
+        .persist(intermediateStorageLevel)
 
       output.count()
 
@@ -415,30 +426,8 @@ private[graphframes] object TwoPhase extends Logging {
     logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
     logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
 
-    val indexedLabel = vv
-      .join(ee, vv(ID) === ee(DST), "left_outer")
-      .select(
-        vv(ATTR),
-        when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(ConnectedComponents.COMPONENT),
-        col(ATTR + "." + ID).as(ID))
-
-    val output = if (graph.hasIntegralIdType || !useLabelsAsComponents) {
-      indexedLabel
-        .select(col(s"$ATTR.*"), col(ConnectedComponents.COMPONENT))
-        .persist(intermediateStorageLevel)
-    } else {
-      indexedLabel
-        .join(
-          indexedLabel
-            .groupBy(col(ConnectedComponents.COMPONENT))
-            .agg(min(col(ID)).as(ConnectedComponents.ORIG_ID))
-            .select(col(ConnectedComponents.COMPONENT), col(ConnectedComponents.ORIG_ID)),
-          ConnectedComponents.COMPONENT)
-        .select(
-          col(s"$ATTR.*"),
-          col(ConnectedComponents.ORIG_ID).as(ConnectedComponents.COMPONENT))
-        .persist(intermediateStorageLevel)
-    }
+    val output = buildOutput(graph, vv, ee, useLabelsAsComponents)
+      .persist(intermediateStorageLevel)
 
     output.count()
 
