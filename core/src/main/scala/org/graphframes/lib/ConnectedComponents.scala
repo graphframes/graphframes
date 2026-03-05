@@ -102,10 +102,24 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   def getAlgorithm: String = algorithm
 
   /**
-   * WARNING: INTERNAL API. For very experienced users only. Sets whether the graph has already
-   * been prepared (edges deduplicated and normalized). Only set this to `true` if you fully
-   * understand the internal graph preparation steps performed by ConnectedComponents and have
-   * done them yourself. Incorrect use WILL produce silently wrong results.
+   * !! WARNING: INTERNAL API — FOR VERY EXPERIENCED USERS ONLY !!
+   *
+   * Sets whether the graph has already been prepared before being passed to the algorithm,
+   * skipping the internal graph preparation step. The default is `false`, meaning the algorithm
+   * will always prepare the graph itself, which is the safe and recommended behaviour.
+   *
+   * Only set this to `true` if you have '''already performed all required preparation steps
+   * yourself''' and you fully understand what those steps are for the specific algorithm you are
+   * using. '''The preparation requirements differ significantly between algorithms:'''
+   *
+   *   - `two_phase` and `randomized_contraction` each require their own distinct preparation
+   *     steps. These are NOT interchangeable. You MUST study the internal source code of the
+   *     algorithm you intend to use and replicate its exact preparation logic before enabling
+   *     this flag.
+   *
+   * '''Incorrect use of this flag WILL produce silently wrong results with no error or warning
+   * at runtime.''' There is no validation that the graph has been correctly prepared. You are
+   * entirely responsible for ensuring correctness.
    *
    * @param value
    *   true if the graph is already prepared, false otherwise (default: false)
