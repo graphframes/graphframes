@@ -55,6 +55,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   private var algorithm: String = GraphFramesConf.getConnectedComponentsAlgorithm
     .getOrElse(ALGO_TWO_PHASE)
 
+  private var _isGraphPrepared: Boolean = false
+
   setCheckpointInterval(
     GraphFramesConf.getConnectedComponentsCheckpointInterval.getOrElse(checkpointInterval))
   setBroadcastThreshold(
@@ -100,6 +102,24 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   def getAlgorithm: String = algorithm
 
   /**
+   * WARNING: INTERNAL API. For very experienced users only.
+   * Sets whether the graph has already been prepared (edges deduplicated and normalized).
+   * Only set this to `true` if you fully understand the internal graph preparation steps
+   * performed by ConnectedComponents and have done them yourself. Incorrect use WILL produce
+   * silently wrong results.
+   *
+   * @param value true if the graph is already prepared, false otherwise (default: false)
+   */
+  @deprecated(
+    "INTERNAL API ONLY. This is an experimental internal option for advanced users who fully " +
+      "understand graph preparation internals. Misuse will produce silently wrong results.",
+    since = "0.9.3")
+  def setIsGraphPrepared(value: Boolean): this.type = {
+    _isGraphPrepared = value
+    this
+  }
+
+  /**
    * Runs the algorithm.
    */
   def run(): DataFrame = {
@@ -117,7 +137,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
             intermediateStorageLevel = intermediateStorageLevel,
             useLabelsAsComponents = useLabelsAsComponents,
             useLocalCheckpoints = useLocalCheckpoints,
-            isGraphPrepared = false)
+            isGraphPrepared = _isGraphPrepared)
         } else {
           TwoPhase.run(
             graph,
@@ -126,7 +146,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
             intermediateStorageLevel = intermediateStorageLevel,
             useLabelsAsComponents = useLabelsAsComponents,
             useLocalCheckpoints = useLocalCheckpoints,
-            isGraphPrepared = false)
+            isGraphPrepared = _isGraphPrepared)
         }
       case ALGO_RANDOMIZED_CONTRACTION =>
         RandomizedContraction.run(
@@ -135,7 +155,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
           intermediateStorageLevel = intermediateStorageLevel,
           useLocalCheckpoints = useLocalCheckpoints,
           checkpointInterval = checkpointInterval,
-          isGraphPrepared = false)
+          isGraphPrepared = _isGraphPrepared)
       // the check is inside the setter
       case _ => throw new GraphFramesUnreachableException()
     }
