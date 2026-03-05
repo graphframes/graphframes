@@ -187,6 +187,9 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       isGraphPrepared = false)
     components.count()
 
+    // we need to delete data inside the checkpoint dir manually
+    cleanCheckpointDir()
+
     val finalParquetFiles = listParquetFiles()
     assert(finalParquetFiles === initialParquetFiles)
     assertFunctionRegistryClean()
@@ -255,6 +258,20 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
   private def assertFunctionRegistryClean(): Unit = {
     val functionRegistry = spark.sessionState.functionRegistry
     val _ = assert(!functionRegistry.functionExists(FunctionIdentifier("_axpb")))
+  }
+
+  private def cleanCheckpointDir(): Unit = {
+    val hadoopConf = spark.sparkContext.hadoopConfiguration
+    val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+    val checkpointDir = spark.sparkContext.getCheckpointDir
+    checkpointDir.foreach { dir =>
+      val path = new org.apache.hadoop.fs.Path(dir)
+      if (fs.exists(path)) {
+        fs.listStatus(path).foreach { status =>
+          fs.delete(status.getPath, true)
+        }
+      }
+    }
   }
 
   private def listParquetFiles(): Set[String] = {
