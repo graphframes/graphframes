@@ -173,6 +173,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       var accA = 1L
       var accB = 0L
 
+      edges.unpersist()
+
       while (iter > 1) {
         iter -= 1
         val poppedA = stackA.pop()
@@ -251,7 +253,6 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       outputComponents.count()
 
       // clean-up
-      edges.unpersist()
       val chDirPath = new Path(checkpointDir)
       val fs = chDirPath.getFileSystem(sc.hadoopConfiguration)
       if (fs.exists(chDirPath)) {
@@ -260,6 +261,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
       outputComponents
     } finally {
+      // to be 100% sure;
+      edges.unpersist()
       val dereg = functionRegistry.dropFunction(FunctionIdentifier("_axpb"))
       if (!dereg) {
         logWarn(
