@@ -316,4 +316,162 @@ private[graphframes] object TwoPhase extends Logging {
       spark.conf.set("spark.sql.adaptive.enabled", originalAQE)
     }
   }
+
+  /**
+   * Runs the two-phase label propagation connected components algorithm using Adaptive Query
+   * Execution (AQE). Unlike `run`, this method does not manipulate AQE settings, does not use
+   * skewed joins, and uses simpler checkpointing.
+   */
+  private[graphframes] def runAQE(
+      graph: GraphFrame,
+      checkpointInterval: Int,
+      intermediateStorageLevel: StorageLevel,
+      useLabelsAsComponents: Boolean,
+      useLocalCheckpoints: Boolean): DataFrame = {
+
+    val spark = graph.spark
+    val sc = spark.sparkContext
+
+    val runId = UUID.randomUUID().toString.takeRight(8)
+    val logPrefix = s"[CC $runId]"
+    logInfo(s"$logPrefix Start connected components with run ID $runId.")
+
+    val shouldCheckpoint = checkpointInterval > 0
+
+    logInfo(s"$logPrefix Preparing the graph for connected component computation ...")
+    val g = prepare(graph)
+    val vv = g.vertices
+    var ee = g.edges.persist(intermediateStorageLevel) // src < dst
+    logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
+
+    var converged = false
+    var iteration = 1
+
+    def _calcMinNbrSum(minNbrsDF: DataFrame): BigDecimal = {
+      val (minNbrSum, cnt) = minNbrsDF
+        .select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*"))
+        .rdd
+        .map { r =>
+          (r.getAs[BigDecimal](0), r.getLong(1))
+        }
+        .first()
+      if (cnt != 0L && minNbrSum == null) {
+        throw new ArithmeticException(s"""
+             |The total sum of edge src IDs is used to determine convergence during iterations.
+             |However, the total sum at iteration $iteration exceeded 30 digits (1e30),
+             |which should happen only if the graph contains more than 200 billion edges.
+             |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
+            """.stripMargin)
+      }
+      minNbrSum
+    }
+
+    var minNbrs1: DataFrame = symmetrize(ee)
+      .groupBy(SRC)
+      .agg(min(col(DST)).as(MIN_NBR))
+      .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)))
+      .persist(intermediateStorageLevel)
+
+    var prevSum: BigDecimal = _calcMinNbrSum(minNbrs1)
+
+    var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
+    while (!converged) {
+      var currRoundPersistedDFs = Seq[DataFrame]()
+
+      // large-star step
+      // connect all strictly larger neighbors to the min neighbor (including self)
+      ee = ee.join(minNbrs1, SRC)
+        .select(col(DST).as(SRC), col(MIN_NBR).as(DST)) // src > dst
+        .distinct()
+        .persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ ee
+
+      // small-star step
+      // compute min neighbors (excluding self-min)
+      val minNbrs2 = ee
+        .groupBy(col(SRC))
+        .agg(min(col(DST)).as(MIN_NBR)) // src > min_nbr
+        .persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs2
+
+      // connect all smaller neighbors to the min neighbor
+      ee = ee.join(minNbrs2, SRC)
+        .select(col(MIN_NBR).as(SRC), col(DST)) // src <= dst
+        .filter(col(SRC) =!= col(DST)) // src < dst
+      // connect self to the min neighbor
+      ee = ee
+        .union(minNbrs2.select(col(MIN_NBR).as(SRC), col(SRC).as(DST))) // src < dst
+        .distinct()
+
+      // checkpointing
+      if (shouldCheckpoint && (iteration % checkpointInterval == 0)) {
+        if (useLocalCheckpoints) {
+          ee = ee.localCheckpoint(eager = true)
+        } else {
+          ee = ee.checkpoint(eager = true)
+        }
+      }
+
+      ee.persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ ee
+
+      minNbrs1 = symmetrize(ee)
+        .groupBy(SRC)
+        .agg(min(col(DST)).as(MIN_NBR))
+        .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)))
+        .persist(intermediateStorageLevel)
+      currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs1
+
+      // test convergence
+      val currSum = _calcMinNbrSum(minNbrs1)
+      logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
+      if (currSum == prevSum) {
+        converged = true
+      } else {
+        prevSum = currSum
+      }
+
+      for (persisted_df <- lastRoundPersistedDFs) {
+        persisted_df.unpersist()
+      }
+      lastRoundPersistedDFs = currRoundPersistedDFs
+      iteration += 1
+    }
+
+    logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
+    logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
+
+    val indexedLabel = vv
+      .join(ee, vv(ID) === ee(DST), "left_outer")
+      .select(
+        vv(ATTR),
+        when(ee(SRC).isNull, vv(ID)).otherwise(ee(SRC)).as(ConnectedComponents.COMPONENT),
+        col(ATTR + "." + ID).as(ID))
+
+    val output = if (graph.hasIntegralIdType || !useLabelsAsComponents) {
+      indexedLabel
+        .select(col(s"$ATTR.*"), col(ConnectedComponents.COMPONENT))
+        .persist(intermediateStorageLevel)
+    } else {
+      indexedLabel
+        .join(
+          indexedLabel
+            .groupBy(col(ConnectedComponents.COMPONENT))
+            .agg(min(col(ID)).as(ConnectedComponents.ORIG_ID))
+            .select(col(ConnectedComponents.COMPONENT), col(ConnectedComponents.ORIG_ID)),
+          ConnectedComponents.COMPONENT)
+        .select(
+          col(s"$ATTR.*"),
+          col(ConnectedComponents.ORIG_ID).as(ConnectedComponents.COMPONENT))
+        .persist(intermediateStorageLevel)
+    }
+
+    output.count()
+
+    for (persisted_df <- lastRoundPersistedDFs) {
+      persisted_df.unpersist()
+    }
+
+    output
+  }
 }
