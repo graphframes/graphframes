@@ -187,9 +187,6 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       isGraphPrepared = false)
     components.count()
 
-    // we need to delete data inside the checkpoint dir manually
-    cleanCheckpointDir()
-
     val finalParquetFiles = listParquetFiles()
     assert(finalParquetFiles === initialParquetFiles)
     assertFunctionRegistryClean()
@@ -208,6 +205,9 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       isGraphPrepared = false)
     components.count()
     components.unpersist()
+
+    // we need to delete data inside the checkpoint dir manually
+    cleanCheckpointDir()
 
     // make the test more robust
     System.gc()
