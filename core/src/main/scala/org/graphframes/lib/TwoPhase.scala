@@ -110,6 +110,18 @@ private[graphframes] object TwoPhase extends Logging {
   }
 
   /**
+   * Computes the sum of all `min_nbr` values in the given DataFrame, cast to
+   * DecimalType(38, 10) for high precision. Used to detect convergence between iterations.
+   */
+  private def calcMinNbrSum(minNbrsDF: DataFrame): BigDecimal = {
+    minNbrsDF
+      .select(sum(col(MIN_NBR).cast(DecimalType(38, 10))))
+      .rdd
+      .map(r => r.getAs[BigDecimal](0))
+      .first()
+  }
+
+  /**
    * Performs a possibly skewed join between edges and current component assignments. The skew
    * join is done by broadcast join for frequent keys and normal join for the rest.
    */
@@ -183,29 +195,10 @@ private[graphframes] object TwoPhase extends Logging {
       var converged = false
       var iteration = 1
 
-      def _calcMinNbrSum(minNbrsDF: DataFrame): BigDecimal = {
-        val (minNbrSum, cnt) = minNbrsDF
-          .select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*"))
-          .rdd
-          .map { r =>
-            (r.getAs[BigDecimal](0), r.getLong(1))
-          }
-          .first()
-        if (cnt != 0L && minNbrSum == null) {
-          throw new ArithmeticException(s"""
-               |The total sum of edge src IDs is used to determine convergence during iterations.
-               |However, the total sum at iteration $iteration exceeded 30 digits (1e30),
-               |which should happen only if the graph contains more than 200 billion edges.
-               |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
-              """.stripMargin)
-        }
-        minNbrSum
-      }
-
       var minNbrs1: DataFrame = minNbrs(ee) // src >= min_nbr
         .persist(intermediateStorageLevel)
 
-      var prevSum: BigDecimal = _calcMinNbrSum(minNbrs1)
+      var prevSum: BigDecimal = calcMinNbrSum(minNbrs1)
 
       var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
       while (!converged) {
@@ -262,7 +255,7 @@ private[graphframes] object TwoPhase extends Logging {
         currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs1
 
         // test convergence
-        val currSum = _calcMinNbrSum(minNbrs1)
+        val currSum = calcMinNbrSum(minNbrs1)
         logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
         if (currSum == prevSum) {
           converged = true
@@ -347,32 +340,13 @@ private[graphframes] object TwoPhase extends Logging {
     var converged = false
     var iteration = 1
 
-    def _calcMinNbrSum(minNbrsDF: DataFrame): BigDecimal = {
-      val (minNbrSum, cnt) = minNbrsDF
-        .select(sum(col(MIN_NBR).cast(DecimalType(20, 0))), count("*"))
-        .rdd
-        .map { r =>
-          (r.getAs[BigDecimal](0), r.getLong(1))
-        }
-        .first()
-      if (cnt != 0L && minNbrSum == null) {
-        throw new ArithmeticException(s"""
-             |The total sum of edge src IDs is used to determine convergence during iterations.
-             |However, the total sum at iteration $iteration exceeded 30 digits (1e30),
-             |which should happen only if the graph contains more than 200 billion edges.
-             |If not, please file a bug report at https://github.com/graphframes/graphframes/issues.
-            """.stripMargin)
-      }
-      minNbrSum
-    }
-
     var minNbrs1: DataFrame = symmetrize(ee)
       .groupBy(SRC)
       .agg(min(col(DST)).as(MIN_NBR))
       .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)))
       .persist(intermediateStorageLevel)
 
-    var prevSum: BigDecimal = _calcMinNbrSum(minNbrs1)
+    var prevSum: BigDecimal = calcMinNbrSum(minNbrs1)
 
     var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
     while (!converged) {
@@ -423,7 +397,7 @@ private[graphframes] object TwoPhase extends Logging {
       currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs1
 
       // test convergence
-      val currSum = _calcMinNbrSum(minNbrs1)
+      val currSum = calcMinNbrSum(minNbrs1)
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
       if (currSum == prevSum) {
         converged = true
