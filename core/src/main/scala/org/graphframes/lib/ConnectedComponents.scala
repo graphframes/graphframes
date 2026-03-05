@@ -116,7 +116,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
             checkpointInterval = checkpointInterval,
             intermediateStorageLevel = intermediateStorageLevel,
             useLabelsAsComponents = useLabelsAsComponents,
-            useLocalCheckpoints = useLocalCheckpoints)
+            useLocalCheckpoints = useLocalCheckpoints,
+            isGraphPrepared = false)
         } else {
           TwoPhase.run(
             graph,
@@ -124,13 +125,16 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
             checkpointInterval = checkpointInterval,
             intermediateStorageLevel = intermediateStorageLevel,
             useLabelsAsComponents = useLabelsAsComponents,
-            useLocalCheckpoints = useLocalCheckpoints)
+            useLocalCheckpoints = useLocalCheckpoints,
+            isGraphPrepared = false)
         }
       case ALGO_RANDOMIZED_CONTRACTION =>
         RandomizedContraction.run(
           graph,
           useLabelsAsComponents = useLabelsAsComponents,
           intermediateStorageLevel = intermediateStorageLevel,
+          useLocalCheckpoints = useLocalCheckpoints,
+          checkpointInterval = checkpointInterval,
           isGraphPrepared = false)
       // the check is inside the setter
       case _ => throw new GraphFramesUnreachableException()
