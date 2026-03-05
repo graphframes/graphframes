@@ -173,7 +173,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       var accA = 1L
       var accB = 0L
 
-      edges.unpersist()
+      edges.unpersist(true)
 
       while (iter > 1) {
         iter -= 1

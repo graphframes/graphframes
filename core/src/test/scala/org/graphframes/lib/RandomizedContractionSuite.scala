@@ -193,27 +193,21 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("RandomizedContraction: no memory leaks") {
-    val priorCachedCount = spark.sparkContext.getPersistentRDDs.size
+    val priorCached = spark.sparkContext.getPersistentRDDs
 
     val graph = Graphs.chain(10L)
     val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
-      useLocalCheckpoints = true,
-      checkpointInterval = 100,
+      useLocalCheckpoints = false,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     components.count()
     components.unpersist()
 
-    // we need to delete data inside the checkpoint dir manually
-    cleanCheckpointDir()
-
-    // make the test more robust
-    System.gc()
-
-    val postCachedCount = spark.sparkContext.getPersistentRDDs.size
-    assert(postCachedCount === priorCachedCount)
+    val postCached = spark.sparkContext.getPersistentRDDs
+    assert(postCached.size === priorCached.size)
     assertFunctionRegistryClean()
   }
 
