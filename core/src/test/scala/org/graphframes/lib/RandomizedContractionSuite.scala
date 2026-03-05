@@ -201,7 +201,7 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
       useLocalCheckpoints = true,
-      checkpointInterval = 1,
+      checkpointInterval = 100,
       isGraphPrepared = false)
     components.count()
     components.unpersist()
