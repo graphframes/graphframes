@@ -332,8 +332,6 @@ private[graphframes] object TwoPhase extends Logging {
       useLabelsAsComponents: Boolean,
       useLocalCheckpoints: Boolean): DataFrame = {
 
-    val spark = graph.spark
-
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
     logInfo(s"$logPrefix Start connected components with run ID $runId.")
