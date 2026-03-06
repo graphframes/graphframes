@@ -296,8 +296,8 @@ private[graphframes] object TwoPhase extends Logging {
           prevSum = currSum
         }
 
-        for (persisted_df <- lastRoundPersistedDFs) {
-          persisted_df.unpersist()
+        for (persistedDF <- lastRoundPersistedDFs) {
+          persistedDF.unpersist()
         }
         lastRoundPersistedDFs = currRoundPersistedDFs
         iteration += 1
@@ -311,8 +311,8 @@ private[graphframes] object TwoPhase extends Logging {
 
       output.count()
 
-      for (persisted_df <- lastRoundPersistedDFs) {
-        persisted_df.unpersist()
+      for (persistedDF <- lastRoundPersistedDFs) {
+        persistedDF.unpersist()
       }
 
       output
@@ -416,8 +416,8 @@ private[graphframes] object TwoPhase extends Logging {
         prevSum = currSum
       }
 
-      for (persisted_df <- lastRoundPersistedDFs) {
-        persisted_df.unpersist()
+      for (persistedDF <- lastRoundPersistedDFs) {
+        persistedDF.unpersist()
       }
       lastRoundPersistedDFs = currRoundPersistedDFs
       iteration += 1
@@ -431,8 +431,8 @@ private[graphframes] object TwoPhase extends Logging {
 
     output.count()
 
-    for (persisted_df <- lastRoundPersistedDFs) {
-      persisted_df.unpersist()
+    for (persistedDF <- lastRoundPersistedDFs) {
+      persistedDF.unpersist()
     }
 
     output
