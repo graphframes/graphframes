@@ -525,7 +525,8 @@ class GraphFrame:
         See Scala documentation for more details.
 
         :param algorithm: connected components algorithm to use (default: "graphframes")
-                          Supported algorithms are "graphframes" and "graphx".
+                          Supported algorithms are "two_phase", "randomized_contraction",
+                          "graphframes" (deprecated alias for "two_phase") and "graphx".
         :param checkpointInterval: checkpoint interval in terms of number of iterations (default: 2)
         :param broadcastThreshold: broadcast threshold in propagating component assignments
                                    (default: 1000000). Passing -1 disable manual broadcasting and
