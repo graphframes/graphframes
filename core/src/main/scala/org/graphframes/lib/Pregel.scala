@@ -424,8 +424,7 @@ class Pregel(val graph: GraphFrame)
 
     val edges = graph.edges
       .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), struct(col("*")).as(EDGE))
-      .repartition(
-        (if (needsDstState) Seq(col("edge_src"), col("edge_dst")) else Seq(col("edge_src"))): _*)
+      .repartition(col("edge_src"))
       .persist(intermediateStorageLevel)
 
     var iteration = 1
@@ -458,15 +457,9 @@ class Pregel(val graph: GraphFrame)
         currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
 
         // Build triplets: start with src vertex state joined with edges
-        var srcWithEdges = currentVertices
+        val srcWithEdges = currentVertices
           .select(struct(srcCols: _*).as(SRC))
           .join(edges, Pregel.src(ID) === col("edge_src"))
-
-        // Optimization: persist srcWithEdges when skipping dst join to avoid recomputation
-        if (!needsDstState) {
-          srcWithEdges = srcWithEdges.persist(intermediateStorageLevel)
-          currRoundPersistent.enqueue(srcWithEdges)
-        }
 
         // Only perform the second join (adding dst vertex state) if needed
         var tripletsDF = if (needsDstState) {
