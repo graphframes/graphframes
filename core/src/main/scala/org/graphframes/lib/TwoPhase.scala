@@ -315,6 +315,8 @@ private[graphframes] object TwoPhase extends Logging {
         persistedDF.unpersist()
       }
 
+      resultIsPersistent()
+
       output
     } finally {
       spark.conf.set("spark.sql.adaptive.enabled", originalAQE)
@@ -434,6 +436,8 @@ private[graphframes] object TwoPhase extends Logging {
     for (persistedDF <- lastRoundPersistedDFs) {
       persistedDF.unpersist()
     }
+
+    resultIsPersistent()
 
     output
   }

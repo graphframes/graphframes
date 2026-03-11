@@ -173,6 +173,11 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
       case _ => throw new GraphFramesUnreachableException()
     }
   }
+
+  @deprecated("use graph.connectedComponents instead", "0.11.0")
+  def run(graph: GraphFrame): DataFrame = {
+    new ConnectedComponents(graph).run()
+  }
 }
 
 object ConnectedComponents extends Logging {
