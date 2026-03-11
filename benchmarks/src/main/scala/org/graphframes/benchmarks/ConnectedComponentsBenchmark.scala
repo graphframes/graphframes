@@ -35,7 +35,7 @@ class ConnectedComponentsBenchmark extends LDBCBenchmarkBase {
     } else {
       graph.connectedComponents
         .setUseLocalCheckpoints(true)
-        .setAlgorithm("graphframes")
+        .setAlgorithm(algorithm)
         .setBroadcastThreshold(broadcastThreshold.toInt)
         .setUseLocalCheckpoints(useLocalCheckpoints.toBoolean)
         .run()
