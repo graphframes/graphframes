@@ -357,9 +357,10 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
   }
 
-  test("automatic dst join NOT skipped when skipMessagesFromNonActiveVertices is enabled") {
-    // When skipMessagesFromNonActiveVertices is true, we need dst._pregel_is_active,
-    // so the second join must NOT be skipped even if message expressions don't use dst.
+  test("automatic dst join skipping with skipMessagesFromNonActiveVertices enabled") {
+    // When skipMessagesFromNonActiveVertices is true but message expressions don't
+    // reference dst columns, the dst join is still skipped. Active-vertex filtering
+    // is pushed before the src-edge join to reduce data volume.
 
     val n = 5
     val verDF = (1 to n).toDF("id").repartition(3)
@@ -370,8 +371,8 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     val graph = GraphFrame(verDF, edgeDF)
 
-    // This only uses Pregel.src("value"), but skipMessagesFromNonActiveVertices
-    // requires dst._pregel_is_active, so dst join should NOT be skipped
+    // This only uses Pregel.src("value") - dst join should be skipped,
+    // and active-vertex filtering is applied before the src-edge join.
     val resultDF = graph.pregel
       .setMaxIter(n - 1)
       .setSkipMessagesFromNonActiveVertices(true)

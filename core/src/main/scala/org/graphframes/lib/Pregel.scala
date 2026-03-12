@@ -402,7 +402,6 @@ class Pregel(val graph: GraphFrame)
     // the MESSAGE expressions only (not the target ID expressions, since dst.id is always
     // available from the edge). If no message expression references dst.* columns,
     // we can skip the second join entirely.
-    // However, if skipMessagesFromNonActiveVertices is enabled, we need dst._pregel_is_active.
     // Additionally, if the only dst field referenced is "id", we can still skip since
     // dst.id is available from the edge's dst column.
     val messageExpressions = sendMsgs.toList.map { case (_, msgExpr) => msgExpr }
@@ -411,12 +410,10 @@ class Pregel(val graph: GraphFrame)
     }
     val dstPrefixReferenced = allDstRefs.nonEmpty
     val dstFieldsReferenced = allDstRefs.flatten.toSet
-    // We need the dst join if:
-    // 1. skipMessagesFromNonActiveVertices is enabled (needs dst._pregel_is_active), OR
-    // 2. dst is referenced AND fields other than just "id" are accessed
-    //    (empty set means whole struct access like col("dst"), which also needs the join)
-    val needsDstState = skipMessagesFromNonActiveVertices ||
-      (dstPrefixReferenced && (dstFieldsReferenced.isEmpty || dstFieldsReferenced != Set(ID)))
+
+    // We need the dst join if dst is referenced AND fields other than just "id" are accessed
+    val needsDstState =
+      dstPrefixReferenced && (dstFieldsReferenced.isEmpty || dstFieldsReferenced != Set(ID))
     if (!needsDstState) {
       logDebug(
         "Optimization: skipping second join (dst state not required by message expressions)")
@@ -456,8 +453,15 @@ class Pregel(val graph: GraphFrame)
         val currRoundPersistent = scala.collection.mutable.Queue[DataFrame]()
         currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
 
+        // Prune non-active vertices early if skipMessagesFromNonActiveVertices
+        // is enabled and we don't need the dst state.
+        val srcVertices =
+          if (!needsDstState && skipMessagesFromNonActiveVertices)
+            currentVertices.filter(col(Pregel.ACTIVE_FLAG_COL))
+          else currentVertices
+
         // Build triplets: start with src vertex state joined with edges
-        val srcWithEdges = currentVertices
+        val srcWithEdges = srcVertices
           .select(struct(srcCols: _*).as(SRC))
           .join(edges, Pregel.src(ID) === col("edge_src"))
 
@@ -476,7 +480,8 @@ class Pregel(val graph: GraphFrame)
             .drop(col("edge_src"), col("edge_dst"))
         }
 
-        if (skipMessagesFromNonActiveVertices) {
+        // Only prune here if we didn't prune above.
+        if (needsDstState && skipMessagesFromNonActiveVertices) {
           tripletsDF = tripletsDF.filter(
             Pregel.src(Pregel.ACTIVE_FLAG_COL) || Pregel.dst(Pregel.ACTIVE_FLAG_COL))
         }
