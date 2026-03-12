@@ -32,9 +32,11 @@ object GraphFramesConf {
     SQLConf
       .buildConf("spark.graphframes.connectedComponents.algorithm")
       .doc(""" Sets the connected components algorithm to use (default: "graphframes"). Supported algorithms
-          |   - "graphframes": Uses alternating large star and small star iterations proposed in
+          |   - "two_phase": Uses alternating large star and small star iterations proposed in
           |     [[http://dx.doi.org/10.1145/2670979.2670997 Connected Components in MapReduce and Beyond]]
-          |     with skewed join optimization.
+          |   - "randomized_contraction": Uses randomized algorithm proposed in
+          |     [[https://arxiv.org/pdf/1802.09478 In-database connected component analysis]]
+          |   - "graphframes": Deprecated alias for "two_phase"
           |   - "graphx": Converts the graph to a GraphX graph and then uses the connected components
           |     implementation in GraphX.
           | @see org.graphframes.lib.ConnectedComponents.supportedAlgorithms""".stripMargin)

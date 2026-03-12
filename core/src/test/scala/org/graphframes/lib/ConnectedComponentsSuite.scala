@@ -35,7 +35,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
   test("default params") {
     val g = Graphs.empty[Int]
     val cc = g.connectedComponents
-    assert(cc.getAlgorithm === "graphframes")
+    // That is OK! It is just a name-change
+    assert(cc.getAlgorithm === "two_phase")
     assert(cc.getBroadcastThreshold === 1000000)
     assert(cc.getCheckpointInterval === 2)
     assert(!cc.getUseLabelsAsComponents)
