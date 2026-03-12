@@ -84,3 +84,6 @@ spark-*
 .dir-locals.el
 *~
 .aider*
+
+# Anaconda
+anaconda3/
