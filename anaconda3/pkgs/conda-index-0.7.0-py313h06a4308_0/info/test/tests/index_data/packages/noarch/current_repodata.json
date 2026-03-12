@@ -1,0 +1,23 @@
+{
+  "info": {
+    "subdir": "noarch"
+  },
+  "packages": {
+    "run_exports_versions-2.0-h39de5ba_0.tar.bz2": {
+      "build": "h39de5ba_0",
+      "build_number": 0,
+      "depends": [],
+      "md5": "ba68433ef44982170d4e2f2f9bf89338",
+      "name": "run_exports_versions",
+      "noarch": "generic",
+      "sha256": "33877cbe447e8c7a026fbcb7e299b37208ad4bc70cf8328fb4cf552af01ada76",
+      "size": 2683,
+      "subdir": "noarch",
+      "timestamp": 1561127261940,
+      "version": "2.0"
+    }
+  },
+  "packages.conda": {},
+  "removed": [],
+  "repodata_version": 1
+}

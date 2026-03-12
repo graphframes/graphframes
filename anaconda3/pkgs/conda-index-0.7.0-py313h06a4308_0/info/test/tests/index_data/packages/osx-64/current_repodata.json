@@ -1,0 +1,24 @@
+{
+  "info": {
+    "subdir": "osx-64"
+  },
+  "packages": {
+    "dummy-package-2.0-0.tar.bz2": {
+      "build": "0",
+      "build_number": 0,
+      "depends": [
+        "python 2.7.*"
+      ],
+      "md5": "621277e18c2627643b156a0f3fad3082",
+      "name": "dummy-package",
+      "sha256": "8c2642ca7d68523bda51683703c01cdd5a232bb56f80cf947bfac458c35a5df7",
+      "size": 2520,
+      "subdir": "osx-64",
+      "timestamp": 1557771563320,
+      "version": "2.0"
+    }
+  },
+  "packages.conda": {},
+  "removed": [],
+  "repodata_version": 1
+}
