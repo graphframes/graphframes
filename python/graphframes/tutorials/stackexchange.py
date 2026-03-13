@@ -1,11 +1,16 @@
 """Build a Graph out of the Stack Exchange Data Dump XML files."""
 
 #
-# Interactive Usage: pyspark --packages com.databricks:spark-xml_2.12:0.18.0
+# Spark 4.0+ (XML support built-in):
+#   Interactive: pyspark
+#   Batch:       spark-submit --driver-memory 4g --executor-memory 4g \
+#                    python/graphframes/tutorials/stackexchange.py
 #
-# Batch Usage:
-#   spark-submit \
-#   --packages com.databricks:spark-xml_2.12:0.18.0 python/graphframes/tutorials/stackexchange.py
+# Spark 3.5.x (needs external spark-xml):
+#   Interactive: pyspark --packages com.databricks:spark-xml_2.12:0.18.0
+#   Batch:       spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 \
+#                    --driver-memory 4g --executor-memory 4g \
+#                    python/graphframes/tutorials/stackexchange.py
 #
 
 from __future__ import annotations

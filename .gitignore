@@ -80,7 +80,5 @@ spark-*
 # Zed
 .zed
 
-# Emacs
-.dir-locals.el
-*~
-.aider*
+# Anaconda
+anaconda3/

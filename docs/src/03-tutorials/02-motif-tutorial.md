@@ -1,6 +1,8 @@
 # Motif Tutorial
 
-This tutorial covers GraphFrames' motif finding feature. We perform pattern matching on a property graph representing a Stack Exchange site using Apache Spark and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md) feature. We will download the `stats.meta` archive from the [Stack Exchange Data Dump at the Internet Archive](https://archive.org/details/stackexchange), use PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
+This tutorial covers GraphFrames' motif finding feature using **Apache Spark 4.0** and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md). We perform pattern matching on a property graph representing a Stack Exchange site, using PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
+
+A Jupyter Notebook version of this tutorial is available on GitHub: [Network_Motif_Finding.ipynb](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Network_Motif_Finding.ipynb).
 
 
 # What are graphlets and network motifs?
@@ -17,43 +19,11 @@ Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
 
 We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames' motif finding feature to find network motifs in the graph. You'll see how to combine graph and relational queries to find complex patterns in the graph.
 
-# Download the Stack Exchange Dump for [stats.meta](https://stats.meta.stackexchange.com)
+# Data Setup
 
-The Python tutorials include a CLI utility at `graphframes stackexchange`for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The command takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/tutorials/data` folder.
+**⚠️ Before continuing**: If you haven't already, complete the [Data Setup Tutorial](03-data-setup.md) to download the Stack Exchange dataset and convert it to Parquet files. That tutorial covers installing `graphframes-py`, downloading the `stats.meta` archive, and running the XML-to-Parquet conversion. Come back here once your `Nodes.parquet` and `Edges.parquet` files are ready.
 
-```bash
-Usage: graphframes [OPTIONS] COMMAND [ARGS]...
-
-  GraphFrames CLI: a collection of commands for graphframes.
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  stackexchange  Download Stack Exchange archive for a given SUBDOMAIN.
-```
-
-Use `graphframes stackexchange stats.meta` to download the Stack Exchange Data Dump for `stats.meta.stackexchange.com`.
-
-```bash
-$ graphframes stackexchange stats.meta
-
-Downloading archive from <https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z>
-Downloading  [####################################]  100%
-Download complete: python/graphframes/tutorials/data/stats.meta.stackexchange.com.7z
-Extracting archive...
-Extraction complete: stats.meta.stackexchange.com
-```
-
-# Build the Graph
-
-We will build a property graph from the Stack Exchange data dump using PySpark in the @:srcLink(python/graphframes/tutorials/stackexchange.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
-
-```bash
-$ spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/tutorials/stackexchange.py
-```
-
-The script will output the nodes and edges of the graph in the `python/graphframes/tutorials/data` folder. We can now use GraphFrames to load the graph and perform motif finding.
+The data setup creates a property graph from the [Stack Exchange Data Dump](https://archive.org/details/stackexchange) with ~130K nodes (Users, Questions, Answers, Votes, Badges, Tags, PostLinks) and ~97K edges across 8 relationship types. The @:srcLink(python/graphframes/tutorials/stackexchange.py) script handles the XML parsing and graph construction.
 
 # Motif Finding
 
@@ -64,7 +34,7 @@ NOTE: I use the terms `node` as interchangeable with `vertex` and `edge` with `l
 For a quick run-through of the script, use the following command:
 
 ```bash
-spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
+spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.10.1 python/graphframes/tutorials/motif.py
 ```
 
 Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/04-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
