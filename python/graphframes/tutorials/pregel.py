@@ -19,7 +19,7 @@ Batch Usage (Spark 3.5.x):
 
 import click
 import pyspark.sql.functions as F
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame, SparkSession, Window
 
 from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
@@ -182,13 +182,13 @@ builtin_pr = g.pageRank(resetProbability=1 - damping, maxIter=max_iter)
 pregel_ranked = (
     pr_results.select("id", F.col("pagerank").alias("pregel_pr"))
     .withColumn("pregel_rank", F.dense_rank().over(
-        F.Window.orderBy(F.desc("pregel_pr"))
+        Window.orderBy(F.desc("pregel_pr"))
     ))
 )
 builtin_ranked = (
     builtin_pr.vertices.select("id", F.col("pagerank").alias("builtin_pr"))
     .withColumn("builtin_rank", F.dense_rank().over(
-        F.Window.orderBy(F.desc("builtin_pr"))
+        Window.orderBy(F.desc("builtin_pr"))
     ))
 )
 comparison = pregel_ranked.join(builtin_ranked, on="id")

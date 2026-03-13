@@ -386,10 +386,11 @@ Experiment with different `max_iter` values. You'll find that PageRank converges
 GraphFrames provides a built-in `pageRank()` method. Let's compare the **rankings** — the absolute PageRank values may differ due to normalization, but the relative ordering of vertices should be very similar:
 
 ```python
+from pyspark.sql import Window
+
 builtin_pr = g.pageRank(resetProbability=1 - damping, maxIter=max_iter)
 
 # Compare rankings rather than absolute values
-from pyspark.sql import Window
 pregel_ranked = (
     pr_results.select("id", F.col("pagerank").alias("pregel_pr"))
     .withColumn("pregel_rank", F.dense_rank().over(
