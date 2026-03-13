@@ -160,7 +160,7 @@ graph LR
     A3 -->|"Answers"| Q1
 
     subgraph Result
-        Q2["Question - authority = 500x5 + 1200x2 + 50x8 = 5300"]
+        Q2["Question - authority = 500 + 1200 + 50 = 1750"]
     end
 
     Q1 -.->|"Pregel aggregates"| Q2
