@@ -383,21 +383,31 @@ Experiment with different `max_iter` values. You'll find that PageRank converges
 
 ## Comparing with Built-in PageRank
 
-GraphFrames provides a built-in `pageRank()` method. Let's verify our Pregel implementation matches:
+GraphFrames provides a built-in `pageRank()` method. Let's compare the **rankings** — the absolute PageRank values may differ due to normalization, but the relative ordering of vertices should be very similar:
 
 ```python
 builtin_pr = g.pageRank(resetProbability=1 - damping, maxIter=max_iter)
-comparison = (
+
+# Compare rankings rather than absolute values
+from pyspark.sql import Window
+pregel_ranked = (
     pr_results.select("id", F.col("pagerank").alias("pregel_pr"))
-    .join(
-        builtin_pr.vertices.select("id", F.col("pagerank").alias("builtin_pr")),
-        on="id",
-    )
-    .withColumn("diff", F.abs(F.col("pregel_pr") - F.col("builtin_pr")))
+    .withColumn("pregel_rank", F.dense_rank().over(
+        Window.orderBy(F.desc("pregel_pr"))
+    ))
 )
+builtin_ranked = (
+    builtin_pr.vertices.select("id", F.col("pagerank").alias("builtin_pr"))
+    .withColumn("builtin_rank", F.dense_rank().over(
+        Window.orderBy(F.desc("builtin_pr"))
+    ))
+)
+comparison = pregel_ranked.join(builtin_ranked, on="id")
+rank_corr = comparison.stat.corr("pregel_rank", "builtin_rank")
+print(f"Rank correlation: {rank_corr:.4f}")
 ```
 
-The difference should be near zero — both implementations follow the same algorithm. When it's not exactly zero, it's due to floating-point arithmetic order differences in distributed execution. Spark processes partitions in non-deterministic order, and floating-point addition is not associative, so the exact sums can differ slightly between runs.
+The rank correlation should be very high (close to 1.0), confirming that both implementations agree on which nodes are important even if the absolute PageRank values differ. The built-in PageRank may use different normalization internally, but the ranking — which is what matters in practice — is essentially the same.
 
 The built-in PageRank also supports **convergence tolerance** via `tol` parameter — it stops early when the maximum change in any vertex's PageRank drops below the tolerance. Our Pregel implementation uses a fixed iteration count, but you could add tolerance-based convergence using the vertex voting mechanism (see the Advanced Topics section).
 

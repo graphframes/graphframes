@@ -173,19 +173,37 @@ click.echo("Top 10 Users by PageRank:")
     .show(10, truncate=50)
 )
 
-# Compare with built-in PageRank
-click.echo("\nComparing with built-in PageRank...")
+# Compare rankings with built-in PageRank
+# Note: the built-in PageRank may use different normalization so absolute values differ,
+# but the relative rankings should be very similar.
+click.echo("\nComparing rankings with built-in PageRank...")
 builtin_pr = g.pageRank(resetProbability=1 - damping, maxIter=max_iter)
-comparison = (
+
+pregel_ranked = (
     pr_results.select("id", F.col("pagerank").alias("pregel_pr"))
-    .join(
-        builtin_pr.vertices.select("id", F.col("pagerank").alias("builtin_pr")),
-        on="id",
-    )
-    .withColumn("diff", F.abs(F.col("pregel_pr") - F.col("builtin_pr")))
+    .withColumn("pregel_rank", F.dense_rank().over(
+        F.Window.orderBy(F.desc("pregel_pr"))
+    ))
 )
-click.echo(f"Mean absolute difference: {comparison.agg(F.avg('diff')).collect()[0][0]:.10f}")
-click.echo(f"Max absolute difference: {comparison.agg(F.max('diff')).collect()[0][0]:.10f}")
+builtin_ranked = (
+    builtin_pr.vertices.select("id", F.col("pagerank").alias("builtin_pr"))
+    .withColumn("builtin_rank", F.dense_rank().over(
+        F.Window.orderBy(F.desc("builtin_pr"))
+    ))
+)
+comparison = pregel_ranked.join(builtin_ranked, on="id")
+
+click.echo("Top 10 comparison (Pregel rank vs Built-in rank):")
+(
+    comparison.filter(F.col("pregel_rank") <= 10)
+    .select("id", "pregel_rank", "builtin_rank", "pregel_pr", "builtin_pr")
+    .orderBy("pregel_rank")
+    .show(10)
+)
+
+# Rank correlation
+rank_corr = comparison.stat.corr("pregel_rank", "builtin_rank")
+click.echo(f"Rank correlation (Spearman-like): {rank_corr:.4f}")
 
 # Unpersist built-in PR result
 builtin_pr.vertices.unpersist()
