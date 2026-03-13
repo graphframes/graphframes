@@ -1,6 +1,6 @@
 # Motif Tutorial
 
-This tutorial covers GraphFrames' motif finding feature. We perform pattern matching on a property graph representing a Stack Exchange site using Apache Spark and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md) feature. We will download the `stats.meta` archive from the [Stack Exchange Data Dump at the Internet Archive](https://archive.org/details/stackexchange), use PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
+This tutorial covers GraphFrames' motif finding feature using **Apache Spark 4.0** and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md). We perform pattern matching on a property graph representing a Stack Exchange site, using PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
 
 
 # What are graphlets and network motifs?
@@ -32,7 +32,7 @@ NOTE: I use the terms `node` as interchangeable with `vertex` and `edge` with `l
 For a quick run-through of the script, use the following command:
 
 ```bash
-spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
+spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.10.1 python/graphframes/tutorials/motif.py
 ```
 
 Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/04-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.

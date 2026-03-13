@@ -1,11 +1,15 @@
 """Demonstrate GraphFrames network motif finding capabilities. Code from the Network Motif Finding Tutorial."""  # noqa: E501
 
 #
-# Interactive Usage: pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
+# Spark 4.0+ (recommended):
+#   Interactive: pyspark --packages io.graphframes:graphframes-spark4_2.13:0.10.1
+#   Batch:       spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.10.1 \
+#                    python/graphframes/tutorials/motif.py
 #
-# Batch Usage:
-#  spark-submit \
-#  --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
+# Spark 3.5.x:
+#   Interactive: pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
+#   Batch:       spark-submit --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 \
+#                    python/graphframes/tutorials/motif.py
 #
 
 import click

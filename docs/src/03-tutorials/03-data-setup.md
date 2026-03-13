@@ -10,7 +10,7 @@ We will download the [Stack Exchange Data Dump](https://archive.org/details/stac
 
 - **Python 3.10+** (3.12 recommended)
 - **Java 17** (OpenJDK)
-- **Apache Spark 4.x** (installed via PySpark)
+- **Apache Spark 4.0** (installed via PySpark) — all tutorials in this series use Spark 4.0
 
 ## Installing GraphFrames
 
@@ -78,22 +78,16 @@ This downloads and extracts the 7zip archive into `python/graphframes/tutorials/
 
 ## Convert XML to Parquet
 
-The @:srcLink(python/graphframes/tutorials/stackexchange.py) script reads the raw XML files, builds a unified property graph schema, and writes the result as Parquet files. Spark 4.0+ includes built-in XML support, so no additional packages are needed. For Spark 3.5.x, add the `spark-xml` package. The XML processing requires extra driver memory:
+The @:srcLink(python/graphframes/tutorials/stackexchange.py) script reads the raw XML files, builds a unified property graph schema, and writes the result as Parquet files. This tutorial uses **Spark 4.0**, which includes built-in XML support — no additional packages are needed. The XML processing requires extra driver memory:
 
 ```bash
-# Spark 4.0+ (XML support built-in)
 spark-submit \
-  --driver-memory 4g \
-  --executor-memory 4g \
-  python/graphframes/tutorials/stackexchange.py
-
-# Spark 3.5.x (needs external spark-xml)
-spark-submit \
-  --packages com.databricks:spark-xml_2.12:0.18.0 \
   --driver-memory 4g \
   --executor-memory 4g \
   python/graphframes/tutorials/stackexchange.py
 ```
+
+**Spark 3.5.x users**: Spark 3.5 does not include built-in XML support. Add the [spark-xml](https://github.com/databricks/spark-xml) package: `--packages com.databricks:spark-xml_2.12:0.18.0`. This package was merged into Spark 4.0 and is no longer needed for Spark 4.0+.
 
 The script:
 
