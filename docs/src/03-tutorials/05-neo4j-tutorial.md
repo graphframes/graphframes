@@ -256,7 +256,7 @@ Using the Stack Exchange stats.meta dataset:
 - [GraphFrames User Guide](https://graphframes.io/)
 - [Neo4j Cypher Manual](https://neo4j.com/docs/cypher-manual/current/)
 - [Network Motif Tutorial](02-motif-tutorial.md) - For data preparation
-- [Pregel Tutorial](03-pregel-tutorial.md) - For advanced algorithms
+- [Pregel Tutorial](04-pregel-tutorial.md) - For advanced algorithms
 
 ## Conclusion
 
