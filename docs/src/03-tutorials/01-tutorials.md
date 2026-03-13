@@ -4,9 +4,9 @@ This section contains step-by-step tutorials to help you learn and master specif
 
 Currently available tutorials:
 
-* [Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md): Learn how to perform pattern recognition in graphs using network motif finding. This tutorial demonstrates the technique using the `stackexchange.com` knowledge graph, showing you how to identify and analyze recurring patterns and substructures within the graph data.
-
 * [Data Setup Tutorial](/03-tutorials/03-data-setup.md): Set up the Stack Exchange dataset used by the Motif Finding and Pregel tutorials. Download the data dump, install dependencies, and convert XML to Parquet.
+
+* [Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md): Learn how to perform pattern recognition in graphs using network motif finding. This tutorial demonstrates the technique using the `stackexchange.com` knowledge graph, showing you how to identify and analyze recurring patterns and substructures within the graph data.
 
 * [Pregel Tutorial](/03-tutorials/04-pregel-tutorial.md): Learn to write scalable graph algorithms using GraphFrames' Pregel API. This tutorial teaches the vertex-centric programming model through progressive examples — from simple degree centrality to custom reputation propagation — using real Stack Exchange data.
 
