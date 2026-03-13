@@ -78,9 +78,16 @@ This downloads and extracts the 7zip archive into `python/graphframes/tutorials/
 
 ## Convert XML to Parquet
 
-The @:srcLink(python/graphframes/tutorials/stackexchange.py) script reads the raw XML files, builds a unified property graph schema, and writes the result as Parquet files. It uses [spark-xml](https://github.com/databricks/spark-xml) to parse the XML, which requires extra driver memory:
+The @:srcLink(python/graphframes/tutorials/stackexchange.py) script reads the raw XML files, builds a unified property graph schema, and writes the result as Parquet files. Spark 4.0+ includes built-in XML support, so no additional packages are needed. For Spark 3.5.x, add the `spark-xml` package. The XML processing requires extra driver memory:
 
 ```bash
+# Spark 4.0+ (XML support built-in)
+spark-submit \
+  --driver-memory 4g \
+  --executor-memory 4g \
+  python/graphframes/tutorials/stackexchange.py
+
+# Spark 3.5.x (needs external spark-xml)
 spark-submit \
   --packages com.databricks:spark-xml_2.12:0.18.0 \
   --driver-memory 4g \
