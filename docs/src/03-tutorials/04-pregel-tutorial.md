@@ -587,7 +587,7 @@ Now we get to the real power of Pregel: **algorithms that don't exist as built-i
 
 In Stack Exchange, users have reputation scores that reflect their trustworthiness and expertise. But reputation is an attribute of *users*, not of the *questions they answer*. What if we want to know which questions have been answered by the most reputable users? Which questions have attracted the most expert attention?
 
-This is a **reputation propagation** algorithm — a form of trust propagation through a network. The concept has roots in the [EigenTrust algorithm](https://nlp.stanford.edu/pubs/eigentrust.pdf) (Kamvar et al., 2003) for peer-to-peer networks and in [trust propagation research](https://www.sciencedirect.com/science/article/pii/S2212017312006093) for social networks. The core idea is that trust or authority flows through edges, accumulating at destination nodes.
+This is a **reputation propagation** algorithm — a form of trust propagation through a network. The concept has roots in the [EigenTrust algorithm](https://nlp.stanford.edu/pubs/eigentrust.pdf) (Kamvar et al., 2003) for peer-to-peer networks and in [trust propagation research](https://doi.org/10.1016/j.protcy.2012.10.057) for social networks (Chakraborty and Karform, 2012). The core idea is that trust or authority flows through edges, accumulating at destination nodes.
 
 <center>
     <figure>
