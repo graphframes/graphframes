@@ -308,7 +308,7 @@ sp_results.filter(F.col("distance") < INF).groupBy("distance").count().orderBy(
 
 reachable = sp_results.filter(F.col("distance") < INF).count()
 total = sp_results.count()
-click.echo(f"Reachable vertices: {reachable:,} / {total:,} ({reachable/total:.1%})")
+click.echo(f"Reachable vertices: {reachable:,} / {total:,} ({reachable / total:.1%})")
 
 # Unpersist
 sp_results.unpersist()
