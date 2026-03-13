@@ -1,13 +1,14 @@
 # Pregel Tutorial
 
-This tutorial covers GraphFrames' @:pydoc(graphframes.lib.Pregel) API for developing scalable, iterative graph algorithms using **Apache Spark 4.0**. We will build progressively complex algorithms — from simple degree counting to custom reputation propagation — using the same Stack Exchange knowledge graph from the [Motif Finding Tutorial](02-motif-tutorial.md).
+This tutorial covers GraphFrames' @:pydoc(graphframes.lib.Pregel) API for developing scalable, iterative graph algorithms using **Apache Spark 4.0**. We will implement progressively complex algorithms — from simple degree counting to path-tracing algorithms — using the same Stack Exchange knowledge graph from the [Motif Finding Tutorial](02-motif-tutorial.md).
+
+A Jupyter Notebook version of this tutorial is available on GitHub: [Pregel.ipynb](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Pregel.ipynb).
 
 [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) is a vertex-centric programming model for distributed graph processing. It was introduced by Google engineers in 2010 and has become the foundation for graph computation at scale. GraphFrames implements the Pregel model using Apache Spark DataFrames, giving you the full power of Spark's query optimizer and distributed execution engine behind a clean, declarative API.
 
 By the end of this tutorial, you will understand how to think in Pregel — how to decompose graph problems into local vertex computations that converge to global solutions through iterative message passing. This is a fundamentally different way of thinking about graph algorithms, and it unlocks computations that are difficult or impossible to express with traditional graph queries or even GraphFrames' built-in algorithms.
 
 The complete source code for this tutorial is in @:srcLink(python/graphframes/tutorials/pregel.py).
-
 
 # What is Pregel?
 
@@ -53,7 +54,6 @@ Vertices can **vote to halt** — marking themselves inactive. An inactive verte
     </figure>
 </center>
 
-
 ## The Power of Local Computation
 
 Pregel's "think like a vertex" paradigm is a profound shift from how most engineers approach graph problems. When you sit down with a graph database and write a Cypher or Gremlin query, you're thinking *globally* — "find all paths from A to B," "count triangles in the graph," "return the top-10 most central nodes." These are global questions that require the system to traverse large portions of the graph.
@@ -68,7 +68,6 @@ From this limited local view, global solutions emerge through *iteration*. PageR
 This local-to-global property is what makes Pregel algorithms scalable. Each vertex's computation is independent and can run in parallel. The only synchronization point is the barrier between supersteps. This is fundamentally different from graph databases, which often require global locking or distributed transactions for complex queries.
 
 At its heart, Pregel is bulk synchronous parallel processing applied to graphs — or as [Dean and Ghemawat (2004)](https://static.googleusercontent.com/media/research.google.com/en//archive/mapreduce-osdi04.pdf) might put it, it is MapReduce adapted for the structure of graph data, where the "map" operation is vertex computation and the "reduce" operation is message aggregation.
-
 
 ## Why Pregel?
 
@@ -87,7 +86,6 @@ Pregel is *not* the right tool for:
 - **Single-pass aggregations**: If you just need to count neighbors or sum edge weights once, use @:pydoc(graphframes.GraphFrame.aggregateMessages) instead
 - **Pattern matching**: If you're looking for structural patterns, use [motif finding](02-motif-tutorial.md)
 - **Non-graph problems**: If your data doesn't have graph structure, use regular Spark DataFrames
-
 
 ## The GraphFrames Pregel API
 
@@ -786,7 +784,20 @@ trace_results = test_graph.pregel \
 trace_results.select("id", "name", "trace").orderBy("id").show(truncate=False)
 ```
 
-Each vertex's `trace` column shows who influenced it. Reading right-to-left: `X <- Y <- Z` means Z's state flowed through Y to reach X. The `|` separator shows independent paths arriving at the same vertex.
+The output shows the accumulated message paths at each vertex:
+
+```
++---+-------+------------------------------------------+
+|id |name   |trace                                     |
++---+-------+------------------------------------------+
+|A  |Alice  |A                                         |
+|B  |Bob    |A <- A | A <- B <- B                      |
+|C  |Charlie|A <- A | A <- B <- B | A <- B <- C <- C   |
+|D  |David  |A <- A | A <- B <- C <- C <- D            |
++---+-------+------------------------------------------+
+```
+
+Each vertex's `trace` column shows who influenced it. Reading right-to-left: `X <- Y <- Z` means Z's state flowed through Y to reach X. The `|` separator shows independent paths arriving at the same vertex. Notice how vertex D's trace shows the full chain: A's state propagated through B to C and then to D over three supersteps.
 
 This is a debugging technique. When you're developing a new algorithm and the results don't look right, add a trace column to see exactly what messages each vertex receives and how they aggregate. Once the algorithm works, remove the trace.
 
@@ -830,11 +841,17 @@ graph.pregel \
     .setMaxIter(100) \
     .setStopIfAllNonActiveVertices(True) \
     .setUpdateActiveVertexExpression(
-        F.abs(F.col("pagerank") - Pregel.msg()) > F.lit(0.001)
+        F.abs(
+            F.col("pagerank")
+            - (F.coalesce(Pregel.msg(), F.lit(0.0)) * F.lit(damping)
+               + F.lit((1.0 - damping) / num_vertices))
+        ) > F.lit(0.001)
     ) \
     .withVertexColumn("pagerank", ..., ...) \
     ...
 ```
+
+Note that the active vertex expression must recompute the new PageRank value to compare with the old one — you cannot simply compare `F.col("pagerank")` with `Pregel.msg()`, since the message is the raw sum of incoming contributions, not the final damped PageRank.
 
 ## Performance Best Practices
 
@@ -937,16 +954,3 @@ Here is a summary of the algorithm patterns we implemented, along with their key
 - [AggregateMessages API Reference](/04-user-guide/09-aggregate-messages.md) — GraphFrames AggregateMessages API documentation.
 - [Network Motif Finding Tutorial](02-motif-tutorial.md) — Pattern matching with GraphFrames.
 
-## What's Next?
-
-With the Pregel programming model in your toolkit, you can tackle a wide range of graph problems that would be impractical with traditional graph queries or relational joins. Here are some ideas to explore:
-
-**Community detection via Label Propagation**: Similar to connected components, but instead of minimum label, each vertex adopts the *most common* label among its neighbors. This discovers densely-connected communities within a single connected component. The `aggMsgs` expression uses a mode/majority-vote function.
-
-**Influence maximization**: Find the set of `k` vertices that, if "activated," would trigger the largest cascade through the network. This combines Pregel propagation with an outer optimization loop — a technique used in viral marketing and epidemiology.
-
-**Anomaly detection**: Propagate "suspicion scores" through a transaction graph. Vertices connected to known fraudulent accounts accumulate suspicion through multiple rounds of propagation, weighted by relationship strength and distance. This is a real-world application of the reputation propagation pattern we developed in Example 6.
-
-**Custom centrality metrics**: Betweenness centrality, closeness centrality, and harmonic centrality can all be approximated using Pregel-based shortest path computations. Run shortest paths from a sample of vertices and aggregate the results to estimate global centrality measures.
-
-Each of these builds on the patterns we covered in this tutorial. The "think like a vertex" paradigm, combined with GraphFrames' DataFrame-based execution, makes these algorithms not just possible but practical at scale. The ability to express custom graph logic as SQL column expressions, with Spark's optimizer handling the distributed execution, is what makes GraphFrames' Pregel implementation uniquely powerful among open-source graph processing frameworks.

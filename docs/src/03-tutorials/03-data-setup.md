@@ -26,20 +26,14 @@ This installs `graphframes-py` along with dependencies needed for the tutorials:
 
 ### JVM Core Dependency
 
-The Python package is a thin wrapper around the Scala/JVM implementation. You need to include the JVM core when running Spark. For Spark 4.x with Scala 2.13:
+The Python package is a thin wrapper around the Scala/JVM implementation. If you install `graphframes-py` from PyPI, the JVM core is loaded automatically at runtime. Alternatively, you can use the `--packages` flag with `pyspark` or `spark-submit` to fetch the JVM core from Maven Central:
 
 ```bash
-# Interactive use
+# Spark 4.x with Scala 2.13
 pyspark --packages io.graphframes:graphframes-spark4_2.13:0.10.1
 
-# Batch submission
-spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.10.1 your_script.py
-```
-
-For Spark 3.5.x with Scala 2.12:
-
-```bash
-pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
+# Spark 3.5.x with Scala 2.13
+pyspark --packages io.graphframes:graphframes-spark3_2.13:0.10.1
 ```
 
 ## Download the Stack Exchange Archive

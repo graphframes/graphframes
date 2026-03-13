@@ -50,6 +50,8 @@ Here's what PageRank looks like in GraphFrames Pregel — 8 lines of code:
 ```python
 from graphframes.lib import Pregel
 
+N = graph.vertices.count()  # Total number of vertices
+
 results = graph.pregel \
     .setMaxIter(10) \
     .withVertexColumn("pagerank", F.lit(1.0 / N),

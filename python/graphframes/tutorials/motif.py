@@ -7,8 +7,8 @@
 #                    python/graphframes/tutorials/motif.py
 #
 # Spark 3.5.x:
-#   Interactive: pyspark --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12
-#   Batch:       spark-submit --packages graphframes:graphframes:0.8.4-spark3.5-s_2.12 \
+#   Interactive: pyspark --packages io.graphframes:graphframes-spark3_2.13:0.10.1
+#   Batch:       spark-submit --packages io.graphframes:graphframes-spark3_2.13:0.10.1 \
 #                    python/graphframes/tutorials/motif.py
 #
 

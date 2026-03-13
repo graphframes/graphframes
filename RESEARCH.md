@@ -146,15 +146,3 @@ From the motif tutorial analysis:
 5. Dean, J. and Ghemawat, S. "MapReduce: Simplified Data Processing on Large Clusters." OSDI 2004.
 6. Zadeh, R. "CME 323: Distributed Algorithms and Optimization." Stanford, Spring 2015.
 
-## AggregateMessages vs Pregel Comparison
-
-| Feature | AggregateMessages | Pregel |
-|---------|-------------------|--------|
-| **Iterations** | Single pass | Multiple with `setMaxIter()` |
-| **Vertex State** | Manual (pre-create columns) | Automatic (`withVertexColumn`) |
-| **Message Direction** | `sendToSrc` / `sendToDst` | `sendMsgToSrc` / `sendMsgToDst` |
-| **State Evolution** | N/A | Per-iteration update expression |
-| **Convergence** | N/A | Early stopping, vertex voting |
-| **Complexity** | Lower-level, more control | Higher-level, declarative |
-| **Best For** | One-off aggregations | Iterative graph algorithms |
-| **API Style** | Functional | Builder pattern |

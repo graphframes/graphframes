@@ -125,10 +125,12 @@ All 8 SVG diagrams rendered successfully using `mmdc` (PhantomJS-based Mermaid r
 For any environment (conda or venv, with uv or pip/poetry):
 
 ```bash
-pip install "pyspark>=4.0,<4.1" "graphframes-py>=0.10.1" numpy typing_extensions click py7zr requests
+pip install "pyspark>=4.0,<4.1" "graphframes-py[tutorials]>=0.10.1" typing_extensions
 ```
 
-Plus the JVM core at runtime:
+The `[tutorials]` extras installs `numpy`, `py7zr`, `requests`, and `click`.
+
+For JVM core at runtime, either install from PyPI (automatic) or use:
 ```bash
 --packages io.graphframes:graphframes-spark4_2.13:0.10.1
 ```
