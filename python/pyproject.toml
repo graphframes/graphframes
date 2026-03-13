@@ -37,17 +37,16 @@ classifiers = [
 dynamic = ["version"]
 requires-python = ">=3.10"
 dependencies = [
-    "numpy>=1.7",
     "pyspark>=3.5,<4.1",
     "typing_extensions>=4.0.0",
 ]
 
 [project.optional-dependencies]
 tutorials = [
-    "numpy>=1.7",
     "py7zr",
     "requests",
     "click",
+    "mmdc>=0.4.0",
 ]
 
 [build-system]
@@ -83,10 +82,10 @@ pytest = "^9.0.2"
 pre-commit = "^4.5.1"
 
 [tool.poetry.group.tutorials.dependencies]
-numpy = ">=1.7"
 py7zr = "^1.1.0"
 requests = "^2.32.5"
 click = "^8.3.1"
+mmdc = ">=0.4.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1"

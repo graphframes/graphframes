@@ -1022,6 +1022,24 @@ files = [
 ]
 
 [[package]]
+name = "mmdc"
+version = "0.4.1"
+description = "Python-native Mermaid diagram converter – no browser, Node.js, or npm required. Renders diagrams to SVG using PhantomJS via phasma, perfect for documentation automation and CI/CD pipelines."
+optional = false
+python-versions = ">=3.4"
+groups = ["main", "tutorials"]
+files = [
+    {file = "mmdc-0.4.1-py3-none-any.whl", hash = "sha256:84bccd4ab7a473c40511043c243242ca88fbad806351f8161765589117afbbd3"},
+]
+markers = {main = "extra == \"tutorials\""}
+
+[package.dependencies]
+phasma = ">=0.4.0"
+
+[package.extras]
+test = ["pytest-cov"]
+
+[[package]]
 name = "multivolumefile"
 version = "0.2.3"
 description = "multi volume file wrapper library"
@@ -1069,7 +1087,7 @@ version = "2.2.6"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "dev", "tutorials"]
+groups = ["dev"]
 files = [
     {file = "numpy-2.2.6-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b412caa66f72040e6d268491a59f2c43bf03eb6c96dd8f0307829feb7fa2b6fb"},
     {file = "numpy-2.2.6-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8e41fd67c52b86603a91c1a505ebaef50b3314de0213461c7a6e99c9a3beff90"},
@@ -1238,6 +1256,24 @@ files = [
     {file = "pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"},
     {file = "pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712"},
 ]
+
+[[package]]
+name = "phasma"
+version = "0.5.0"
+description = "A modern PhantomJS driver for Python with bundled binaries, providing headless browser automation, web page rendering, and JavaScript execution."
+optional = false
+python-versions = ">=3.4"
+groups = ["main", "tutorials"]
+files = [
+    {file = "phasma-0.5.0-py3-none-macosx_10_9_universal2.whl", hash = "sha256:d209e9c2720fbc9ea1e07bd0ae67d1b90075a88886a7438121a084d07bda56c7"},
+    {file = "phasma-0.5.0-py3-none-manylinux_2_17_i686.whl", hash = "sha256:cd3772db3bc52ac8478fc23b82ea7636c1889b76f2394ceb03bdc1efac01e348"},
+    {file = "phasma-0.5.0-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:768365d8035f48f574b6496924aaa33ee8b52d2862ccfae8255d7e37d4ceb340"},
+    {file = "phasma-0.5.0-py3-none-win_amd64.whl", hash = "sha256:99dc29b11d55b9574772c5a7c0feb407704e8e20f2f534791c3c125a5dda4cd9"},
+]
+markers = {main = "extra == \"tutorials\""}
+
+[package.extras]
+dev = ["pytest-asyncio (>=0.21.0)"]
 
 [[package]]
 name = "platformdirs"
@@ -2289,9 +2325,9 @@ docs = ["furo (>=2023.7.26)", "pre-commit-uv (>=4.1.4)", "proselint (>=0.13)", "
 test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7)", "packaging (>=23.1)", "pytest (>=7.4)", "pytest-env (>=0.8.2)", "pytest-freezer (>=0.4.8) ; platform_python_implementation == \"PyPy\" or platform_python_implementation == \"GraalVM\" or platform_python_implementation == \"CPython\" and sys_platform == \"win32\" and python_version >= \"3.13\"", "pytest-mock (>=3.11.1)", "pytest-randomly (>=3.12)", "pytest-timeout (>=2.1)", "pytest-xdist (>=3.5)", "setuptools (>=68)", "time-machine (>=2.10) ; platform_python_implementation == \"CPython\""]
 
 [extras]
-tutorials = ["click", "numpy", "py7zr", "requests"]
+tutorials = ["click", "mmdc", "py7zr", "requests"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "aeb9303ebe66aafc394f6c269f1c5989274acf0b4d317e8eadd15f16135b0bb1"
+content-hash = "51734c8cab79babff6d9845b59d9d9915c0c3516817c501e91441f74652490db"
