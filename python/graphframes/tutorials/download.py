@@ -9,8 +9,8 @@ import click
 import py7zr
 import requests  # type: ignore
 
-# Default data directory is relative to this module's location
-DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
+# Default data directory is a "data" folder in the current working directory
+DEFAULT_DATA_DIR = str(Path.cwd() / "data")
 
 
 @click.command()
@@ -19,7 +19,7 @@ DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
     "-f",
     "--folder",
     default=DEFAULT_DATA_DIR,
-    help="Directory to store downloaded files (default: package data directory)",
+    help="Directory to store downloaded files (default: ./data in current working directory)",
 )
 @click.option(
     "--extract/--no-extract",
