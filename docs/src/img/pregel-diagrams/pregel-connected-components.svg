@@ -11,7 +11,7 @@
 .node polygon {
   fill: #ECECFF;
   stroke: #CCCCFF;
-  stroke-width: 1px;
+  stroke-width: 3px;
 }
 .node.clickable {
   cursor: pointer;
@@ -29,7 +29,7 @@
   fill: #ffffde !important;
   rx: 4 !important;
   stroke: #aaaa33 !important;
-  stroke-width: 1px !important;
+  stroke-width: 3px !important;
 }
 .cluster text {
   fill: #333;
@@ -46,13 +46,13 @@ text.actor {
   stroke: grey;
 }
 .messageLine0 {
-  stroke-width: 1.5;
+  stroke-width: 3.5;
   stroke-dasharray: "2 2";
   marker-end: "url(#arrowhead)";
   stroke: #333;
 }
 .messageLine1 {
-  stroke-width: 1.5;
+  stroke-width: 3.5;
   stroke-dasharray: "2 2";
   stroke: #333;
 }
@@ -80,7 +80,7 @@ text.actor {
   stroke: none;
 }
 .loopLine {
-  stroke-width: 2;
+  stroke-width: 6;
   stroke-dasharray: "2 2";
   marker-end: "url(#arrowhead)";
   stroke: #CCCCFF;
@@ -141,12 +141,12 @@ text.actor {
 .today {
   fill: none;
   stroke: red;
-  stroke-width: 2px;
+  stroke-width: 6px;
 }
 /* Task styling */
 /* Default task */
 .task {
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .taskText {
   text-anchor: middle;
@@ -205,7 +205,7 @@ text.actor {
 .done3 {
   stroke: grey;
   fill: lightgrey;
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .doneText0,
 .doneText1,
@@ -220,7 +220,7 @@ text.actor {
 .crit3 {
   stroke: #ff8888;
   fill: red;
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .activeCrit0,
 .activeCrit1,
@@ -228,7 +228,7 @@ text.actor {
 .activeCrit3 {
   stroke: #ff8888;
   fill: #bfc7ff;
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .doneCrit0,
 .doneCrit1,
@@ -236,7 +236,7 @@ text.actor {
 .doneCrit3 {
   stroke: #ff8888;
   fill: lightgrey;
-  stroke-width: 2;
+  stroke-width: 6;
   cursor: pointer;
   shape-rendering: crispEdges;
 }
@@ -269,7 +269,7 @@ g.classGroup rect {
 }
 g.classGroup line {
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 svg .classLabel .box {
   stroke: none;
@@ -283,58 +283,58 @@ svg .classLabel .label {
 }
 .relation {
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
   fill: none;
 }
 .composition {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #compositionStart {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #compositionEnd {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 .aggregation {
   fill: #ECECFF;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #aggregationStart {
   fill: #ECECFF;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #aggregationEnd {
   fill: #ECECFF;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #dependencyStart {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #dependencyEnd {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #extensionStart {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #extensionEnd {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 .node text {
   font-family: 'trebuchet ms', verdana, arial;

@@ -11,7 +11,7 @@
 .node polygon {
   fill: #ECECFF;
   stroke: #CCCCFF;
-  stroke-width: 1px;
+  stroke-width: 3px;
 }
 .node.clickable {
   cursor: pointer;
@@ -29,7 +29,7 @@
   fill: #ffffde !important;
   rx: 4 !important;
   stroke: #aaaa33 !important;
-  stroke-width: 1px !important;
+  stroke-width: 3px !important;
 }
 .cluster text {
   fill: #333;
@@ -46,13 +46,13 @@ text.actor {
   stroke: grey;
 }
 .messageLine0 {
-  stroke-width: 1.5;
+  stroke-width: 3.5;
   stroke-dasharray: "2 2";
   marker-end: "url(#arrowhead)";
   stroke: #333;
 }
 .messageLine1 {
-  stroke-width: 1.5;
+  stroke-width: 3.5;
   stroke-dasharray: "2 2";
   stroke: #333;
 }
@@ -80,7 +80,7 @@ text.actor {
   stroke: none;
 }
 .loopLine {
-  stroke-width: 2;
+  stroke-width: 6;
   stroke-dasharray: "2 2";
   marker-end: "url(#arrowhead)";
   stroke: #CCCCFF;
@@ -141,12 +141,12 @@ text.actor {
 .today {
   fill: none;
   stroke: red;
-  stroke-width: 2px;
+  stroke-width: 6px;
 }
 /* Task styling */
 /* Default task */
 .task {
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .taskText {
   text-anchor: middle;
@@ -205,7 +205,7 @@ text.actor {
 .done3 {
   stroke: grey;
   fill: lightgrey;
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .doneText0,
 .doneText1,
@@ -220,7 +220,7 @@ text.actor {
 .crit3 {
   stroke: #ff8888;
   fill: red;
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .activeCrit0,
 .activeCrit1,
@@ -228,7 +228,7 @@ text.actor {
 .activeCrit3 {
   stroke: #ff8888;
   fill: #bfc7ff;
-  stroke-width: 2;
+  stroke-width: 6;
 }
 .doneCrit0,
 .doneCrit1,
@@ -236,7 +236,7 @@ text.actor {
 .doneCrit3 {
   stroke: #ff8888;
   fill: lightgrey;
-  stroke-width: 2;
+  stroke-width: 6;
   cursor: pointer;
   shape-rendering: crispEdges;
 }
@@ -269,7 +269,7 @@ g.classGroup rect {
 }
 g.classGroup line {
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 svg .classLabel .box {
   stroke: none;
@@ -283,58 +283,58 @@ svg .classLabel .label {
 }
 .relation {
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
   fill: none;
 }
 .composition {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #compositionStart {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #compositionEnd {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 .aggregation {
   fill: #ECECFF;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #aggregationStart {
   fill: #ECECFF;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #aggregationEnd {
   fill: #ECECFF;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #dependencyStart {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #dependencyEnd {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #extensionStart {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 #extensionEnd {
   fill: #9370DB;
   stroke: #9370DB;
-  stroke-width: 1;
+  stroke-width: 3;
 }
 .node text {
   font-family: 'trebuchet ms', verdana, arial;
@@ -358,4 +358,4 @@ svg {
   color: rgb(0, 0, 0);
   font: normal normal normal 16px/normal 'Noto Serif';
 }
-  </style><g><g class="output"><g class="clusters"></g><g class="edgePaths"><g class="edgePath" style="opacity: 1;"><path class="path" d="M114.78125,67.91247685514884L177.09375,41.5L239.40625,41.5" marker-end="url(#arrowhead18)" style="fill:none"></path><defs><marker id="arrowhead18" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 1px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M114.78125,108.08752314485116L177.09375,134.5L240.046875,134.5" marker-end="url(#arrowhead19)" style="fill:none"></path><defs><marker id="arrowhead19" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 1px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M347.828125,41.5L410.140625,41.5L473.9453125,41.5" marker-end="url(#arrowhead20)" style="fill:none"></path><defs><marker id="arrowhead20" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 1px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M347.1875,134.5L410.140625,134.5L472.453125,134.5" marker-end="url(#arrowhead21)" style="fill:none"></path><defs><marker id="arrowhead21" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 1px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(177.09375,41.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(177.09375,134.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(410.140625,41.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(410.140625,134.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g></g><g class="nodes"><g class="node" id="A1" transform="translate(67.390625,88)" style="opacity: 1;"><rect rx="0" ry="0" x="-47.390625" y="-21.5" width="94.78125" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-37.390625,-11.5)"><foreignObject width="74.78125" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">A: path=A</div></foreignObject></g></g></g><g class="node" id="B1" transform="translate(293.6171875,41.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-54.2109375" y="-21.5" width="108.421875" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-44.2109375,-11.5)"><foreignObject width="88.421875" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">B: path=A,B</div></foreignObject></g></g></g><g class="node" id="C1" transform="translate(293.6171875,134.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-53.5703125" y="-21.5" width="107.140625" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-43.5703125,-11.5)"><foreignObject width="87.140625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">C: path=A,C</div></foreignObject></g></g></g><g class="node" id="C2" transform="translate(534.7421875,41.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-60.796875" y="-21.5" width="121.59375" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-50.796875,-11.5)"><foreignObject width="101.59375" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">C: path=A,B,C</div></foreignObject></g></g></g><g class="node" id="D2" transform="translate(534.7421875,134.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-62.2890625" y="-21.5" width="124.578125" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-52.2890625,-11.5)"><foreignObject width="104.578125" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">D: path=A,C,D</div></foreignObject></g></g></g></g></g></g></svg>
+  </style><g><g class="output"><g class="clusters"></g><g class="edgePaths"><g class="edgePath" style="opacity: 1;"><path class="path" d="M114.78125,67.91247685514884L177.09375,41.5L239.40625,41.5" marker-end="url(#arrowhead18)" style="fill:none"></path><defs><marker id="arrowhead18" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M114.78125,108.08752314485116L177.09375,134.5L240.046875,134.5" marker-end="url(#arrowhead19)" style="fill:none"></path><defs><marker id="arrowhead19" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M347.828125,41.5L410.140625,41.5L473.9453125,41.5" marker-end="url(#arrowhead20)" style="fill:none"></path><defs><marker id="arrowhead20" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M347.1875,134.5L410.140625,134.5L472.453125,134.5" marker-end="url(#arrowhead21)" style="fill:none"></path><defs><marker id="arrowhead21" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width: 3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(177.09375,41.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(177.09375,134.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(410.140625,41.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(410.140625,134.5)" style="opacity: 1;"><g transform="translate(-37.3125,-11.5)" class="label"><foreignObject width="74.625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">send path</span></div></foreignObject></g></g></g><g class="nodes"><g class="node" id="A1" transform="translate(67.390625,88)" style="opacity: 1;"><rect rx="0" ry="0" x="-47.390625" y="-21.5" width="94.78125" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-37.390625,-11.5)"><foreignObject width="74.78125" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">A: path=A</div></foreignObject></g></g></g><g class="node" id="B1" transform="translate(293.6171875,41.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-54.2109375" y="-21.5" width="108.421875" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-44.2109375,-11.5)"><foreignObject width="88.421875" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">B: path=A,B</div></foreignObject></g></g></g><g class="node" id="C1" transform="translate(293.6171875,134.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-53.5703125" y="-21.5" width="107.140625" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-43.5703125,-11.5)"><foreignObject width="87.140625" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">C: path=A,C</div></foreignObject></g></g></g><g class="node" id="C2" transform="translate(534.7421875,41.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-60.796875" y="-21.5" width="121.59375" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-50.796875,-11.5)"><foreignObject width="101.59375" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">C: path=A,B,C</div></foreignObject></g></g></g><g class="node" id="D2" transform="translate(534.7421875,134.5)" style="opacity: 1;"><rect rx="0" ry="0" x="-62.2890625" y="-21.5" width="124.578125" height="43"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-52.2890625,-11.5)"><foreignObject width="104.578125" height="23"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">D: path=A,C,D</div></foreignObject></g></g></g></g></g></g></svg>

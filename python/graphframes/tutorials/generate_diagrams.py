@@ -18,7 +18,7 @@ converter = MermaidConverter(timeout=30)
 
 
 def save_diagram(name: str, mermaid_code: str) -> None:
-    """Render a Mermaid diagram to SVG via mmdc."""
+    """Render a Mermaid diagram to SVG via mmdc, then thicken edges."""
     svg_path = Path(OUTPUT_DIR) / f"{name}.svg"
     try:
         converter.convert(
@@ -28,6 +28,18 @@ def save_diagram(name: str, mermaid_code: str) -> None:
             background="white",
             width=900,
         )
+        # Post-process SVG to thicken edges (3x default ~1px)
+        svg_text = svg_path.read_text()
+        svg_text = svg_text.replace(
+            "stroke-width:2", "stroke-width:6"
+        ).replace(
+            "stroke-width:1", "stroke-width:3"
+        ).replace(
+            "stroke-width: 2", "stroke-width: 6"
+        ).replace(
+            "stroke-width: 1", "stroke-width: 3"
+        )
+        svg_path.write_text(svg_text)
         print(f"Saved: {svg_path}")
     except Exception as e:
         print(f"Error rendering {name}: {e}")
