@@ -233,6 +233,9 @@ private object ShortestPaths extends Logging {
       .setSkipMessagesFromNonActiveVertices(true)
       .setCheckpointInterval(checkpointInterval)
       .setUseLocalCheckpoints(useLocalCheckpoints)
+      // Memory optimization: only include required columns in triplets
+      .requiredSrcColumns(DISTANCE_ID)
+      .requiredDstColumns(DISTANCE_ID)
 
     // Experimental feature
     if (isDirected) {

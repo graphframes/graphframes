@@ -10,12 +10,13 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.sql.connect.session import SparkSession
 from pyspark.storagelevel import StorageLevel
-from typing_extensions import override
 
 try:
-    from typing import Self
+    from typing import Self, override
 except ImportError:
-    from typing_extensions import Self
+    from typing_extensions import Self, override
+
+from graphframes.internal.utils import _RandomWalksEmbeddingsParameters
 
 from .proto import graphframes_pb2 as pb
 from .utils import (
@@ -57,6 +58,8 @@ class PregelConnect:
         self._update_active_expr: Column | str | None = None
         self._stop_if_all_non_active = False
         self._skip_messages_from_non_active = False
+        self._required_src_columns: list[str] = []
+        self._required_dst_columns: list[str] = []
 
     def setMaxIter(self, value: int) -> Self:
         self._max_iter = value
@@ -117,6 +120,32 @@ class PregelConnect:
         self._storage_level = storage_level
         return self
 
+    def required_src_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which source vertex columns are required when constructing triplets.
+
+        By default, all source vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state. Use this method to reduce
+        memory usage by specifying only the columns that are actually needed.
+
+        :param col_name: the first required source vertex column name
+        :param col_names: additional required source vertex column names
+        """
+        self._required_src_columns = [col_name] + list(col_names)
+        return self
+
+    def required_dst_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which destination vertex columns are required when constructing triplets.
+
+        By default, all destination vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state. Use this method to reduce
+        memory usage by specifying only the columns that are actually needed.
+
+        :param col_name: the first required destination vertex column name
+        :param col_names: additional required destination vertex column names
+        """
+        self._required_dst_columns = [col_name] + list(col_names)
+        return self
+
     def run(self) -> DataFrame:
         @final
         class Pregel(LogicalPlan):
@@ -137,6 +166,8 @@ class PregelConnect:
                 update_active_col: Column | str | None,
                 stop_if_all_non_active: bool,
                 skip_message_from_non_active: bool,
+                required_src_columns: list[str],
+                required_dst_columns: list[str],
                 vertices: DataFrame,
                 edges: DataFrame,
             ) -> None:
@@ -156,6 +187,8 @@ class PregelConnect:
                 self.update_active_expr = update_active_col
                 self.stop_if_all_non_active = stop_if_all_non_active
                 self.skip_message_from_non_active = skip_message_from_non_active
+                self.required_src_columns = required_src_columns
+                self.required_dst_columns = required_dst_columns
                 self.vertices = vertices
                 self.edges = edges
 
@@ -184,6 +217,12 @@ class PregelConnect:
                     else None,
                     update_active_expr=make_column_or_expr(self.update_active_expr, session)
                     if self.update_active_expr is not None
+                    else None,
+                    required_src_columns=",".join(self.required_src_columns)
+                    if self.required_src_columns
+                    else None,
+                    required_dst_columns=",".join(self.required_dst_columns)
+                    if self.required_dst_columns
                     else None,
                 )
                 pb_message = pb.GraphFramesAPI(
@@ -221,6 +260,8 @@ class PregelConnect:
                 update_active_col=self._update_active_expr,
                 stop_if_all_non_active=self._stop_if_all_non_active,
                 skip_message_from_non_active=self._skip_messages_from_non_active,
+                required_src_columns=self._required_src_columns,
+                required_dst_columns=self._required_dst_columns,
                 storage_level=self._storage_level,
                 vertices=self.graph._vertices,
                 edges=self.graph._edges,
@@ -1045,7 +1086,9 @@ class GraphFrameConnect:
         else:
             return (output.drop("loss"), -1.0)
 
-    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+    def triangleCount(
+        self, storage_level: StorageLevel, algorithm: str, log_nom_entries: int
+    ) -> DataFrame:
         @final
         class TriangleCount(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, storage_level: StorageLevel) -> None:
@@ -1060,7 +1103,11 @@ class GraphFrameConnect:
                     self.v, self.e, session
                 )
                 graphframes_api_call.triangle_count.CopyFrom(
-                    pb.TriangleCount(storage_level=storage_level_to_proto(self.storage_level))
+                    pb.TriangleCount(
+                        storage_level=storage_level_to_proto(self.storage_level),
+                        algorithm=algorithm,
+                        lg_nom_entries=log_nom_entries,
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -1174,3 +1221,61 @@ class GraphFrameConnect:
             ),
             self._spark,
         )
+
+    def rw_embeddings(self, params: _RandomWalksEmbeddingsParameters) -> DataFrame:
+        @final
+        class RWEmbeddings(LogicalPlan):
+            def __init__(
+                self, v: DataFrame, e: DataFrame, params: _RandomWalksEmbeddingsParameters
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.params = params
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.rw_embeddings.CopyFrom(
+                    pb.RandomWalkEmbeddings(
+                        use_edge_direction=self.params.use_edge_direction,
+                        rw_model=self.params.rw_model,
+                        rw_max_nbrs=self.params.rw_max_nbrs,
+                        rw_num_walks_per_node=self.params.rw_num_walks_per_node,
+                        rw_batch_size=self.params.rw_batch_size,
+                        rw_num_batches=self.params.rw_num_batches,
+                        rw_seed=self.params.rw_seed,
+                        rw_restart_probability=self.params.rw_restart_probability,
+                        rw_temporary_prefix=self.params.rw_temporary_prefix,
+                        rw_cached_walks=self.params.rw_cached_walks,
+                        sequence_model=self.params.sequence_model,
+                        hash2vec_context_size=self.params.hash2vec_context_size,
+                        hash2vec_num_partitions=self.params.hash2vec_num_partitions,
+                        hash2vec_embeddings_dim=self.params.hash2vec_embeddings_dim,
+                        hash2vec_decay_function=self.params.hash2vec_decay_function,
+                        hash2vec_gaussian_sigma=self.params.hash2vec_gaussian_sigma,
+                        hash2vec_hashing_seed=self.params.hash2vec_hashing_seed,
+                        hash2vec_sign_seed=self.params.hash2vec_sign_seed,
+                        hash2vec_do_l2_norm=self.params.hash2vec_do_l2_norm,
+                        hash2vec_safe_l2=self.params.hash2vec_safe_l2,
+                        word2vec_max_iter=self.params.word2vec_max_iter,
+                        word2vec_embeddings_dim=self.params.word2vec_embeddings_dim,
+                        word2vec_window_size=self.params.word2vec_window_size,
+                        word2vec_num_partitions=self.params.word2vec_num_partitions,
+                        word2vec_min_count=self.params.word2vec_min_count,
+                        word2vec_max_sentence_length=self.params.word2vec_max_sentence_length,
+                        word2vec_seed=self.params.word2vec_seed,
+                        word2vec_step_size=self.params.word2vec_step_size,
+                        aggregate_neighbors=self.params.aggregate_neighbors,
+                        aggregate_neighbors_max_nbrs=self.params.aggregate_neighbors_max_nbrs,
+                        aggregate_neighbors_seed=self.params.aggregate_neighbors_seed,
+                        clean_up_after_run=self.params.clean_up_after_run,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(RWEmbeddings(self._vertices, self._edges, params), self._spark)

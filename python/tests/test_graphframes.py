@@ -26,7 +26,7 @@ from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.graphframe import _from_java_gf
 from graphframes.examples import BeliefPropagation, Graphs
-from graphframes.graphframe import GraphFrame
+from graphframes.graphframe import GraphFrame, RandomWalkEmbeddings
 
 
 @dataclass
@@ -570,6 +570,25 @@ def test_shortest_paths2(spark: SparkSession) -> None:
     _ = result.unpersist()
 
 
+def test_random_walk_embeddings_api(local_g: GraphFrame) -> None:
+    rwe = RandomWalkEmbeddings(local_g)
+    rwe.set_rw_model("/tmp/")
+    rwe.set_hash2vec()
+
+    result = rwe.run()
+    result.write.mode("overwrite").format("noop").save()
+
+
+def test_random_walk_embeddings_invalid_args(local_g: GraphFrame) -> None:
+    rwe = RandomWalkEmbeddings(local_g)
+    
+    with pytest.raises(ValueError, match="supported decay functions are"):
+        rwe.set_hash2vec(decay_function="invalid_function")
+
+    with pytest.raises(ValueError, match="TMP path or cached walks path should be provided!"):
+        rwe.run()
+
+
 def test_strongly_connected_components(spark: SparkSession) -> None:
     # Simple island test
     vertices = spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
@@ -593,6 +612,20 @@ def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel) -> No
         assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
     _ = c.unpersist()
 
+
+def test_approx_triangle_counts(spark: SparkSession) -> None:
+    edges = spark.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
+    vertices = spark.createDataFrame([(0,), (1,), (2,)], ["id"])
+    g = GraphFrame(vertices, edges)
+
+    if spark.version[:3] >= "4.1":
+        c = g.triangleCount(storage_level=StorageLevel.MEMORY_AND_DISK, algorithm="approx")
+        for row in c.select("id", "count").collect():
+            assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
+        _ = c.unpersist()
+    else:
+        with pytest.raises(ValueError, match=".*requires Spark.*"):
+            c = g.triangleCount(storage_level=StorageLevel.MEMORY_AND_DISK, algorithm="approx")
 
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
 def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:

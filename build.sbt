@@ -3,12 +3,12 @@ import laika.config.SyntaxHighlighting
 import laika.format.Markdown.GitHubFlavor
 import org.typelevel.scalacoptions.ScalacOptions
 
-lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.6")
+lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.7")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val scalaVersions = sparkMajorVer match {
-  case "4" => Seq("2.13.16")
-  case "3" => Seq("2.12.20", "2.13.16")
+  case "4" => Seq("2.13.18")
+  case "3" => Seq("2.12.21", "2.13.18")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions.head)
@@ -65,7 +65,7 @@ ThisBuild / crossScalaVersions := scalaVersions
 
 // Scalafix configuration
 ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := "4.12.3" // The maximal version that supports both 2.13.12 and 2.12.18
+ThisBuild / semanticdbVersion := "4.14.5"
 
 // Don't publish the root project
 publishArtifact := false
@@ -96,10 +96,12 @@ lazy val commonSetting = Seq(
     "--add-opens=java.base/java.lang=ALL-UNNAMED",
     "--add-opens=java.base/java.nio=ALL-UNNAMED",
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
-    "--add-opens=java.base/java.util=ALL-UNNAMED"),
+    "--add-opens=java.base/java.util=ALL-UNNAMED",
+    "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+    "--add-opens=java.base/java.io=ALL-UNNAMED"),
 
   // Scalac options
-  tpolecatScalacOptions ++= Set(
+  Compile / tpolecatScalacOptions ++= Set(
     ScalacOptions.lint,
     ScalacOptions.deprecation,
     ScalacOptions.warnDeadCode,
@@ -111,7 +113,10 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnUnusedNoWarn,
     ScalacOptions.source3,
     ScalacOptions.fatalWarnings),
-  tpolecatExcludeOptions ++= Set(ScalacOptions.warnNonUnitStatement),
+  Compile / tpolecatExcludeOptions ++= Set(
+    ScalacOptions.warnNonUnitStatement,
+    ScalacOptions.privateWarnUnusedNoWarn,
+    ScalacOptions.warnUnusedNoWarn),
   Test / tpolecatExcludeOptions ++= Set(
     ScalacOptions.warnValueDiscard,
     ScalacOptions.warnUnusedLocals,
@@ -122,8 +127,7 @@ lazy val commonSetting = Seq(
     ScalacOptions.warnNumericWiden,
     ScalacOptions.privateWarnNumericWiden,
     ScalacOptions.warnUnusedNoWarn,
-    ScalacOptions.privateWarnUnusedNoWarn,
-  ))
+    ScalacOptions.privateWarnUnusedNoWarn))
 
 lazy val graphx = (project in file("graphx"))
   .settings(
@@ -136,7 +140,9 @@ lazy val graphx = (project in file("graphx"))
     // for scala 2.13 we should mark "unused" class tags by @nowarn,
     // for scala 2.12 we shouldn't
     // the only way at the moment is to not check unused @nowarn for GraphX
-    tpolecatExcludeOptions ++= Set(ScalacOptions.warnUnusedNoWarn, ScalacOptions.privateWarnUnusedNoWarn),
+    tpolecatExcludeOptions ++= Set(
+      ScalacOptions.warnUnusedNoWarn,
+      ScalacOptions.privateWarnUnusedNoWarn),
 
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),

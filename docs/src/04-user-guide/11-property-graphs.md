@@ -24,11 +24,11 @@ GraphFrames represent a property graph as a combination of multiple logical stru
 
 ### Vertex Property Group
 
-For API details see @:scaladoc(org.graphframes.propertygraph.property.VertexPropertyGroup). It contains a name of the property group, for example, `movies`, a name of ID column and underlying data in the form of a `DataFrame`.
+For API details see @:scaladoc(org.graphframes.propertygraph.property.VertexPropertyGroup) (Scala) or `graphframes.pg.VertexPropertyGroup` (Python). It contains a name of the property group, for example, `movies`, a name of ID column and underlying data in the form of a `DataFrame`.
 
 The simple example below creates two property groups: `people` and `movies`.
 
-```scala
+````scala
 import org.graphframes.propertygraph.property.VertexPropertyGroup
 
 val peopleData = spark
@@ -43,15 +43,31 @@ val moviesData = spark
   .toDF("id", "title")
 
 val moviesGroup = VertexPropertyGroup("movies", moviesData, "id")
+````
+
+```python
+from graphframes.pg import VertexPropertyGroup
+
+people_data = spark.createDataFrame(
+    [(1, "Alice"), (2, "Bob"), (3, "Charlie"), (4, "David"), (5, "Eve")],
+    ["id", "name"]
+)
+people_group = VertexPropertyGroup("people", people_data, "id")
+
+movies_data = spark.createDataFrame(
+    [(1, "Matrix"), (2, "Inception"), (3, "Interstellar")],
+    ["id", "title"]
+)
+movies_group = VertexPropertyGroup("movies", movies_data, "id")
 ```
 
 ### Edge Property Group
 
-For API details see @:scaladoc(org.graphframes.propertygraph.property.EdgePropertyGroup). It contains a name of the property group, links to the source and target vertex property groups, direction of the edges (`directed` or `undirected`), and underlying data in the form of a `DataFrame`. Optionally, it can contain a column with edge weights as well as names of source and target vertex ID columns.
+For API details see @:scaladoc(org.graphframes.propertygraph.property.EdgePropertyGroup) (Scala) or `graphframes.pg.EdgePropertyGroup` (Python). It contains a name of the property group, links to the source and target vertex property groups, direction of the edges (`directed` or `undirected`), and underlying data in the form of a `DataFrame`. Optionally, it can contain a column with edge weights as well as names of source and target vertex ID columns.
 
 The simple example below creates an edge property group with the name `likes` and links to the `people` and `movies` vertex property groups as well as `messages` property group that links people to people.
 
-```scala
+````scala
 import org.graphframes.propertygraph.property.EdgePropertyGroup
 
 val likesData = spark
@@ -82,22 +98,68 @@ val messagesGroup = EdgePropertyGroup(
   "src",
   "dst",
   col("weight"))
+````
+
+```python
+from pyspark.sql.functions import col, lit
+from graphframes.pg import EdgePropertyGroup
+
+likes_data = spark.createDataFrame(
+    [(1, 1), (1, 2), (2, 1), (3, 2), (4, 3), (5, 2)],
+    ["src", "dst"]
+).withColumn("weight", lit(1.0))
+
+likes_group = EdgePropertyGroup(
+    "likes",
+    likes_data,
+    people_group,
+    movies_group,
+    is_directed=False,
+    src_column_name="src",
+    dst_column_name="dst",
+    weight_column_name="weight"
+)
+
+messages_data = spark.createDataFrame(
+    [(1, 2, 5.0), (2, 3, 8.0), (3, 4, 3.0), (4, 5, 6.0), (5, 1, 9.0)],
+    ["src", "dst", "weight"]
+)
+
+messages_group = EdgePropertyGroup(
+    "messages",
+    messages_data,
+    people_group,
+    people_group,
+    is_directed=True,
+    src_column_name="src",
+    dst_column_name="dst",
+    weight_column_name="weight"
+)
 ```
 
 ### Property GraphFrame
 
 Having defined the property groups, we can create a `PropertyGraphFrame` by passing the property groups to the constructor.
 
-```scala
+````scala
 import org.graphframes.propertygraph.PropertyGraphFrame
 
 peopleMoviesGraph =
   PropertyGraphFrame(Seq(peopleGroup, moviesGroup), Seq(likesGroup, messagesGroup))
+````
+
+```python
+from graphframes.pg import PropertyGraphFrame
+
+people_movies_graph = PropertyGraphFrame(
+    [people_group, movies_group],
+    [likes_group, messages_group]
+)
 ```
 
 ### Conversion to GraphFrames
 
-The `PropertyGraphFrame` can be converted to a `GraphFrame` by calling `toGraphFrame`. Users can select a subset of vertex and edge property groups to be included in the resulting `GraphFrame`. Under the hood, the conversion will take care about handling potential vertex and edge ID collisions by applying hashing to both vertex and edge IDs. 
+The `PropertyGraphFrame` can be converted to a `GraphFrame` by calling `toGraphFrame` (Scala) or `to_graphframe` (Python). Users can select a subset of vertex and edge property groups to be included in the resulting `GraphFrame`. Under the hood, the conversion will take care about handling potential vertex and edge ID collisions by applying hashing to both vertex and edge IDs.
 
 ```scala
 val graph = peopleMoviesGraph.toGraphFrame(
@@ -107,16 +169,37 @@ val graph = peopleMoviesGraph.toGraphFrame(
   Map("people" -> lit(true)))
 ```
 
-For more details see @:scaladoc(org.graphframes.propertygraph.PropertyGraphFrame).
+```python
+from pyspark.sql.functions import lit
+
+graph = people_movies_graph.to_graphframe(
+    vertex_property_groups=["people"],
+    edge_property_groups=["messages"],
+    edge_group_filters={"messages": lit(True)},
+    vertex_group_filters={"people": lit(True)}
+)
+```
+
+For more details see @:scaladoc(org.graphframes.propertygraph.PropertyGraphFrame) (Scala) or @:pydoc(graphframes.pg.PropertyGraphFrame) (Python).
 
 This operation is not free, so user can also explicitly specify for each of `VertexGroup` does it need to be hashed or not.
 
-```scala
+````scala
 val moviesData = spark
   .createDataFrame(Seq((1L, "Matrix"), (2L, "Inception"), (3L, "Interstellar")))
   .toDF("id", "title")
 
 val moviesGroup = VertexPropertyGroup("movies", moviesData, "id", applyMaskOnId = false)
+````
+
+```python
+movies_data = spark.createDataFrame(
+    [(1, "Matrix"), (2, "Inception"), (3, "Interstellar")],
+    ["id", "title"]
+)
+movies_group = VertexPropertyGroup(
+    "movies", movies_data, "id", apply_mask_on_id=False
+)
 ```
 
 ### Projection
@@ -125,5 +208,23 @@ The `PropertyGraphFrame` support projection of edges groups to a new edge group.
 
 ```scala
 val projectedGraph = peopleMoviesGraph.projectionBy("people", "movies", "likes")
+```
+
+```python
+projected_graph = people_movies_graph.projection_by("people", "movies", "likes")
+```
+
+### Joining Algorithm Results
+
+After running graph algorithms on a `GraphFrame` created from a `PropertyGraphFrame`, you can join the results back to the original vertex data using `join_vertices` (Python) or `joinVertices` (Scala).
+
+```scala
+val components = graph.connectedComponents()
+val joinedBack = peopleMoviesGraph.joinVertices(components, Seq("people", "movies"))
+```
+
+```python
+components = graph.connectedComponents()
+joined_back = people_movies_graph.join_vertices(components, ["people", "movies"])
 ```
 

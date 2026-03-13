@@ -18,7 +18,14 @@ object LDBCUtils {
   val TEST_WCC_UNDIRECTED = "test-wcc-undirected"
   val KGS = "kgs"
   val GRAPH500_22 = "graph500-22"
+  val GRAPH500_23 = "graph500-23"
   val GRAPH500_24 = "graph500-24"
+  val GRAPH500_25 = "graph500-25"
+  val GRAPH500_26 = "graph500-26"
+  val GRAPH500_27 = "graph500-27"
+  val GRAPH500_28 = "graph500-28"
+  val GRAPH500_29 = "graph500-29"
+  val GRAPH500_30 = "graph500-30"
   val CIT_PATENTS = "cit-Patents"
   val WIKI_TALKS = "wiki-Talk"
 
@@ -33,7 +40,14 @@ object LDBCUtils {
     TEST_WCC_UNDIRECTED,
     KGS,
     GRAPH500_22,
+    GRAPH500_23,
     GRAPH500_24,
+    GRAPH500_25,
+    GRAPH500_26,
+    GRAPH500_27,
+    GRAPH500_28,
+    GRAPH500_29,
+    GRAPH500_30,
     CIT_PATENTS,
     WIKI_TALKS)
 

@@ -12,6 +12,7 @@ import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.connect.proto
+import org.graphframes.embeddings.RandomWalkEmbeddings
 
 import scala.jdk.CollectionConverters.*
 
@@ -346,6 +347,19 @@ object GraphFramesConnectUtils {
           pregel = pregel.setEarlyStopping(pregelProto.getEarlyStopping)
         }
 
+        // Handle required columns for triplet optimization (comma-separated)
+        if (pregelProto.hasRequiredSrcColumns) {
+          val cols =
+            pregelProto.getRequiredSrcColumns.split(",").map(_.trim).filter(_.nonEmpty).toSeq
+          if (cols.nonEmpty) pregel = pregel.requiredSrcColumns(cols.head, cols.tail: _*)
+        }
+
+        if (pregelProto.hasRequiredDstColumns) {
+          val cols =
+            pregelProto.getRequiredDstColumns.split(",").map(_.trim).filter(_.nonEmpty).toSeq
+          if (cols.nonEmpty) pregel = pregel.requiredDstColumns(cols.head, cols.tail: _*)
+        }
+
         pregel.run()
       }
       case proto.GraphFramesAPI.MethodCase.SHORTEST_PATHS => {
@@ -392,12 +406,21 @@ object GraphFramesConnectUtils {
         svdResult.withColumn("loss", lit(svd.loss))
       }
       case proto.GraphFramesAPI.MethodCase.TRIANGLE_COUNT => {
-        val trCounter = graphFrame.triangleCount
+        val message = apiMessage.getTriangleCount()
+        var trCounter =
+          graphFrame.triangleCount
 
-        if (apiMessage.getTriangleCount.hasStorageLevel) {
+        if (message.hasAlgorithm) {
+          trCounter = trCounter.setAlgorithm(message.getAlgorithm)
+        }
+
+        if (message.hasLgNomEntries) {
+          trCounter = trCounter.setLgNomEntries(message.getLgNomEntries)
+        }
+
+        if (message.hasStorageLevel) {
           trCounter
-            .setIntermediateStorageLevel(
-              parseStorageLevel(apiMessage.getTriangleCount.getStorageLevel))
+            .setIntermediateStorageLevel(parseStorageLevel(message.getStorageLevel))
             .run()
         } else {
           trCounter.run()
@@ -431,6 +454,44 @@ object GraphFramesConnectUtils {
         }
 
         kCoreBuilder.run()
+      }
+      case proto.GraphFramesAPI.MethodCase.RW_EMBEDDINGS => {
+        val message = apiMessage.getRwEmbeddings()
+
+        RandomWalkEmbeddings.pythonAPI(
+          graph = graphFrame,
+          useEdgeDirection = message.getUseEdgeDirection(),
+          rwModel = message.getRwModel(),
+          rwMaxNbrs = message.getRwMaxNbrs(),
+          rwNumWalksPerNode = message.getRwNumWalksPerNode(),
+          rwBatchSize = message.getRwBatchSize(),
+          rwNumBatches = message.getRwNumBatches(),
+          rwSeed = message.getRwSeed(),
+          rwRestartProbability = message.getRwRestartProbability(),
+          rwTemporaryPrefix = message.getRwTemporaryPrefix(),
+          rwCachedWalks = message.getRwCachedWalks(),
+          sequenceModel = message.getSequenceModel(),
+          hash2vecContextSize = message.getHash2VecContextSize(),
+          hash2vecNumPartitions = message.getHash2VecNumPartitions(),
+          hash2vecEmbeddingsDim = message.getHash2VecEmbeddingsDim(),
+          hash2vecDecayFunction = message.getHash2VecDecayFunction(),
+          hash2vecGaussianSigma = message.getHash2VecGaussianSigma(),
+          hash2vecHashingSeed = message.getHash2VecHashingSeed(),
+          hash2vecSignSeed = message.getHash2VecSignSeed(),
+          hash2vecDoL2Norm = message.getHash2VecDoL2Norm(),
+          hash2vecSafeL2 = message.getHash2VecSafeL2(),
+          word2vecMaxIter = message.getWord2VecMaxIter(),
+          word2vecEmbeddingsDim = message.getWord2VecEmbeddingsDim(),
+          word2vecWindowSize = message.getWord2VecWindowSize(),
+          word2vecNumPartitions = message.getWord2VecNumPartitions(),
+          word2vecMinCount = message.getWord2VecMinCount(),
+          word2vecMaxSentenceLength = message.getWord2VecMaxSentenceLength(),
+          word2vecSeed = message.getWord2VecSeed(),
+          word2vecStepSize = message.getWord2VecStepSize(),
+          aggregateNeighbors = message.getAggregateNeighbors(),
+          aggregateNeighborsMaxNbrs = message.getAggregateNeighborsMaxNbrs(),
+          aggregateNeighborsSeed = message.getAggregateNeighborsSeed(),
+          cleanUpAfterRun = message.getCleanUpAfterRun())
       }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }

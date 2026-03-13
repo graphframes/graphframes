@@ -31,13 +31,15 @@ private[graphframes] object PatternParser extends RegexParsers {
   private val anonymousVertex: Parser[Vertex] = "" ^^ { _ => AnonymousVertex }
   private val vertex: Parser[Vertex] = "(" ~> (vertexName | anonymousVertex) <~ ")"
   private val namedEdge: Parser[Edge] =
-    vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]+".r ~ "]" ~ "->" ~ vertex ^^ {
+    vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]+".r ~ "]" ~ ("->" | "-") ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ name ~ "]" ~ "->" ~ dst => NamedEdge(name, src, dst)
+      case src ~ "-" ~ "[" ~ name ~ "]" ~ "-" ~ dst => UndirectedEdge(NamedEdge(name, src, dst))
       case _ => throw new GraphFramesUnreachableException()
     }
   val anonymousEdge: Parser[Edge] =
-    vertex ~ "-" ~ "[" ~ "]" ~ "->" ~ vertex ^^ {
+    vertex ~ "-" ~ "[" ~ "]" ~ ("->" | "-") ~ vertex ^^ {
       case src ~ "-" ~ "[" ~ "]" ~ "->" ~ dst => AnonymousEdge(src, dst)
+      case src ~ "-" ~ "[" ~ "]" ~ "-" ~ dst => UndirectedEdge(AnonymousEdge(src, dst))
       case _ => throw new GraphFramesUnreachableException()
     }
   private val edge: Parser[Edge] = namedEdge | anonymousEdge
@@ -45,36 +47,14 @@ private[graphframes] object PatternParser extends RegexParsers {
     "!" ~ edge ^^ { case _ ~ e =>
       Negation(e)
     }
-  private val fixedLengthPattern: Parser[List[Edge]] =
-    vertex ~ "-" ~ "[" ~ "[a-zA-Z0-9_]*".r ~ "*" ~ "[0-9]+".r ~ "]" ~ "->" ~ vertex ^^ {
-      case src ~ "-" ~ "[" ~ name ~ "*" ~ num ~ "]" ~ "->" ~ dst => {
-        val hop: Int = num.toInt
-        if (hop > 0) {
-          val midVertices = (1 until hop).map(i => NamedVertex(s"_v$i"))
-          val vertices = src +: midVertices :+ dst
-          vertices
-            .sliding(2)
-            .zipWithIndex
-            .map {
-              case (Seq(v1, v2), i) =>
-                if (name.isEmpty) AnonymousEdge(v1, v2) else NamedEdge(s"_$name${i + 1}", v1, v2)
-              case _ => throw new GraphFramesUnreachableException()
-            }
-            .toList
-        } else {
-          throw new GraphFramesUnreachableException()
-        }
-      }
-      case _ => throw new GraphFramesUnreachableException()
-    }
   private val pattern: Parser[Pattern] = edge | vertex | negatedEdge
-  val patterns: Parser[List[Pattern]] = fixedLengthPattern | repsep(pattern, ";")
+  val patterns: Parser[List[Pattern]] = repsep(pattern, ";")
 }
 
 private[graphframes] object Pattern {
   def parse(s: String): Seq[Pattern] = {
     import PatternParser._
-    val rewrittenStr: String = rewriteIncomingEdges(s)
+    val rewrittenStr: String = rewriteFixedLengthPattern(rewriteIncomingEdges(s))
     val result = parseAll(patterns, rewrittenStr) match {
       case result: Success[_] =>
         result.asInstanceOf[Success[Seq[Pattern]]].get
@@ -91,9 +71,9 @@ private[graphframes] object Pattern {
    */
   private[graphframes] def rewriteIncomingEdges(patterns: String): String = {
     val reversedEdge =
-      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
+      """(!?)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]-\(([a-zA-Z0-9_]*)\)""".r
     val bidirectionalEdge =
-      """(!*)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
+      """(!?)\(([a-zA-Z0-9_]*)\)<-\[([a-zA-Z0-9_.*]*)\]->\(([a-zA-Z0-9_]*)\)""".r
 
     val outgoingEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
       pattern.trim match {
@@ -114,6 +94,43 @@ private[graphframes] object Pattern {
     }
 
     outgoingEdges.mkString(";")
+  }
+
+  /**
+   * Rewrite fixed-length pattern
+   */
+  private[graphframes] def rewriteFixedLengthPattern(patterns: String): String = {
+    val fixedLengthPattern =
+      """(!?)\(([a-zA-Z0-9_]*)\)-\[([a-zA-Z0-9_]*)\*([0-9]+)\]->\(([a-zA-Z0-9_]*)\)""".r
+    val expandedEdges: Seq[String] = patterns.split(";").toSeq.map { pattern =>
+      pattern.trim match {
+        case fixedLengthPattern(negation, src, name, num, dst) =>
+          val hop: Int = num.toInt
+          if (hop > 0) {
+            val midVertices =
+              if (src.isEmpty && dst.isEmpty) (1 until hop).map(i => s"__tmpv${i}")
+              else (1 until hop).map(i => s"_${src}${dst}${i}")
+            val vertices = src +: midVertices :+ dst
+            vertices
+              .sliding(2)
+              .zipWithIndex
+              .map {
+                case (Seq(v1, v2), i) =>
+                  if (name.isEmpty) s"${negation}(${v1})-[]->(${v2})"
+                  else s"${negation}(${v1})-[_${name}${i + 1}]->(${v2})"
+                case _ =>
+                  throw new InvalidParseException(
+                    s"Cannot rewrite fixed-length pattern as a chain: '$pattern'.")
+              }
+              .mkString(";")
+          } else {
+            throw new InvalidParseException(s"Hop must be greater than 0: '$pattern'.")
+          }
+        case original => original
+      }
+    }
+
+    expandedEdges.mkString(";")
   }
 
   /**
@@ -157,6 +174,8 @@ private[graphframes] object Pattern {
       case AnonymousEdge(src, dst) =>
         addVertex(src)
         addVertex(dst)
+      case UndirectedEdge(edge) =>
+        addEdge(edge)
     }
 
     patterns.foreach {
@@ -171,6 +190,15 @@ private[graphframes] object Pattern {
               "Motif finding does not support completely " +
                 "anonymous negated edges !()-[]->().  Users can check for 0 edges in the graph " +
                 "using the edges DataFrame.")
+          case e @ UndirectedEdge(edge) =>
+            edge match {
+              case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
+                throw new InvalidParseException(
+                  "Motif finding does not support completely " +
+                    "anonymous negated edges !()-[]-().  Users can check for the existence of edges in the " +
+                    "graph using the edges DataFrame.")
+              case _ => addEdge(e)
+            }
           case e @ AnonymousEdge(_, _) =>
             addEdge(e)
         }
@@ -179,6 +207,15 @@ private[graphframes] object Pattern {
           "Motif finding does not support completely " +
             "anonymous edges ()-[]->().  Users can check for the existence of edges in the " +
             "graph using the edges DataFrame.")
+      case e @ UndirectedEdge(edge) =>
+        edge match {
+          case AnonymousEdge(AnonymousVertex, AnonymousVertex) =>
+            throw new InvalidParseException(
+              "Motif finding does not support completely " +
+                "anonymous edges ()-[]-().  Users can check for the existence of edges in the " +
+                "graph using the edges DataFrame.")
+          case _ => addEdge(e)
+        }
       case e @ AnonymousEdge(_, _) =>
         addEdge(e)
       case e @ NamedEdge(_, _, _) =>
@@ -220,6 +257,10 @@ private[graphframes] object Pattern {
     def findNamedElementsHelper(pattern: Pattern): Unit = pattern match {
       case Negation(child) =>
         findNamedElementsHelper(child)
+      case UndirectedEdge(child) =>
+        findNamedElementsHelper(child)
+        elementSet += "_pattern"
+        elementSet += "_direction"
       case AnonymousVertex => // pass
       case NamedVertex(name) =>
         if (!elementSet.contains(name)) {
@@ -251,6 +292,8 @@ private[graphframes] case object AnonymousVertex extends Vertex
 private[graphframes] case class NamedVertex(name: String) extends Vertex
 
 private[graphframes] sealed trait Edge extends Pattern
+
+private[graphframes] case class UndirectedEdge(edge: Edge) extends Edge
 
 private[graphframes] case class AnonymousEdge(src: Vertex, dst: Vertex) extends Edge
 
