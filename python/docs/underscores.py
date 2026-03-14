@@ -33,27 +33,30 @@ from collections.abc import Callable
 from typing import Any
 from sphinx.application import Sphinx
 
+
 def setup(app: Sphinx) -> None:
     """
     Add a html-page-context  and a build-finished event handlers
     """
-    app.connect('html-page-context', change_pathto)
-    app.connect('build-finished', move_private_folders)
+    app.connect("html-page-context", change_pathto)
+    app.connect("build-finished", move_private_folders)
 
-def change_pathto(app: Sphinx,
-                 pagename: str,
-                 templatename: str,
-                 context: dict[str, Any],
-                 doctree: Any | None) -> None:
+
+def change_pathto(
+    app: Sphinx, pagename: str, templatename: str, context: dict[str, Any], doctree: Any | None
+) -> None:
     """
     Replace pathto helper to change paths to folders with a leading underscore.
     """
-    pathto: Callable = context.get('pathto')
+    pathto: Callable = context.get("pathto")
+
     def gh_pathto(otheruri: str, *args: Any, **kw: Any) -> Any:
-        if otheruri.startswith('_'):
+        if otheruri.startswith("_"):
             otheruri = otheruri[1:]
         return pathto(otheruri, *args, **kw)
-    context['pathto'] = gh_pathto
+
+    context["pathto"] = gh_pathto
+
 
 def move_private_folders(app: Sphinx, e: Exception | None) -> None:
     """
@@ -61,9 +64,10 @@ def move_private_folders(app: Sphinx, e: Exception | None) -> None:
 
     :todo: should only affect html built
     """
+
     def join(dir):
         return os.path.join(app.builder.outdir, dir)
 
     for item in os.listdir(app.builder.outdir):
-        if item.startswith('_') and os.path.isdir(join(item)):
+        if item.startswith("_") and os.path.isdir(join(item)):
             shutil.move(join(item), join(item[1:]))
