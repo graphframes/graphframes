@@ -31,9 +31,9 @@ DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
 )
 def main(data_dir: str) -> None:
     # Initialize a SparkSession
-    spark: SparkSession = (
-        SparkSession.builder.appName("Stack Overflow Motif Analysis").getOrCreate()
-    )
+    spark: SparkSession = SparkSession.builder.appName(
+        "Stack Overflow Motif Analysis"
+    ).getOrCreate()
     spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/motif")
 
     # Change me if you download a different stackexchange site

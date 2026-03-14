@@ -461,9 +461,8 @@ def main(data_dir: str) -> None:
         F.lit("Answers").alias("relationship"),
     )
     click.echo(f"Total Posts Answers edges: {question_answers_edges_df.count():,}")
-    click.echo(
-        f"Percentage of linked answers: {question_answers_edges_df.count() / answers_df.count():.2%}\n"
-    )
+    pct_linked = question_answers_edges_df.count() / answers_df.count()
+    click.echo(f"Percentage of linked answers: {pct_linked:.2%}\n")
 
     #
     # Create a [Tag]--Tags-->[Post] edge... remember a Post is a Question or Answer
@@ -558,7 +557,9 @@ def main(data_dir: str) -> None:
         .select("src", "dst", "relationship")
     )
     click.echo(f"Total Links edges: {linked_edge_df.count():,}")
-    click.echo(f"Percentage of linked posts: {linked_edge_df.count() / post_links_df.count():.2%}\n")
+    click.echo(
+        f"Percentage of linked posts: {linked_edge_df.count() / post_links_df.count():.2%}\n"
+    )
 
     #
     # Combine all the edges together into one relationships DataFrame
