@@ -427,13 +427,6 @@ The algorithm is elegantly simple in Pregel:
 
 After convergence, all vertices in the same connected component will have the same label — the minimum ID among all vertices in that component.
 
-<center>
-    <figure>
-        <img src="../img/pregel-diagrams/pregel-connected-components.svg" width="700px" alt="Connected components with label propagation" />
-        <figcaption>Connected components: minimum labels propagate through each component until convergence</figcaption>
-    </figure>
-</center>
-
 ```python
 cc_vertices = g.vertices.select("id")
 cc_graph = GraphFrame(cc_vertices, g.edges.select("src", "dst"))
