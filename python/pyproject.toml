@@ -37,6 +37,7 @@ classifiers = [
 dynamic = ["version"]
 requires-python = ">=3.10"
 dependencies = [
+    "click>=8.0",
     "pyspark>=3.5,<4.1",
     "typing_extensions>=4.0.0",
 ]

@@ -9,36 +9,35 @@ import click
 import py7zr
 import requests  # type: ignore
 
-# Default data directory is a "data" folder in the current working directory
-DEFAULT_DATA_DIR = str(Path.cwd() / "data")
+# Default data directory is relative to this module's location
+DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
 
 
 @click.command()
 @click.argument("subdomain")
 @click.option(
-    "-f",
-    "--folder",
+    "--data-dir",
     default=DEFAULT_DATA_DIR,
-    help="Directory to store downloaded files (default: ./data in current working directory)",
+    help="Directory to store downloaded files (default: package data directory)",
 )
 @click.option(
     "--extract/--no-extract",
     default=True,
     help="Whether to extract the archive after download",
 )
-def stackexchange(subdomain: str, folder: str, extract: bool) -> None:
+def stackexchange(subdomain: str, data_dir: str, extract: bool) -> None:
     """Download Stack Exchange archive for a given SUBDOMAIN.
 
-    Example: graphframes stackexchange --folder /tmp/data stats.meta
+    Example: graphframes stackexchange --data-dir /tmp/data stats.meta
 
     Note: This won't work for stackoverflow.com archives due to size.
     """
     # Create data directory if it doesn't exist
-    os.makedirs(folder, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
 
     # Construct archive URL and filename
     archive_url = f"https://archive.org/download/stackexchange/{subdomain}.stackexchange.com.7z"
-    archive_path = os.path.join(folder, f"{subdomain}.stackexchange.com.7z")
+    archive_path = os.path.join(data_dir, f"{subdomain}.stackexchange.com.7z")
 
     click.echo(f"Downloading archive from {archive_url}")
 
@@ -83,7 +82,7 @@ def stackexchange(subdomain: str, folder: str, extract: bool) -> None:
             click.echo("Extracting archive...")
             output_dir = f"{subdomain}.stackexchange.com"
             with py7zr.SevenZipFile(archive_path, mode="r") as z:
-                z.extractall(path=os.path.join(folder, output_dir))
+                z.extractall(path=os.path.join(data_dir, output_dir))
             click.echo(f"Extraction complete: {output_dir}")
 
     except requests.exceptions.RequestException as e:

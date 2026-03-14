@@ -14,6 +14,8 @@ Spark 3.5.x:
                      python/graphframes/tutorials/pregel.py
 """
 
+from pathlib import Path
+
 import click
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame, SparkSession, Window
@@ -22,8 +24,16 @@ from graphframes import GraphFrame
 from graphframes.lib import AggregateMessages as AM
 from graphframes.lib import Pregel
 
+DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
 
-def main():
+
+@click.command()
+@click.option(
+    "--data-dir",
+    default=DEFAULT_DATA_DIR,
+    help="Directory containing Stack Exchange Parquet data (default: package data directory)",
+)
+def main(data_dir: str) -> None:
     # ──────────────────────────────────────────────────────────────────────
     # SparkSession
     # ──────────────────────────────────────────────────────────────────────
@@ -41,7 +51,7 @@ def main():
     # ──────────────────────────────────────────────────────────────────────
 
     STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-    BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
+    BASE_PATH = f"{data_dir}/{STACKEXCHANGE_SITE}"
     NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
     EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
 
