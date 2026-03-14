@@ -57,7 +57,10 @@ sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
+# Default: package data directory; override with --data-dir CLI option
+from pathlib import Path
+DATA_DIR = str(Path(__file__).parent / "data")  # or pass via --data-dir
+BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
 ```
 
 Load the nodes and edges of the graph from the `data` folder and count the types of node and edge. We repartition the nodes and edges to give our motif searches parallelism. GraphFrames likes nodes/vertices and edges/relatonships to be cached.

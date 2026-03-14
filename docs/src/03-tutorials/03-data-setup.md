@@ -52,10 +52,16 @@ Commands:
   stackexchange  Download Stack Exchange archive for a given SUBDOMAIN.
 ```
 
-Download the `stats.meta` archive:
+Download the `stats.meta` archive (the default `--data-dir` is the package data directory):
 
 ```bash
 graphframes stackexchange stats.meta
+```
+
+To download to a custom directory, use the `--data-dir` option:
+
+```bash
+graphframes stackexchange --data-dir /path/to/data stats.meta
 ```
 
 You should see output like:

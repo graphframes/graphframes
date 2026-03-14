@@ -164,7 +164,10 @@ spark: SparkSession = (
 spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/pregel")
 
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
+# Default: package data directory; override with --data-dir CLI option
+from pathlib import Path
+DATA_DIR = str(Path(__file__).parent / "data")  # or pass via --data-dir
+BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
 
 nodes_df: DataFrame = spark.read.parquet(f"{BASE_PATH}/Nodes.parquet")
 nodes_df = nodes_df.repartition(50).checkpoint().cache()

@@ -7,6 +7,7 @@ Renders Mermaid diagram source to SVG using the mmdc package (PhantomJS-based).
 """
 
 import os
+import re
 from pathlib import Path
 
 from mmdc import MermaidConverter
@@ -29,16 +30,11 @@ def save_diagram(name: str, mermaid_code: str) -> None:
             width=900,
         )
         # Post-process SVG to thicken edges (3x default ~1px)
+        # Use regex with negative lookahead to avoid mutating multi-digit values
+        # (e.g., stroke-width:10 should NOT become stroke-width:30)
         svg_text = svg_path.read_text()
-        svg_text = svg_text.replace(
-            "stroke-width:2", "stroke-width:6"
-        ).replace(
-            "stroke-width:1", "stroke-width:3"
-        ).replace(
-            "stroke-width: 2", "stroke-width: 6"
-        ).replace(
-            "stroke-width: 1", "stroke-width: 3"
-        )
+        svg_text = re.sub(r"stroke-width\s*:\s*2(?!\d)", "stroke-width:6", svg_text)
+        svg_text = re.sub(r"stroke-width\s*:\s*1(?!\d)", "stroke-width:3", svg_text)
         svg_path.write_text(svg_text)
         print(f"Saved: {svg_path}")
     except Exception as e:
