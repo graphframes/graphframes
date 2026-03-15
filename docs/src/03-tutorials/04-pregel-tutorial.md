@@ -1,6 +1,6 @@
 # Pregel Tutorial
 
-This tutorial covers GraphFrames' @:pydoc(graphframes.lib.Pregel) API for developing scalable, iterative graph algorithms using **Apache Spark 4.0**. We will implement progressively complex algorithms — from simple degree counting to path-tracing algorithms — using the same Stack Exchange knowledge graph from the [Motif Finding Tutorial](02-motif-tutorial.md).
+This tutorial covers GraphFrames' @:pydoc(graphframes.lib.Pregel) API for developing scalable, iterative graph algorithms using **Apache Spark 4.0**. We will implement progressively complex algorithms — from simple degree counting to path-tracing algorithms — using the same Stack Exchange knowledge graph from the [Motif Finding Tutorial](03-motif-tutorial.md).
 
 A Jupyter Notebook version of this tutorial is available on GitHub: [Pregel.ipynb](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Pregel.ipynb).
 
@@ -76,7 +76,7 @@ Pregel excels at problems that require:
 Pregel is *not* the right tool for:
 
 - **Single-pass aggregations**: If you just need to count neighbors or sum edge weights once, use @:pydoc(graphframes.GraphFrame.aggregateMessages) instead
-- **Pattern matching**: If you're looking for structural patterns, use [motif finding](02-motif-tutorial.md)
+- **Pattern matching**: If you're looking for structural patterns, use [motif finding](03-motif-tutorial.md)
 - **Non-graph problems**: If your data doesn't have graph structure, use regular Spark DataFrames
 
 ## The GraphFrames Pregel API
@@ -137,7 +137,7 @@ Understanding this implementation helps you write better Pregel algorithms. For 
 
 # Data Setup
 
-**⚠️ Before continuing**: If you haven't already, complete the [Data Setup Tutorial](03-data-setup.md) to download the Stack Exchange dataset and convert it to Parquet files. The examples in this tutorial require the `Nodes.parquet` and `Edges.parquet` files to be ready.
+**⚠️ Before continuing**: If you haven't already, complete the [Data Setup Tutorial](02-data-setup.md) to download the Stack Exchange dataset and convert it to Parquet files. The examples in this tutorial require the `Nodes.parquet` and `Edges.parquet` files to be ready.
 
 The Stack Exchange graph — specifically the [`stats.meta.stackexchange.com`](https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z) dataset — contains ~130K nodes (Users, Questions, Answers, Votes, Badges, Tags, PostLinks) and ~97K edges across 8 relationship types. It is small enough to run on a laptop but complex enough to demonstrate real graph algorithms.
 
@@ -931,5 +931,5 @@ Here is a summary of the algorithm patterns we implemented, along with their key
 - [The EigenTrust Algorithm for Reputation Management](https://nlp.stanford.edu/pubs/eigentrust.pdf) — Kamvar et al., 2003. Trust propagation in P2P networks, related to our reputation propagation example.
 - [Pregel API Reference](/04-user-guide/10-pregel.md) — GraphFrames Pregel API documentation.
 - [AggregateMessages API Reference](/04-user-guide/09-aggregate-messages.md) — GraphFrames AggregateMessages API documentation.
-- [Network Motif Finding Tutorial](02-motif-tutorial.md) — Pattern matching with GraphFrames.
+- [Network Motif Finding Tutorial](03-motif-tutorial.md) — Pattern matching with GraphFrames.
 

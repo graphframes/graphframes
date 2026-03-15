@@ -1,6 +1,6 @@
 # Stack Exchange Data Setup
 
-This tutorial walks through setting up the Stack Exchange dataset used by the [Motif Finding Tutorial](02-motif-tutorial.md) and [Pregel Tutorial](04-pregel-tutorial.md). You only need to complete this setup once — both tutorials use the same dataset.
+This tutorial walks through setting up the Stack Exchange dataset used by the [Motif Finding Tutorial](03-motif-tutorial.md) and [Pregel Tutorial](04-pregel-tutorial.md). You only need to complete this setup once — both tutorials use the same dataset.
 
 ## What We're Building
 
@@ -169,7 +169,7 @@ Edges: 97,104
 
 With the data prepared, you are ready to proceed to:
 
-- **[Motif Finding Tutorial](02-motif-tutorial.md)**: Pattern matching and network motif discovery
+- **[Motif Finding Tutorial](03-motif-tutorial.md)**: Pattern matching and network motif discovery
 - **[Pregel Tutorial](04-pregel-tutorial.md)**: Iterative graph algorithms with the Pregel API
 
 Return to the tutorial you came from and continue from where you left off.

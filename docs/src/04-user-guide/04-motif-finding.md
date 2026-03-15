@@ -1,6 +1,6 @@
 # Motif finding
 
-Motif finding refers to searching for structural patterns in a graph. For an example of real-world use, check out the [Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md).
+Motif finding refers to searching for structural patterns in a graph. For an example of real-world use, check out the [Motif Finding Tutorial](/03-tutorials/03-motif-tutorial.md).
 
 GraphFrame motif finding uses a simple Domain-Specific Language (DSL) for expressing structural queries. For example, `graph.find("(a)-[e1]->(b); (b)-[e2]->(a)")` or `graph.find("(a)<-[e]->(b)")` will search for pairs of vertices `a`,`b` connected by edges in both directions.  It will return a `DataFrame` of all such structures in the graph, with columns for each of the named elements (vertices or edges) in the motif.  In this case, the returned columns will be "a, b, e1, e2."
 

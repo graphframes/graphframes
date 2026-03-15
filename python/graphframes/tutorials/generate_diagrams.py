@@ -1,4 +1,4 @@
-"""Generate Mermaid diagrams for the Pregel tutorial.
+"""Generate Mermaid diagrams for the Pregel and Motif Finding tutorials.
 
 Usage:
     python python/graphframes/tutorials/generate_diagrams.py
@@ -12,24 +12,24 @@ from pathlib import Path
 
 from mmdc import MermaidConverter
 
-# Resolve output dir relative to this file so it works regardless of cwd
+# Resolve repo root relative to this file so the script works regardless of cwd
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-OUTPUT_DIR = str(_REPO_ROOT / "docs" / "src" / "img" / "pregel-diagrams")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+_IMG_ROOT = _REPO_ROOT / "docs" / "src" / "img"
 
 converter = MermaidConverter(timeout=30)
 
 
-def save_diagram(name: str, mermaid_code: str) -> None:
+def save_diagram(name: str, mermaid_code: str, output_dir: Path, width: int = 900) -> None:
     """Render a Mermaid diagram to SVG via mmdc, then thicken edges."""
-    svg_path = Path(OUTPUT_DIR) / f"{name}.svg"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    svg_path = output_dir / f"{name}.svg"
     try:
         converter.convert(
             mermaid_code.strip(),
             output_file=svg_path,
             theme="default",
             background="white",
-            width=900,
+            width=width,
         )
         # Post-process SVG to thicken edges (3x default ~1px)
         # Use regex with negative lookahead to avoid mutating multi-digit values
@@ -41,11 +41,14 @@ def save_diagram(name: str, mermaid_code: str) -> None:
         print(f"Saved: {svg_path}")
     except Exception as e:
         print(f"Error rendering {name}: {e}")
-        # Save the mermaid code as .mmd file for manual rendering
-        mmd_path = Path(OUTPUT_DIR) / f"{name}.mmd"
+        mmd_path = output_dir / f"{name}.mmd"
         mmd_path.write_text(mermaid_code.strip())
         print(f"Saved Mermaid source: {mmd_path}")
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PREGEL TUTORIAL DIAGRAMS  →  docs/src/img/pregel-diagrams/
+# ══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────
 # 1. BSP Model Overview
@@ -188,17 +191,157 @@ graph LR
     C1 -->|"send path"| D2["D: path=A,C,D"]
 """
 
-if __name__ == "__main__":
-    diagrams = {
-        "pregel-bsp-model": bsp_model,
-        "pregel-in-degree-am": in_degree_am,
-        "pregel-in-degree-pregel": in_degree_pregel,
-        "pregel-pagerank-iterations": pagerank_iterations,
-        "pregel-connected-components": connected_components,
-        "pregel-shortest-paths": shortest_paths,
-        "pregel-reputation-propagation": reputation_propagation,
-        "pregel-debug-trace": debug_trace,
-    }
+PREGEL_DIAGRAMS = {
+    "pregel-bsp-model": bsp_model,
+    "pregel-in-degree-am": in_degree_am,
+    "pregel-in-degree-pregel": in_degree_pregel,
+    "pregel-pagerank-iterations": pagerank_iterations,
+    "pregel-connected-components": connected_components,
+    "pregel-shortest-paths": shortest_paths,
+    "pregel-reputation-propagation": reputation_propagation,
+    "pregel-debug-trace": debug_trace,
+}
 
-    for name, code in diagrams.items():
-        save_diagram(name, code)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MOTIF FINDING TUTORIAL DIAGRAMS  →  docs/src/img/motif-diagrams/
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────────
+# 1. Directed Graphlet Overview — 2-node and 3-node patterns
+#    Replaces 4-node-directed-graphlets.png
+# ──────────────────────────────────────────────────────────────────────
+directed_graphlets_overview = """
+graph LR
+    subgraph G1 single directed edge
+        g1a((A)) --> g1b((B))
+    end
+
+    subgraph G2 mutual edges
+        g2a((A)) --> g2b((B))
+        g2b --> g2a
+    end
+
+    subgraph G3 directed path
+        g3a((A)) --> g3b((B))
+        g3b --> g3c((C))
+    end
+
+    subgraph G4 directed 3-cycle
+        g4a((A)) --> g4b((B))
+        g4b --> g4c((C))
+        g4c --> g4a
+    end
+
+    subgraph G5 divergent triangle
+        g5a((A)) --> g5b((B))
+        g5a --> g5c((C))
+        g5c --> g5b
+    end
+
+    subgraph G6 convergent triangle
+        g6a((A)) --> g6b((B))
+        g6a --> g6c((C))
+        g6b --> g6c
+    end
+
+    subgraph G7 divergent fork
+        g7a((A)) --> g7b((B))
+        g7a --> g7c((C))
+    end
+
+    subgraph G8 convergent fork
+        g8a((A)) --> g8c((C))
+        g8b((B)) --> g8c
+    end
+"""
+
+# ──────────────────────────────────────────────────────────────────────
+# 2. G4 and G5 Triangles — side by side
+#    Replaces G4_and_G5_directed_network_motif.png
+# ──────────────────────────────────────────────────────────────────────
+g4_g5_triangles = """
+graph LR
+    subgraph G4 Continuous Triangle
+        g4a((a)) --> g4b((b))
+        g4b --> g4c((c))
+        g4c --> g4a
+    end
+
+    subgraph G5 Divergent Triangle
+        g5a((a)) --> g5b((b))
+        g5a --> g5c((c))
+        g5c --> g5b
+    end
+"""
+
+# ──────────────────────────────────────────────────────────────────────
+# 3. G30 Opposed 3-path
+#    Replaces Directed-Graphlet-G30.png
+# ──────────────────────────────────────────────────────────────────────
+g30_opposed_3path = """
+graph LR
+    a((a)) -->|e1| b((b))
+    b -->|e2| c((c))
+    d((d)) -->|e3| c
+"""
+
+# ──────────────────────────────────────────────────────────────────────
+# 4. G4 concrete Stack Exchange example
+#    Question link-cycle — the dominant G4 instance in the dataset
+# ──────────────────────────────────────────────────────────────────────
+g4_stackexchange = """
+graph LR
+    qa((Question A)) -->|Links| qb((Question B))
+    qb -->|Links| qc((Question C))
+    qc -->|Links| qa
+"""
+
+# ──────────────────────────────────────────────────────────────────────
+# 5. G5 concrete Stack Exchange example
+#    Top result: Tag applied to two linked Questions
+# ──────────────────────────────────────────────────────────────────────
+g5_stackexchange = """
+graph LR
+    subgraph top 1775 instances Tag-Question triangle
+        tag([Tag]) -->|"Tags"| qb((Question B))
+        tag -->|"Tags"| qc((Question C))
+        qc -->|"Links"| qb
+    end
+
+    subgraph self 274 instances User answers own question
+        user[User] -->|"Asks"| ques((Question))
+        user -->|"Posts"| ans((Answer))
+        ans -->|"Answers"| ques
+    end
+"""
+
+# ──────────────────────────────────────────────────────────────────────
+# 6. G30 concrete Stack Exchange example
+#    Top correlated result: two Votes cast for a pair of linked Questions
+# ──────────────────────────────────────────────────────────────────────
+g30_stackexchange = """
+graph LR
+    va{Vote A} -->|"CastFor"| qb((Question B))
+    qb -->|"Links"| qc((Question C))
+    vd{Vote D} -->|"CastFor"| qc
+"""
+
+MOTIF_DIAGRAMS = {
+    "motif-directed-graphlets-overview": (directed_graphlets_overview, 1100),
+    "motif-g4-g5-triangles": (g4_g5_triangles, 900),
+    "motif-g30-opposed-3path": (g30_opposed_3path, 500),
+    "motif-g4-stackexchange": (g4_stackexchange, 700),
+    "motif-g5-stackexchange": (g5_stackexchange, 900),
+    "motif-g30-stackexchange": (g30_stackexchange, 700),
+}
+
+
+if __name__ == "__main__":
+    pregel_dir = _IMG_ROOT / "pregel-diagrams"
+    for name, code in PREGEL_DIAGRAMS.items():
+        save_diagram(name, code, pregel_dir)
+
+    motif_dir = _IMG_ROOT / "motif-diagrams"
+    for name, (code, width) in MOTIF_DIAGRAMS.items():
+        save_diagram(name, code, motif_dir, width=width)
