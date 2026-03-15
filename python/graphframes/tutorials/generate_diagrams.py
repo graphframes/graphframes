@@ -113,24 +113,29 @@ graph LR
 # ──────────────────────────────────────────────────────────────────────
 # 5. Connected Components
 # ──────────────────────────────────────────────────────────────────────
-# Note: chained undirected edges (A --- B --- C) fail to render in LR
-# layout with some Mermaid versions. Use explicit two-node edge lines.
+# Strategy: three side-by-side superstep panels (graph TB makes
+# unconnected subgraphs lay out left→right) showing the minimum-label
+# "wave" advancing one hop per superstep across two separate components
+# ({1,2,3} and {4,5}).  Node labels use vertex:componentLabel notation.
+# Note: chained undirected edges (A --- B --- C) fail in some Mermaid
+# versions; use explicit two-node edge lines instead.
 connected_components = """
-graph LR
-    A0(A:A) --- B0(B:B)
-    B0 --- C0(C:C)
-    D0(D:D) --- E0(E:E)
-    E0 --- F0(F:F)
-
-    A1(A:A) --- B1(B:A)
-    B1 --- C1(C:B)
-    D1(D:D) --- E1(E:D)
-    E1 --- F1(F:E)
-
-    A2(A:A) --- B2(B:A)
-    B2 --- C2(C:A)
-    D2(D:D) --- E2(E:D)
-    E2 --- F2(F:D)
+graph TB
+    subgraph s0 Superstep 0 each vertex starts with its own label
+        a0((1:1)) --- b0((2:2))
+        b0 --- c0((3:3))
+        d0((4:4)) --- e0((5:5))
+    end
+    subgraph s1 Superstep 1 minimum label advances one hop
+        a1((1:1)) --- b1((2:1))
+        b1 --- c1((3:2))
+        d1((4:4)) --- e1((5:4))
+    end
+    subgraph s2 Converged all vertices share the minimum label of their component
+        a2((1:1)) --- b2((2:1))
+        b2 --- c2((3:1))
+        d2((4:4)) --- e2((5:4))
+    end
 """
 
 # ──────────────────────────────────────────────────────────────────────
