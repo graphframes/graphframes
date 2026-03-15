@@ -12,7 +12,9 @@ from pathlib import Path
 
 from mmdc import MermaidConverter
 
-OUTPUT_DIR = "docs/src/img/pregel-diagrams"
+# Resolve output dir relative to this file so it works regardless of cwd
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+OUTPUT_DIR = str(_REPO_ROOT / "docs" / "src" / "img" / "pregel-diagrams")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 converter = MermaidConverter(timeout=30)
