@@ -45,7 +45,7 @@ It was necessary for GraphFrames to support both Spark 4 and Spark Connect to re
 - [New groupId](https://central.sonatype.com/namespace/io.graphframes) `io.graphframes`
 - [New PyPi ID](https://pypi.org/project/graphframes-py/): `graphframes-py`
 - A new website: [graphframes.io](https://graphframes.io/) with [Updated documentation](https://graphframes.io/)
-- A new [Network Motif Finding Tutorial](/03-tutorials/03-motif-tutorial.md)
+- A new [Network Motif Finding Tutorial](/03-tutorials/02-motif-tutorial.md)
 - [A lot of additional changes and fixes](https://github.com/graphframes/graphframes/releases/tag/v0.9.0)
 
 ## State of the Union
