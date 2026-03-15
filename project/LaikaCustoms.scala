@@ -267,6 +267,8 @@ object LaikaCustoms {
             "Not only scala, but also Python with a full support of Spark Connect protocol")))
       .site
       .pageNavigation(depth = 2)
+      .site
+      .internalCSS(Root / "helium" / "custom.css")
       .build
   }
 
