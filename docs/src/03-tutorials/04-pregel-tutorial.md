@@ -16,12 +16,10 @@ Pregel is a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synch
 
 The core idea is deceptively simple: **think like a vertex**. Instead of writing an algorithm that operates on the entire graph at once, you write a function that executes at each vertex independently. The function can read incoming messages, update the vertex's state, and send messages to neighboring vertices. The system handles distribution, synchronization, and fault tolerance.
 
-<center>
     <figure>
         <img src="../img/Pregel-Compute-Dataflow.png" width="650px" alt="Pregel BSP Compute Dataflow" />
         <figcaption><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
     </figure>
-</center>
 
 Computation proceeds in a series of **supersteps**. In each superstep:
 
@@ -29,30 +27,24 @@ Computation proceeds in a series of **supersteps**. In each superstep:
 2. **Communicate**: Vertices send messages along their edges to neighbors
 3. **Barrier**: The system synchronizes — no vertex proceeds to the next superstep until all vertices have finished the current one
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-bsp-model.svg" width="800px" alt="Bulk Synchronous Parallel Model" />
         <figcaption>The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
     </figure>
-</center>
 
 This barrier synchronization is what makes Pregel algorithms easy to reason about. At any point during execution, you know that all vertices are in the same superstep. There are no race conditions, no stale reads, no distributed coordination headaches. You trade some potential parallelism for massive simplification of the programming model.
 
-<center>
     <figure>
         <img src="../img/Pregel-Paper-Vertex-State-Machine.png" width="400px" alt="Pregel Vertex State Machine" />
         <figcaption>Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices alternate between active and inactive states</figcaption>
     </figure>
-</center>
 
 Vertices can **vote to halt** — marking themselves inactive. An inactive vertex is woken up when it receives a new message. When all vertices have voted to halt and there are no messages in transit, the algorithm terminates. This is how Pregel algorithms converge: vertices stop updating when their state stabilizes.
 
-<center>
     <figure>
         <img src="../img/Pregel-Paper-Supersteps.png" width="650px" alt="Pregel supersteps from the original paper" />
         <figcaption>Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices send messages and receive them in the next superstep</figcaption>
     </figure>
-</center>
 
 ## The Power of Local Computation
 
@@ -185,12 +177,10 @@ Before diving into Pregel, let's build intuition with a simpler API: @:pydoc(gra
 
 The most basic graph metric is **in-degree**: how many edges point to each vertex. In our Stack Exchange graph, a User's in-degree tells us how many badges they've earned, a Question's in-degree tells us how many answers and votes it has received, and so on.
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-in-degree-am.svg" width="700px" alt="In-degree computation with AggregateMessages" />
         <figcaption>AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
     </figure>
-</center>
 
 ```python
 from graphframes.lib import AggregateMessages as AM
@@ -247,12 +237,10 @@ AggregateMessages is clean and efficient for this kind of single-pass aggregatio
 
 Let's compute the same in-degree metric using Pregel. This is intentionally over-engineered for a single-pass problem, but it gives us a minimal working example to learn the API before we tackle algorithms that *need* multiple iterations.
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-in-degree-pregel.svg" width="700px" alt="In-degree computation with Pregel" />
         <figcaption>Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
     </figure>
-</center>
 
 ```python
 from graphframes.lib import Pregel
@@ -300,12 +288,10 @@ For simple metrics like degree, either API works. For everything that follows, P
 
 PageRank is the algorithm that launched Google. Defined by Larry Page and Sergey Brin in their 1998 paper [The PageRank Citation Ranking: Bringing Order to the Web](https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf), it computes the "importance" of each node based on the importance of nodes linking to it. The key insight: **a node is important if important nodes point to it**.
 
-<center>
     <figure>
         <img src="../img/Simplified-PageRank-Calculation.png" width="550px" alt="Simplified PageRank Calculation" />
         <figcaption>A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">PageRank paper</a></figcaption>
     </figure>
-</center>
 
 The PageRank formula for a vertex `v` is:
 
@@ -321,12 +307,10 @@ This is a natural fit for Pregel:
 - Each vertex updates its PageRank using the damping formula (update function)
 - Repeat for multiple iterations until convergence
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-pagerank-iterations.svg" width="800px" alt="PageRank iterations showing convergence" />
         <figcaption>PageRank values evolving over iterations: each vertex sends PR/out_degree along its edges</figcaption>
     </figure>
-</center>
 
 First, we need to compute out-degrees (each vertex needs to know how many outgoing edges it has):
 
@@ -427,12 +411,10 @@ The algorithm is elegantly simple in Pregel:
 
 After convergence, all vertices in the same connected component will have the same label — the minimum ID among all vertices in that component.
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-connected-components.svg" width="700px" alt="Connected components with label propagation" />
         <figcaption>Connected components: minimum labels propagate through each component until convergence</figcaption>
     </figure>
-</center>
 
 ```python
 cc_vertices = g.vertices.select("id")
@@ -498,12 +480,10 @@ The algorithm is a Pregel adaptation of breadth-first search:
 3. Each vertex takes the minimum of its current distance and incoming messages
 4. Repeat until no distances improve
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-shortest-paths.svg" width="700px" alt="Shortest paths propagation" />
         <figcaption>Shortest paths from source A: distances propagate outward, one hop per superstep</figcaption>
     </figure>
-</center>
 
 ```python
 # Pick the most-viewed question as our source
@@ -599,12 +579,10 @@ In Stack Exchange, users have reputation scores that reflect their trustworthine
 
 This is a **reputation propagation** algorithm — a form of trust propagation through a network. The concept has roots in the [EigenTrust algorithm](https://nlp.stanford.edu/pubs/eigentrust.pdf) (Kamvar et al., 2003) for peer-to-peer networks and in [trust propagation research](https://doi.org/10.1016/j.protcy.2012.10.057) for social networks (Chakraborty and Karform, 2012). The core idea is that trust or authority flows through edges, accumulating at destination nodes.
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-reputation-propagation.svg" width="800px" alt="Reputation propagation from users through answers to questions" />
         <figcaption>Reputation flows from Users through Answers to Questions over 2 Pregel supersteps</figcaption>
     </figure>
-</center>
 
 Here's why this requires Pregel: the reputation must flow **two hops** — from User to Answer to Question. A single-pass AggregateMessages can only propagate information one hop. You could chain two AggregateMessages calls manually, but Pregel handles multi-hop propagation natively with `setMaxIter(2)`.
 
@@ -748,12 +726,10 @@ Recognizing which template fits your problem is half the battle. The other half 
 
 When developing a new Pregel algorithm, it is invaluable to see exactly what messages flow where and how vertex state evolves. This example is purely educational: we track the path of messages through a small test graph to make the message-passing mechanics visible.
 
-<center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-debug-trace.svg" width="700px" alt="Debug trace showing message paths" />
         <figcaption>Message path tracing: each vertex records where its information came from</figcaption>
     </figure>
-</center>
 
 ```python
 # Small test graph for clarity
