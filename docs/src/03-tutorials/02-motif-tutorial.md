@@ -23,7 +23,7 @@ We are going to mine motifs using Stack Exchange data. The Stack Exchange networ
 
 **⚠️ Before continuing**: If you haven't already, complete the [Data Setup Tutorial](03-data-setup.md) to download the Stack Exchange dataset and convert it to Parquet files. That tutorial covers installing `graphframes-py`, downloading the `stats.meta` archive, and running the XML-to-Parquet conversion. Come back here once your `Nodes.parquet` and `Edges.parquet` files are ready.
 
-The data setup creates a property graph from the [Stack Exchange Data Dump](https://archive.org/details/stackexchange) with ~130K nodes (Users, Questions, Answers, Votes, Badges, Tags, PostLinks) and ~97K edges across 8 relationship types. The @:srcLink(python/graphframes/tutorials/stackexchange.py) script handles the XML parsing and graph construction.
+The data setup creates a property graph from the [`stats.meta.stackexchange.com`](https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z) dataset (part of the [Stack Exchange Data Dump](https://archive.org/details/stackexchange)) with ~130K nodes (Users, Questions, Answers, Votes, Badges, Tags, PostLinks) and ~97K edges across 8 relationship types. The @:srcLink(python/graphframes/tutorials/stackexchange.py) script handles the XML parsing and graph construction.
 
 # Motif Finding
 
