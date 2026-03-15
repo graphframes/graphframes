@@ -9,11 +9,11 @@ A Jupyter Notebook version of this tutorial is available on GitHub: [Network_Mot
 
 Graphlets are small, connected subgraphs of a larger graph. Network motifs are recurring patterns in complex networks that are significantly more frequent than in random networks. They are the building blocks of complex networks and can be used to understand the structure and function of networks. Network motifs can be used to identify functional modules in biological networks, detect anomalies in social networks, detect money laundering and terrorism financing in financial networks, and predict the behavior of complex systems.
 
-    <figure>
-        <img src="../img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
-        <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of
+<figure>
+    <img src="../img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
+    <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of
 Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
-    </figure>
+</figure>
 
 We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames' motif finding feature to find network motifs in the graph. You'll see how to combine graph and relational queries to find complex patterns in the graph.
 
@@ -270,12 +270,12 @@ The `g.find()` method returns a `DataFrame` with fields fo each of the node and 
 
 A complete description of the graph query language is in the [GraphFrames User Guide](/04-user-guide/04-motif-finding.md). Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
 
-    <figure>
-        <img src="../img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
-        <figcaption>
-            <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
-        </figcaption>
-    </figure>
+<figure>
+    <img src="../img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
+    <figcaption>
+        <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
+    </figcaption>
+</figure>
 
 ```python
 # G4: Continuous Triangles
@@ -407,12 +407,12 @@ First lets express the structural logic of the motif we are looking for. Let's t
 
 Visually this pattern looks like this:
 
-    <figure>
-        <img src="../img/Directed-Graphlet-G30.png" width="90px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
-        <figcaption>
-            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
-        </figcaption>
-    </figure>
+<figure>
+    <img src="../img/Directed-Graphlet-G30.png" width="90px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
+    <figcaption>
+        <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
+    </figcaption>
+</figure>
 
 The simplest pattern with four nodes is a 3-path, directed graphlet G30. Let's see how aggregation makes this a more powerful pattern than we might at first guess.
 
