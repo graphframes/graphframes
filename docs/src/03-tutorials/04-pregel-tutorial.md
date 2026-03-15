@@ -19,7 +19,7 @@ The core idea is deceptively simple: **think like a vertex**. Instead of writing
 <center>
     <figure>
         <img src="../img/Pregel-Compute-Dataflow.png" width="650px" alt="Pregel BSP Compute Dataflow" />
-        <figcaption><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;"><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
     </figure>
 </center>
 
@@ -32,7 +32,7 @@ Computation proceeds in a series of **supersteps**. In each superstep:
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-bsp-model.svg" width="800px" alt="Bulk Synchronous Parallel Model" />
-        <figcaption>The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
     </figure>
 </center>
 
@@ -41,7 +41,7 @@ This barrier synchronization is what makes Pregel algorithms easy to reason abou
 <center>
     <figure>
         <img src="../img/Pregel-Paper-Vertex-State-Machine.png" width="400px" alt="Pregel Vertex State Machine" />
-        <figcaption>Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices alternate between active and inactive states</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices alternate between active and inactive states</figcaption>
     </figure>
 </center>
 
@@ -50,7 +50,7 @@ Vertices can **vote to halt** — marking themselves inactive. An inactive verte
 <center>
     <figure>
         <img src="../img/Pregel-Paper-Supersteps.png" width="650px" alt="Pregel supersteps from the original paper" />
-        <figcaption>Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices send messages and receive them in the next superstep</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices send messages and receive them in the next superstep</figcaption>
     </figure>
 </center>
 
@@ -188,7 +188,7 @@ The most basic graph metric is **in-degree**: how many edges point to each verte
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-in-degree-am.svg" width="700px" alt="In-degree computation with AggregateMessages" />
-        <figcaption>AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
     </figure>
 </center>
 
@@ -250,7 +250,7 @@ Let's compute the same in-degree metric using Pregel. This is intentionally over
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-in-degree-pregel.svg" width="700px" alt="In-degree computation with Pregel" />
-        <figcaption>Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
     </figure>
 </center>
 
@@ -303,7 +303,7 @@ PageRank is the algorithm that launched Google. Defined by Larry Page and Sergey
 <center>
     <figure>
         <img src="../img/Simplified-PageRank-Calculation.png" width="550px" alt="Simplified PageRank Calculation" />
-        <figcaption>A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">PageRank paper</a></figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">PageRank paper</a></figcaption>
     </figure>
 </center>
 
@@ -324,7 +324,7 @@ This is a natural fit for Pregel:
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-pagerank-iterations.svg" width="800px" alt="PageRank iterations showing convergence" />
-        <figcaption>PageRank values evolving over iterations: each vertex sends PR/out_degree along its edges</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">PageRank values evolving over iterations: each vertex sends PR/out_degree along its edges</figcaption>
     </figure>
 </center>
 
@@ -430,7 +430,7 @@ After convergence, all vertices in the same connected component will have the sa
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-connected-components.svg" width="700px" alt="Connected components with label propagation" />
-        <figcaption>Connected components: minimum labels propagate through each component until convergence</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">Connected components: minimum labels propagate through each component until convergence</figcaption>
     </figure>
 </center>
 
@@ -501,7 +501,7 @@ The algorithm is a Pregel adaptation of breadth-first search:
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-shortest-paths.svg" width="700px" alt="Shortest paths propagation" />
-        <figcaption>Shortest paths from source A: distances propagate outward, one hop per superstep</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">Shortest paths from source A: distances propagate outward, one hop per superstep</figcaption>
     </figure>
 </center>
 
@@ -602,7 +602,7 @@ This is a **reputation propagation** algorithm — a form of trust propagation t
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-reputation-propagation.svg" width="800px" alt="Reputation propagation from users through answers to questions" />
-        <figcaption>Reputation flows from Users through Answers to Questions over 2 Pregel supersteps</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">Reputation flows from Users through Answers to Questions over 2 Pregel supersteps</figcaption>
     </figure>
 </center>
 
@@ -751,7 +751,7 @@ When developing a new Pregel algorithm, it is invaluable to see exactly what mes
 <center>
     <figure>
         <img src="../img/pregel-diagrams/pregel-debug-trace.svg" width="700px" alt="Debug trace showing message paths" />
-        <figcaption>Message path tracing: each vertex records where its information came from</figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">Message path tracing: each vertex records where its information came from</figcaption>
     </figure>
 </center>
 

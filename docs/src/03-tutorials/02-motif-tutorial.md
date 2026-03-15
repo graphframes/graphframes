@@ -12,7 +12,7 @@ Graphlets are small, connected subgraphs of a larger graph. Network motifs are r
 <center>
     <figure>
         <img src="../img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
-        <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;"><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of
 Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
     </figure>
 </center>
@@ -275,7 +275,7 @@ A complete description of the graph query language is in the [GraphFrames User G
 <center>
     <figure>
         <img src="../img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
-        <figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">
             <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
         </figcaption>
     </figure>
@@ -414,7 +414,7 @@ Visually this pattern looks like this:
 <center>
     <figure>
         <img src="../img/Directed-Graphlet-G30.png" width="90px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
-        <figcaption>
+        <figcaption style="display: block; text-align: center; font-size: 0.875em; color: #555; font-style: italic; margin-top: 0.5em; padding: 0 1em 0.25em;">
             <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
         </figcaption>
     </figure>
