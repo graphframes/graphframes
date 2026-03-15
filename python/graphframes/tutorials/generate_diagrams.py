@@ -108,16 +108,24 @@ graph LR
 # ──────────────────────────────────────────────────────────────────────
 # 5. Connected Components
 # ──────────────────────────────────────────────────────────────────────
+# Note: chained undirected edges (A --- B --- C) fail to render in LR
+# layout with some Mermaid versions. Use explicit two-node edge lines.
 connected_components = """
 graph LR
-    A0["A:A"] --- B0["B:B"] --- C0["C:C"]
-    D0["D:D"] --- E0["E:E"] --- F0["F:F"]
+    A0(A:A) --- B0(B:B)
+    B0 --- C0(C:C)
+    D0(D:D) --- E0(E:E)
+    E0 --- F0(F:F)
 
-    A1["A:A"] --- B1["B:A"] --- C1["C:B"]
-    D1["D:D"] --- E1["E:D"] --- F1["F:E"]
+    A1(A:A) --- B1(B:A)
+    B1 --- C1(C:B)
+    D1(D:D) --- E1(E:D)
+    E1 --- F1(F:E)
 
-    A2["A:A"] --- B2["B:A"] --- C2["C:A"]
-    D2["D:D"] --- E2["E:D"] --- F2["F:D"]
+    A2(A:A) --- B2(B:A)
+    B2 --- C2(C:A)
+    D2(D:D) --- E2(E:D)
+    E2 --- F2(F:D)
 """
 
 # ──────────────────────────────────────────────────────────────────────
