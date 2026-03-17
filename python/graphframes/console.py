@@ -1,7 +1,5 @@
 import click
 
-from graphframes.tutorials import download
-
 
 @click.group()
 def cli():
@@ -9,10 +7,12 @@ def cli():
     pass
 
 
-cli.add_command(download.stackexchange)
-
-
 def main():
+    # Lazy-import tutorials.download to avoid requiring py7zr/requests
+    # at import time — those are only in the 'tutorials' optional extra.
+    from graphframes.tutorials import download
+
+    cli.add_command(download.stackexchange)
     cli()
 
 

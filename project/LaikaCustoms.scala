@@ -133,7 +133,16 @@ object LaikaCustoms {
 
     if (!Files.exists(benchmarksFile)) {
       println(s"File $benchmarksFile does not exist. Skipping.")
-      return baseConfig
+      // Provide fallback values so ${benchmarks.*} references in docs don't cause build failures
+      val benchmarkNames = Seq(
+        "benchmarkSP", "benchmarkSPGraphX",
+        "benchmarkCC", "benchmarkCCGraphX",
+        "benchmarkCDLP", "benchmarkCDLPGraphX")
+      return benchmarkNames.foldLeft(baseConfig) { (config, name) =>
+        config
+          .withConfigValue(s"benchmarks.$name.metric", "N/A")
+          .withConfigValue(s"benchmarks.$name.measurements", "N/A")
+      }
     }
     Using(scala.io.Source.fromFile(benchmarksFile.toFile)) { source =>
       {
@@ -234,7 +243,7 @@ object LaikaCustoms {
             TextLink
               .internal(Root / "06-contributing" / "01-contributing-guide.md", "Contributing"),
             TextLink.internal(Root / "api" / "scaladoc" / "index.html", "API (Scaladoc)"),
-            TextLink.internal(Root / "api" / "python" / "index.html", "API (Python)"))),
+            TextLink.external("https://graphframes.io/api/python/", "API (Python)"))),
         projectLinks = Seq(
           TextLink.external("https://github.com/graphframes/graphframes", "GitHub"),
           TextLink.external(
@@ -258,6 +267,8 @@ object LaikaCustoms {
             "Not only scala, but also Python with a full support of Spark Connect protocol")))
       .site
       .pageNavigation(depth = 2)
+      .site
+      .internalCSS(Root / "helium" / "custom.css")
       .build
   }
 
