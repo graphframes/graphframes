@@ -2,7 +2,7 @@
 
 This tutorial covers GraphFrames' motif finding feature using **Apache Spark 4.0** and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md). We perform pattern matching on a property graph representing a Stack Exchange site, using PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
 
-A Jupyter Notebook version of this tutorial is available on GitHub: [Network_Motif_Finding.ipynb](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Network_Motif_Finding.ipynb).
+A Jupyter Notebook version of this tutorial is available on GitHub: [Network Motif Finding Notebook](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Network_Motif_Finding.ipynb).
 
 
 # What are graphlets and network motifs?
