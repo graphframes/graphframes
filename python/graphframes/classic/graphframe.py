@@ -391,24 +391,6 @@ class GraphFrame:
         use_local_checkpoints: bool = False,
         storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
-        """AggregateNeighbors algorithm for multi-hop neighbor aggregation.
-
-        :param starting_vertices: Column expression selecting seed vertices
-        :param max_hops: Maximum number of hops to explore
-        :param accumulator_names: Names for accumulators
-        :param accumulator_inits: Initial values for accumulators
-        :param accumulator_updates: Update expressions for accumulators
-        :param stopping_condition: Optional condition to stop traversal
-        :param target_condition: Optional condition to mark target vertices
-        :param required_vertex_attributes: Vertex columns to carry (None = all)
-        :param required_edge_attributes: Edge columns to carry (None = all)
-        :param edge_filter: Optional condition to filter traversable edges
-        :param remove_loops: Whether to exclude self-loop edges
-        :param checkpoint_interval: Checkpoint every N iterations (0 = disabled)
-        :param use_local_checkpoints: Use local checkpoints (faster but less reliable)
-        :param storage_level: Storage level for intermediate results
-        :return: DataFrame with aggregation results
-        """
         builder = self._jvm_graph.aggregateNeighbors()
 
         # Set required parameters

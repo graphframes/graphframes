@@ -682,9 +682,9 @@ class GraphFrame private (
    *   - Maximum number of hops via `setMaxHops()`
    *   - Accumulators to maintain state during traversal via `setAccumulators()` or
    *     `addAccumulator()`
-   *   - Stopping conditions to terminate traversal early via `setStoppingConditions()`
+   *   - Stopping conditions to terminate traversal early via `setStoppingCondition()`
    *   - Target conditions to collect results when specific conditions are met via
-   *     `setTargetConditions()`
+   *     `setTargetCondition()`
    *   - Edge filtering via `setEdgeFilter()`
    *   - Control over intermediate storage and checkpointing
    *

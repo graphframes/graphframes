@@ -502,7 +502,7 @@ result = g.aggregate_neighbors(
     max_hops=5,
     accumulator_names=["path"],
     accumulator_inits=[F.lit("1")],
-    accumulator_updates=[F.concat(F.col("path"), F.lit("->"), F.col("dst_id").cast("string"))],
+    accumulator_updates=[F.concat(F.col("path"), F.lit("->"), AggregateNeighbors.dst_attr("dst_id").cast("string"))],
     target_condition=F.col("dst.id") == 4
 )
 
@@ -536,7 +536,7 @@ val result = g.aggregateNeighbors
   .addAccumulator(
     "path",
     lit("1"),
-    concat(col("path"), lit("->"), col("dst_id").cast("string"))
+    concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("dst_id").cast("string"))
   )
   .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(4))
   .run()

@@ -1015,17 +1015,17 @@ class GraphFrame:
     def aggregate_neighbors(
         self,
         starting_vertices: Column | str,
-        max_hops: int,
         accumulator_names: list[str],
         accumulator_inits: list[Column | str],
         accumulator_updates: list[Column | str],
+        max_hops: int = 3,
         stopping_condition: Column | str | None = None,
         target_condition: Column | str | None = None,
         required_vertex_attributes: list[str] | None = None,
         required_edge_attributes: list[str] | None = None,
         edge_filter: Column | str | None = None,
         remove_loops: bool = False,
-        checkpoint_interval: int = 0,
+        checkpoint_interval: int = 2,
         use_local_checkpoints: bool = False,
         storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
@@ -1057,9 +1057,9 @@ class GraphFrame:
         - An update expression (evaluated when traversing each edge)
 
         In update expressions, you can reference:
-        - Source vertex attributes via ``srcAttr("attrName")``
-        - Destination vertex attributes via ``dstAttr("attrName")``
-        - Edge attributes via ``edgeAttr("attrName")``
+        - Source vertex attributes via ``src_attr("attrName")``
+        - Destination vertex attributes via ``dst_attr("attrName")``
+        - Edge attributes via ``edge_attr("attrName")``
 
         **Example with Multiple Accumulators:**
 
@@ -1069,8 +1069,8 @@ class GraphFrame:
         ...     accumulator_names=["sum_values", "product_weights"],
         ...     accumulator_inits=[F.lit(0), F.lit(1.0)],
         ...     accumulator_updates=[
-        ...         F.col("sum_values") + AggregateNeighbors.dstAttr("value"),
-        ...         F.col("product_weights") * AggregateNeighbors.edgeAttr("weight")
+        ...         F.col("sum_values") + AggregateNeighbors.dst_attr("value"),
+        ...         F.col("product_weights") * AggregateNeighbors.edge_attr("weight")
         ...     ],
         ...     target_condition=F.col("dst.id") == 10
         ... )
