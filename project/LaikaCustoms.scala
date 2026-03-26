@@ -258,6 +258,8 @@ object LaikaCustoms {
           Teaser(
             "PySpark support",
             "Not only scala, but also Python with a full support of Spark Connect protocol")))
+      .site
+      .pageNavigation(depth = 2)
       .build
   }
 

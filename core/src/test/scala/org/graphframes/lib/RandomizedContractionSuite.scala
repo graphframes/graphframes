@@ -18,6 +18,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 0L)
     assertFunctionRegistryClean()
@@ -32,6 +34,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 1L)
     assert(components.select("id", "component").collect().toSet === Set(Row(0L, 0L)))
@@ -47,6 +51,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 2L)
     val compValues = components.select("id", "component").collect()
@@ -62,6 +68,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === n)
     assert(components.select("component").distinct().count() === 1L)
@@ -78,6 +86,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === n)
     assert(components.select("component").distinct().count() === n)
@@ -94,6 +104,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 6L)
     val compGroups =
@@ -112,6 +124,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 8L)
     val compCounts =
@@ -130,6 +144,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = true,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 4L)
     val compIds = components.select("component").collect().map(_.getString(0)).toSet
@@ -148,6 +164,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = true,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 4L)
     val compIds = components.select("component").collect().map(_.getLong(0)).toSet
@@ -164,6 +182,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     components.count()
 
@@ -173,19 +193,21 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("RandomizedContraction: no memory leaks") {
-    val priorCachedCount = spark.sparkContext.getPersistentRDDs.size
+    val priorCached = spark.sparkContext.getPersistentRDDs
 
     val graph = Graphs.chain(10L)
     val components = RandomizedContraction.run(
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = false,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     components.count()
     components.unpersist()
 
-    val postCachedCount = spark.sparkContext.getPersistentRDDs.size
-    assert(postCachedCount === priorCachedCount)
+    val postCached = spark.sparkContext.getPersistentRDDs
+    assert(postCached.size === priorCached.size)
     assertFunctionRegistryClean()
   }
 
@@ -201,6 +223,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 10L)
     assert(components.select("component").distinct().count() === 1L)
@@ -217,6 +241,8 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
       inputGraph = graph,
       useLabelsAsComponents = false,
       intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
       isGraphPrepared = false)
     assert(components.count() === 5L)
     assert(components.select("component").distinct().count() === 1L)
