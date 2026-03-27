@@ -1046,7 +1046,7 @@ class GraphFrame:
         ...     accumulator_names=["path_length"],
         ...     accumulator_inits=[F.lit(0)],
         ...     accumulator_updates=[F.col("path_length") + 1],
-        ...     target_condition=F.col("dst.id") == 4
+        ...     target_condition=AggregateNeighbors.dst_attr("id") == 4
         ... )
 
         **Using Accumulators:**

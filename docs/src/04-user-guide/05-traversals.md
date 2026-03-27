@@ -502,8 +502,8 @@ result = g.aggregate_neighbors(
     max_hops=5,
     accumulator_names=["path"],
     accumulator_inits=[F.lit("1")],
-    accumulator_updates=[F.concat(F.col("path"), F.lit("->"), AggregateNeighbors.dst_attr("dst_id").cast("string"))],
-    target_condition=F.col("dst.id") == 4
+    accumulator_updates=[F.concat(F.col("path"), F.lit("->"), AggregateNeighbors.dst_attr("id").cast("string"))],
+    target_condition=AggregateNeighbors.dst_attr("id") == 4
 )
 
 result.select("id", "hop", "path").show()
@@ -536,7 +536,7 @@ val result = g.aggregateNeighbors
   .addAccumulator(
     "path",
     lit("1"),
-    concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("dst_id").cast("string"))
+    concat(col("path"), lit("->"), AggregateNeighbors.dstAttr("id").cast("string"))
   )
   .setTargetCondition(AggregateNeighbors.dstAttr("id") === lit(4))
   .run()
@@ -594,8 +594,8 @@ result = g.aggregate_neighbors(
         F.col("path_length") + 1
     ],
     stopping_condition=F.array_contains(
-        F.col("visited"), 
-        AggregateNeighbors.dstAttr("id")
+        F.col("visited"),
+        AggregateNeighbors.dst_attr("id")
     )
 )
 ```

@@ -21,6 +21,7 @@ from typing import final
 from py4j.java_gateway import JavaObject
 from pyspark import SparkContext, __version__
 from pyspark.sql import SparkSession
+from pysparl.sql import functions as F
 
 if __version__.startswith("4"):
     from pyspark.sql.classic.column import Column, _to_seq
@@ -401,9 +402,9 @@ class GraphFrame:
 
         builder.setMaxHops(max_hops)
 
+        jvm = self._sc._jvm
         # Handle accumulators with proper py4j conversion
         if len(accumulator_names) > 0:
-            jvm = self._sc._jvm
             names_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(accumulator_names).toSeq()
 
             inits_list = []
@@ -411,7 +412,7 @@ class GraphFrame:
                 if isinstance(init, Column):
                     inits_list.append(init._jc)
                 else:
-                    inits_list.append(init)
+                    inits_list.append(F.expr(init)._jc)
             inits_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(inits_list).toSeq()
 
             updates_list = []
@@ -419,7 +420,7 @@ class GraphFrame:
                 if isinstance(update, Column):
                     updates_list.append(update._jc)
                 else:
-                    updates_list.append(update)
+                    updates_list.append(F.expr(update)._jc)
             updates_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(updates_list).toSeq()
 
             builder.setAccumulators(names_seq, inits_seq, updates_seq)

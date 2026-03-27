@@ -18,8 +18,6 @@
 
 from dataclasses import dataclass
 
-import graphframes
-
 import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as sqlfunctions
