@@ -21,7 +21,7 @@ from typing import final
 from py4j.java_gateway import JavaObject
 from pyspark import SparkContext, __version__
 from pyspark.sql import SparkSession
-from pysparl.sql import functions as F
+from pyspark.sql import functions as F
 
 if __version__.startswith("4"):
     from pyspark.sql.classic.column import Column, _to_seq
