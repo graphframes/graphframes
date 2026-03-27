@@ -83,4 +83,11 @@ spark-*
 # Emacs
 .dir-locals.el
 *~
+
+# AI
+.claude
+.opencode
+.qwen
+.cursor
+openspec
 .aider*
