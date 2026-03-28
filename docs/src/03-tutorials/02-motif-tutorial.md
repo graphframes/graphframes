@@ -32,7 +32,7 @@ NOTE: I use the terms `node` as interchangeable with `vertex` and `edge` with `l
 For a quick run-through of the script, use the following command:
 
 ```bash
-spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.10.1 python/graphframes/tutorials/motif.py
+spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.11.0 python/graphframes/tutorials/motif.py
 ```
 
 Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/04-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.

@@ -17,7 +17,7 @@ We will download the [Stack Exchange Data Dump](https://archive.org/details/stac
 The official GraphFrames Python package is [graphframes-py](https://pypi.org/project/graphframes-py/) on PyPI. Install it with the tutorials extra:
 
 ```bash
-pip install "graphframes-py[tutorials]>=0.10.1"
+pip install "graphframes-py[tutorials]>=0.11.0"
 ```
 
 This installs `graphframes-py` along with dependencies needed for the tutorials: `py7zr`, `requests`, and `click`.
@@ -30,10 +30,10 @@ The Python package is a thin wrapper around the Scala/JVM implementation. If you
 
 ```bash
 # Spark 4.x with Scala 2.13
-pyspark --packages io.graphframes:graphframes-spark4_2.13:0.10.1
+pyspark --packages io.graphframes:graphframes-spark4_2.13:0.11.0
 
 # Spark 3.5.x with Scala 2.13
-pyspark --packages io.graphframes:graphframes-spark3_2.13:0.10.1
+pyspark --packages io.graphframes:graphframes-spark3_2.13:0.11.0
 ```
 
 ## Download the Stack Exchange Archive

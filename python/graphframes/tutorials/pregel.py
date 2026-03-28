@@ -4,13 +4,13 @@ This script contains 7 progressive examples showing how to use GraphFrames'
 Pregel and AggregateMessages APIs for scalable graph algorithms.
 
 Spark 4.0+ (recommended):
-    Interactive: pyspark --packages io.graphframes:graphframes-spark4_2.13:0.10.1
-    Batch:       spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.10.1 \\
+    Interactive: pyspark --packages io.graphframes:graphframes-spark4_2.13:0.11.0
+    Batch:       spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.11.0\\
                      python/graphframes/tutorials/pregel.py
 
 Spark 3.5.x:
-    Interactive: pyspark --packages io.graphframes:graphframes-spark3_2.13:0.10.1
-    Batch:       spark-submit --packages io.graphframes:graphframes-spark3_2.13:0.10.1 \\
+    Interactive: pyspark --packages io.graphframes:graphframes-spark3_2.13:0.11.0
+    Batch:       spark-submit --packages io.graphframes:graphframes-spark3_2.13:0.11.0 \\
                      python/graphframes/tutorials/pregel.py
 """
 
