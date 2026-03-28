@@ -219,6 +219,8 @@ object LaikaCustoms {
           "https://discord.com/channels/1162999022819225631/1326257052368113674",
           HeliumIcon.chat)))
       .site
+      .pageNavigation(depth = 1)
+      .site
       .landingPage(
         title = Some("GraphFrames"),
         subtitle = Some("Distributed graph processing on top of Apache Spark"),
