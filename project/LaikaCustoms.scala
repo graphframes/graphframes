@@ -245,7 +245,7 @@ object LaikaCustoms {
             TextLink
               .internal(Root / "06-contributing" / "01-contributing-guide.md", "Contributing"),
             TextLink.internal(Root / "api" / "scaladoc" / "index.html", "API (Scaladoc)"),
-            TextLink.external("https://graphframes.io/api/python/", "API (Python)"))),
+            TextLink.internal(Root / "api" / "python" / "index.html", "API (Python)"))),
         projectLinks = Seq(
           TextLink.external("https://github.com/graphframes/graphframes", "GitHub"),
           TextLink.external(
