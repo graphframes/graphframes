@@ -124,6 +124,10 @@ class GraphFrame:
         jdf = self._jvm_graph.dropIsolatedVertices()
         return _from_java_gf(jdf, self._spark)
 
+    def asReversed(self) -> "GraphFrame":
+        jdf = self._jvm_graph.asReversed()
+        return _from_java_gf(jdf, self._spark)
+
     def bfs(
         self,
         fromExpr: str,

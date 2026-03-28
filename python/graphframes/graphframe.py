@@ -964,6 +964,15 @@ class GraphFrame:
 
         return GraphFrame(self.vertices, new_edges)
 
+    def as_reversed(self) -> "GraphFrame":
+        """
+        Reverses the direction of all edges in the graph. For every directed edge (src, dst),
+        the resulting graph will contain an edge (dst, src) with the same attributes.
+
+        :return: A new GraphFrame with all edge directions reversed.
+        """
+        return GraphFrame._from_impl(self._impl.asReversed())
+
 
 @final
 class RandomWalkEmbeddings:
