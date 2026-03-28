@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 
-def build(spark_versions: Sequence[str] = ["4.0.1"]):
+def build(spark_versions: Sequence[str] = ["4.0.2"]):
     for spark_version in spark_versions:
         print("Building GraphFrames JAR...")
         print(f"SPARK_VERSION: {spark_version[:3]}")
