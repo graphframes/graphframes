@@ -2,20 +2,16 @@
 
 - **Published:** 2026-03-30T00:00:00Z
 - **Title:** GraphFrames 0.11.0 release
-- **Summary:** This release brings a new Connected Components algorithm based on Randomized Contraction, a major refactoring of the CC API, automatic Pregel optimization that skips unnecessary joins, graph embeddings via random walks with Word2Vec and Hash2Vec, a PySpark Property Graph API, approximate triangle counting with DataSketches, and various bug fixes.
+- **Summary:** This release brings a new Connected Components algorithm based on Randomized Contraction, automatic Pregel optimization that skips unnecessary joins, graph embeddings via random walks with Word2Vec and Hash2Vec, a PySpark Property Graph API, approximate triangle counting with DataSketches, and various improvements.
 
-## Connected Components: new algorithm & refactoring
+## Connected Components: new algorithm
 
-The Connected Components implementation received a major overhaul in this release. The algorithm selection has been refactored into clean, separate modules and a new algorithm variant has been added.
-
-### Three algorithm choices
-
-GraphFrames now ships three distinct algorithms for computing connected components:
+The Connected Components API now offers three algorithm choices:
 
 | Algorithm | Key | Description |
 |-----------|-----|-------------|
 | GraphX | `graphx` | The original GraphX-based implementation |
-| Two Phase | `two_phase` | Label propagation with big-star/small-star steps (default) |
+| Two Phase | `two_phase` | The same big-star/small-star label propagation algorithm as before, now under a clearer name (default) |
 | Randomized Contraction | `randomized_contraction` | Based on [Bogeholz et al. (ICDE 2020)](https://ieeexplore.ieee.org/document/9101327) |
 
 ### Randomized Contraction
@@ -30,16 +26,6 @@ val components = graph.connectedComponents
   .run()
 ```
 
-### API refactoring
-
-The algorithm implementations have been extracted into dedicated files (`TwoPhase.scala`, `RandomizedContraction.scala`) while `ConnectedComponents` itself becomes a clean API facade. A new `setIsGraphPrepared()` flag lets advanced users skip the graph preparation step when they know their data already satisfies the requirements (deduplicated vertices, normalized edges with `src < dst`, no self-loops).
-
-All parameters are also configurable via Spark config:
-
-```scala
-spark.conf.set("spark.graphframes.connectedComponents.algorithm", "randomized_contraction")
-```
-
 ## Pregel: automatic join skipping
 
 A significant memory optimization was added to the Pregel API. GraphFrames now automatically analyzes message expressions at the start of `run()` to detect whether destination vertex columns are actually referenced. If they are not, as is the case for algorithms like PageRank and Shortest Paths that only read source vertex state, the expensive second join (attaching destination vertex state to triplets) is skipped entirely.
@@ -51,25 +37,9 @@ Standard Pregel triplet construction requires two joins:
 1. Join source vertices with edges
 2. Join the result with destination vertices
 
-The optimization uses `SparkShims.extractColumnReferences()` to inspect the AST of all message expressions. If no `Pregel.dst(...)` columns are accessed (or only `dst.id`, which is always available from the edge itself), the second join is replaced with a lightweight struct construction:
-
-```scala
-// Instead of an expensive join:
-srcWithEdges.join(currentVertices.select(...), ...)
-
-// A minimal struct is created from the edge column:
-srcWithEdges.withColumn(DST, struct(col("edge_dst").as(ID)))
-```
+The optimization uses `SparkShims.extractColumnReferences()` to inspect the AST of all message expressions. If no `Pregel.dst(...)` columns are accessed (or only `dst.id`, which is always available from the edge itself), the second join is replaced with a lightweight struct construction from the edge column itself.
 
 This is fully automatic and requires no changes to existing code. Algorithms that do reference destination state (like Label Propagation) continue to perform both joins as before.
-
-### Benchmarks
-
-We'd love community help benchmarking this optimization at scale. The `benchmarks/` directory includes JMH benchmarks for Shortest Paths, Label Propagation, and Connected Components using LDBC graphs. Run them against `main` and a prior version to measure the improvement:
-
-```bash
-sbt "benchmarks/Jmh/run -i 3 -wi 1 -f 1 .*ShortestPathsBenchmark.*"
-```
 
 ## Graph embeddings & random walks
 
@@ -182,7 +152,7 @@ projected = pg.projection_by(users, products, purchases,
 
 ### Approximate triangle counting
 
-A new approximate triangle counting algorithm was added using [Apache DataSketches](https://datasketches.apache.org/). This provides fast, memory-efficient triangle count estimates for large graphs where exact counting would be prohibitively expensive.
+A new approximate triangle counting algorithm was added using [Apache DataSketches](https://datasketches.apache.org/). This provides fast, memory-efficient triangle count estimates for large graphs where exact counting would be prohibitively expensive. Note that this feature requires **Spark 4.1.0 or later**, as it relies on the `theta_sketch_agg`, `theta_intersection`, and `theta_sketch_estimate` SQL functions introduced in that version.
 
 ### Aggregate Neighbors API
 
@@ -194,17 +164,3 @@ A new `AggregateNeighbors` class implements multi-hop breadth-first traversal wi
 - **Undirected fixed-length patterns**: `(u)-[*2]-(v)`
 - **Chaining with fixed-length patterns** now works correctly
 
-## Bug fixes
-
-- **K-Core**: fixed swapped `sendMsgToSrc`/`sendMsgToDst` column references that produced incorrect results (#802)
-- **ConnectedComponents**: reverted a performance regression introduced after 0.9.3 (#772)
-- **Fixed-length pattern chaining**: resolved parse errors when chaining motifs with fixed-length patterns (#771)
-- **SVD++**: updated documentation and code (#779)
-- **String IDs**: `powerIterationClustering` now supports string vertex IDs (#773)
-- **Spark 4.1**: tests now run against Spark 4.1
-
-## Future steps
-
-- Benchmark the Pregel join-skipping optimization at scale and publish results
-- Explore additional embedding algorithms and GNN-style convolutions
-- Continue improving Spark 4.x and Scala 3 compatibility
