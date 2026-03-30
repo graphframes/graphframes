@@ -132,11 +132,11 @@ purchases = EdgePropertyGroup(
 pg = PropertyGraphFrame([users, products], [purchases])
 
 # Convert to a standard GraphFrame and run algorithms
-gf = pg.to_graphframe([users, products], [purchases])
+gf = pg.to_graphframe(["users", "products"], ["purchases"])
 components = gf.connectedComponents()
 
 # Join results back to original vertex data
-result = pg.join_vertices(components, [users])
+result = pg.join_vertices(components, ["users"])
 ```
 
 ### Bipartite projection
@@ -144,7 +144,7 @@ result = pg.join_vertices(components, [users])
 `PropertyGraphFrame` also supports bipartite graph projection, creating edges between vertices of the same type that share neighbors in the other partition:
 
 ```python
-projected = pg.projection_by(users, products, purchases,
+projected = pg.projection_by("users", "products", "purchases",
                              new_edge_weight=lambda w1, w2: w1 + w2)
 ```
 
