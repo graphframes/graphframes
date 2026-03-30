@@ -84,11 +84,11 @@ The `RandomWalkEmbeddings` class ties everything together:
 ```scala
 import org.graphframes.embeddings.RandomWalkEmbeddings
 
-val embeddings = new RandomWalkEmbeddings()
+val embeddings = graph.randomWalksBasedEmbedding
   .setRandomWalks(rw)
   .setSequenceModel(Right(new Hash2Vec().setEmbeddingsDim(512)))
   .setAggregateNeighbors(true)  // +20% quality via neighborhood averaging
-  .run(graph)
+  .run()
 
 // Returns DataFrame with all vertex columns + "embedding" column
 embeddings.show()
