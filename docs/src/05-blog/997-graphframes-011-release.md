@@ -18,7 +18,7 @@ The Connected Components API now offers three algorithm choices:
 
 The new `randomized_contraction` algorithm works by iteratively contracting the graph using random linear functions. At each step, vertices are mapped through a randomized `a*x + b` transformation (with overflow-safe arithmetic via a custom Spark SQL expression) and merged. The process repeats until no edges remain, then reconstructs the final component labels in reverse order.
 
-This approach can be more memory-efficient for graphs with very large connected components because intermediate results are checkpointed to parquet rather than held in memory.
+Theoretical guarantees from [Bögeholz, Harald, Michael Brand, and Radu-Alexandru Todor. "In-database connected component analysis." 2020 IEEE 36th International Conference on Data Engineering (ICDE). IEEE, 2020.](https://ieeexplore.ieee.org/document/9101327) look promising, as do the benchmark results on small graphs.
 
 ```scala
 val components = graph.connectedComponents
@@ -63,7 +63,7 @@ val rw = new RandomWalkWithRestart()
 Key design choices:
 
 - **Batched execution**: walks are generated in batches persisted to temporary parquet files, keeping memory bounded regardless of graph size
-- **Deterministic sampling**: neighbors are sampled via `KMinSampling` (min-hash with xxhash64), ensuring fault-tolerant reproducibility
+- **Deterministic sampling**: neighbors are sampled via `KMinSampling` (min-hash with xxhash64), avoiding the hub problem (vertices with thousands of neighbors) and ensuring fault-tolerant reproducibility
 - **Edge direction support**: walks can respect or ignore edge directionality
 
 ### Embedding models
@@ -75,7 +75,7 @@ Two sequence-to-vector models are available:
 | **Word2Vec** | Higher quality embeddings, well-studied | 50-300 | ~20M vertices |
 | **Hash2Vec** | No vocabulary needed, constant memory per element | 512+ | Billions of vertices |
 
-Hash2Vec is based on [Argerich et al. (2016)](https://arxiv.org/abs/1608.08940) and uses MurmurHash3 to avoid storing explicit vocabularies. Internally it uses a custom `PagedMatrixDouble` structure with 4096-element pages for cache-friendly, GC-efficient vector accumulation.
+Hash2Vec is based on [Argerich, Luis, Joaquín Torré Zaffaroni, and Matías J. Cano. "Hash2vec, feature hashing for word embeddings." arXiv preprint arXiv:1608.08940 (2016).](https://arxiv.org/abs/1608.08940) and uses MurmurHash3 to avoid storing explicit vocabularies. Internally it uses a custom `PagedMatrixDouble` structure with 4096-element pages for cache-friendly, GC-efficient vector accumulation.
 
 ### End-to-end pipeline
 
