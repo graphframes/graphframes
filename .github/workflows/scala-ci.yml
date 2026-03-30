@@ -7,6 +7,8 @@ jobs:
       matrix:
         include:
           - spark-version: 3.5.7
+            java-version: 8
+          - spark-version: 3.5.7
             java-version: 11
           - spark-version: 3.5.7
             java-version: 17
