@@ -8,14 +8,19 @@ jobs:
         include:
           - spark-version: 3.5.7
             java-version: 8
+            compile-only: true
           - spark-version: 3.5.7
             java-version: 11
+            compile-only: false
           - spark-version: 3.5.7
             java-version: 17
+            compile-only: false
           - spark-version: 4.0.1
             java-version: 17
+            compile-only: false
           - spark-version: 4.1.0
             java-version: 17
+            compile-only: false
 
     runs-on: ubuntu-latest
     env:
@@ -41,5 +46,7 @@ jobs:
     - name: Check docs build
       run: build/sbt -Dspark.version=${{ matrix.spark-version }} doc
     - name: Build and Test
+      if: ${{ matrix.compile-only != true }}
       run: build/sbt -v -Dspark.version=${{ matrix.spark-version }} coverage +test coverageReport
     - uses: codecov/codecov-action@v3
+      if: ${{ matrix.compile-only != true }}
