@@ -34,6 +34,25 @@ class ParquetDataLoader(cacheDir: Path) {
 
   // Use curl instead of Java's URLConnection because the LDBC CDN (Cloudflare)
   // rejects Java 8's TLS fingerprint with HTTP 403.
+  // TODO: restore URLConnection after Spark 3.5.x EOL (~April 2026) when JDK 8 can be dropped:
+  //   private def downloadFile(url: String, dest: Path): Unit = {
+  //     val connection = new java.net.URL(url).openConnection()
+  //     connection.setConnectTimeout(30000)
+  //     connection.setReadTimeout(30000)
+  //     val inputStream = connection.getInputStream
+  //     val outputStream = Files.newOutputStream(dest)
+  //     val buffer = new Array[Byte](8192)
+  //     var bytesRead = 0
+  //     try {
+  //       while ({ bytesRead = inputStream.read(buffer); bytesRead } != -1) {
+  //         outputStream.write(buffer, 0, bytesRead)
+  //       }
+  //     } finally {
+  //       inputStream.close()
+  //       outputStream.close()
+  //     }
+  //     println(s"Downloaded $url to $dest")
+  //   }
   private def downloadFile(url: String, dest: Path): Unit = {
     val curlExit = s"curl -fSL -o ${dest.toString} $url".!
     if (curlExit != 0) {

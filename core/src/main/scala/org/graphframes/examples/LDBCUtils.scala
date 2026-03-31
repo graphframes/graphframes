@@ -81,6 +81,17 @@ object LDBCUtils {
       val archivePath = path.resolve(s"${name}.tar.zst")
       // Use curl instead of Java's URLConnection because the LDBC CDN (Cloudflare)
       // rejects Java 8's TLS fingerprint with HTTP 403.
+      // TODO: restore URLConnection after Spark 3.5.x EOL (~April 2026) when JDK 8 can be dropped:
+      //   val connection = new java.net.URL(ldbcURL(name)).openConnection()
+      //   val inputStream = connection.getInputStream
+      //   val outputStream = Files.newOutputStream(archivePath)
+      //   val buffer = new Array[Byte](8192)
+      //   var bytesRead = 0
+      //   while ({ bytesRead = inputStream.read(buffer); bytesRead } != -1) {
+      //     outputStream.write(buffer, 0, bytesRead)
+      //   }
+      //   inputStream.close()
+      //   outputStream.close()
       val curlExit = s"curl -fSL -o ${archivePath.toString} ${ldbcURL(name)}".!
       if (curlExit != 0) {
         throw new RuntimeException(
