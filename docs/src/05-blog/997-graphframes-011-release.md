@@ -168,4 +168,6 @@ A new `AggregateNeighbors` class implements multi-hop breadth-first traversal wi
 
 - **GQL query engine**: `PropertyGraphFrame` already carries full schema information — which vertex groups exist, which edge groups connect them, and how. This is exactly the metadata a query engine needs. A planned next step is to add a [GQL (ISO/IEC 39075)](https://www.iso.org/standard/76120.html) subset query engine on top of PGF that compiles `MATCH` statements into optimized Spark DataFrame join plans.
 - **`GraphFrame.reverse()`**: a convenience method to reverse edge directions by swapping `src` and `dst` columns, useful for computing in-degree centralities, reverse reachability, and transpose-based algorithms like Kosaraju's strongly connected components.
+- **Aggregate Neighbors algorithms**: new graph algorithms built on top of the `AggregateNeighbors` API, such as all-paths computation.
+- **Random walk variants**: additional random walk implementations including weighted random walks and temporal random walks.
 
