@@ -62,7 +62,7 @@ jobs:
           ./build/sbt -Dspark.version=4.0.0 -Ddocs.mode=production "docs/laikaHTML"
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v6
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./docs/target/docs/site
 
