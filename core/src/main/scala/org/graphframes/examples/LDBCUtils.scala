@@ -1,12 +1,10 @@
 package org.graphframes.examples
 
-import java.net.URL
 import java.nio.file.*
 import scala.sys.process.*
 
 object LDBCUtils {
   private val LDBC_URL_PREFIX = "https://datasets.ldbcouncil.org/graphalytics/"
-  private val bufferSize = 8192 // 8Kb
 
   val TEST_BFS_DIRECTED = "test-bfs-directed"
   val TEST_BFS_UNDIRECTED = "test-bfs-undirected"
@@ -51,7 +49,7 @@ object LDBCUtils {
     CIT_PATENTS,
     WIKI_TALKS)
 
-  private def ldbcURL(caseName: String): URL = new URL(s"${LDBC_URL_PREFIX}${caseName}.tar.zst")
+  private def ldbcURL(caseName: String): String = s"${LDBC_URL_PREFIX}${caseName}.tar.zst"
 
   private def checkZSTD(): Unit = {
     try {
@@ -81,16 +79,12 @@ object LDBCUtils {
         Files.createDirectories(dir)
       }
       val archivePath = path.resolve(s"${name}.tar.zst")
-      val connection = ldbcURL(name).openConnection()
-      val inputStream = connection.getInputStream
-      val outputStream = Files.newOutputStream(archivePath)
-      val buffer = new Array[Byte](bufferSize)
-      var bytesRead = 0
-      while ({ bytesRead = inputStream.read(buffer); bytesRead } != -1) {
-        outputStream.write(buffer, 0, bytesRead)
+      // Use curl instead of Java's URLConnection because the LDBC CDN (Cloudflare)
+      // rejects Java 8's TLS fingerprint with HTTP 403.
+      val curlExit = s"curl -fSL -o ${archivePath.toString} ${ldbcURL(name)}".!
+      if (curlExit != 0) {
+        throw new RuntimeException(s"Failed to download ${ldbcURL(name)} (curl exit code: $curlExit)")
       }
-      inputStream.close()
-      outputStream.close()
       println(s"Uncompressing ${archivePath.toString} to ${dir.toString}...")
       s"zstd -d ${archivePath.toString} -o ${archivePath.toString.replace(".zst", "")}".!
       s"tar -xf ${archivePath.toString.replace(".zst", "")} -C ${dir.toString}".!

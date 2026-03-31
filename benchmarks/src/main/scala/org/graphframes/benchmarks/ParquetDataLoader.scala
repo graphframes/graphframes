@@ -1,12 +1,12 @@
 package org.graphframes.benchmarks
 
-import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
 
+import scala.sys.process.*
+
 class ParquetDataLoader(cacheDir: Path) {
   private val LDBC_PARQUET_URL_PREFIX = "https://datasets.ldbcouncil.org/graphalytics-parquet/"
-  private val bufferSize = 8192
 
   def downloadParquetIfNotExists(graphName: String): Unit = {
     val graphDir = cacheDir.resolve(graphName)
@@ -33,21 +33,12 @@ class ParquetDataLoader(cacheDir: Path) {
     }
   }
 
+  // Use curl instead of Java's URLConnection because the LDBC CDN (Cloudflare)
+  // rejects Java 8's TLS fingerprint with HTTP 403.
   private def downloadFile(url: String, dest: Path): Unit = {
-    val connection = new URL(url).openConnection()
-    connection.setConnectTimeout(30000)
-    connection.setReadTimeout(30000)
-    val inputStream = connection.getInputStream
-    val outputStream = Files.newOutputStream(dest)
-    val buffer = new Array[Byte](bufferSize)
-    var bytesRead = 0
-    try {
-      while ({ bytesRead = inputStream.read(buffer); bytesRead } != -1) {
-        outputStream.write(buffer, 0, bytesRead)
-      }
-    } finally {
-      inputStream.close()
-      outputStream.close()
+    val curlExit = s"curl -fSL -o ${dest.toString} $url".!
+    if (curlExit != 0) {
+      throw new RuntimeException(s"Failed to download $url (curl exit code: $curlExit)")
     }
     println(s"Downloaded $url to $dest")
   }
