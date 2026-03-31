@@ -2,7 +2,6 @@ package org.graphframes.benchmarks
 
 import java.nio.file.Files
 import java.nio.file.Path
-
 import scala.sys.process.*
 
 class ParquetDataLoader(cacheDir: Path) {
