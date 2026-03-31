@@ -83,7 +83,8 @@ object LDBCUtils {
       // rejects Java 8's TLS fingerprint with HTTP 403.
       val curlExit = s"curl -fSL -o ${archivePath.toString} ${ldbcURL(name)}".!
       if (curlExit != 0) {
-        throw new RuntimeException(s"Failed to download ${ldbcURL(name)} (curl exit code: $curlExit)")
+        throw new RuntimeException(
+          s"Failed to download ${ldbcURL(name)} (curl exit code: $curlExit)")
       }
       println(s"Uncompressing ${archivePath.toString} to ${dir.toString}...")
       s"zstd -d ${archivePath.toString} -o ${archivePath.toString.replace(".zst", "")}".!
