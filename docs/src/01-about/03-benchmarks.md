@@ -3,8 +3,8 @@
 ## Graphalytics Benchmarks
 
 This benchmark is to test the performance of GraphFrames algorithms, not Apache Spark itself. So, all the graphs are
-read from Parquet files on disk and persisted in memory in the serialized format. In the result, only the time of GraphFrames
-algorithms is measured and the time of reading/parsing source files, serialization and persisting the data does not measure.
+read from Parquet files on disk and persisted in memory in the serialized format. As a result, only the time of GraphFrames
+algorithms is measured, and the time to read/parse source files, serialize, and persist the data is not measured.
 
 ### Configurations
 
