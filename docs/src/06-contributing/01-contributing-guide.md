@@ -14,12 +14,12 @@ Ensure the following tools are installed before cloning the repository:
 | --- | --- | --- |
 | Git | Latest stable | Required for version control and contribution workflows. |
 | Java Development Kit (JDK) | 11 or 17 | Spark 3.x supports Java 8/11/17; GraphFrames CI runs on JDK 17. |
-| Python | 3.10 – 3.12 | Required for the Python APIs and tests. |
-| Apache Spark (binary distribution) | 3.5.x (default) or 4.0.x | Needed for the Python test suite. |
+| Python | 3.10 – 3.13 | Required for the Python APIs and tests. |
+| Apache Spark (binary distribution) | 3.5.x (default), 4.0.x, or 4.1.x | Needed for the Python test suite. |
 | Poetry | ≥ 1.8 | Dependency manager used by the Python package. Install via [`pipx`](https://pypa.github.io/pipx/) or `pip`. |
 | Protocol Buffers compiler (`protoc`) | ≥ 3.21 | Required for the GraphFrames Connect protobuf build. |
 | Buf CLI | Latest stable | Used to lint and generate protobuf sources. |
-| Apache Spark (optional) | 3.5.x (default) or 4.0.x | Only required if you want the standalone Spark shell outside PySpark. |
+| Apache Spark (optional) | 3.5.x (default), 4.0.x, or 4.1.x | Only required if you want the standalone Spark shell outside PySpark. |
 | Docker (optional) | Latest stable | Useful for isolated environments but not mandatory. |
 
 ### 1.1 Install required tooling
@@ -55,12 +55,12 @@ export PATH="$JAVA_HOME/bin:$PATH"
 #### Optional: Standalone Apache Spark distribution
 `poetry install` (described later) already brings in the matching version of PySpark and Spark
 Connect. If you also want the standalone Spark shell or `spark-submit`, download the distribution
-that matches the build’s `spark.version` (currently 3.5.6) and expose it via `SPARK_HOME`:
+that matches the build’s `spark.version` (currently 3.5.7) and expose it via `SPARK_HOME`:
 ```bash
-curl -O https://downloads.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.tgz
+curl -O https://downloads.apache.org/spark/spark-3.5.7/spark-3.5.7-bin-hadoop3.tgz
 mkdir -p "$HOME/.local/spark"
-tar -xzf spark-3.5.6-bin-hadoop3.tgz -C "$HOME/.local/spark"
-export SPARK_HOME="$HOME/.local/spark/spark-3.5.6-bin-hadoop3"
+tar -xzf spark-3.5.7-bin-hadoop3.tgz -C "$HOME/.local/spark"
+export SPARK_HOME="$HOME/.local/spark/spark-3.5.7-bin-hadoop3"
 export PATH="$SPARK_HOME/bin:$PATH"
 ```
 
@@ -302,7 +302,7 @@ To build documentation and run a preview server run `./build/sbt docs/laikaPrevi
 | Run a specific Scala suite | `./build/sbt "core/testOnly <SuiteName>"` |
 | Build assembly jar | `./build/sbt core/assembly` |
 | Install Python dependencies | `cd python && poetry install --with dev` |
-| Run Python tests | `cd python && ./run-tests.sh` |
+| Run Python tests | `cd python && poetry run pytest -vvv` |
 | Run Python formatters | `poetry run black graphframes tests` |
 | Install pre-commit hooks | `pre-commit install` |
 
