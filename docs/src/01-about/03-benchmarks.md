@@ -3,8 +3,8 @@
 ## Graphalytics Benchmarks
 
 This benchmark is to test the performance of GraphFrames algorithms, not Apache Spark itself. So, all the graphs are
-read from the disk and persisted in memory in the serialized format. In the result, only the time of GraphFrames
-algorithms is measured and the time of reading of the CSV, serialization and persisting the data does not measure.
+read from Parquet files on disk and persisted in memory in the serialized format. In the result, only the time of GraphFrames
+algorithms is measured and the time of reading/parsing source files, serialization and persisting the data does not measure.
 
 ### Configurations
 
@@ -19,7 +19,7 @@ algorithms is measured and the time of reading of the CSV, serialization and per
 - **Vertices:** 2M
 - **Edges:** 5M
 - **Size Category:** _XS_
-- **Source files format:** `CSV`-like
+- **Source files format:** `Parquet`
 
 | Algorithm                        | Measurements                                   | Time (s)                                 |
 | -------------------------------- | ---------------------------------------------- | ---------------------------------------- |

@@ -98,13 +98,13 @@ g.degrees.show()
 g2 = g.pageRank(resetProbability=0.15, tol=0.01)
 g2.vertices.show()
 
-# +---+-----+---+------------------+
-# | id| name|age|          pagerank|
-# +---+-----+---+------------------+
-# |  1| John| 30|0.7758750474847483|
-# |  2|Alice| 25|1.4482499050305027|
-# |  3|  Bob| 35|0.7758750474847483|
-# +---+-----+---+------------------+
+# +---+-------+---+------------------+
+# | id|   name|age|          pagerank|
+# +---+-------+---+------------------+
+# |  1|  Alice| 30|0.7758750474847483|
+# |  2|    Bob| 25|1.4482499050305027|
+# |  3|Charlie| 35|0.7758750474847483|
+# +---+-------+---+------------------+
 
 # GraphFrames' most used feature...
 # Connected components can do big data entity resolution on billions or even trillions of records!
@@ -113,13 +113,13 @@ g2.vertices.show()
 sc.setCheckpointDir("/tmp/graphframes-example-connected-components")  # required by GraphFrames.connectedComponents
 g.connectedComponents().show()
 
-# +---+-----+---+---------+
-# | id| name|age|component|
-# +---+-----+---+---------+
-# |  1| John| 30|        1|
-# |  2|Alice| 25|        1|
-# |  3|  Bob| 35|        1|
-# +---+-----+---+---------+
+# +---+-------+---+---------+
+# | id|   name|age|component|
+# +---+-------+---+---------+
+# |  1|  Alice| 30|        1|
+# |  2|    Bob| 25|        1|
+# |  3|Charlie| 35|        1|
+# +---+-------+---+---------+
 
 # Find frenemies with network motif finding! See how graph and relational queries are combined?
 (
