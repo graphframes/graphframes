@@ -21,11 +21,11 @@ algorithms is measured and the time of reading of the CSV, serialization and per
 - **Size Category:** _XS_
 - **Source files format:** `CSV`-like
 
-| Algorithm                        | Measurements                                   | Time (s)                                 |
-| -------------------------------- | ---------------------------------------------- | ---------------------------------------- |
-| Shortest Paths Graphframes       | ${benchmarks.benchmarkSP.measurements}         | ${benchmarks.benchmarkSP.metric}         |
-| Shortest Paths GraphX            | ${benchmarks.benchmarkSPGraphX.measurements}   | ${benchmarks.benchmarkSPGraphX.metric}   |
-| Connected Components Graphframes | ${benchmarks.benchmarkCC.measurements}         | ${benchmarks.benchmarkCC.metric}         |
-| Connected Components GraphX      | ${benchmarks.benchmarkCCGraphX.measurements}   | ${benchmarks.benchmarkCCGraphX.metric}   |
-| Label Propagation GraphFrames    | ${benchmarks.benchmarkCDLP.measurements}       | ${benchmarks.benchmarkCDLP.metric}       |
-| Label Propagation GraphX         | ${benchmarks.benchmarkCDLPGraphX.measurements} | ${benchmarks.benchmarkCDLPGraphX.metric} |
+| Algorithm                        | Measurements                                                        | Time (s)                                                      |
+| -------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Shortest Paths Graphframes       | ${benchmarks.benchmarkShortestPaths.graphframes.measurements}       | ${benchmarks.benchmarkShortestPaths.graphframes.metric}       |
+| Shortest Paths GraphX            | ${benchmarks.benchmarkShortestPaths.graphx.measurements}            | ${benchmarks.benchmarkShortestPaths.graphx.metric}            |
+| Connected Components Graphframes | ${benchmarks.benchmarkConnectedComponents.graphframes.measurements} | ${benchmarks.benchmarkConnectedComponents.graphframes.metric} |
+| Connected Components GraphX      | ${benchmarks.benchmarkConnectedComponents.graphx.measurements}      | ${benchmarks.benchmarkConnectedComponents.graphx.metric}      |
+| Label Propagation GraphFrames    | ${benchmarks.benchmarkLabelPropagation.graphframes.measurements}    | ${benchmarks.benchmarkLabelPropagation.graphframes.metric}    |
+| Label Propagation GraphX         | ${benchmarks.benchmarkLabelPropagation.graphx.measurements}         | ${benchmarks.benchmarkLabelPropagation.graphx.metric}         |
