@@ -55,7 +55,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          ./build/sbt -Dspark.version=4.0.0 "benchmarks/Jmh/run -rf json"
+          python ./dev/run_doc_benchmarks.py --spark-version 4.0.0
 
       - name: Build with Laika
         run: |

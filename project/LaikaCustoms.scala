@@ -145,6 +145,13 @@ object LaikaCustoms {
               {
                 val name =
                   bench.hcursor.downField("benchmark").as[String].getOrElse("").split("\\.").last
+                val algorithm =
+                  bench.hcursor
+                    .downField("params")
+                    .downField("algorithm")
+                    .as[String]
+                    .getOrElse("")
+                val keyName = if (algorithm.nonEmpty) s"$name.$algorithm" else name
                 val measurements =
                   bench.hcursor.downField("measurementIterations").as[Int].getOrElse(-1)
                 val metric = bench.hcursor
@@ -169,25 +176,39 @@ object LaikaCustoms {
                   .as[Array[Double]]
                   .getOrElse(Array.empty)
 
-                quantiles.foldLeft(
-                  config
-                    .withConfigValue(s"benchmarks.$name.metric", f"$metric%.4f")
-                    .withConfigValue(s"benchmarks.$name.measurements", measurements)
-                    .withConfigValue(
-                      s"benchmarks.$name.ciLeft",
-                      f"${Try(confidence(0)).getOrElse(0.0)}%.4f")
-                    .withConfigValue(
-                      s"benchmarks.$name.ciRight",
-                      f"${Try(confidence(1)).getOrElse(0.0)}%.4f")
-                    .withConfigValue(s"benchmarks.$name.stdErr", f"$stdErr%.4f")) {
-                  (conf, quantile) =>
-                    {
-                      conf
+                def addMetrics(conf: LaikaConfig, key: String): LaikaConfig = {
+                  quantiles.foldLeft(
+                    conf
+                      .withConfigValue(s"benchmarks.$key.metric", f"$metric%.4f")
+                      .withConfigValue(s"benchmarks.$key.measurements", measurements)
+                      .withConfigValue(
+                        s"benchmarks.$key.ciLeft",
+                        f"${Try(confidence(0)).getOrElse(0.0)}%.4f")
+                      .withConfigValue(
+                        s"benchmarks.$key.ciRight",
+                        f"${Try(confidence(1)).getOrElse(0.0)}%.4f")
+                      .withConfigValue(s"benchmarks.$key.stdErr", f"$stdErr%.4f")) {
+                    (acc, quantile) =>
+                      acc
                         .withConfigValue(
-                          s"benchmarks.$name.quantiles.${quantile._1}",
-                          f"${quantile._2}.4f")
-                    }
+                          s"benchmarks.$key.quantiles.${quantile._1}",
+                          f"${quantile._2}%.4f")
+                  }
                 }
+
+                val withKeyName = addMetrics(config, keyName)
+
+                val maybeLegacyAlias = (name, algorithm) match {
+                  case ("benchmarkShortestPaths", "graphframes") => Some("benchmarkSP")
+                  case ("benchmarkShortestPaths", "graphx") => Some("benchmarkSPGraphX")
+                  case ("benchmarkConnectedComponents", "graphframes") => Some("benchmarkCC")
+                  case ("benchmarkConnectedComponents", "graphx") => Some("benchmarkCCGraphX")
+                  case ("benchmarkLabelPropagation", "graphframes") => Some("benchmarkCDLP")
+                  case ("benchmarkLabelPropagation", "graphx") => Some("benchmarkCDLPGraphX")
+                  case _ => None
+                }
+
+                maybeLegacyAlias.map(alias => addMetrics(withKeyName, alias)).getOrElse(withKeyName)
               }
             })
       }

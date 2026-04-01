@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
     "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
     "--add-opens=java.base/java.util=ALL-UNNAMED"))
 class ConnectedComponentsBenchmark extends LDBCBenchmarkBase {
-  @Param(Array("graphframes", "graphx"))
+  @Param(Array("graphframes", "graphx", "randomized_contraction"))
   var algorithm: String = _
 
   @Param(Array("1000000", "-1"))
