@@ -4,6 +4,8 @@
 - **Title:** GraphFrames 0.11.0 release
 - **Summary:** This release brings a new Connected Components algorithm based on Randomized Contraction, automatic Pregel optimization that skips unnecessary joins, graph embeddings via random walks with Word2Vec and Hash2Vec, a PySpark Property Graph API, approximate triangle counting with DataSketches, and various improvements.
 
+Want to try these features now? [Wherobots](https://www.wherobots.com/) is the only cloud platform shipping a modern version of GraphFrames. Sign up and start running graph algorithms on your data right away — no setup required.
+
 ## Connected Components: new algorithm
 
 The Connected Components API now offers three algorithm choices:
@@ -171,6 +173,3 @@ A new `AggregateNeighbors` class implements multi-hop breadth-first traversal wi
 - **Aggregate Neighbors algorithms**: new graph algorithms built on top of the `AggregateNeighbors` API, such as all-paths computation.
 - **Random walk variants**: additional random walk implementations including weighted random walks and temporal random walks.
 
-## Try it today
-
-Want to try these features now? [Wherobots](https://www.wherobots.com/) is the only cloud platform shipping a modern version of GraphFrames. Sign up and start running graph algorithms on your data right away — no setup required.
