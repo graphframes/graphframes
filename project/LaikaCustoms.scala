@@ -192,7 +192,7 @@ object LaikaCustoms {
                       acc
                         .withConfigValue(
                           s"benchmarks.$key.quantiles.${quantile._1}",
-                          f"${quantile._2}.4f")
+                          f"${quantile._2}%.4f")
                   }
                 }
 
