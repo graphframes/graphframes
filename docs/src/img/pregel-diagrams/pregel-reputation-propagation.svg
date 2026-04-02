@@ -1,0 +1,361 @@
+<svg id="graphDiv" xmlns="http://www.w3.org/2000/svg" height="100%" viewBox="0 0 1485.859375 338" style="max-width:1485.859375px;"><rect width="100%" height="100%" fill="white"/><style>
+  /* Flowchart variables */
+/* Sequence Diagram variables */
+/* Gantt chart variables */
+.mermaid .label {
+  color: #333;
+}
+.node rect,
+.node circle,
+.node ellipse,
+.node polygon {
+  fill: #ECECFF;
+  stroke: #CCCCFF;
+  stroke-width:3px;
+}
+.node.clickable {
+  cursor: pointer;
+}
+.arrowheadPath {
+  fill: #333333;
+}
+.edgePath .path {
+  stroke: #333333;
+}
+.edgeLabel {
+  background-color: #e8e8e8;
+}
+.cluster rect {
+  fill: #ffffde !important;
+  rx: 4 !important;
+  stroke: #aaaa33 !important;
+  stroke-width:3px !important;
+}
+.cluster text {
+  fill: #333;
+}
+.actor {
+  stroke: #CCCCFF;
+  fill: #ECECFF;
+}
+text.actor {
+  fill: black;
+  stroke: none;
+}
+.actor-line {
+  stroke: grey;
+}
+.messageLine0 {
+  stroke-width:3.5;
+  stroke-dasharray: "2 2";
+  marker-end: "url(#arrowhead)";
+  stroke: #333;
+}
+.messageLine1 {
+  stroke-width:3.5;
+  stroke-dasharray: "2 2";
+  stroke: #333;
+}
+#arrowhead {
+  fill: #333;
+}
+#crosshead path {
+  fill: #333 !important;
+  stroke: #333 !important;
+}
+.messageText {
+  fill: #333;
+  stroke: none;
+}
+.labelBox {
+  stroke: #CCCCFF;
+  fill: #ECECFF;
+}
+.labelText {
+  fill: black;
+  stroke: none;
+}
+.loopText {
+  fill: black;
+  stroke: none;
+}
+.loopLine {
+  stroke-width:6;
+  stroke-dasharray: "2 2";
+  marker-end: "url(#arrowhead)";
+  stroke: #CCCCFF;
+}
+.note {
+  stroke: #aaaa33;
+  fill: #fff5ad;
+}
+.noteText {
+  fill: black;
+  stroke: none;
+  font-family: 'trebuchet ms', verdana, arial;
+  font-size: 14px;
+}
+/** Section styling */
+.section {
+  stroke: none;
+  opacity: 0.2;
+}
+.section0 {
+  fill: rgba(102, 102, 255, 0.49);
+}
+.section2 {
+  fill: #fff400;
+}
+.section1,
+.section3 {
+  fill: white;
+  opacity: 0.2;
+}
+.sectionTitle0 {
+  fill: #333;
+}
+.sectionTitle1 {
+  fill: #333;
+}
+.sectionTitle2 {
+  fill: #333;
+}
+.sectionTitle3 {
+  fill: #333;
+}
+.sectionTitle {
+  text-anchor: start;
+  font-size: 11px;
+  text-height: 14px;
+}
+/* Grid and axis */
+.grid .tick {
+  stroke: lightgrey;
+  opacity: 0.3;
+  shape-rendering: crispEdges;
+}
+.grid path {
+  stroke-width: 0;
+}
+/* Today line */
+.today {
+  fill: none;
+  stroke: red;
+  stroke-width:6px;
+}
+/* Task styling */
+/* Default task */
+.task {
+  stroke-width:6;
+}
+.taskText {
+  text-anchor: middle;
+  font-size: 11px;
+}
+.taskTextOutsideRight {
+  fill: black;
+  text-anchor: start;
+  font-size: 11px;
+}
+.taskTextOutsideLeft {
+  fill: black;
+  text-anchor: end;
+  font-size: 11px;
+}
+/* Specific task settings for the sections*/
+.taskText0,
+.taskText1,
+.taskText2,
+.taskText3 {
+  fill: white;
+}
+.task0,
+.task1,
+.task2,
+.task3 {
+  fill: #8a90dd;
+  stroke: #534fbc;
+}
+.taskTextOutside0,
+.taskTextOutside2 {
+  fill: black;
+}
+.taskTextOutside1,
+.taskTextOutside3 {
+  fill: black;
+}
+/* Active task */
+.active0,
+.active1,
+.active2,
+.active3 {
+  fill: #bfc7ff;
+  stroke: #534fbc;
+}
+.activeText0,
+.activeText1,
+.activeText2,
+.activeText3 {
+  fill: black !important;
+}
+/* Completed task */
+.done0,
+.done1,
+.done2,
+.done3 {
+  stroke: grey;
+  fill: lightgrey;
+  stroke-width:6;
+}
+.doneText0,
+.doneText1,
+.doneText2,
+.doneText3 {
+  fill: black !important;
+}
+/* Tasks on the critical line */
+.crit0,
+.crit1,
+.crit2,
+.crit3 {
+  stroke: #ff8888;
+  fill: red;
+  stroke-width:6;
+}
+.activeCrit0,
+.activeCrit1,
+.activeCrit2,
+.activeCrit3 {
+  stroke: #ff8888;
+  fill: #bfc7ff;
+  stroke-width:6;
+}
+.doneCrit0,
+.doneCrit1,
+.doneCrit2,
+.doneCrit3 {
+  stroke: #ff8888;
+  fill: lightgrey;
+  stroke-width:6;
+  cursor: pointer;
+  shape-rendering: crispEdges;
+}
+.doneCritText0,
+.doneCritText1,
+.doneCritText2,
+.doneCritText3 {
+  fill: black !important;
+}
+.activeCritText0,
+.activeCritText1,
+.activeCritText2,
+.activeCritText3 {
+  fill: black !important;
+}
+.titleText {
+  text-anchor: middle;
+  font-size: 18px;
+  fill: black;
+}
+g.classGroup text {
+  fill: #9370DB;
+  stroke: none;
+  font-family: 'trebuchet ms', verdana, arial;
+  font-size: 10px;
+}
+g.classGroup rect {
+  fill: #ECECFF;
+  stroke: #9370DB;
+}
+g.classGroup line {
+  stroke: #9370DB;
+  stroke-width:3;
+}
+svg .classLabel .box {
+  stroke: none;
+  stroke-width: 0;
+  fill: #ECECFF;
+  opacity: 0.5;
+}
+svg .classLabel .label {
+  fill: #9370DB;
+  font-size: 10px;
+}
+.relation {
+  stroke: #9370DB;
+  stroke-width:3;
+  fill: none;
+}
+.composition {
+  fill: #9370DB;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#compositionStart {
+  fill: #9370DB;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#compositionEnd {
+  fill: #9370DB;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+.aggregation {
+  fill: #ECECFF;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#aggregationStart {
+  fill: #ECECFF;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#aggregationEnd {
+  fill: #ECECFF;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#dependencyStart {
+  fill: #9370DB;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#dependencyEnd {
+  fill: #9370DB;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#extensionStart {
+  fill: #9370DB;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+#extensionEnd {
+  fill: #9370DB;
+  stroke: #9370DB;
+  stroke-width:3;
+}
+.node text {
+  font-family: 'trebuchet ms', verdana, arial;
+  font-size: 14px;
+}
+div.mermaidTooltip {
+  position: absolute;
+  text-align: center;
+  max-width: 200px;
+  padding: 2px;
+  font-family: 'trebuchet ms', verdana, arial;
+  font-size: 12px;
+  background: #ffffde;
+  border: 1px solid #aaaa33;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+svg {
+  color: rgb(0, 0, 0);
+  font: normal normal normal 16px/normal '';
+}
+  </style><g><g class="output"><g class="clusters"><g class="cluster" id="subGraph3" transform="translate(1246.8828125,159)" style="opacity: 1;"><rect width="397.953125" height="106" x="-198.9765625" y="-53"></rect><g class="label"><g transform="translate(0,0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"></div></foreignObject></g></g><text x="0" y="-39" fill="black" stroke="none" id="graphDivText" style="text-anchor: middle;"> Result</text></g><g class="cluster" id="subGraph2" transform="translate(753.3828125,145.75)" style="opacity: 1;"><rect width="227.734375" height="238.5" x="-113.8671875" y="-119.25"></rect><g class="label"><g transform="translate(0,0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"></div></foreignObject></g></g><text x="0" y="-105.25" fill="black" stroke="none" id="graphDivText" style="text-anchor: middle;"> Questions</text></g><g class="cluster" id="subGraph1" transform="translate(422.75,159)" style="opacity: 1;"><rect width="210.875" height="278" x="-105.4375" y="-139"></rect><g class="label"><g transform="translate(0,0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"></div></foreignObject></g></g><text x="0" y="-125" fill="black" stroke="none" id="graphDivText" style="text-anchor: middle;"> Answers</text></g><g class="cluster" id="subGraph0" transform="translate(123.65625,159)" style="opacity: 1;"><rect width="207.3125" height="278" x="-103.65625" y="-139"></rect><g class="label"><g transform="translate(0,0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"></div></foreignObject></g></g><text x="0" y="-125" fill="black" stroke="none" id="graphDivText" style="text-anchor: middle;"> Users</text></g></g><g class="edgePaths"><g class="edgePath" style="opacity: 1;"><path class="path" d="M197.8671875,73L227.3125,73L272.3125,73L317.3125,73L342.3125,73" marker-end="url(#arrowhead90)" style="fill:none"></path><defs><marker id="arrowhead90" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width:3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M202.3125,159L227.3125,159L272.3125,159L317.3125,159L342.3125,159" marker-end="url(#arrowhead91)" style="fill:none"></path><defs><marker id="arrowhead91" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width:3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M193.859375,245L227.3125,245L272.3125,245L317.3125,245L342.3125,245" marker-end="url(#arrowhead92)" style="fill:none"></path><defs><marker id="arrowhead92" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width:3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M503.1875,73L528.1875,73L583.8515625,73L639.515625,73L729.5501453488372,141" marker-end="url(#arrowhead93)" style="fill:none"></path><defs><marker id="arrowhead93" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width:3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M503.1875,159L528.1875,159L583.8515625,159L639.515625,159L664.515625,159" marker-end="url(#arrowhead94)" style="fill:none"></path><defs><marker id="arrowhead94" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width:3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M503.1875,245L528.1875,245L583.8515625,245L639.515625,245L729.5501453488372,177" marker-end="url(#arrowhead95)" style="fill:none"></path><defs><marker id="arrowhead95" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width:3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g><g class="edgePath" style="opacity: 1;"><path class="path" d="M842.25,159L867.25,159L957.578125,159L1047.90625,159L1072.90625,159" marker-end="url(#arrowhead96)" style="stroke: #333; fill:none;stroke-width:6px;stroke-dasharray:3;"></path><defs><marker id="arrowhead96" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="strokeWidth" markerWidth="8" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowheadPath" style="stroke-width:3px; stroke-dasharray: 1px, 0px;"></path></marker></defs></g></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(272.3125,73)" style="opacity: 1;"><g transform="translate(-20,-8)" class="label"><foreignObject width="40" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">Posts</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(272.3125,159)" style="opacity: 1;"><g transform="translate(-20,-8)" class="label"><foreignObject width="40" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">Posts</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(272.3125,245)" style="opacity: 1;"><g transform="translate(-20,-8)" class="label"><foreignObject width="40" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">Posts</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(583.8515625,73)" style="opacity: 1;"><g transform="translate(-30.6640625,-8)" class="label"><foreignObject width="61.328125" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">Answers</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(583.8515625,159)" style="opacity: 1;"><g transform="translate(-30.6640625,-8)" class="label"><foreignObject width="61.328125" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">Answers</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(583.8515625,245)" style="opacity: 1;"><g transform="translate(-30.6640625,-8)" class="label"><foreignObject width="61.328125" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">Answers</span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(957.578125,159)" style="opacity: 1;"><g transform="translate(-65.328125,-8)" class="label"><foreignObject width="130.65625" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">Pregel aggregates</span></div></foreignObject></g></g></g><g class="nodes"><g class="node" id="Q2" transform="translate(1246.8828125,159)" style="opacity: 1;"><rect rx="0" ry="0" x="-173.9765625" y="-18" width="347.953125" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-163.9765625,-8)"><foreignObject width="327.953125" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">Question - authority = 500 + 1200 + 50 = 1750</div></foreignObject></g></g></g><g class="node" id="Q1" transform="translate(753.3828125,159)" style="opacity: 1;"><rect rx="0" ry="0" x="-88.8671875" y="-18" width="177.734375" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-78.8671875,-8)"><foreignObject width="157.734375" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">Question - authority=0</div></foreignObject></g></g></g><g class="node" id="A1" transform="translate(422.75,73)" style="opacity: 1;"><rect rx="0" ry="0" x="-80.4375" y="-18" width="160.875" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-70.4375,-8)"><foreignObject width="140.875" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">Answer 1 - Score=5</div></foreignObject></g></g></g><g class="node" id="A2" transform="translate(422.75,159)" style="opacity: 1;"><rect rx="0" ry="0" x="-80.4375" y="-18" width="160.875" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-70.4375,-8)"><foreignObject width="140.875" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">Answer 2 - Score=2</div></foreignObject></g></g></g><g class="node" id="A3" transform="translate(422.75,245)" style="opacity: 1;"><rect rx="0" ry="0" x="-80.4375" y="-18" width="160.875" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-70.4375,-8)"><foreignObject width="140.875" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">Answer 3 - Score=8</div></foreignObject></g></g></g><g class="node" id="U1" transform="translate(123.65625,73)" style="opacity: 1;"><rect rx="0" ry="0" x="-74.2109375" y="-18" width="148.421875" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-64.2109375,-8)"><foreignObject width="128.421875" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">User A - Rep=500</div></foreignObject></g></g></g><g class="node" id="U2" transform="translate(123.65625,159)" style="opacity: 1;"><rect rx="0" ry="0" x="-78.65625" y="-18" width="157.3125" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-68.65625,-8)"><foreignObject width="137.3125" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">User B - Rep=1200</div></foreignObject></g></g></g><g class="node" id="U3" transform="translate(123.65625,245)" style="opacity: 1;"><rect rx="0" ry="0" x="-70.203125" y="-18" width="140.40625" height="36"></rect><g class="label" transform="translate(0,0)"><g transform="translate(-60.203125,-8)"><foreignObject width="120.40625" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;">User C - Rep=50</div></foreignObject></g></g></g></g></g></g></svg>
