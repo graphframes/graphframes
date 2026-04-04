@@ -1012,6 +1012,31 @@ class GraphFrame:
 
         return GraphFrame(self.vertices, new_edges)
 
+    def as_reversed(self) -> "GraphFrame":
+        """
+        Reverses the direction of all edges in the graph. For every directed edge (src, dst),
+        the resulting graph will contain an edge (dst, src) with the same attributes.
+
+        :return: A new GraphFrame with all edge directions reversed.
+        """
+        edge_attr_columns = [c for c in self.edges.columns if c not in [SRC, DST]]
+
+        if edge_attr_columns:
+            reversed_edges = self.edges.select(
+                F.col(DST).alias(SRC),
+                F.col(SRC).alias(DST),
+                F.struct(*edge_attr_columns).alias(EDGE),
+            )
+            reversed_edges = reversed_edges.select(SRC, DST, EDGE)
+        else:
+            reversed_edges = self.edges.select(F.col(DST).alias(SRC), F.col(SRC).alias(DST))
+
+        edge_columns = [F.col(EDGE).getField(c).alias(c) for c in edge_attr_columns]
+        selected_columns = [F.col(SRC), F.col(DST)] + edge_columns
+        reversed_edges = reversed_edges.select(*selected_columns)
+
+        return GraphFrame(self.vertices, reversed_edges)
+
     def aggregate_neighbors(
         self,
         starting_vertices: Column | str,

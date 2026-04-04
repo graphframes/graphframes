@@ -145,6 +145,37 @@ def test_as_undirected(spark: SparkSession) -> None:
     assert any(row[0] == 2 and row[1] == 1 and row[2] == "edge1" for row in edges2)
 
 
+def test_as_reversed(spark: SparkSession) -> None:
+    # Test without edge attributes
+    v = spark.createDataFrame([(1, "a"), (2, "b"), (3, "c")]).toDF("id", "name")
+    e = spark.createDataFrame([(1, 2), (2, 3)]).toDF("src", "dst")
+    g = GraphFrame(v, e)
+    reversed_g = g.as_reversed()
+
+    # Check edge count is the same
+    assert reversed_g.edges.count() == g.edges.count()
+
+    # Verify edges are reversed
+    edges = reversed_g.edges.sort("src", "dst").collect()
+    assert len(edges) == 2
+    assert edges[0][0] == 2
+    assert edges[0][1] == 1
+    assert edges[1][0] == 3
+    assert edges[1][1] == 2
+
+    # Test with edge attributes
+    v2 = spark.createDataFrame([(1, "a"), (2, "b")]).toDF("id", "name")
+    e2 = spark.createDataFrame([(1, 2, "edge1")]).toDF("src", "dst", "attr")
+    g2 = GraphFrame(v2, e2)
+    reversed2 = g2.as_reversed()
+
+    edges2 = reversed2.edges.collect()
+    assert len(edges2) == 1
+    assert edges2[0][0] == 2
+    assert edges2[0][1] == 1
+    assert edges2[0][2] == "edge1"
+
+
 def test_cache(local_g: GraphFrame) -> None:
     _ = local_g.cache()
     _ = local_g.unpersist()
