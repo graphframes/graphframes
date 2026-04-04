@@ -1019,9 +1019,23 @@ class GraphFrame:
 
         :return: A new GraphFrame with all edge directions reversed.
         """
-<<<<<<< HEAD
-        return GraphFrame._from_impl(self._impl.asReversed()
-    
+        edge_attr_columns = [c for c in self._edges.columns if c not in [self._SRC, self._DST]]
+        if edge_attr_columns:
+            reversed_edges = self._edges.select(
+                F.col(self._DST).alias(self._SRC),
+                F.col(self._SRC).alias(self._DST),
+                F.struct(*edge_attr_columns).alias(self._EDGE),
+            ).select(self._SRC, self._DST, self._EDGE)
+            edge_columns = [F.col(self._EDGE).getField(c).alias(c) for c in edge_attr_columns]
+            reversed_edges = reversed_edges.select(
+                F.col(self._SRC), F.col(self._DST), *edge_columns
+            )
+        else:
+            reversed_edges = self._edges.select(
+                F.col(self._DST).alias(self._SRC), F.col(self._SRC).alias(self._DST)
+            )
+        return GraphFrameConnect(self._vertices, reversed_edges)
+
     def aggregate_neighbors(
         self,
         starting_vertices: Column | str,
@@ -1139,7 +1153,6 @@ class GraphFrame:
             use_local_checkpoints=use_local_checkpoints,
             storage_level=storage_level,
         )
-=======
         edge_attr_columns = [c for c in self._edges.columns if c not in [self._SRC, self._DST]]
 
         if edge_attr_columns:
@@ -1157,7 +1170,6 @@ class GraphFrame:
                 F.col(self._DST).alias(self._SRC), F.col(self._SRC).alias(self._DST)
             )
         return GraphFrameConnect(self._vertices, reversed_edges)
->>>>>>> 1f30af1 (move graphframes_client.py logic to graphframe.py)
 
 
 @final
