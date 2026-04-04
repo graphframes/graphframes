@@ -1019,22 +1019,23 @@ class GraphFrame:
 
         :return: A new GraphFrame with all edge directions reversed.
         """
-        edge_attr_columns = [c for c in self._edges.columns if c not in [self._SRC, self._DST]]
+        edge_attr_columns = [c for c in self.edges.columns if c not in [SRC, DST]]
+
         if edge_attr_columns:
-            reversed_edges = self._edges.select(
-                F.col(self._DST).alias(self._SRC),
-                F.col(self._SRC).alias(self._DST),
-                F.struct(*edge_attr_columns).alias(self._EDGE),
-            ).select(self._SRC, self._DST, self._EDGE)
-            edge_columns = [F.col(self._EDGE).getField(c).alias(c) for c in edge_attr_columns]
-            reversed_edges = reversed_edges.select(
-                F.col(self._SRC), F.col(self._DST), *edge_columns
+            reversed_edges = self.edges.select(
+                F.col(DST).alias(SRC),
+                F.col(SRC).alias(DST),
+                F.struct(*edge_attr_columns).alias(EDGE),
             )
+            reversed_edges = reversed_edges.select(SRC, DST, EDGE)
         else:
-            reversed_edges = self._edges.select(
-                F.col(self._DST).alias(self._SRC), F.col(self._SRC).alias(self._DST)
-            )
-        return GraphFrameConnect(self._vertices, reversed_edges)
+            reversed_edges = self.edges.select(F.col(DST).alias(SRC), F.col(SRC).alias(DST))
+
+        edge_columns = [F.col(EDGE).getField(c).alias(c) for c in edge_attr_columns]
+        selected_columns = [F.col(SRC), F.col(DST)] + edge_columns
+        reversed_edges = reversed_edges.select(*selected_columns)
+
+        return GraphFrame(self.vertices, reversed_edges)
 
     def aggregate_neighbors(
         self,
@@ -1153,23 +1154,6 @@ class GraphFrame:
             use_local_checkpoints=use_local_checkpoints,
             storage_level=storage_level,
         )
-        edge_attr_columns = [c for c in self._edges.columns if c not in [self._SRC, self._DST]]
-
-        if edge_attr_columns:
-            reversed_edges = self._edges.select(
-                F.col(self._DST).alias(self._SRC),
-                F.col(self._SRC).alias(self._DST),
-                F.struct(*edge_attr_columns).alias(self._EDGE),
-            ).select(self._SRC, self._DST, self._EDGE)
-            edge_columns = [F.col(self._EDGE).getField(c).alias(c) for c in edge_attr_columns]
-            reversed_edges = reversed_edges.select(
-                F.col(self._SRC), F.col(self._DST), *edge_columns
-            )
-        else:
-            reversed_edges = self._edges.select(
-                F.col(self._DST).alias(self._SRC), F.col(self._SRC).alias(self._DST)
-            )
-        return GraphFrameConnect(self._vertices, reversed_edges)
 
 
 @final
