@@ -11,8 +11,8 @@ import org.graphframes.TestUtils
 class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   private def requireSpark41OrHigher(): Unit = {
-    val sparkVersion = spark.version
-    assume(sparkVersion.substring(0, 3) >= "4.1")
+    val (major, minor) = TestUtils.majorMinorVersion(spark.version)
+    assume((major, minor) >= ((4, 1)))
     ()
   }
 
