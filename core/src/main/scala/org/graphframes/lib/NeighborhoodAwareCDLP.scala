@@ -140,7 +140,9 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
    * The output `label` column keeps the data type of the provided column.
    */
   def setInitialLabelCol(col: String): this.type = {
-    require(graph.vertices.columns.contains(col), "columns should exists")
+    require(
+      graph.vertices.columns.contains(col),
+      s"Initial label column '$col' does not exist in vertex columns: ${graph.vertices.columns.mkString(", ")}")
     initialLabelCol = Some(col)
     this
   }
@@ -207,8 +209,8 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
         col(INITIAL_LABEL_COL),
         coalesce(keyWithMaxValue(Pregel.msg), col(LABEL_COL)))
       .setSkipMessagesFromNonActiveVertices(false)
-      .setUpdateActiveVertexExpression((col(LABEL_COL) =!= keyWithMaxValue(
-        Pregel.msg)) || (keyWithMaxValue(Pregel.msg).isNull))
+      .setUpdateActiveVertexExpression(
+        col(LABEL_COL) =!= coalesce(keyWithMaxValue(Pregel.msg), col(LABEL_COL)))
       .setStopIfAllNonActiveVertices(true)
       .setEarlyStopping(false)
 
@@ -223,7 +225,7 @@ object NeighborhoodAwareCDLP extends Logging {
 
   val LABEL_COL = "label"
   private val INITIAL_LABEL_COL = "initial_label"
-  private val EDGE_WEIGHT_COL = "approx_common_neighbors"
+  private val EDGE_WEIGHT_COL = "edge_weight"
 
   private def aggregateMessages(msgCol: Column, idType: DataType): Column = reduce(
     collect_list(msgCol),
