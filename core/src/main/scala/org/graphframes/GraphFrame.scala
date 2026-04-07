@@ -236,6 +236,26 @@ class GraphFrame private (
     GraphFrame(vertices, newEdges.select(newColumns: _*))
   }
 
+  /**
+   * Reverses the direction of all edges in the graph. For every directed edge (src, dst), the
+   * resulting graph will contain an edge (dst, src) with the same attributes.
+   *
+   * @return
+   *   a new GraphFrame with all edge directions reversed.
+   *
+   * @group utils
+   */
+  def asReversed(): GraphFrame = {
+    val newEdges = edges
+      .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR))
+      .select(SRC, DST, ATTR)
+    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
+      .filter(c => (c != SRC) && (c != DST))
+      .map(c => col(ATTR).getField(c).alias(c))
+      .toSeq
+    GraphFrame(vertices, newEdges.select(newColumns: _*))
+  }
+
   // ============== Basic structural methods ============
 
   /**
