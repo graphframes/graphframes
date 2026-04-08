@@ -25,7 +25,6 @@ import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.*
 import org.graphframes.GraphFramesSparkVersionException
 import org.graphframes.Logging
-import org.graphframes.WithAlgorithmChoice
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithDirection
 import org.graphframes.WithIntermediateStorageLevel
@@ -67,7 +66,6 @@ import org.graphframes.WithMaxIter
  */
 class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
     extends Arguments
-    with WithAlgorithmChoice
     with WithCheckpointInterval
     with WithMaxIter
     with WithLocalCheckpoints

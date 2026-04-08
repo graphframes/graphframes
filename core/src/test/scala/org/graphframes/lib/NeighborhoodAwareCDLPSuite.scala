@@ -10,14 +10,8 @@ import org.graphframes.TestUtils
 
 class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  private def requireSpark41OrHigher(): Unit = {
-    val (major, minor) = TestUtils.majorMinorVersion(spark.version)
-    assume((major, minor) >= ((4, 1)))
-    ()
-  }
-
   test("basic flow: one iteration propagates strongest incoming label") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark.createDataFrame(Seq(1L, 2L, 3L).map(Tuple1(_))).toDF("id")
     val edges = spark.createDataFrame(Seq((1L, 2L), (2L, 3L), (3L, 1L))).toDF("src", "dst")
@@ -47,7 +41,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
   test(
     "different a/c weights change winner between direct-link mass and common-neighbor overlap") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark
       .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "B"), (4L, "T"), (7L, "X"), (8L, "Y")))
@@ -94,7 +88,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("isolated vertex keeps its own ID label") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark.createDataFrame(Seq(1L, 2L, 99L).map(Tuple1(_))).toDF("id")
     val edges = spark.createDataFrame(Seq((1L, 2L))).toDF("src", "dst")
@@ -115,7 +109,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("disconnected graph propagates labels independently per component") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark.createDataFrame(Seq(1L, 2L, 3L, 10L, 11L, 12L).map(Tuple1(_))).toDF("id")
     val edges = spark
@@ -143,7 +137,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("changing only c can flip the winning label") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark
       .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "B"), (4L, "T"), (7L, "X"), (8L, "Y")))
@@ -184,7 +178,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("changing only a can flip the winning label") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark
       .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "B"), (4L, "T"), (7L, "X"), (8L, "Y")))
@@ -225,7 +219,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("setIsDirected(false) changes propagation by adding reverse links") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark.createDataFrame(Seq(1L, 2L).map(Tuple1(_))).toDF("id")
     val edges = spark.createDataFrame(Seq((1L, 2L))).toDF("src", "dst")
@@ -264,7 +258,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test("undirected mode matches explicitly symmetrized directed edge set") {
-    requireSpark41OrHigher()
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark.createDataFrame(Seq(1L, 2L, 3L, 4L).map(Tuple1(_))).toDF("id")
     val directedEdges =
