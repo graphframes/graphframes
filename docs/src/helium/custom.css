@@ -1,0 +1,19 @@
+figure {
+    margin: 1em 0;
+    text-align: center;
+}
+
+figure img {
+    max-width: 100%;
+    height: auto;
+}
+
+figcaption {
+    display: block;
+    text-align: center;
+    font-size: 0.875em;
+    color: #fff;
+    font-style: italic;
+    margin-top: 0.5em;
+    padding: 0 1em 0.25em;
+}
