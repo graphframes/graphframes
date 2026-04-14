@@ -812,6 +812,15 @@ class GraphFrame private (
   def labelPropagation: LabelPropagation = new LabelPropagation(this)
 
   /**
+   * Mix of label- and structure propagation.
+   *
+   * See [[org.graphframes.lib.NeighborhoodAwareCDLP]] for more details.
+   *
+   * @group stdlib
+   */
+  def structureAwareLabelPropagation: NeighborhoodAwareCDLP = new NeighborhoodAwareCDLP(this)
+
+  /**
    * PageRank algorithm.
    *
    * See [[org.graphframes.lib.PageRank]] for more details.
