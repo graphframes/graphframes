@@ -167,7 +167,8 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
         edges,
         lgNomEntries,
         structuralSimilarityMultiplier,
-        directLinkScale)
+        directLinkScale,
+        isDirected)
 
     val vertices = if (initialLabelCol.isDefined) {
       graph.vertices.select(col(GraphFrame.ID), col(initialLabelCol.get).alias(INITIAL_LABEL_COL))
@@ -228,12 +229,37 @@ object NeighborhoodAwareCDLP extends Logging {
       edges: DataFrame,
       lgNomEntries: Int,
       structuralSimilarityMultiplier: Double,
-      directLinkScale: Double): DataFrame = {
-    val thetaSketchAggExpr = expr(s"theta_sketch_agg($DST, $lgNomEntries)")
+      directLinkScale: Double,
+      isDirected: Boolean): DataFrame = {
 
-    val vertexSketches = edges
+    // For directed graphs we use weak neighborhoods for structural similarity:
+    // N(v) = In(v) union Out(v).
+    //
+    // Label propagation still follows edge direction via sendMsgToDst, but the
+    // common-neighbor term ignores orientation to avoid making the structural
+    // signal too sparse on low-degree directed graphs.
+    def thetaSketchAggExpr = (c: String) => expr(s"theta_sketch_agg($c, $lgNomEntries)")
+
+    var vertexSketches = edges
       .groupBy(col(SRC).alias(ID))
-      .agg(thetaSketchAggExpr.alias("nbr_theta_sketch"))
+      .agg(thetaSketchAggExpr(DST).alias("nbr_theta_sketch"))
+
+    if (isDirected) {
+      val thetaSketchUnion = (left: String, right: String) => expr(s"theta_union($left, $right)")
+
+      vertexSketches = vertexSketches
+        .join(
+          edges
+            .groupBy(col(DST).alias(ID))
+            .agg(thetaSketchAggExpr(SRC).alias("nbr_theta_sketch_dst")),
+          Seq(ID),
+          "full")
+        .withColumn(
+          "nbr_theta_sketch",
+          when(col("nbr_theta_sketch").isNull, col("nbr_theta_sketch_dst"))
+            .when(col("nbr_theta_sketch_dst").isNull, col("nbr_theta_sketch"))
+            .otherwise(thetaSketchUnion("nbr_theta_sketch", "nbr_theta_sketch_dst")))
+    }
 
     val thetaSketchIntersect = (left: String, right: String) =>
       expr(s"theta_sketch_estimate(theta_intersection($left, $right))")
