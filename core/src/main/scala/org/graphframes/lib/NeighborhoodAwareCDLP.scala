@@ -28,6 +28,7 @@ import org.graphframes.Logging
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithDirection
 import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithLgNomEntries
 import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
 
@@ -71,12 +72,12 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
     with WithLocalCheckpoints
     with WithIntermediateStorageLevel
     with WithDirection
+    with WithLgNomEntries
     with Logging {
 
   private var c: Double = 0.5
   private var a: Double = 1.0
   private var initialLabelCol: Option[String] = None
-  private var lgNomEntries: Int = 12
 
   import NeighborhoodAwareCDLP.*
 
@@ -142,23 +143,6 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
       graph.vertices.columns.contains(col),
       s"Initial label column '$col' does not exist in vertex columns: ${graph.vertices.columns.mkString(", ")}")
     initialLabelCol = Some(col)
-    this
-  }
-
-  /**
-   * Sets sketch size parameter for approximate common-neighbor counting.
-   *
-   * This value controls Theta sketch capacity (`theta_sketch_agg`) used to estimate overlap
-   * between neighborhood sets. It tunes the quality/resource tradeoff:
-   *   - Larger values improve approximation quality/stability of common-neighbor estimates.
-   *   - Smaller values reduce memory usage (and often compute overhead) but increase
-   *     approximation error.
-   *
-   * Valid range is `[4, 24]`. Default: `12`.
-   */
-  def setLgNomEntries(value: Int): this.type = {
-    require((value >= 4) && (value <= 24), "lgNomEntries must be between 4 and 24")
-    lgNomEntries = value
     this
   }
 
