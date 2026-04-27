@@ -52,10 +52,14 @@ import org.graphframes.WithMaxIter
  *   - `structuralSimilarityMultiplier` (default `0.5`): scales neighborhood-overlap contribution.
  *
  * Edge-weight regimes:
- *   - `ignoreDirectLinks = false`: {{ edgeWeight(src, dst) = 1 + structuralSimilarityMultiplier *
- *     commonNeighbors(src, dst) }}
- *   - `ignoreDirectLinks = true`: {{ edgeWeight(src, dst) = structuralSimilarityMultiplier *
- *     commonNeighbors(src, dst) }}
+ *   - `ignoreDirectLinks = false`:
+ *     {{{
+ *     edgeWeight(src, dst) = 1 + structuralSimilarityMultiplier * commonNeighbors(src, dst)
+ *     }}}
+ *   - `ignoreDirectLinks = true`:
+ *     {{{
+ *     edgeWeight(src, dst) = structuralSimilarityMultiplier * commonNeighbors(src, dst)
+ *     }}}
  *
  * This implementation is inspired by neighborhood-strength-driven label propagation ideas from:
  * Xie, Jierui, and Boleslaw K. Szymanski. "Community detection using a neighborhood strength
@@ -95,10 +99,14 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
    * Sets multiplier for the neighborhood-overlap signal (common neighbors).
    *
    * Edge weighting is:
-   *   - {{ edgeWeight(src, dst) = 1 + structuralSimilarityMultiplier * commonNeighbors(src, dst)
-   *     }} when direct links are included.
-   *   - {{ edgeWeight(src, dst) = structuralSimilarityMultiplier * commonNeighbors(src, dst) }}
-   *     when direct links are ignored.
+   *   - when direct links are included:
+   *     {{{
+   *     edgeWeight(src, dst) = 1 + structuralSimilarityMultiplier * commonNeighbors(src, dst)
+   *     }}}
+   *   - when direct links are ignored:
+   *     {{{
+   *     edgeWeight(src, dst) = structuralSimilarityMultiplier * commonNeighbors(src, dst)
+   *     }}}
    *
    * `commonNeighbors(src, dst)` is the (approximate) number of shared out-neighbors between
    * source and destination.
