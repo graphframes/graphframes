@@ -150,7 +150,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("Approximate triangle count") {
-    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
+    assume(TestUtils.requireSparkVersionGE(4, 1, spark.version))
 
     val edges = spark
       .createDataFrame(
@@ -174,7 +174,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("Approximate triangle count - no triangles") {
-    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
+    assume(TestUtils.requireSparkVersionGE(4, 1, spark.version))
 
     val edges = spark.createDataFrame(Seq(0L -> 1L, 1L -> 2L, 3L -> 4L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)
@@ -187,7 +187,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("Approximate triangle count - bipartite graph") {
-    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
+    assume(TestUtils.requireSparkVersionGE(4, 1, spark.version))
 
     val edges =
       spark.createDataFrame(Seq(0L -> 2L, 0L -> 3L, 1L -> 2L, 1L -> 3L)).toDF("src", "dst")
@@ -201,7 +201,7 @@ class TriangleCountSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   test("Approximate triangle count - large lgNomEntries") {
-    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
+    assume(TestUtils.requireSparkVersionGE(4, 1, spark.version))
 
     val edges = spark.createDataFrame(Seq(0L -> 1L, 1L -> 2L, 2L -> 0L)).toDF("src", "dst")
     val g = GraphFrame.fromEdges(edges)

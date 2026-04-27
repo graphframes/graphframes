@@ -22,9 +22,9 @@ object TestUtils {
   }
 
   /** Return true if the major and minor versions are greater or eq to constraints */
-  def requireSparkVersionGT(major: Int, minor: Int, sparkVersion: String): Boolean = {
+  def requireSparkVersionGE(major: Int, minor: Int, sparkVersion: String): Boolean = {
     val (gotMajor, gotMinor) = TestUtils.majorMinorVersion(sparkVersion)
-    (gotMajor >= major) && (gotMinor >= minor)
+    (gotMajor > major) || ((gotMajor == major) && (gotMinor >= minor))
   }
 
   /**
