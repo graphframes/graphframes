@@ -245,7 +245,21 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     ignoreDirectLinks.unpersist()
   }
 
-  test("setStructuralSimilarityMultiplier requires a positive value") {
+  test("setStructuralSimilarityMultiplier allows zero but rejects negative values") {
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
+
+    val vertices = spark.createDataFrame(Seq(1L, 2L).map(Tuple1(_))).toDF("id")
+    val edges = spark.createDataFrame(Seq((1L, 2L))).toDF("src", "dst")
+    val g = GraphFrame(vertices, edges)
+
+    new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(0.0)
+
+    intercept[IllegalArgumentException] {
+      new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(-0.1)
+    }
+  }
+
+  test("zero structuralSimilarityMultiplier is invalid when ignoreDirectLinks is true") {
     assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark.createDataFrame(Seq(1L, 2L).map(Tuple1(_))).toDF("id")
@@ -253,11 +267,11 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     val g = GraphFrame(vertices, edges)
 
     intercept[IllegalArgumentException] {
-      new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(0.0)
-    }
-
-    intercept[IllegalArgumentException] {
-      new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(-0.1)
+      new NeighborhoodAwareCDLP(g)
+        .maxIter(1)
+        .setIgnoreDirectLinks(true)
+        .setStructuralSimilarityMultiplier(0.0)
+        .run()
     }
   }
 

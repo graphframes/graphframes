@@ -111,10 +111,10 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
    * `commonNeighbors(src, dst)` is the (approximate) number of shared out-neighbors between
    * source and destination.
    *
-   * The value must be strictly positive.
+   * The value must be non-negative.
    */
   def setStructuralSimilarityMultiplier(value: Double): this.type = {
-    require(value > 0.0, "structuralSimilarityMultiplier must be > 0")
+    require(value >= 0.0, "structuralSimilarityMultiplier must be >= 0")
     structuralSimilarityMultiplier = value
     this
   }
@@ -140,6 +140,9 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
   def run(): DataFrame = {
     // Validate parameters
     val maxIterChecked = check(maxIter, "maxIter")
+    require(
+      !(ignoreDirectLinks && structuralSimilarityMultiplier == 0.0),
+      "structuralSimilarityMultiplier must be > 0 when ignoreDirectLinks is true")
 
     // Sketch-based features require Spark >= 4.1
     val sparkVersion = graph.vertices.sparkSession.version
