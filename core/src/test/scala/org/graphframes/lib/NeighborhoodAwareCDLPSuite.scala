@@ -36,8 +36,8 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val result = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.5)
       .run()
 
     TestUtils.testSchemaInvariants(g, result)
@@ -57,51 +57,54 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   test(
-    "different a/c weights change winner between direct-link mass and common-neighbor overlap") {
+    "different structuralSimilarityMultiplier values can change winner between direct-link mass and common-neighbor overlap") {
     assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark
       .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "B"), (4L, "T"), (7L, "X"), (8L, "Y")))
       .toDF("id", "initLabel")
 
-    // For destination 4:
+    // For destination 4 when direct links are included:
     // - src 1 has overlap 2 with dst 4 via neighbors {7, 8}
     // - src 2 and src 3 each have overlap 0 with dst 4
     // Messages are aggregated by label:
-    //   label A total = a + 2c
-    //   label B total = a + a = 2a
-    // So lowering c favors B; increasing c favors A.
+    //   label A total = 1 + 2m
+    //   label B total = 1 + 1 = 2
+    // where m = structuralSimilarityMultiplier.
+    // So smaller m favors B; larger m favors A.
     val edges = spark
       .createDataFrame(Seq((1L, 4L), (2L, 4L), (3L, 4L), (4L, 7L), (4L, 8L), (1L, 7L), (1L, 8L)))
       .toDF("src", "dst")
 
     val g = GraphFrame(vertices, edges)
 
-    val lowC = new NeighborhoodAwareCDLP(g)
+    val lowMultiplier = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.1)
       .run()
 
-    val highC = new NeighborhoodAwareCDLP(g)
+    val highMultiplier = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
-      .setA(0.2)
-      .setC(1.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(1.0)
       .run()
 
-    TestUtils.checkColumnType(lowC.schema, "label", DataTypes.StringType)
-    TestUtils.checkColumnType(highC.schema, "label", DataTypes.StringType)
+    TestUtils.checkColumnType(lowMultiplier.schema, "label", DataTypes.StringType)
+    TestUtils.checkColumnType(highMultiplier.schema, "label", DataTypes.StringType)
 
-    val labelWithLowC = lowC.filter("id = 4").select("label").collect().head.getString(0)
-    val labelWithHighC = highC.filter("id = 4").select("label").collect().head.getString(0)
+    val labelWithLowMultiplier =
+      lowMultiplier.filter("id = 4").select("label").collect().head.getString(0)
+    val labelWithHighMultiplier =
+      highMultiplier.filter("id = 4").select("label").collect().head.getString(0)
 
-    assert(labelWithLowC === "B")
-    assert(labelWithHighC === "A")
+    assert(labelWithLowMultiplier === "B")
+    assert(labelWithHighMultiplier === "A")
 
-    lowC.unpersist()
-    highC.unpersist()
+    lowMultiplier.unpersist()
+    highMultiplier.unpersist()
   }
 
   test("isolated vertex keeps its own ID label") {
@@ -113,8 +116,8 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val result = new NeighborhoodAwareCDLP(g)
       .maxIter(3)
-      .setA(1.0)
-      .setC(0.5)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.5)
       .run()
 
     assert(result.count() == 3)
@@ -136,8 +139,8 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val result = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.5)
       .run()
 
     val labels = result
@@ -153,86 +156,109 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     result.unpersist()
   }
 
-  test("changing only c can flip the winning label") {
+  test("changing only structuralSimilarityMultiplier can flip the winning label") {
     assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark
       .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "B"), (4L, "T"), (7L, "X"), (8L, "Y")))
       .toDF("id", "initLabel")
 
-    // For destination 4:
-    //   label A score = a + 2c   (from src 1)
-    //   label B score = 2a       (from src 2 and src 3)
-    // Keep a fixed and vary only c.
+    // For destination 4 when direct links are included:
+    //   label A score = 1 + 2m   (from src 1)
+    //   label B score = 2        (from src 2 and src 3)
+    // Keep direct-link handling fixed and vary only m.
     val edges = spark
       .createDataFrame(Seq((1L, 4L), (2L, 4L), (3L, 4L), (4L, 7L), (4L, 8L), (1L, 7L), (1L, 8L)))
       .toDF("src", "dst")
 
     val g = GraphFrame(vertices, edges)
 
-    val lowC = new NeighborhoodAwareCDLP(g)
+    val lowMultiplier = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.1)
       .run()
 
-    val highC = new NeighborhoodAwareCDLP(g)
+    val highMultiplier = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
-      .setA(1.0)
-      .setC(1.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(1.0)
       .run()
 
-    val labelWithLowC = lowC.filter("id = 4").select("label").collect().head.getString(0)
-    val labelWithHighC = highC.filter("id = 4").select("label").collect().head.getString(0)
+    val labelWithLowMultiplier =
+      lowMultiplier.filter("id = 4").select("label").collect().head.getString(0)
+    val labelWithHighMultiplier =
+      highMultiplier.filter("id = 4").select("label").collect().head.getString(0)
 
-    assert(labelWithLowC === "B")
-    assert(labelWithHighC === "A")
+    assert(labelWithLowMultiplier === "B")
+    assert(labelWithHighMultiplier === "A")
 
-    lowC.unpersist()
-    highC.unpersist()
+    lowMultiplier.unpersist()
+    highMultiplier.unpersist()
   }
 
-  test("changing only a can flip the winning label") {
+  test("changing ignoreDirectLinks can flip the winning label") {
     assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
 
     val vertices = spark
       .createDataFrame(Seq((1L, "A"), (2L, "B"), (3L, "B"), (4L, "T"), (7L, "X"), (8L, "Y")))
       .toDF("id", "initLabel")
 
-    // For destination 4, with c fixed at 0.5:
-    //   label A score = a + 1
-    //   label B score = 2a
-    // High a favors B; low a favors A.
+    // For destination 4 with m = 0.25:
+    // ignoreDirectLinks = false:
+    //   label A score = 1 + 2m = 1.5
+    //   label B score = 2
+    // ignoreDirectLinks = true:
+    //   label A score = 2m = 0.5
+    //   label B score = 0
     val edges = spark
       .createDataFrame(Seq((1L, 4L), (2L, 4L), (3L, 4L), (4L, 7L), (4L, 8L), (1L, 7L), (1L, 8L)))
       .toDF("src", "dst")
 
     val g = GraphFrame(vertices, edges)
 
-    val highA = new NeighborhoodAwareCDLP(g)
+    val includeDirectLinks = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
-      .setA(1.0)
-      .setC(0.5)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.25)
       .run()
 
-    val lowA = new NeighborhoodAwareCDLP(g)
+    val ignoreDirectLinks = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
-      .setA(0.1)
-      .setC(0.5)
+      .setIgnoreDirectLinks(true)
+      .setStructuralSimilarityMultiplier(0.25)
       .run()
 
-    val labelWithHighA = highA.filter("id = 4").select("label").collect().head.getString(0)
-    val labelWithLowA = lowA.filter("id = 4").select("label").collect().head.getString(0)
+    val labelWithDirectLinks =
+      includeDirectLinks.filter("id = 4").select("label").collect().head.getString(0)
+    val labelWithoutDirectLinks =
+      ignoreDirectLinks.filter("id = 4").select("label").collect().head.getString(0)
 
-    assert(labelWithHighA === "B")
-    assert(labelWithLowA === "A")
+    assert(labelWithDirectLinks === "B")
+    assert(labelWithoutDirectLinks === "A")
 
-    highA.unpersist()
-    lowA.unpersist()
+    includeDirectLinks.unpersist()
+    ignoreDirectLinks.unpersist()
+  }
+
+  test("setStructuralSimilarityMultiplier requires a positive value") {
+    assume(TestUtils.requireSparkVersionGT(4, 1, spark.version))
+
+    val vertices = spark.createDataFrame(Seq(1L, 2L).map(Tuple1(_))).toDF("id")
+    val edges = spark.createDataFrame(Seq((1L, 2L))).toDF("src", "dst")
+    val g = GraphFrame(vertices, edges)
+
+    intercept[IllegalArgumentException] {
+      new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(0.0)
+    }
+
+    intercept[IllegalArgumentException] {
+      new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(-0.1)
+    }
   }
 
   test("setIsDirected(false) changes propagation by adding reverse links") {
@@ -244,15 +270,15 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val directed = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.5)
       .setIsDirected(true)
       .run()
 
     val undirected = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.5)
       .setIsDirected(false)
       .run()
 
@@ -289,15 +315,15 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val internalUndirected = new NeighborhoodAwareCDLP(g)
       .maxIter(1)
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.5)
       .setIsDirected(false)
       .run()
 
     val explicitSymDirected = new NeighborhoodAwareCDLP(gSym)
       .maxIter(1)
-      .setA(1.0)
-      .setC(0.0)
+      .setIgnoreDirectLinks(false)
+      .setStructuralSimilarityMultiplier(0.5)
       .setIsDirected(true)
       .run()
 

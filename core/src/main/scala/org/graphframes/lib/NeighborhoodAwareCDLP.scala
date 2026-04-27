@@ -37,8 +37,8 @@ import org.graphframes.WithMaxIter
  *
  * This algorithm is a Label Propagation variant where each incoming label vote is weighted by a
  * combination of:
- *   - direct-link strength (`a`), and
- *   - neighborhood-overlap strength (`c * commonNeighbors`).
+ *   - optional direct-link baseline strength (enabled unless `ignoreDirectLinks = true`), and
+ *   - neighborhood-overlap strength (`structuralSimilarityMultiplier * commonNeighbors`).
  *
  * Intuitively, labels from neighbors that are structurally similar to the destination (many
  * common neighbors) can be amplified, instead of treating all edges equally.
@@ -48,22 +48,21 @@ import org.graphframes.WithMaxIter
  *
  * Main hyperparameters:
  *   - `maxIter` (required): maximum number of propagation rounds.
- *   - `a` (default `1.0`): direct-link baseline weight.
- *   - `c` (default `0.5`): neighborhood-overlap weight.
+ *   - `ignoreDirectLinks` (default `false`): whether to drop direct-link baseline vote mass.
+ *   - `structuralSimilarityMultiplier` (default `0.5`): scales neighborhood-overlap contribution.
  *
- * How to balance `a` and `c`:
- *   - `a = 1, c = 0`: recovers classical unweighted label propagation behavior (all incoming
- *     edges vote equally).
- *   - larger `a` / smaller `c`: rely more on direct connectivity, less on higher-order structure.
- *   - smaller `a` / larger `c`: rely more on structural similarity via shared neighborhoods.
- *   - `a = 0, c = 1`: pure structure propagation based only on common-neighbor overlap.
+ * Edge-weight regimes:
+ *   - `ignoreDirectLinks = false`: {{ edgeWeight(src, dst) = 1 + structuralSimilarityMultiplier *
+ *     commonNeighbors(src, dst) }}
+ *   - `ignoreDirectLinks = true`: {{ edgeWeight(src, dst) = structuralSimilarityMultiplier *
+ *     commonNeighbors(src, dst) }}
  *
  * This implementation is inspired by neighborhood-strength-driven label propagation ideas from:
  * Xie, Jierui, and Boleslaw K. Szymanski. "Community detection using a neighborhood strength
  * driven label propagation algorithm." 2011 IEEE Network Science Workshop. IEEE, 2011.
  *
  * Note: this implementation does not strictly reproduce the paper; it adopts the core idea of
- * modulating label votes with a common-neighbor term (`c`) within the GraphFrames/Pregel design.
+ * modulating label votes with a common-neighbor term within the GraphFrames/Pregel design.
  */
 class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
     extends Arguments
@@ -75,56 +74,40 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
     with WithLgNomEntries
     with Logging {
 
-  private var c: Double = 0.5
-  private var a: Double = 1.0
+  private var structuralSimilarityMultiplier: Double = 0.5
+  private var ignoreDirectLinks: Boolean = false
   private var initialLabelCol: Option[String] = None
 
   import NeighborhoodAwareCDLP.*
 
   /**
-   * Sets weight for the neighborhood-overlap signal (common neighbors).
+   * Sets whether direct-link baseline vote mass is ignored.
    *
-   * This is the `c` term in edge weighting: {{ edgeWeight(src, dst) = a + c *
-   * commonNeighbors(src, dst) }} where `commonNeighbors(src, dst)` is the (approximate) number of
-   * shared out-neighbors between source and destination.
-   *
-   * Higher `c` increases the impact of structural similarity: labels coming from vertices that
-   * share many neighbors with the destination receive more voting mass.
-   *
-   * Key regimes:
-   *   - `c = 0` (with `a = 1`) behaves like classical unweighted label propagation: each incoming
-   *     edge contributes equal vote mass, independent of overlap.
-   *   - `c = 1` and `a = 0` gives pure structure propagation: vote mass depends only on common
-   *     neighbors, so direct links with no shared-neighborhood support contribute zero mass.
-   *
-   * Default: `0.5`.
+   * If `false` (default), each existing edge contributes a baseline of `1.0` before structural
+   * overlap is added. If `true`, only structural overlap contributes vote mass.
    */
-  def setC(value: Double): this.type = {
-    require(value >= 0.0 && value <= 1.0, "c must be in [0,1]")
-    c = value
+  def setIgnoreDirectLinks(value: Boolean): this.type = {
+    ignoreDirectLinks = value
     this
   }
 
   /**
-   * Sets weight for the direct-link signal.
+   * Sets multiplier for the neighborhood-overlap signal (common neighbors).
    *
-   * This is the `a` base term in edge weighting: {{ edgeWeight(src, dst) = a + c *
-   * commonNeighbors(src, dst) }}
+   * Edge weighting is:
+   *   - {{ edgeWeight(src, dst) = 1 + structuralSimilarityMultiplier * commonNeighbors(src, dst)
+   *     }} when direct links are included.
+   *   - {{ edgeWeight(src, dst) = structuralSimilarityMultiplier * commonNeighbors(src, dst) }}
+   *     when direct links are ignored.
    *
-   * Higher `a` gives every existing edge a stronger uniform baseline vote, regardless of
-   * structural overlap.
+   * `commonNeighbors(src, dst)` is the (approximate) number of shared out-neighbors between
+   * source and destination.
    *
-   * Key regimes:
-   *   - `a = 1` and `c = 0` recovers classical label propagation behavior where each incoming
-   *     edge has equal unit influence.
-   *   - `a = 0` and `c = 1` removes direct-link baseline influence and relies fully on common
-   *     neighbors (pure structure propagation).
-   *
-   * Default: `1.0`.
+   * The value must be strictly positive.
    */
-  def setA(value: Double): this.type = {
-    require(value >= 0.0 && value <= 1.0, "a must be in [0,1]")
-    a = value
+  def setStructuralSimilarityMultiplier(value: Double): this.type = {
+    require(value > 0.0, "structuralSimilarityMultiplier must be > 0")
+    structuralSimilarityMultiplier = value
     this
   }
 
@@ -165,9 +148,15 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
         .distinct()
     }
 
+    val directLinkScale = if (ignoreDirectLinks) 0.0 else 1.0
+
     // Compute approximate common neighbor counts on edges and materialize.
     val enrichedEdges =
-      computeEdgeApproxCommonNeighbors(edges, lgNomEntries, c, a)
+      computeEdgeApproxCommonNeighbors(
+        edges,
+        lgNomEntries,
+        structuralSimilarityMultiplier,
+        directLinkScale)
 
     val vertices = if (initialLabelCol.isDefined) {
       graph.vertices.select(col(GraphFrame.ID), col(initialLabelCol.get).alias(INITIAL_LABEL_COL))
@@ -227,8 +216,8 @@ object NeighborhoodAwareCDLP extends Logging {
   private def computeEdgeApproxCommonNeighbors(
       edges: DataFrame,
       lgNomEntries: Int,
-      neighborsScale: Double,
-      linkScale: Double): DataFrame = {
+      structuralSimilarityMultiplier: Double,
+      directLinkScale: Double): DataFrame = {
     val thetaSketchAggExpr = expr(s"theta_sketch_agg($DST, $lgNomEntries)")
 
     val vertexSketches = edges
@@ -253,7 +242,7 @@ object NeighborhoodAwareCDLP extends Logging {
       .join(dstSketch, col(DST) === col("sk_dst_id"), "left_outer")
 
     // Compute approximate intersection and coalesce nulls to 0.0
-    val weightCol = lit(linkScale) + lit(neighborsScale) * coalesce(
+    val weightCol = lit(directLinkScale) + lit(structuralSimilarityMultiplier) * coalesce(
       thetaSketchIntersect("src_nbr_sketch", "dst_nbr_sketch"),
       lit(0.0))
     val edgesWithOverlap = e
