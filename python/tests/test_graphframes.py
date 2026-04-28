@@ -604,6 +604,60 @@ def test_shortest_paths2(spark: SparkSession) -> None:
     _ = result.unpersist()
 
 
+def test_neighborhood_aware_cdlp_api_defaults(spark: SparkSession) -> None:
+    if spark.version[:3] < "4.1":
+        pytest.skip("NeighborhoodAwareCDLP requires Spark >= 4.1")
+
+    vertices = spark.createDataFrame([(1,), (2,), (3,)], ["id"])
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 1)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+
+    result = g.neighborhood_aware_cdlp(max_iter=1)
+    _df_hasCols(result, vcols=["id", "label"])
+    _ = result.unpersist()
+
+
+def test_neighborhood_aware_cdlp_api_with_all_args(spark: SparkSession) -> None:
+    if spark.version[:3] < "4.1":
+        pytest.skip("NeighborhoodAwareCDLP requires Spark >= 4.1")
+
+    vertices = spark.createDataFrame(
+        [(1, "A"), (2, "B"), (3, "C"), (4, "D")],
+        ["id", "seed_label"],
+    )
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 4), (4, 1)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+
+    result = g.neighborhood_aware_cdlp(
+        max_iter=2,
+        structural_similarity_multiplier=0.25,
+        ignore_direct_links=False,
+        initial_label_col="seed_label",
+        is_directed=False,
+        lg_nom_entries=12,
+        use_local_checkpoints=False,
+        checkpoint_interval=2,
+        storage_level=StorageLevel.MEMORY_AND_DISK_DESER,
+    )
+    _df_hasCols(result, vcols=["id", "label"])
+    _ = result.unpersist()
+
+
+def test_neighborhood_aware_cdlp_api_rejects_invalid_multiplier_combination(
+    spark: SparkSession,
+) -> None:
+    vertices = spark.createDataFrame([(1,), (2,)], ["id"])
+    edges = spark.createDataFrame([(1, 2)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+
+    with pytest.raises(ValueError, match="must be > 0 when ignore_direct_links is True"):
+        _ = g.neighborhood_aware_cdlp(
+            max_iter=1,
+            structural_similarity_multiplier=0.0,
+            ignore_direct_links=True,
+        )
+
+
 def test_random_walk_embeddings_api(local_g: GraphFrame) -> None:
     rwe = RandomWalkEmbeddings(local_g)
     rwe.set_rw_model("/tmp/")

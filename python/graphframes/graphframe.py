@@ -705,6 +705,73 @@ class GraphFrame:
             storage_level=storage_level,
         )
 
+    def neighborhood_aware_cdlp(
+        self,
+        max_iter: int,
+        structural_similarity_multiplier: float = 0.5,
+        ignore_direct_links: bool = False,
+        initial_label_col: str | None = None,
+        is_directed: bool = True,
+        lg_nom_entries: int = 12,
+        use_local_checkpoints: bool = False,
+        checkpoint_interval: int = 2,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """
+        Neighborhood-aware community detection via weighted label propagation.
+
+        This algorithm is a Label Propagation variant where each incoming label vote is weighted
+        by a combination of:
+          - optional direct-link baseline strength (enabled unless
+            ``ignore_direct_links = True``), and
+          - neighborhood-overlap strength
+            (``structural_similarity_multiplier * common_neighbors``).
+
+        Intuitively, labels from neighbors that are structurally similar to the destination
+        (many common neighbors) can be amplified instead of treating all edges equally.
+
+        At each iteration, every vertex aggregates weighted incoming votes by label and picks
+        the label with maximum total weight.
+
+        Edge-weight regimes:
+          - ``ignore_direct_links = False``:
+            ``edge_weight = 1 + structural_similarity_multiplier * common_neighbors``
+          - ``ignore_direct_links = True``:
+            ``edge_weight = structural_similarity_multiplier * common_neighbors``
+
+        :param max_iter: maximum number of propagation rounds.
+        :param structural_similarity_multiplier: scales neighborhood-overlap contribution.
+               Must be non-negative.
+        :param ignore_direct_links: whether to drop direct-link baseline vote mass.
+        :param initial_label_col: optional vertex column used to initialize labels.
+        :param is_directed: whether to treat edges as directed.
+        :param lg_nom_entries: log2 nominal entries used by Theta sketch aggregations.
+        :param use_local_checkpoints: whether to use local checkpoints.
+        :param checkpoint_interval: checkpoint interval in iterations.
+        :param storage_level: storage level for intermediate datasets.
+
+        :return: Persisted DataFrame with new vertex column ``label``.
+        """
+        if structural_similarity_multiplier < 0.0:
+            raise ValueError("structural_similarity_multiplier must be >= 0")
+
+        if ignore_direct_links and structural_similarity_multiplier == 0.0:
+            raise ValueError(
+                "structural_similarity_multiplier must be > 0 when ignore_direct_links is True"
+            )
+
+        return self._impl.neighborhood_aware_cdlp(
+            max_iter=max_iter,
+            structural_similarity_multiplier=structural_similarity_multiplier,
+            ignore_direct_links=ignore_direct_links,
+            use_local_checkpoints=use_local_checkpoints,
+            checkpoint_interval=checkpoint_interval,
+            storage_level=storage_level,
+            is_directed=is_directed,
+            lg_nom_entries=lg_nom_entries,
+            initial_label_col=initial_label_col,
+        )
+
     def pageRank(
         self,
         resetProbability: float = 0.15,
