@@ -107,9 +107,10 @@ class AllPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     val result = g.allPaths.fromExpr("id = 1").toExpr("id = 3").maxPathLength(4).run()
 
-    val actualPaths = result.collect().map(_.getAs[Seq[Long]]("path")).toSet
-    assert(actualPaths === Set(Seq(1L, 3L), Seq(1L, 2L, 3L)))
-    assert(!actualPaths.contains(Seq(1L, 2L, 1L, 3L)))
+    val actualPaths =
+      result.collect().map(_.getAs[scala.collection.Seq[Long]]("path").toList).toSet
+    assert(actualPaths === Set(List(1L, 3L), List(1L, 2L, 3L)))
+    assert(!actualPaths.contains(List(1L, 2L, 1L, 3L)))
   }
 
   test("schema and required arguments") {
