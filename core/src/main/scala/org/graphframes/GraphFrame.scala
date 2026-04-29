@@ -685,6 +685,15 @@ class GraphFrame private (
   def bfs: BFS = new BFS(this)
 
   /**
+   * Enumerate all paths between source and destination vertices.
+   *
+   * See [[org.graphframes.lib.AllPaths]] for details.
+   *
+   * @group stdlib
+   */
+  def allPaths: AllPaths = new AllPaths(this)
+
+  /**
    * Aggregate information from neighboring vertices and edges through a controlled traversal.
    *
    * This method provides a flexible way to perform graph traversals while accumulating state at
