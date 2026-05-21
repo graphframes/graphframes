@@ -10,7 +10,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Label_Propagation_Algorithm) for t
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
@@ -62,6 +62,124 @@ For `graphframes` only. By default, GraphFrames uses persistent checkpoints. The
 
 The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarious, using `DISK_ONLY` may be faster.
 
+## Neighborhood-Aware CDLP
+
+Neighborhood-Aware CDLP is a weighted variant of label propagation. Instead of counting every incoming label vote equally, it gives more influence to neighbors that are structurally similar to the destination vertex.
+
+This implementation is inspired by:
+
+Xie, Jierui, and Boleslaw K. Szymanski. "Community detection using a neighborhood strength driven label propagation algorithm." 2011 IEEE Network Science Workshop (NSW), 2011.
+
+### Intuition
+
+Each incoming label vote has two parts:
+
+- direct-link baseline (can be enabled or disabled),
+- structural-overlap part (`structuralSimilarityMultiplier * commonNeighbors`).
+
+Simple intuition for `structuralSimilarityMultiplier`:
+
+- smaller values: behavior is closer to standard LPA,
+- larger values: labels from structurally similar neighbors (many common neighbors) get stronger weight.
+
+### Important differences from the paper
+
+Compared to NSW 2011, this GraphFrames implementation intentionally extends and adapts behavior:
+
+- The paper is for **undirected graphs**; this implementation supports **directed and undirected** execution.
+- The paper does **not** support turning off direct-link contribution; this implementation adds `ignoreDirectLinks`.
+- The paper uses structural factor in **[0, 1]**; this implementation exposes a non-negative multiplier, allowing a wider tuning range.
+
+### Directed common-neighbor definition: pragmatic, not canonical
+
+For directed mode, common neighbors are defined as **shared out-neighbors** of source and destination.
+
+This is a practical choice for scalable message-passing pipelines and consistent directional semantics, but it is not the only valid definition in directed graphs. Other definitions (for example, shared in-neighbors or mixed in/out motifs) may emphasize different structural patterns and lead to different communities.
+
+### Important approximation warning (sketch-based implementation)
+
+This implementation uses **Theta sketches** to estimate common-neighbor overlap.
+
+That makes it scalable, but it is still an approximation. Estimation noise can accumulate through iterative label propagation, and the effect is usually more visible when overlap is small (for example, edges between low-degree vertices where true common-neighbor counts are tiny).
+
+In short: treat very small overlap differences with caution, especially on sparse/low-degree regions.
+
+### Relationship to classical CDLP
+
+You can make this algorithm behave close to classical CDLP/LPA by using:
+
+- `ignoreDirectLinks = false`
+- `structuralSimilarityMultiplier = 0`
+
+This effectively removes structural-overlap amplification and leaves direct-link voting only.
+
+However, this is **not recommended** as a replacement for classical CDLP in production. If you need classical behavior, use the dedicated CDLP API (`labelPropagation`) because it is more optimized.
+
+### Python API
+
+For API details, refer to the @:pydoc(graphframes.GraphFrame.neighborhood_aware_cdlp).
+
+```python
+from graphframes.examples import Graphs
+
+g = Graphs(spark).friends()
+
+result = g.neighborhood_aware_cdlp(
+    max_iter=5,
+    structural_similarity_multiplier=0.5,
+    ignore_direct_links=False,
+)
+result.select("id", "label").show()
+```
+
+### Scala API
+
+For API details, refer to the @:scaladoc(org.graphframes.lib.NeighborhoodAwareCDLP).
+
+```scala
+import org.graphframes.{examples, GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends
+
+val result = g.structureAwareLabelPropagation
+  .maxIter(5)
+  .setStructuralSimilarityMultiplier(0.5)
+  .setIgnoreDirectLinks(false)
+  .run()
+
+result.select("id", "label").show()
+```
+
+### Arguments
+
+- `max_iter`
+
+Maximum number of propagation iterations.
+
+- `structural_similarity_multiplier`
+
+Non-negative factor controlling the strength of structural-overlap voting.
+
+- `ignore_direct_links`
+
+If `False`, direct edges contribute baseline vote mass. If `True`, only structural overlap contributes.
+
+- `initial_label_col`
+
+Optional vertex column used as initial labels. By default, vertex `id` is used.
+
+- `is_directed`
+
+Controls whether edges are treated as directed (`True`) or internally symmetrized (`False`).
+
+- `lg_nom_entries`
+
+Theta-sketch precision parameter used in approximate common-neighbor estimation.
+
+- `checkpoint_interval`, `use_local_checkpoints`, `storage_level`
+
+Runtime controls with the same meaning as in other iterative GraphFrames algorithms.
+
 ## Power Iteration Clustering (PIC)
 
 GraphFrames provides a wrapper for the [Power Iteration Clustering](https://www.cs.cmu.edu/~frank/papers/icml2010-pic-final.pdf) algorithm from the SparkML library.
@@ -70,7 +188,7 @@ GraphFrames provides a wrapper for the [Power Iteration Clustering](https://www.
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
