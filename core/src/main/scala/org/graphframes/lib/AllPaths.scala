@@ -24,7 +24,6 @@ import org.apache.spark.sql.functions.array_contains
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.expr
-import org.apache.spark.sql.functions.size
 import org.apache.spark.sql.graphframes.SparkShims
 import org.graphframes.GraphFrame
 import org.graphframes.WithDirection
@@ -33,18 +32,29 @@ import org.graphframes.WithDirection
  * Computes all simple paths between source and destination vertices.
  *
  * This algorithm enumerates paths up to `maxPathLength` hops. It supports directed and undirected
- * traversal as well as optional edge filtering.
+ * traversal as well as optional edge filtering. It returns all simple paths between source and
+ * destination vertices. Here the term "simple" means no repeated vertices. For example, if there
+ * are paths A-B-C, A-D-C and the edge B-A, user asked to find all the paths between "A" and "C"
+ * only A-B-C and A-D-C will be returned, but not the A-B-A-D-C. The default value of the
+ * `maxPathLength` is `5`. Keep in mind that requesting `maxPathLength` of the scale of the graph
+ * diameter may tend this algorithm will try to return (almost) all simple paths in the graph that
+ * can create huge performance degradation or even OOM-like errors. Algorithm supports both
+ * directed and undirected graphs.
  *
  * Returned DataFrame schema:
  *   - `path`: array of vertex ids in traversal order
  *   - `len`: number of edges in the path (Long)
+ *
+ * Note: in the case of undirected graph an algorithm run on the internal graph made by union
+ * edges and reversed edges. It is assummed that graph does not have multi-edges. Results may be
+ * unstable and unpredictable for the graph with multi-edges.
  */
 class AllPaths private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Serializable
     with WithDirection {
 
-  private var maxPathLength: Int = 10
+  private var maxPathLength: Int = 5
   private var fromExpression: Column = _
   private var toExpression: Column = _
   private var edgeFilterExpression: Option[Column] = None
@@ -79,6 +89,9 @@ class AllPaths private[graphframes] (private val graph: GraphFrame)
   def run(): DataFrame = {
     require(fromExpression != null, "fromExpr is required.")
     require(toExpression != null, "toExpr is required.")
+    require(
+      graph.vertices.columns.toSet.intersect(Set("hop", "path", "len")).isEmpty,
+      "columns `hop`, `path` and `len` are reserved by algorithm")
 
     val traversalGraph = if (isDirected) {
       graph
@@ -102,7 +115,6 @@ class AllPaths private[graphframes] (private val graph: GraphFrame)
         "path",
         array(col(GraphFrame.ID)),
         concat(col("path"), array(AggregateNeighbors.dstAttr(GraphFrame.ID))))
-      .setRequiredVertexAttributes(Seq(GraphFrame.ID))
 
     edgeFilterExpression.foreach { ef =>
       agg.setEdgeFilter(SparkShims.applyExprToCol(graph.spark, ef, "edge_attributes"))
@@ -111,7 +123,7 @@ class AllPaths private[graphframes] (private val graph: GraphFrame)
 
     agg
       .run()
-      .select(col("path"), size(col("path")).cast("long").alias("len"))
+      .select(col("path"), col("hop").alias("len"))
       .distinct()
   }
 }

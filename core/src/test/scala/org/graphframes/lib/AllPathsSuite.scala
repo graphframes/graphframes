@@ -19,6 +19,7 @@ package org.graphframes.lib
 
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
@@ -45,7 +46,7 @@ class AllPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       }
       .toSet
 
-    val expected = Set((Seq(1L, 2L, 4L), 3L), (Seq(1L, 3L, 4L), 3L))
+    val expected = Set((Seq(1L, 2L, 4L), 2L), (Seq(1L, 3L, 4L), 2L))
     assert(actual === expected)
   }
 
@@ -72,7 +73,7 @@ class AllPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       }
       .toSet
 
-    val expected = Set((Seq(4L, 2L, 1L), 3L), (Seq(4L, 3L, 1L), 3L))
+    val expected = Set((Seq(4L, 2L, 1L), 2L), (Seq(4L, 3L, 1L), 2L))
     assert(actual === expected)
   }
 
@@ -95,7 +96,7 @@ class AllPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val rows = result.collect()
     assert(rows.length === 1)
     assert(rows.head.getAs[Seq[Long]]("path") === Seq(1L, 2L, 4L))
-    assert(rows.head.getAs[Long]("len") === 3L)
+    assert(rows.head.getAs[Long]("len") === 2L)
   }
 
   test("cycle handling keeps paths simple") {
@@ -122,7 +123,7 @@ class AllPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     assert(result.columns.toSeq === Seq("path", "len"))
     assert(result.schema("path").dataType.asInstanceOf[ArrayType].elementType === LongType)
-    assert(result.schema("len").dataType === LongType)
+    assert(result.schema("len").dataType === IntegerType)
 
     intercept[IllegalArgumentException] {
       g.allPaths.run()
