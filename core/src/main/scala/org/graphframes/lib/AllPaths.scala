@@ -118,7 +118,6 @@ class AllPaths private[graphframes] (private val graph: GraphFrame)
 
     edgeFilterExpression.foreach { ef =>
       agg.setEdgeFilter(SparkShims.applyExprToCol(graph.spark, ef, "edge_attributes"))
-      agg.setRequiredEdgeAttributes(graph.edges.columns.toSeq)
     }
 
     agg
