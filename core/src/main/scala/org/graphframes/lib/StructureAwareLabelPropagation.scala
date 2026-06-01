@@ -68,7 +68,7 @@ import org.graphframes.WithMaxIter
  * Note: this implementation does not strictly reproduce the paper; it adopts the core idea of
  * modulating label votes with a common-neighbor term within the GraphFrames/Pregel design.
  */
-class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
+class StructureAwareLabelPropagation private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with WithCheckpointInterval
     with WithMaxIter
@@ -82,7 +82,7 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
   private var ignoreDirectLinks: Boolean = false
   private var initialLabelCol: Option[String] = None
 
-  import NeighborhoodAwareCDLP.*
+  import StructureAwareLabelPropagation.*
 
   /**
    * Sets whether direct-link baseline vote mass is ignored.
@@ -204,7 +204,7 @@ class NeighborhoodAwareCDLP private[graphframes] (private val graph: GraphFrame)
   }
 }
 
-object NeighborhoodAwareCDLP extends Logging {
+object StructureAwareLabelPropagation extends Logging {
 
   val LABEL_COL = "label"
   private val INITIAL_LABEL_COL = "initial_label"

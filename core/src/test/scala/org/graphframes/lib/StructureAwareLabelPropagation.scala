@@ -25,7 +25,7 @@ import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.SparkFunSuite
 import org.graphframes.TestUtils
 
-class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkContext {
+class StructureAwareLabelPropagationSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   test("basic flow: one iteration propagates strongest incoming label") {
     assume(TestUtils.requireSparkVersionGE(4, 1, spark.version))
@@ -34,7 +34,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     val edges = spark.createDataFrame(Seq((1L, 2L), (2L, 3L), (3L, 1L))).toDF("src", "dst")
     val g = GraphFrame(vertices, edges)
 
-    val result = new NeighborhoodAwareCDLP(g)
+    val result = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.5)
@@ -78,14 +78,14 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val g = GraphFrame(vertices, edges)
 
-    val lowMultiplier = new NeighborhoodAwareCDLP(g)
+    val lowMultiplier = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.1)
       .run()
 
-    val highMultiplier = new NeighborhoodAwareCDLP(g)
+    val highMultiplier = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
       .setIgnoreDirectLinks(false)
@@ -114,7 +114,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     val edges = spark.createDataFrame(Seq((1L, 2L))).toDF("src", "dst")
     val g = GraphFrame(vertices, edges)
 
-    val result = new NeighborhoodAwareCDLP(g)
+    val result = new StructureAwareLabelPropagation(g)
       .maxIter(3)
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.5)
@@ -137,7 +137,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
       .toDF("src", "dst")
     val g = GraphFrame(vertices, edges)
 
-    val result = new NeighborhoodAwareCDLP(g)
+    val result = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.5)
@@ -173,14 +173,14 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val g = GraphFrame(vertices, edges)
 
-    val lowMultiplier = new NeighborhoodAwareCDLP(g)
+    val lowMultiplier = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.1)
       .run()
 
-    val highMultiplier = new NeighborhoodAwareCDLP(g)
+    val highMultiplier = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
       .setIgnoreDirectLinks(false)
@@ -219,14 +219,14 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
 
     val g = GraphFrame(vertices, edges)
 
-    val includeDirectLinks = new NeighborhoodAwareCDLP(g)
+    val includeDirectLinks = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.25)
       .run()
 
-    val ignoreDirectLinks = new NeighborhoodAwareCDLP(g)
+    val ignoreDirectLinks = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setInitialLabelCol("initLabel")
       .setIgnoreDirectLinks(true)
@@ -252,10 +252,10 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     val edges = spark.createDataFrame(Seq((1L, 2L))).toDF("src", "dst")
     val g = GraphFrame(vertices, edges)
 
-    new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(0.0)
+    new StructureAwareLabelPropagation(g).setStructuralSimilarityMultiplier(0.0)
 
     intercept[IllegalArgumentException] {
-      new NeighborhoodAwareCDLP(g).setStructuralSimilarityMultiplier(-0.1)
+      new StructureAwareLabelPropagation(g).setStructuralSimilarityMultiplier(-0.1)
     }
   }
 
@@ -267,7 +267,7 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     val g = GraphFrame(vertices, edges)
 
     intercept[IllegalArgumentException] {
-      new NeighborhoodAwareCDLP(g)
+      new StructureAwareLabelPropagation(g)
         .maxIter(1)
         .setIgnoreDirectLinks(true)
         .setStructuralSimilarityMultiplier(0.0)
@@ -282,14 +282,14 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     val edges = spark.createDataFrame(Seq((1L, 2L))).toDF("src", "dst")
     val g = GraphFrame(vertices, edges)
 
-    val directed = new NeighborhoodAwareCDLP(g)
+    val directed = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.5)
       .setIsDirected(true)
       .run()
 
-    val undirected = new NeighborhoodAwareCDLP(g)
+    val undirected = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.5)
@@ -327,14 +327,14 @@ class NeighborhoodAwareCDLPSuite extends SparkFunSuite with GraphFrameTestSparkC
     val g = GraphFrame(vertices, directedEdges)
     val gSym = GraphFrame(vertices, symmetrizedEdges)
 
-    val internalUndirected = new NeighborhoodAwareCDLP(g)
+    val internalUndirected = new StructureAwareLabelPropagation(g)
       .maxIter(1)
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.5)
       .setIsDirected(false)
       .run()
 
-    val explicitSymDirected = new NeighborhoodAwareCDLP(gSym)
+    val explicitSymDirected = new StructureAwareLabelPropagation(gSym)
       .maxIter(1)
       .setIgnoreDirectLinks(false)
       .setStructuralSimilarityMultiplier(0.5)

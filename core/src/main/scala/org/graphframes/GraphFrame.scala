@@ -814,11 +814,12 @@ class GraphFrame private (
   /**
    * Mix of label- and structure propagation.
    *
-   * See [[org.graphframes.lib.NeighborhoodAwareCDLP]] for more details.
+   * See [[org.graphframes.lib.StructureAwareLabelPropagation]] for more details.
    *
    * @group stdlib
    */
-  def structureAwareLabelPropagation: NeighborhoodAwareCDLP = new NeighborhoodAwareCDLP(this)
+  def structureAwareLabelPropagation: StructureAwareLabelPropagation =
+    new StructureAwareLabelPropagation(this)
 
   /**
    * PageRank algorithm.

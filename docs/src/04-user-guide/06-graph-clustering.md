@@ -64,7 +64,7 @@ The level of storage for intermediate results and the output `DataFrame` with co
 
 ## Neighborhood-Aware CDLP
 
-Neighborhood-Aware CDLP is a weighted variant of label propagation. Instead of counting every incoming label vote equally, it gives more influence to neighbors that are structurally similar to the destination vertex.
+Neighborhood-Aware (or Structure-Aware) CDLP is a weighted variant of label propagation. Instead of counting every incoming label vote equally, it gives more influence to neighbors that are structurally similar to the destination vertex.
 
 This implementation is inspired by:
 
@@ -134,7 +134,7 @@ result.select("id", "label").show()
 
 ### Scala API
 
-For API details, refer to the @:scaladoc(org.graphframes.lib.NeighborhoodAwareCDLP).
+For API details, refer to the @:scaladoc(org.graphframes.lib.StructureAwareLabelPropagation).
 
 ```scala
 import org.graphframes.{examples, GraphFrame}
