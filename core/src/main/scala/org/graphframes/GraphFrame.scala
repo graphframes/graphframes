@@ -967,7 +967,7 @@ class GraphFrame private (
   /**
    * Run an approximate neighbor function backed by the HLL-sketches.
    *
-   * See [[org.graphfarmes.lib.HyperANF]] for more details.
+   * See [[org.graphframes.lib.HyperANF]] for more details.
    *
    * @group stdlib
    */
