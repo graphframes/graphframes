@@ -211,3 +211,20 @@ private[graphframes] trait WithDirection {
    */
   def getIsDirected: Boolean = isDirected
 }
+
+/**
+ * Helper for the sketch-based algorithms.
+ */
+private[graphframes] trait WithLgNomEntries {
+  protected var lgNomEntries: Int = 12
+
+  /**
+   * Sets the log2 of the nominal entries for the data sketch. Default is 12 (4096 entries).
+   */
+  def setLgNomEntries(value: Int): this.type = {
+    require((value >= 4) && (value <= 24), "lg_nom must be between 4 and 24, defaults to 12")
+    lgNomEntries = value
+    this
+  }
+
+}

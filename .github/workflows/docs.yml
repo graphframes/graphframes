@@ -55,11 +55,11 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          python ./dev/run_doc_benchmarks.py --spark-version 4.0.0
+          python ./dev/run_doc_benchmarks.py --spark-version 4.1.2
 
       - name: Build with Laika
         run: |
-          ./build/sbt -Dspark.version=4.0.0 -Ddocs.mode=production "docs/laikaHTML"
+          ./build/sbt -Dspark.version=4.1.2 -Ddocs.mode=production "docs/laikaHTML"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4

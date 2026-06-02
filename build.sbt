@@ -3,7 +3,7 @@ import laika.config.SyntaxHighlighting
 import laika.format.Markdown.GitHubFlavor
 import org.typelevel.scalacoptions.ScalacOptions
 
-lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.7")
+lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.8")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val scalaVersions = sparkMajorVer match {
