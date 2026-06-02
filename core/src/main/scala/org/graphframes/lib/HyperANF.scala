@@ -23,6 +23,7 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.hll_sketch_agg
 import org.apache.spark.sql.functions.hll_union_agg
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.functions.udf
 import org.graphframes.GraphFrame
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
@@ -38,11 +39,12 @@ import org.graphframes.WithLgNomEntries
  * outgoing edges from `src` to `dst`.
  *
  * Compared with the cumulative neighbourhood-function presentation in the paper, this
- * implementation returns one column per hop, `hop_1`, `hop_2`, ..., `hop_N`, where each column
- * contains a HyperLogLog sketch of the set of vertices reachable in exactly that many hops. To
+ * implementation returns one column per hop, `hop_0`, `hop_1`, `hop_2`, ..., `hop_N`. The `hop_0`
+ * column contains a HyperLogLog sketch of the source vertex itself, and each `hop_k` column for
+ * `k >= 1` contains a HyperLogLog sketch of the set of vertices reachable in exactly `k` hops. To
  * derive the cumulative approximate neighbourhood function for distances up to some hop `k`, a
- * user can combine the exact-hop sketch columns with `hll_union` and then apply
- * `hll_sketch_estimate` to the merged sketch.
+ * user can combine `hop_0` through `hop_k` with `hll_union` and then apply `hll_sketch_estimate`
+ * to the merged sketch.
  *
  * The computation can also be restricted to a subgraph by supplying an edge filter expression via
  * [[setEdgesFilterExpression]]. A common use case is to filter on `src`, for example
@@ -81,8 +83,8 @@ class HyperANF private[graphframes] (graph: GraphFrame)
   /**
    * Sets the maximum hop distance to compute.
    *
-   * The result will contain `hop_1`, `hop_2`, ..., `hop_N`, where `N` is the configured number of
-   * hops.
+   * The result will contain `hop_0`, `hop_1`, `hop_2`, ..., `hop_N`, where `N` is the configured
+   * number of hops.
    *
    * @param value
    *   positive number of hops to compute
@@ -99,12 +101,13 @@ class HyperANF private[graphframes] (graph: GraphFrame)
    * Runs the HyperANF-style computation.
    *
    * The returned `DataFrame` has one row per source vertex present in the filtered edge set. It
-   * contains the vertex id column `id` and one sketch column per hop: `hop_1`, `hop_2`, ...,
-   * `hop_N`. Each `hop_k` column stores a HyperLogLog sketch for the set of vertices reachable
+   * contains the vertex id column `id` and one sketch column per hop: `hop_0`, `hop_1`, `hop_2`,
+   * ..., `hop_N`. The `hop_0` column stores a HyperLogLog sketch containing `id` itself. Each
+   * `hop_k` column for `k >= 1` stores a HyperLogLog sketch for the set of vertices reachable
    * from `id` in exactly `k` directed hops.
    *
-   * To obtain an approximate cumulative neighbourhood size up to hop `k`, union the desired
-   * `hop_*` sketch columns with `hll_union` and then apply `hll_sketch_estimate`.
+   * To obtain an approximate cumulative neighbourhood size up to hop `k`, union `hop_0` through
+   * `hop_k` with `hll_union` and then apply `hll_sketch_estimate`.
    *
    * @return
    *   a `DataFrame` with exact-hop HyperLogLog sketches per source vertex
@@ -116,9 +119,12 @@ class HyperANF private[graphframes] (graph: GraphFrame)
         .select(GraphFrame.SRC, GraphFrame.DST)
         .persist(intermediateStorageLevel)
     var hop = 1
+
+    val hop0func = udf(HyperANF.hll(lgNomEntries))
     var state = edges
       .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
       .agg(hll_sketch_agg(GraphFrame.DST, lgNomEntries).alias("hop_1"))
+      .select(col(GraphFrame.ID), hop0func(col(GraphFrame.ID)).alias("hop_0"), col("hop_1"))
 
     while (hop < nHops) {
       hop += 1
@@ -142,5 +148,13 @@ class HyperANF private[graphframes] (graph: GraphFrame)
     edges.unpersist()
 
     result
+  }
+}
+
+private object HyperANF extends Serializable {
+  def hll(lgNomEntries: Int): Any => Array[Byte] = (id) => {
+    val sketch = new org.apache.datasketches.hll.HllSketch(lgNomEntries)
+    sketch.update(id.toString())
+    sketch.toCompactByteArray()
   }
 }

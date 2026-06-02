@@ -39,7 +39,7 @@ class HyperANFSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   }
 
   private def estimateHopCounts(result: DataFrame, nHops: Int): Map[Long, Seq[Long]] = {
-    val estimateColumns = (1 to nHops).map { hop =>
+    val estimateColumns = (0 to nHops).map { hop =>
       hll_sketch_estimate(col(s"hop_$hop")).alias(s"hop_${hop}_estimate")
     }
 
@@ -47,51 +47,53 @@ class HyperANFSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .select((Seq(col("id")) ++ estimateColumns): _*)
       .collect()
       .map { row =>
-        row.getAs[Long]("id") -> (1 to nHops).map { hop =>
+        row.getAs[Long]("id") -> (0 to nHops).map { hop =>
           row.getAs[Long](s"hop_${hop}_estimate")
         }
       }
       .toMap
   }
 
-  test("HyperANF returns exact 1-hop and 2-hop reachable cardinalities") {
+  test("HyperANF returns exact 0-hop through 2-hop reachable cardinalities") {
     val graph = diamondCycleGraph
     val result = new HyperANF(graph)
       .setNHops(2)
       .setLgNomEntries(12)
       .run()
 
+    TestUtils.checkColumnType(result.schema, "hop_0", DataTypes.BinaryType)
     TestUtils.checkColumnType(result.schema, "hop_1", DataTypes.BinaryType)
     TestUtils.checkColumnType(result.schema, "hop_2", DataTypes.BinaryType)
 
     val expected = Map(
-      1L -> Seq(2L, 1L),
-      2L -> Seq(1L, 1L),
-      3L -> Seq(1L, 1L),
-      4L -> Seq(1L, 1L),
-      5L -> Seq(1L, 2L))
+      1L -> Seq(1L, 2L, 1L),
+      2L -> Seq(1L, 1L, 1L),
+      3L -> Seq(1L, 1L, 1L),
+      4L -> Seq(1L, 1L, 1L),
+      5L -> Seq(1L, 1L, 2L))
 
     assert(estimateHopCounts(result, 2) === expected)
     result.unpersist()
   }
 
-  test("HyperANF returns exact 1-hop through 3-hop reachable cardinalities") {
+  test("HyperANF returns exact 0-hop through 3-hop reachable cardinalities") {
     val graph = diamondCycleGraph
     val result = new HyperANF(graph)
       .setNHops(3)
       .setLgNomEntries(12)
       .run()
 
+    TestUtils.checkColumnType(result.schema, "hop_0", DataTypes.BinaryType)
     TestUtils.checkColumnType(result.schema, "hop_1", DataTypes.BinaryType)
     TestUtils.checkColumnType(result.schema, "hop_2", DataTypes.BinaryType)
     TestUtils.checkColumnType(result.schema, "hop_3", DataTypes.BinaryType)
 
     val expected = Map(
-      1L -> Seq(2L, 1L, 1L),
-      2L -> Seq(1L, 1L, 1L),
-      3L -> Seq(1L, 1L, 1L),
-      4L -> Seq(1L, 1L, 2L),
-      5L -> Seq(1L, 2L, 1L))
+      1L -> Seq(1L, 2L, 1L, 1L),
+      2L -> Seq(1L, 1L, 1L, 1L),
+      3L -> Seq(1L, 1L, 1L, 1L),
+      4L -> Seq(1L, 1L, 1L, 2L),
+      5L -> Seq(1L, 1L, 2L, 1L))
 
     assert(estimateHopCounts(result, 3) === expected)
     result.unpersist()
