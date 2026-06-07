@@ -7,6 +7,9 @@ on:
     tags:
       - "*.*.*"
 
+permissions:
+  contents: read
+
 # In the case of pushing the tag, it will publish the release.
 # In the case of pushing to the main, it will publish the SNAPSHOT
 
