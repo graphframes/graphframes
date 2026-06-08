@@ -401,12 +401,32 @@ class GraphFrame:
 
     def find(self, pattern: str) -> DataFrame:
         """
-        Motif finding.
+        Motif finding: searching the graph for structural patterns.
 
-        See Scala documentation for more details.
+        Motif finding uses a simple Domain-Specific Language (DSL) for expressing structural
+        queries. For example, ``graph.find("(a)-[e1]->(b); (b)-[e2]->(a)")`` will search for
+        pairs of vertices ``a``, ``b`` connected by edges in both directions. It returns a
+        :class:`DataFrame` of all such structures, with columns for each named element (vertex
+        or edge) in the motif.
 
-        :param pattern:  String describing the motif to search for.
-        :return:  DataFrame with one Row for each instance of the motif found
+        **Performance tip:** Motif finding translates patterns into a series of joins. Enabling
+        Spark's Cost-Based Optimizer (CBO) and join reordering can significantly improve
+        performance::
+
+            spark.conf.set("spark.sql.cbo.enabled", "true")
+            spark.conf.set("spark.sql.cbo.joinReorder.enabled", "true")
+
+        The join reorder algorithm is bounded by ``spark.sql.cbo.joinReorder.dp.threshold``
+        (default: ``12``). If the estimated number of joins in your motif exceeds this threshold,
+        increase it accordingly::
+
+            spark.conf.set("spark.sql.cbo.joinReorder.dp.threshold", "20")
+
+        CBO relies on table statistics, so run ``ANALYZE TABLE <tableName> COMPUTE STATISTICS`` on
+        the vertices and edges tables (or temp views) to ensure accurate statistics are available.
+
+        :param pattern: String describing the motif to search for.
+        :return: DataFrame with one Row for each instance of the motif found.
         """
         return self._impl.find(pattern=pattern)
 
