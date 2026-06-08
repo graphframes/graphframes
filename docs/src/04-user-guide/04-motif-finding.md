@@ -55,6 +55,23 @@ can be expressed by applying filters to the result `DataFrame`.
 This can return duplicate rows.  E.g., a query `"(u)-[]->()"` will return a result for each
 matching edge, even if those edges share the same vertex `u`.
 
+## Performance
+
+Motif finding translates structural patterns into a series of joins. Enabling Spark's Cost-Based Optimizer (CBO) and join reordering allows Spark to pick more efficient join orderings based on table statistics, which can significantly boost motif finding performance:
+
+```
+spark.conf.set("spark.sql.cbo.enabled", "true")
+spark.conf.set("spark.sql.cbo.joinReorder.enabled", "true")
+```
+
+The join reorder algorithm uses dynamic programming and is bounded by `spark.sql.cbo.joinReorder.dp.threshold` (default: `12`). If the estimated number of joins in your motif exceeds this threshold, increase it accordingly:
+
+```
+spark.conf.set("spark.sql.cbo.joinReorder.dp.threshold", "20")
+```
+
+Note that CBO relies on table statistics. Run `ANALYZE TABLE` on the vertices and edges tables, or use `spark.sql("ANALYZE TABLE ...")`, to ensure accurate statistics are available.
+
 ## Python API
 
 For API details, refer to the @:pydoc(graphframes.GraphFrame.find).
