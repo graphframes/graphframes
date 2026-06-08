@@ -70,7 +70,7 @@ The join reorder algorithm uses dynamic programming and is bounded by `spark.sql
 spark.conf.set("spark.sql.cbo.joinReorder.dp.threshold", "20")
 ```
 
-Note that CBO relies on table statistics. Run `ANALYZE TABLE` on the vertices and edges tables, or use `spark.sql("ANALYZE TABLE ...")`, to ensure accurate statistics are available.
+Note that CBO relies on table statistics. Run `ANALYZE TABLE <tableName> COMPUTE STATISTICS` on the vertices and edges tables, or use `spark.sql("ANALYZE TABLE ...")`, to ensure accurate statistics are available.
 
 ## Python API
 
