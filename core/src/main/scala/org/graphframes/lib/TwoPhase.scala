@@ -213,8 +213,7 @@ private[graphframes] object TwoPhase extends Logging {
   private[graphframes] def joinBack(
       vertices: DataFrame,
       edges: DataFrame,
-      edgesBeforePruning: DataFrame,
-      intermediateStorageLevel: StorageLevel): DataFrame = {
+      edgesBeforePruning: DataFrame): DataFrame = {
 
     val cc = vertices
       .as("vertices")
@@ -224,7 +223,6 @@ private[graphframes] object TwoPhase extends Logging {
           .otherwise(col(s"edges.$SRC"))
           .as(SRC),
         col(s"vertices.$ID").as(DST))
-      .persist(intermediateStorageLevel)
 
     cc.as("cc")
       .join(
@@ -418,7 +416,7 @@ private[graphframes] object TwoPhase extends Logging {
       }
 
       if (isOptimized) {
-        ee = joinBack(shrunkenGraphNodes, ee, edgesBeforePruning, intermediateStorageLevel)
+        ee = joinBack(shrunkenGraphNodes, ee, edgesBeforePruning)
       }
 
       logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
@@ -431,6 +429,9 @@ private[graphframes] object TwoPhase extends Logging {
 
       for (persistedDF <- lastRoundPersistedDFs) {
         persistedDF.unpersist()
+      }
+      if (shrunkenGraphNodes != null) {
+        shrunkenGraphNodes.unpersist()
       }
 
       resultIsPersistent()
