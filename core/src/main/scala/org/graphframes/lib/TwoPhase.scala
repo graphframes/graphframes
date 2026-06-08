@@ -110,13 +110,17 @@ private[graphframes] object TwoPhase extends Logging {
   }
 
   /**
-   * Computes the sum of all `min_nbr` values and the row count of the given DataFrame in a single
-   * Spark job. The sum is cast to DecimalType(38, 0) for high precision. Used to detect
-   * convergence between iterations and to check graph sparsity for the pruning optimization.
+   * Computes the sum of all `min_nbr` values and the undirected edge count of the given DataFrame
+   * in a single Spark job. The sum is cast to DecimalType(38, 0) for high precision. Used to
+   * detect convergence between iterations and to check graph sparsity for the pruning
+   * optimization. The edge count is derived as `sum(cnt) / 2` since each undirected edge appears
+   * once in each direction in the symmetrized graph.
    */
   private def calcMinNbrSum(minNbrsDF: DataFrame): (BigDecimal, Long) = {
     val row = minNbrsDF
-      .select(sum(col(MIN_NBR).cast(DecimalType(38, 0))), count("*"))
+      .select(
+        sum(col(MIN_NBR).cast(DecimalType(38, 0))),
+        coalesce((sum(col(CNT)) / 2).cast("long"), lit(0L)))
       .first()
     (row.getAs[BigDecimal](0), row.getLong(1))
   }
@@ -476,7 +480,7 @@ private[graphframes] object TwoPhase extends Logging {
 
     var minNbrs1: DataFrame = symmetrize(ee)
       .groupBy(SRC)
-      .agg(min(col(DST)).as(MIN_NBR))
+      .agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT))
       .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)))
       .persist(intermediateStorageLevel)
 
@@ -527,7 +531,7 @@ private[graphframes] object TwoPhase extends Logging {
 
       minNbrs1 = symmetrize(ee)
         .groupBy(SRC)
-        .agg(min(col(DST)).as(MIN_NBR))
+        .agg(min(col(DST)).as(MIN_NBR), count("*").as(CNT))
         .withColumn(MIN_NBR, minValue(col(SRC), col(MIN_NBR)))
         .persist(intermediateStorageLevel)
       currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs1
