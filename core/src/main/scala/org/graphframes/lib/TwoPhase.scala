@@ -192,12 +192,16 @@ private[graphframes] object TwoPhase extends Logging {
       .select(col(DST).as(ID))
 
     // vertices whose outdegree > 0 or indegree > 1
-    val newVV = edges.select(col(SRC).as(ID)).union(v1).distinct()
+    val newVV = edges
+      .select(col(SRC).as(ID))
+      .union(v1)
+      .distinct()
       .persist(intermediateStorageLevel)
     val newVVCnt = newVV.count()
 
     if (newVVCnt * shrinkageThreshold < numNodes) {
-      val newEE = edges.join(newVV.withColumnRenamed(ID, DST), DST)
+      val newEE = edges
+        .join(newVV.withColumnRenamed(ID, DST), DST)
         .persist(intermediateStorageLevel)
       Some((newVV, newEE, newVVCnt))
     } else {
@@ -384,7 +388,7 @@ private[graphframes] object TwoPhase extends Logging {
         // For the dense graph, its edges will be pruned at each large/small star join iteration,
         // and we will try the optimization once the graph becomes sparse.
         if ((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0)
-           && (iteration >= optStartIter) && (!triedToOptimize)) {
+          && (iteration >= optStartIter) && (!triedToOptimize)) {
           edgesBeforePruning = ee
           pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold) match {
             case Some(r) =>

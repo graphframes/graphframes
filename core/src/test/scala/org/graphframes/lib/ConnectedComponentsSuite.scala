@@ -368,8 +368,8 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val v1 = spark.range(3L).toDF(ID)
     val e1 = spark.createDataFrame(Seq((0L, 1L), (0L, 2L))).toDF(SRC, DST)
     val r = TwoPhase.joinBack(v1, e1, edgesOpt)
-    val expectedR = Set(
-      Row(0L, 0L), Row(0L, 1L), Row(0L, 2L), Row(0L, 3L), Row(0L, 4L), Row(0L, 5L))
+    val expectedR =
+      Set(Row(0L, 0L), Row(0L, 1L), Row(0L, 2L), Row(0L, 3L), Row(0L, 4L), Row(0L, 5L))
     assert(r.collect().toSet == expectedR)
   }
 
