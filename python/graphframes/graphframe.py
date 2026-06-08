@@ -422,8 +422,8 @@ class GraphFrame:
 
             spark.conf.set("spark.sql.cbo.joinReorder.dp.threshold", "20")
 
-        CBO relies on table statistics, so run ``ANALYZE TABLE`` on the vertices and edges
-        tables to ensure accurate statistics are available.
+        CBO relies on table statistics, so run ``ANALYZE TABLE <tableName> COMPUTE STATISTICS`` on
+        the vertices and edges tables (or temp views) to ensure accurate statistics are available.
 
         :param pattern: String describing the motif to search for.
         :return: DataFrame with one Row for each instance of the motif found.
