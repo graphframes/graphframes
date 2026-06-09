@@ -99,3 +99,6 @@ openspec
 */.settings
 */.classpath
 */.project
+
+# Laika
+*sitemap.xml
