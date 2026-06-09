@@ -226,6 +226,7 @@ lazy val benchmarks = (project in file("benchmarks"))
 lazy val buildAndCopyScalaDoc = taskKey[Unit]("Build and copy ScalaDoc to docs/api")
 lazy val buildAndCopyPythonDoc = taskKey[Unit]("Build and copy PythonDoc to docs/api")
 lazy val generateAtomFeed = taskKey[Unit]("Generate Atom feed")
+lazy val generateSitemap = taskKey[Unit]("Generate sitemap.xml for SEO")
 
 lazy val docs = (project in file("docs"))
   .dependsOn(core)
@@ -252,6 +253,8 @@ lazy val docs = (project in file("docs"))
       (core / Compile / doc).value.toPath),
     generateAtomFeed := LaikaCustoms
       .generateAtomFeed(baseDirectory.value.toPath.resolve("src/05-blog"), siteBaseUri),
+    generateSitemap := LaikaCustoms
+      .generateSitemap(baseDirectory.value.toPath.resolve("src"), siteBaseUri),
     laikaConfig := LaikaCustoms
       .laikaConfig((benchmarks / baseDirectory).value.toPath.resolve("jmh-result.json"))
       .withConfigValue(LaikaKeys.siteBaseURL, siteBaseUri)
@@ -261,8 +264,8 @@ lazy val docs = (project in file("docs"))
       .withConfigValue("scala.version", scalaVer),
     laikaExtensions := Seq(GitHubFlavor, SyntaxHighlighting, LaikaCustomDirectives),
     laikaHTML := (laikaHTML dependsOn mdoc.toTask(
-      "") dependsOn generateAtomFeed dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
+      "") dependsOn generateAtomFeed dependsOn generateSitemap dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
     laikaPreview := (laikaPreview dependsOn mdoc.toTask(
-      "") dependsOn generateAtomFeed dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
+      "") dependsOn generateAtomFeed dependsOn generateSitemap dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
     laikaTheme := LaikaCustoms.heliumTheme(version.value),
     Laika / sourceDirectories := Seq((ThisBuild / baseDirectory).value / "docs" / "src"))
