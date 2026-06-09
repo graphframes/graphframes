@@ -260,6 +260,27 @@ object GraphFramesConnectUtils {
           lpBuilder.run()
         }
       }
+      case proto.GraphFramesAPI.MethodCase.NEIGHBORHOOD_AWARE_CDLP => {
+        val nc = apiMessage.getNeighborhoodAwareCdlp
+        val ncBuilder = graphFrame.structureAwareLabelPropagation
+          .maxIter(nc.getMaxIter)
+          .setIgnoreDirectLinks(nc.getIgnoreDirectLinks)
+          .setStructuralSimilarityMultiplier(nc.getStructuralSimilarityMultiplier)
+          .setUseLocalCheckpoints(nc.getUseLocalCheckpoints)
+          .setCheckpointInterval(nc.getCheckpointInterval)
+          .setIsDirected(nc.getIsDirected)
+          .setLgNomEntries(nc.getLgNomEntries)
+
+        if (nc.hasInitialLabelCol) {
+          ncBuilder.setInitialLabelCol(nc.getInitialLabelCol)
+        }
+
+        if (nc.hasStorageLevel) {
+          ncBuilder.setIntermediateStorageLevel(parseStorageLevel(nc.getStorageLevel)).run()
+        } else {
+          ncBuilder.run()
+        }
+      }
       case proto.GraphFramesAPI.MethodCase.PAGE_RANK => {
         val pageRankProto = apiMessage.getPageRank
         val pageRank = graphFrame.pageRank.resetProbability(pageRankProto.getResetProbability)

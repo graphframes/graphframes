@@ -24,6 +24,7 @@ import org.graphframes.GraphFrame
 import org.graphframes.GraphFramesSparkVersionException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithLgNomEntries
 
 /**
  * Triangle count implementation.
@@ -41,23 +42,13 @@ import org.graphframes.WithIntermediateStorageLevel
 class TriangleCount private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Serializable
-    with WithIntermediateStorageLevel {
+    with WithIntermediateStorageLevel
+    with WithLgNomEntries {
 
   private var algorithm: String = "exact"
   private val supportedAlgorithms: Set[String] = Set("exact", "approx")
-  private var lgNomEntries: Int = 12
 
   private def supportedAlgorithmsRepr: String = supportedAlgorithms.mkString(", ")
-
-  /**
-   * Sets the log2 of the nominal entries for the Theta sketch (only for "approx" algorithm).
-   * Default is 12 (4096 entries).
-   */
-  def setLgNomEntries(value: Int): this.type = {
-    require((value >= 4) && (value <= 24), "lg_nom must be between 4 and 26, defaults to 12")
-    lgNomEntries = value
-    this
-  }
 
   /**
    * Sets the triangle counting algorithm. Options are "exact" (default) or "approx".

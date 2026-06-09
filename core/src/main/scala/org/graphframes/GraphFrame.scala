@@ -829,6 +829,16 @@ class GraphFrame private (
   def labelPropagation: LabelPropagation = new LabelPropagation(this)
 
   /**
+   * Mix of label- and structure propagation.
+   *
+   * See [[org.graphframes.lib.StructureAwareLabelPropagation]] for more details.
+   *
+   * @group stdlib
+   */
+  def structureAwareLabelPropagation: StructureAwareLabelPropagation =
+    new StructureAwareLabelPropagation(this)
+
+  /**
    * PageRank algorithm.
    *
    * See [[org.graphframes.lib.PageRank]] for more details.

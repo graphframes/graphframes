@@ -243,6 +243,34 @@ class GraphFrame:
 
         return DataFrame(jdf, self._spark)
 
+    def neighborhood_aware_cdlp(
+        self,
+        max_iter: int,
+        structural_similarity_multiplier: float,
+        ignore_direct_links: bool,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        is_directed: bool,
+        lg_nom_entries: int,
+        initial_label_col: str | None,
+    ) -> DataFrame:
+        java_nacdlp = self._jvm_graph.structureAwareLabelPropagation()
+        java_nacdlp.maxIter(max_iter)
+        java_nacdlp.setStructuralSimilarityMultiplier(structural_similarity_multiplier)
+        java_nacdlp.setIgnoreDirectLinks(ignore_direct_links)
+        java_nacdlp.setUseLocalCheckpoints(use_local_checkpoints)
+        java_nacdlp.setCheckpointInterval(checkpoint_interval)
+        java_nacdlp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        java_nacdlp.setIsDirected(is_directed)
+        java_nacdlp.setLgNomEntries(lg_nom_entries)
+
+        if initial_label_col is not None:
+            java_nacdlp.setInitialLabelCol(initial_label_col)
+
+        jdf = java_nacdlp.run()
+        return DataFrame(jdf, self._spark)
+
     def pageRank(
         self,
         resetProbability: float = 0.15,

@@ -39,6 +39,7 @@ message GraphFramesAPI {
     MaximalIndependentSet mis = 22;
     RandomWalkEmbeddings rw_embeddings = 23;
     AggregateNeighbors aggregate_neighbors = 24;
+    NeighborhoodAwareCDLP neighborhood_aware_cdlp = 25;
   }
 }
 
@@ -123,6 +124,18 @@ message LabelPropagation {
   bool use_local_checkpoints = 3;
   int32 checkpoint_interval = 4;
   optional StorageLevel storage_level = 5;
+}
+
+message NeighborhoodAwareCDLP {
+  int32 max_iter = 1;
+  bool ignore_direct_links = 2;
+  double structural_similarity_multiplier = 3;
+  bool use_local_checkpoints = 4;
+  int32 checkpoint_interval = 5;
+  optional StorageLevel storage_level = 6;
+  bool is_directed = 7;
+  int32 lg_nom_entries = 8;
+  optional string initial_label_col = 9;
 }
 
 message PageRank {
