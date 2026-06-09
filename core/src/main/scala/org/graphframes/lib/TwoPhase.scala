@@ -461,7 +461,10 @@ private[graphframes] object TwoPhase extends Logging {
       intermediateStorageLevel: StorageLevel,
       useLabelsAsComponents: Boolean,
       useLocalCheckpoints: Boolean,
-      isGraphPrepared: Boolean): DataFrame = {
+      isGraphPrepared: Boolean,
+      optStartIter: Int = 2,
+      sparsityThreshold: Double = 2.0,
+      shrinkageThreshold: Double = 2.0): DataFrame = {
 
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
@@ -474,9 +477,15 @@ private[graphframes] object TwoPhase extends Logging {
     val vv = g.vertices
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
     logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
+    var numNodes = vv.count()
+    logInfo(s"$logPrefix Found $numNodes nodes after preparation.")
 
     var converged = false
     var iteration = 1
+    var isOptimized = false
+    var triedToOptimize = false
+    var edgesBeforePruning: DataFrame = null
+    var shrunkenGraphNodes: DataFrame = null
 
     var minNbrs1: DataFrame = symmetrize(ee)
       .groupBy(SRC)
@@ -537,8 +546,43 @@ private[graphframes] object TwoPhase extends Logging {
       currRoundPersistedDFs = currRoundPersistedDFs :+ minNbrs1
 
       // test convergence
-      val (currSum, _) = calcMinNbrSum(minNbrs1)
+      val (currSum, edgeCnt) = calcMinNbrSum(minNbrs1)
       logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
+
+      // Pruning Node Optimization: construct a new small graph with fewer nodes,
+      // and find connected components of the shrunken graph, then join back to get the
+      // connected components of the original graph.
+
+      // If the graph becomes sparse and current iteration >= $optStartIter, we start to
+      // try such optimization. However, the optimization is only performed if the shrunken
+      // graph is much smaller than the original graph, otherwise we do not perform it (
+      // in this case, the only additional cost is to determine the size of shrunken graph).
+      // In current implementation, we only try such optimization one time and it is
+      // performed at most one time. So the additional cost is bounded.
+
+      // According to such heuristic rule, we can determine when and whether we should
+      // perform the optimization. For the sparse graphs (defined by sparsityThreshold),
+      // we will try such optimization at the end of $optStartIter iteration (default is 2).
+      // For the dense graph, its edges will be pruned at each large/small star join iteration,
+      // and we will try the optimization once the graph becomes sparse.
+      if ((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0)
+         && (iteration >= optStartIter) && (!triedToOptimize)) {
+        edgesBeforePruning = ee
+        pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold) match {
+          case Some(r) =>
+            shrunkenGraphNodes = r._1
+            ee = r._2
+            currRoundPersistedDFs = currRoundPersistedDFs :+ ee
+            numNodes = r._3
+            isOptimized = true
+            logInfo(s"$logPrefix Pruning node optimization performed in iteration $iteration.")
+            logInfo(s"$logPrefix Shrunken graph node count: $numNodes.")
+          case None =>
+            logInfo(s"$logPrefix Pruning node optimization not performed.")
+        }
+        triedToOptimize = true
+      }
+
       if (currSum == prevSum) {
         converged = true
       } else {
@@ -552,6 +596,10 @@ private[graphframes] object TwoPhase extends Logging {
       iteration += 1
     }
 
+    if (isOptimized) {
+      ee = joinBack(shrunkenGraphNodes, ee, edgesBeforePruning)
+    }
+
     logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
     logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
 
@@ -562,6 +610,9 @@ private[graphframes] object TwoPhase extends Logging {
 
     for (persistedDF <- lastRoundPersistedDFs) {
       persistedDF.unpersist()
+    }
+    if (shrunkenGraphNodes != null) {
+      shrunkenGraphNodes.unpersist()
     }
 
     resultIsPersistent()
