@@ -566,7 +566,7 @@ private[graphframes] object TwoPhase extends Logging {
       // For the dense graph, its edges will be pruned at each large/small star join iteration,
       // and we will try the optimization once the graph becomes sparse.
       if ((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0)
-         && (iteration >= optStartIter) && (!triedToOptimize)) {
+        && (iteration >= optStartIter) && (!triedToOptimize)) {
         edgesBeforePruning = ee
         pruneLeafNodes(ee, intermediateStorageLevel, numNodes, shrinkageThreshold) match {
           case Some(r) =>
