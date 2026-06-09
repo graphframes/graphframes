@@ -75,6 +75,13 @@ import scala.util.control.Breaks.breakable
  *     .run()
  * }}}
  *
+ * Migration note: pre 0.12 users that used edge columns in Pregel expressions should explicitly
+ * specify these columns using [[org.graphframes.lib.Pregel#requiredDstColumns]]. In 0.11 and
+ * earlier there was an unspecified bug that leads all the edge columns are always kept and
+ * persisted that created a bug memory pressure (2 columns in O(|E|) rows in the form of
+ * `StructType`). That behavior is considered as bug and starting from 0.12 edge columns are not
+ * kept by default.
+ *
  * @param graph
  *   The graph that Pregel will run on.
  * @see
@@ -105,6 +112,10 @@ class Pregel(val graph: GraphFrame)
   // When empty, all columns are selected (default behavior)
   private val requiredSrcColumnsList = collection.mutable.ListBuffer.empty[String]
   private val requiredDstColumnsList = collection.mutable.ListBuffer.empty[String]
+
+  // Required columns for edges
+  // When empty, only src and dst are selected
+  private val requiredEdgeColumnsList = collection.mutable.ListBuffer.empty[String]
 
   /** Sets the max number of iterations (default: 10). */
   def setMaxIter(value: Int): this.type = {
@@ -345,6 +356,13 @@ class Pregel(val graph: GraphFrame)
     this
   }
 
+  def requiredEdgeColumns(colName: String, colNames: String*): this.type = {
+    requiredEdgeColumnsList.clear()
+    requiredEdgeColumnsList += colName
+    requiredEdgeColumnsList ++= colNames
+    this
+  }
+
   /**
    * Defines how messages are aggregated after grouped by target vertex IDs.
    *
@@ -419,10 +437,18 @@ class Pregel(val graph: GraphFrame)
         "Optimization: skipping second join (dst state not required by message expressions)")
     }
 
-    val edges = graph.edges
-      .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"), struct(col("*")).as(EDGE))
-      .repartition(col("edge_src"))
-      .persist(intermediateStorageLevel)
+    val edges = (if (requiredEdgeColumnsList.isEmpty) {
+                   graph.edges
+                     .select(col(SRC).alias("edge_src"), col(DST).alias("edge_dst"))
+                 } else {
+                   graph.edges
+                     .select(
+                       col(SRC).alias("edge_src"),
+                       col(DST).alias("edge_dst"),
+                       struct(
+                         requiredEdgeColumnsList.head,
+                         requiredEdgeColumnsList.tail.toSeq: _*).as(EDGE))
+                 }).repartition(col("edge_src")).persist(intermediateStorageLevel)
 
     var iteration = 1
 
