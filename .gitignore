@@ -91,3 +91,11 @@ spark-*
 .cursor
 openspec
 .aider*
+
+# Eclipse project files
+.settings
+.classpath
+.project
+*/.settings
+*/.classpath
+*/.project
