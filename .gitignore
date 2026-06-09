@@ -92,5 +92,13 @@ spark-*
 openspec
 .aider*
 
+# Eclipse project files
+.settings
+.classpath
+.project
+*/.settings
+*/.classpath
+*/.project
+
 # Laika
 *sitemap.xml
