@@ -72,9 +72,6 @@ publishArtifact := false
 
 lazy val commonSetting = Seq(
   libraryDependencies ++= Seq(
-    // JGraphT is considered as internal dependency of GraphFrames
-    // and will be removed in the future.
-    "org.jgrapht" % "jgrapht-core" % "1.5.3",
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.slf4j" % "slf4j-api" % "2.0.17" % "provided",

@@ -5,6 +5,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
 import org.graphframes.GraphFrame
+import org.graphframes.propertygraph.internal.SchemaGraphSnapshot
 import org.graphframes.propertygraph.property.EdgePropertyGroup
 import org.graphframes.propertygraph.property.VertexPropertyGroup
 
@@ -38,6 +39,32 @@ case class PropertyGraphFrame(
     vertexPropertyGroups.map(pg => pg.name -> pg).toMap
   lazy private val edgeGroups: Map[String, EdgePropertyGroup] =
     edgesPropertyGroups.map(pg => pg.name -> pg).toMap
+
+  lazy private val schemaGraphSnapshot: SchemaGraphSnapshot =
+    SchemaGraphSnapshot.fromPropertyGraphFrame(this)
+
+  /**
+   * Returns a human-readable description of the property graph schema.
+   *
+   * The output lists all vertex property groups and edge property groups with their
+   * source/destination connections, sorted alphabetically for determinism.
+   *
+   * @return
+   *   a multi-line string describing the graph schema
+   */
+  def schemaString: String = SchemaGraphSnapshot.toString(schemaGraphSnapshot)
+
+  /**
+   * Returns the property graph schema in DOT (Graphviz) format.
+   *
+   * The output is a valid `digraph` that can be rendered by Graphviz tools. Vertex property
+   * groups appear as nodes and edge property groups appear as directed edges labeled with the
+   * group name.
+   *
+   * @return
+   *   a DOT-format string representing the graph schema
+   */
+  def schemaStringDOT: String = SchemaGraphSnapshot.toDOT(schemaGraphSnapshot)
 
   /**
    * Converts a heterogeneous property graph into a unified GraphFrame representation.
