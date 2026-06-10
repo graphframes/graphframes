@@ -132,6 +132,16 @@ Focus on a specific suite while iterating:
 | `./build/sbt -Dspark.version=4.0.1 compile` | Compiles against Spark 4.x APIs. |
 | `./build/sbt package -Dvendor.name=dbx` | Produces Databricks-compatible Spark Connect jars. |
 
+### 3.5 Note about mixed Java/Scala project
+
+GraphFrames is a mixed Java/Scala project that is built with `sbt`. At the moment the only IDE that natively supports using `sbt` to build Java projects is Intellij IDEA. At the same time, GraphFrames provides a workaround for users of VSCode, Emacs, Neovim and other IDEs/editors that rely on the Eclipse JDTLS Language Server. Users can run:
+
+```bash
+./build/sbt eclipse
+```
+
+This will generate Eclipse project files for all the GraphFrames subprojects and after that users can get the full support of the Java features in their IDE/editor.
+
 ---
 
 ## 4. Python workflow

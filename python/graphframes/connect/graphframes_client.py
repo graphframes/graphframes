@@ -734,6 +734,86 @@ class GraphFrameConnect:
             self._spark,
         )
 
+    def neighborhood_aware_cdlp(
+        self,
+        max_iter: int,
+        structural_similarity_multiplier: float,
+        ignore_direct_links: bool,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        is_directed: bool,
+        lg_nom_entries: int,
+        initial_label_col: str | None,
+    ) -> DataFrame:
+        @final
+        class NeighborhoodAwareCDLP(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                max_iter: int,
+                structural_similarity_multiplier: float,
+                ignore_direct_links: bool,
+                use_local_checkpoints: bool,
+                checkpoint_interval: int,
+                storage_level: StorageLevel,
+                is_directed: bool,
+                lg_nom_entries: int,
+                initial_label_col: str | None,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.max_iter = max_iter
+                self.structural_similarity_multiplier = structural_similarity_multiplier
+                self.ignore_direct_links = ignore_direct_links
+                self.use_local_checkpoints = use_local_checkpoints
+                self.checkpoint_interval = checkpoint_interval
+                self.storage_level = storage_level
+                self.is_directed = is_directed
+                self.lg_nom_entries = lg_nom_entries
+                self.initial_label_col = initial_label_col
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.neighborhood_aware_cdlp.CopyFrom(
+                    pb.NeighborhoodAwareCDLP(
+                        max_iter=self.max_iter,
+                        structural_similarity_multiplier=self.structural_similarity_multiplier,
+                        ignore_direct_links=self.ignore_direct_links,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        checkpoint_interval=self.checkpoint_interval,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                        is_directed=self.is_directed,
+                        lg_nom_entries=self.lg_nom_entries,
+                        initial_label_col=self.initial_label_col,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            NeighborhoodAwareCDLP(
+                self._vertices,
+                self._edges,
+                max_iter,
+                structural_similarity_multiplier,
+                ignore_direct_links,
+                use_local_checkpoints,
+                checkpoint_interval,
+                storage_level,
+                is_directed,
+                lg_nom_entries,
+                initial_label_col,
+            ),
+            self._spark,
+        )
+
     def _update_page_rank_edge_weights(self, new_vertices: DataFrame) -> "GraphFrameConnect":
         cols2select = self.edges.columns + ["weight"]
         new_edges = (

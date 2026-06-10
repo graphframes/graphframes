@@ -36,6 +36,7 @@ class GraphFramesAPI(_message.Message):
         "mis",
         "rw_embeddings",
         "aggregate_neighbors",
+        "neighborhood_aware_cdlp",
     )
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
@@ -61,6 +62,7 @@ class GraphFramesAPI(_message.Message):
     MIS_FIELD_NUMBER: _ClassVar[int]
     RW_EMBEDDINGS_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_NEIGHBORS_FIELD_NUMBER: _ClassVar[int]
+    NEIGHBORHOOD_AWARE_CDLP_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -85,6 +87,7 @@ class GraphFramesAPI(_message.Message):
     mis: MaximalIndependentSet
     rw_embeddings: RandomWalkEmbeddings
     aggregate_neighbors: AggregateNeighbors
+    neighborhood_aware_cdlp: NeighborhoodAwareCDLP
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -115,6 +118,7 @@ class GraphFramesAPI(_message.Message):
         mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
         rw_embeddings: _Optional[_Union[RandomWalkEmbeddings, _Mapping]] = ...,
         aggregate_neighbors: _Optional[_Union[AggregateNeighbors, _Mapping]] = ...,
+        neighborhood_aware_cdlp: _Optional[_Union[NeighborhoodAwareCDLP, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -309,6 +313,49 @@ class LabelPropagation(_message.Message):
         use_local_checkpoints: _Optional[bool] = ...,
         checkpoint_interval: _Optional[int] = ...,
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+    ) -> None: ...
+
+class NeighborhoodAwareCDLP(_message.Message):
+    __slots__ = (
+        "max_iter",
+        "ignore_direct_links",
+        "structural_similarity_multiplier",
+        "use_local_checkpoints",
+        "checkpoint_interval",
+        "storage_level",
+        "is_directed",
+        "lg_nom_entries",
+        "initial_label_col",
+    )
+    MAX_ITER_FIELD_NUMBER: _ClassVar[int]
+    IGNORE_DIRECT_LINKS_FIELD_NUMBER: _ClassVar[int]
+    STRUCTURAL_SIMILARITY_MULTIPLIER_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    IS_DIRECTED_FIELD_NUMBER: _ClassVar[int]
+    LG_NOM_ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_LABEL_COL_FIELD_NUMBER: _ClassVar[int]
+    max_iter: int
+    ignore_direct_links: bool
+    structural_similarity_multiplier: float
+    use_local_checkpoints: bool
+    checkpoint_interval: int
+    storage_level: StorageLevel
+    is_directed: bool
+    lg_nom_entries: int
+    initial_label_col: str
+    def __init__(
+        self,
+        max_iter: _Optional[int] = ...,
+        ignore_direct_links: _Optional[bool] = ...,
+        structural_similarity_multiplier: _Optional[float] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        is_directed: _Optional[bool] = ...,
+        lg_nom_entries: _Optional[int] = ...,
+        initial_label_col: _Optional[str] = ...,
     ) -> None: ...
 
 class PageRank(_message.Message):
