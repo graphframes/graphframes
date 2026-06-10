@@ -508,6 +508,9 @@ class GraphFrame:
         edge_filter: Column | str | None = None,
         max_path_length: int = 5,
         is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
         """
         Computes all simple paths between source and destination vertices.
@@ -557,6 +560,10 @@ class GraphFrame:
         :param is_directed: Whether to use directed traversal. If False, the graph is
             treated as undirected by internally unioning edges with reversed edges.
             Default is True.
+        :param checkpoint_interval: Checkpoint every N iterations, 0 = disabled (default: 0)
+        :param use_local_checkpoints: Use local checkpoints (faster but less reliable)
+        :param storage_level: Storage level for intermediate results
+
         :return: DataFrame with columns ``path`` (array of vertex ids) and ``len``
             (number of edges in the path).
         """
@@ -566,6 +573,9 @@ class GraphFrame:
             edge_filter=edge_filter,
             max_path_length=max_path_length,
             is_directed=is_directed,
+            checkpoint_interval=checkpoint_interval,
+            use_local_checkpoints=use_local_checkpoints,
+            storage_level=storage_level,
         )
 
     def aggregateMessages(

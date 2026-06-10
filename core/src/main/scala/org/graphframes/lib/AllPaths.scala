@@ -26,7 +26,10 @@ import org.apache.spark.sql.functions.concat
 import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.graphframes.SparkShims
 import org.graphframes.GraphFrame
+import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithDirection
+import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithLocalCheckpoints
 
 /**
  * Computes all simple paths between source and destination vertices.
@@ -52,7 +55,10 @@ import org.graphframes.WithDirection
 class AllPaths private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Serializable
-    with WithDirection {
+    with WithDirection
+    with WithLocalCheckpoints
+    with WithCheckpointInterval
+    with WithIntermediateStorageLevel {
 
   private var maxPathLength: Int = 5
   private var fromExpression: Column = _
@@ -186,6 +192,9 @@ class AllPaths private[graphframes] (private val graph: GraphFrame)
         "path",
         array(col(GraphFrame.ID)),
         concat(col("path"), array(AggregateNeighbors.dstAttr(GraphFrame.ID))))
+      .setUseLocalCheckpoints(useLocalCheckpoints)
+      .setCheckpointInterval(checkpointInterval)
+      .setIntermediateStorageLevel(intermediateStorageLevel)
 
     edgeFilterExpression.foreach { ef =>
       agg.setEdgeFilter(SparkShims.applyExprToCol(graph.spark, ef, "edge_attributes"))

@@ -95,6 +95,9 @@ message AllPaths {
   ColumnOrExpression edge_filter = 3;
   int32 max_path_length = 4;
   bool is_directed = 5;
+  int32 checkpoint_interval = 6;
+  bool use_local_checkpoints = 7;
+  optional StorageLevel storage_level = 8;
 }
 
 message ConnectedComponents {

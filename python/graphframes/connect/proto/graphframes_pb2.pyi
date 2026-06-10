@@ -217,17 +217,32 @@ class BFS(_message.Message):
     ) -> None: ...
 
 class AllPaths(_message.Message):
-    __slots__ = ("from_expr", "to_expr", "edge_filter", "max_path_length", "is_directed")
+    __slots__ = (
+        "from_expr",
+        "to_expr",
+        "edge_filter",
+        "max_path_length",
+        "is_directed",
+        "checkpoint_interval",
+        "use_local_checkpoints",
+        "storage_level",
+    )
     FROM_EXPR_FIELD_NUMBER: _ClassVar[int]
     TO_EXPR_FIELD_NUMBER: _ClassVar[int]
     EDGE_FILTER_FIELD_NUMBER: _ClassVar[int]
     MAX_PATH_LENGTH_FIELD_NUMBER: _ClassVar[int]
     IS_DIRECTED_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
     from_expr: ColumnOrExpression
     to_expr: ColumnOrExpression
     edge_filter: ColumnOrExpression
     max_path_length: int
     is_directed: bool
+    checkpoint_interval: int
+    use_local_checkpoints: bool
+    storage_level: StorageLevel
     def __init__(
         self,
         from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
@@ -235,6 +250,9 @@ class AllPaths(_message.Message):
         edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         max_path_length: _Optional[int] = ...,
         is_directed: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
     ) -> None: ...
 
 class ConnectedComponents(_message.Message):

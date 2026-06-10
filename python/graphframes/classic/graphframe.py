@@ -147,22 +147,32 @@ class GraphFrame:
         edge_filter: Column | str | None = None,
         max_path_length: int = 5,
         is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
         builder = self._jvm_graph.allPaths()
         if isinstance(from_expr, Column):
-            builder = builder.fromExpr(from_expr._jc)
+            builder.fromExpr(from_expr._jc)
         else:
-            builder = builder.fromExpr(from_expr)
+            builder.fromExpr(from_expr)
         if isinstance(to_expr, Column):
-            builder = builder.toExpr(to_expr._jc)
+            builder.toExpr(to_expr._jc)
         else:
-            builder = builder.toExpr(to_expr)
-        builder = builder.maxPathLength(max_path_length).setIsDirected(is_directed)
+            builder.toExpr(to_expr)
+        builder.maxPathLength(max_path_length).setIsDirected(is_directed)
         if edge_filter is not None:
             if isinstance(edge_filter, Column):
-                builder = builder.edgeFilter(edge_filter._jc)
+                builder.edgeFilter(edge_filter._jc)
             else:
-                builder = builder.edgeFilter(edge_filter)
+                builder.edgeFilter(edge_filter)
+
+        if checkpoint_interval > 0:
+            builder.setCheckpointInterval(checkpoint_interval)
+
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 

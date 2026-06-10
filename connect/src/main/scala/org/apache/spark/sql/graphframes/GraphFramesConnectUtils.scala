@@ -210,6 +210,7 @@ object GraphFramesConnectUtils {
           .edgeFilter(parseColumnOrExpression(allPathsProto.getEdgeFilter, planner))
           .maxPathLength(allPathsProto.getMaxPathLength)
           .setIsDirected(allPathsProto.getIsDirected)
+          .setUseLocalCheckpoints(allPathsProto.getUseLocalCheckpoints)
           .run()
       }
       case proto.GraphFramesAPI.MethodCase.CONNECTED_COMPONENTS => {

@@ -553,6 +553,9 @@ class GraphFrameConnect:
         edge_filter: Column | str | None = None,
         max_path_length: int = 5,
         is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
         @final
         class AllPaths(LogicalPlan):
@@ -565,6 +568,9 @@ class GraphFrameConnect:
                 edge_filter: Column | str,
                 max_path_length: int,
                 is_directed: bool,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -574,6 +580,9 @@ class GraphFrameConnect:
                 self.edge_filter = edge_filter
                 self.max_path_length = max_path_length
                 self.is_directed = is_directed
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
 
             @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
@@ -587,6 +596,9 @@ class GraphFrameConnect:
                         edge_filter=make_column_or_expr(self.edge_filter, session),
                         max_path_length=self.max_path_length,
                         is_directed=self.is_directed,
+                        checkpoint_interval=self.checkpoint_interval,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        storage_level=storage_level_to_proto(self.storage_level),
                     )
                 )
                 plan = self._create_proto_relation()
