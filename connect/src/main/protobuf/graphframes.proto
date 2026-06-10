@@ -40,6 +40,7 @@ message GraphFramesAPI {
     RandomWalkEmbeddings rw_embeddings = 23;
     AggregateNeighbors aggregate_neighbors = 24;
     NeighborhoodAwareCDLP neighborhood_aware_cdlp = 25;
+    AllPaths all_paths = 26;
   }
 }
 
@@ -86,6 +87,17 @@ message BFS {
   ColumnOrExpression to_expr = 2;
   ColumnOrExpression edge_filter = 3;
   int32 max_path_length = 4;
+}
+
+message AllPaths {
+  ColumnOrExpression from_expr = 1;
+  ColumnOrExpression to_expr = 2;
+  ColumnOrExpression edge_filter = 3;
+  int32 max_path_length = 4;
+  bool is_directed = 5;
+  int32 checkpoint_interval = 6;
+  bool use_local_checkpoints = 7;
+  optional StorageLevel storage_level = 8;
 }
 
 message ConnectedComponents {

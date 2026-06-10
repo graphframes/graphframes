@@ -140,6 +140,42 @@ class GraphFrame:
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
+    def all_paths(
+        self,
+        from_expr: Column | str,
+        to_expr: Column | str,
+        edge_filter: Column | str | None = None,
+        max_path_length: int = 5,
+        is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        builder = self._jvm_graph.allPaths()
+        if isinstance(from_expr, Column):
+            builder.fromExpr(from_expr._jc)
+        else:
+            builder.fromExpr(from_expr)
+        if isinstance(to_expr, Column):
+            builder.toExpr(to_expr._jc)
+        else:
+            builder.toExpr(to_expr)
+        builder.maxPathLength(max_path_length).setIsDirected(is_directed)
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.edgeFilter(edge_filter._jc)
+            else:
+                builder.edgeFilter(edge_filter)
+
+        if checkpoint_interval > 0:
+            builder.setCheckpointInterval(checkpoint_interval)
+
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+
+        jdf = builder.run()
+        return DataFrame(jdf, self._spark)
+
     def aggregateMessages(
         self,
         aggCol: list[Column | str],
