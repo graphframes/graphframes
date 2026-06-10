@@ -425,6 +425,7 @@ class Pregel(_message.Message):
         "skip_messages_from_non_active",
         "required_src_columns",
         "required_dst_columns",
+        "required_edge_columns",
     )
     AGG_MSGS_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_DST_FIELD_NUMBER: _ClassVar[int]
@@ -443,6 +444,7 @@ class Pregel(_message.Message):
     SKIP_MESSAGES_FROM_NON_ACTIVE_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_SRC_COLUMNS_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_DST_COLUMNS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_EDGE_COLUMNS_FIELD_NUMBER: _ClassVar[int]
     agg_msgs: ColumnOrExpression
     send_msg_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     send_msg_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
@@ -460,6 +462,7 @@ class Pregel(_message.Message):
     skip_messages_from_non_active: bool
     required_src_columns: str
     required_dst_columns: str
+    required_edge_columns: str
     def __init__(
         self,
         agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
@@ -479,6 +482,7 @@ class Pregel(_message.Message):
         skip_messages_from_non_active: _Optional[bool] = ...,
         required_src_columns: _Optional[str] = ...,
         required_dst_columns: _Optional[str] = ...,
+        required_edge_columns: _Optional[str] = ...,
     ) -> None: ...
 
 class ShortestPaths(_message.Message):

@@ -177,6 +177,7 @@ message Pregel {
   // Column names separated by comma
   optional string required_src_columns = 16;
   optional string required_dst_columns = 17;
+  optional string required_edge_columns = 18;
 }
 
 message ShortestPaths {

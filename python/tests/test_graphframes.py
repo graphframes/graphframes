@@ -487,6 +487,32 @@ def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> No
     _ = ranks.unpersist()
 
 
+def test_pregel_required_edge_columns(spark: SparkSession) -> None:
+    edges = spark.createDataFrame(
+        [(0, 1, 0.5), (1, 2, 1.0), (2, 0, 0.3)],
+        ["src", "dst", "weight"],
+    )
+    vertices = spark.createDataFrame([(0,), (1,), (2,)], ["id"])
+    graph = GraphFrame(vertices, edges)
+    pregel = graph.pregel
+
+    result = (
+        graph.pregel.setMaxIter(2)
+        .withVertexColumn(
+            "value",
+            sqlfunctions.lit(0.0),
+            sqlfunctions.coalesce(pregel.msg(), sqlfunctions.lit(0.0)),
+        )
+        .sendMsgToDst(pregel.src("value") + pregel.edge("weight"))
+        .aggMsgs(sqlfunctions.sum(pregel.msg()))
+        .required_edge_columns("weight")
+        .run()
+    )
+    assert "value" in result.columns
+    assert result.count() == 3
+    _ = result.unpersist()
+
+
 def _df_hasCols(df: DataFrame, vcols: list[str] = []) -> None:
     for c in vcols:
         assert c in df.columns, f"DataFrame missing column: {c}"

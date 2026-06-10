@@ -356,6 +356,20 @@ class Pregel(val graph: GraphFrame)
     this
   }
 
+  /**
+   * Specifies which edge columns are required when constructing triplets.
+   *
+   * By default, only the source and destination ID columns from edges are included in triplets.
+   * Use this method to include additional edge properties that are needed by the sendMsgToSrc and
+   * sendMsgToDst expressions.
+   *
+   * @param colName
+   *   the first required edge column name
+   * @param colNames
+   *   additional required edge column names
+   * @see
+   *   [[requiredSrcColumns]] and [[requiredDstColumns]]
+   */
   def requiredEdgeColumns(colName: String, colNames: String*): this.type = {
     requiredEdgeColumnsList.clear()
     requiredEdgeColumnsList += colName
