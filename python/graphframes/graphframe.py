@@ -501,6 +501,83 @@ class GraphFrame:
             maxPathLength=maxPathLength,
         )
 
+    def all_paths(
+        self,
+        from_expr: Column | str,
+        to_expr: Column | str,
+        edge_filter: Column | str | None = None,
+        max_path_length: int = 5,
+        is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """
+        Computes all simple paths between source and destination vertices.
+
+        This algorithm enumerates paths up to ``max_path_length`` hops. It supports directed
+        and undirected traversal as well as optional edge filtering. It returns all simple
+        paths between source and destination vertices. Here the term "simple" means no
+        repeated vertices. For example, if there are paths A-B-C, A-D-C and the edge B-A,
+        and the user asked to find all the paths between "A" and "C", only A-B-C and A-D-C
+        will be returned, but not A-B-A-D-C.
+
+        The default value of ``max_path_length`` is 5. Keep in mind that requesting
+        ``max_path_length`` on the scale of the graph diameter may cause the algorithm to
+        try to return (almost) all simple paths in the graph, which can create huge
+        performance degradation or even OOM-like errors.
+
+        **Returned DataFrame schema:**
+
+        - ``path``: array of vertex ids in traversal order
+        - ``len``: number of edges in the path (Long)
+
+        .. note::
+            In the case of an undirected graph, the algorithm runs on an internal graph
+            made by union of edges and reversed edges. It is assumed that the graph does
+            not have multi-edges. Results may be unstable and unpredictable for graphs
+            with multi-edges.
+
+        **Example:**
+
+        >>> paths = g.all_paths(
+        ...     from_expr="name = 'A'",
+        ...     to_expr="name = 'C'",
+        ...     max_path_length=3,
+        ... )
+        >>> paths.show()
+
+        :param from_expr: Column expression or SQL expression string identifying the
+            source (starting) vertices.
+        :param to_expr: Column expression or SQL expression string identifying the
+            destination (target) vertices.
+        :param edge_filter: Optional Column expression or SQL expression string applied
+            to edges during traversal. Only edges satisfying this condition are considered.
+            If not provided, all edges are considered.
+        :param max_path_length: Maximum number of edges in a path; must be greater than 0.
+            Default is 5. Setting a large value (e.g., on the scale of the graph diameter)
+            may cause severe performance degradation or out-of-memory errors.
+        :param is_directed: Whether to use directed traversal. If False, the graph is
+            treated as undirected by internally unioning edges with reversed edges.
+            Default is True.
+        :param checkpoint_interval: Checkpoint every N iterations, 0 = disabled (default: 0)
+        :param use_local_checkpoints: Use local checkpoints (faster but less reliable)
+        :param storage_level: Storage level for intermediate results
+
+        :return: DataFrame with columns ``path`` (array of vertex ids) and ``len``
+            (number of edges in the path).
+        """
+        return self._impl.all_paths(
+            from_expr=from_expr,
+            to_expr=to_expr,
+            edge_filter=edge_filter,
+            max_path_length=max_path_length,
+            is_directed=is_directed,
+            checkpoint_interval=checkpoint_interval,
+            use_local_checkpoints=use_local_checkpoints,
+            storage_level=storage_level,
+        )
+
     def aggregateMessages(
         self,
         aggCol: list[Column | str] | Column,

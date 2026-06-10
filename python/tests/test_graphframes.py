@@ -351,6 +351,30 @@ def test_bfs(local_g: GraphFrame) -> None:
     assert paths3.count() == 0
 
 
+def test_all_paths(local_g: GraphFrame) -> None:
+    # local_g: A->B (love), B->A (hate), B->C (follow)
+    # Directed: A can reach C via A->B->C (1 path)
+    paths = local_g.all_paths("name='A'", "name='C'", use_local_checkpoints=True)
+    assert paths is not None
+    assert {"path", "len"}.issubset(set(paths.columns))
+    paths_list = paths.collect()
+    assert len(paths_list) == 1
+    assert paths_list[0]["len"] == 2
+
+    # With edge filter that removes the 'follow' edge: no path A->C
+    paths_filtered = local_g.all_paths("name='A'", "name='C'", edge_filter="action!='follow'", use_local_checkpoints=True)
+    assert paths_filtered.count() == 0
+
+    # Undirected: A->B->C and A->B->A (no simple path to C via A again),
+    # but also C->B->A is now possible, still only A->B->C from A to C
+    paths_undirected = local_g.all_paths("name='A'", "name='C'", is_directed=False, use_local_checkpoints=True)
+    assert paths_undirected.count() >= 1
+
+    # max_path_length too short: no paths
+    paths_short = local_g.all_paths("name='A'", "name='C'", max_path_length=1, use_local_checkpoints=True)
+    assert paths_short.count() == 0
+
+
 def test_power_iteration_clustering(spark: SparkSession) -> None:
     vertices = [
         (1, 0, 0.5),

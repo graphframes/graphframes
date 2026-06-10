@@ -67,6 +67,104 @@ The level of storage for intermediate results and the output `DataFrame` with co
 
 By default this is true and algorithm will look for only directed paths. By passing false, graph will be considered as undirected and algorithm will look for any shortest path.
 
+## All paths
+
+Computes all simple paths between source and destination vertices up to a specified maximum path length. A "simple" path means no repeated vertices — for example, if there are paths A-B-C and A-D-C and an edge B-A, querying for all paths between A and C returns A-B-C and A-D-C but not A-B-A-D-C.
+
+The algorithm supports both directed and undirected traversal as well as optional edge filtering.
+
+---
+
+**WARNING:**
+
+_Depending on the value of `max_path_length`, this algorithm can be **extremely slow** or even lead to **out-of-memory (OOM) errors** or **huge disk spills**. Setting `max_path_length` on the scale of the graph diameter causes the algorithm to attempt to enumerate (almost) all simple paths in the graph, which grows combinatorially. Use with caution, especially on large or densely connected graphs. Start with a small value and increase gradually._
+
+---
+
+### Python API
+
+For API details, refer to the @:pydoc(graphframes.GraphFrame.all_paths).
+
+```python
+from graphframes.examples import Graphs
+
+g = Graphs(spark).friends()  # Get example graph
+
+# Find all simple paths from vertex "a" to vertex "d" with at most 3 edges
+paths = g.all_paths(
+    from_expr="id = 'a'",
+    to_expr="id = 'd'",
+    max_path_length=3,
+)
+paths.select("path", "len").show()
+
+# Search with edge filter and undirected traversal
+paths = g.all_paths(
+    from_expr="id = 'a'",
+    to_expr="id = 'd'",
+    edge_filter="relationship != 'friend'",
+    max_path_length=3,
+    is_directed=False,
+)
+paths.select("path", "len").show()
+```
+
+### Scala API
+
+For API details, refer to the @:scaladoc(org.graphframes.lib.AllPaths).
+
+```scala
+import org.graphframes.{examples, GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends // get example graph
+
+// Find all simple paths from vertex "a" to vertex "d" with at most 3 edges
+val paths = g.allPaths
+  .fromExpr("id = 'a'")
+  .toExpr("id = 'd'")
+  .maxPathLength(3)
+  .run()
+paths.select("path", "len").show()
+
+// Search with edge filter
+val pathsFiltered = g.allPaths
+  .fromExpr("id = 'a'")
+  .toExpr("id = 'd'")
+  .edgeFilter("relationship != 'friend'")
+  .maxPathLength(3)
+  .run()
+pathsFiltered.select("path", "len").show()
+```
+
+### Returned DataFrame Schema
+
+The returned `DataFrame` contains the following columns:
+
+- `path`: an array of vertex IDs in traversal order (e.g., `[a, b, d]`)
+- `len`: the number of edges in the path (Long)
+
+### Arguments
+
+- `from_expr` (Python) / `fromExpr` (Scala)
+
+A Column or SQL expression identifying the source (starting) vertices.
+
+- `to_expr` (Python) / `toExpr` (Scala)
+
+A Column or SQL expression identifying the destination (target) vertices.
+
+- `max_path_length` (Python) / `maxPathLength` (Scala)
+
+Maximum number of edges in a path; must be greater than 0. Default is 5. Setting a large value (e.g., on the scale of the graph diameter) may cause severe performance degradation or out-of-memory errors.
+
+- `edge_filter` (Python) / `edgeFilter` (Scala)
+
+An optional Column or SQL expression applied to edges during traversal. Only edges satisfying this condition are considered.
+
+- `is_directed` (Python) / directed mode (Scala)
+
+Whether to use directed traversal. Default is `True`. If `False`, the graph is treated as undirected by internally unioning edges with reversed edges. Note: it is assumed that the graph does not have multi-edges. Results may be unstable for graphs with multi-edges.
+
 ## Breadth-first search (BFS)
 
 Breadth-first search (BFS) finds the shortest path(s) from one vertex (or a set of vertices) to another vertex (or a set
@@ -455,6 +553,7 @@ This algorithm is particularly useful for:
 - **Accumulative Computations**: Computing values that depend on the entire path (e.g., product of edge weights, sum of node values)
 
 Unlike single-hop algorithms like BFS or shortest paths, Aggregate Neighbors allows you to:
+
 - Track multiple accumulators simultaneously
 - Define custom stopping criteria
 - Access vertex and edge attributes during traversal
@@ -464,7 +563,7 @@ Unlike single-hop algorithms like BFS or shortest paths, Aggregate Neighbors all
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
