@@ -36,6 +36,7 @@ class GraphFramesAPI(_message.Message):
         "mis",
         "rw_embeddings",
         "aggregate_neighbors",
+        "all_paths",
     )
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
@@ -61,6 +62,7 @@ class GraphFramesAPI(_message.Message):
     MIS_FIELD_NUMBER: _ClassVar[int]
     RW_EMBEDDINGS_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_NEIGHBORS_FIELD_NUMBER: _ClassVar[int]
+    ALL_PATHS_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -85,6 +87,7 @@ class GraphFramesAPI(_message.Message):
     mis: MaximalIndependentSet
     rw_embeddings: RandomWalkEmbeddings
     aggregate_neighbors: AggregateNeighbors
+    all_paths: AllPaths
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -115,6 +118,7 @@ class GraphFramesAPI(_message.Message):
         mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
         rw_embeddings: _Optional[_Union[RandomWalkEmbeddings, _Mapping]] = ...,
         aggregate_neighbors: _Optional[_Union[AggregateNeighbors, _Mapping]] = ...,
+        all_paths: _Optional[_Union[AllPaths, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -206,6 +210,27 @@ class BFS(_message.Message):
         to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         max_path_length: _Optional[int] = ...,
+    ) -> None: ...
+
+class AllPaths(_message.Message):
+    __slots__ = ("from_expr", "to_expr", "edge_filter", "max_path_length", "is_directed")
+    FROM_EXPR_FIELD_NUMBER: _ClassVar[int]
+    TO_EXPR_FIELD_NUMBER: _ClassVar[int]
+    EDGE_FILTER_FIELD_NUMBER: _ClassVar[int]
+    MAX_PATH_LENGTH_FIELD_NUMBER: _ClassVar[int]
+    IS_DIRECTED_FIELD_NUMBER: _ClassVar[int]
+    from_expr: ColumnOrExpression
+    to_expr: ColumnOrExpression
+    edge_filter: ColumnOrExpression
+    max_path_length: int
+    is_directed: bool
+    def __init__(
+        self,
+        from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
+        max_path_length: _Optional[int] = ...,
+        is_directed: _Optional[bool] = ...,
     ) -> None: ...
 
 class ConnectedComponents(_message.Message):

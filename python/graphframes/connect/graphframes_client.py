@@ -546,6 +546,69 @@ class GraphFrameConnect:
             self._spark,
         )
 
+    def all_paths(
+        self,
+        from_expr: Column | str,
+        to_expr: Column | str,
+        edge_filter: Column | str | None = None,
+        max_path_length: int = 5,
+        is_directed: bool = True,
+    ) -> DataFrame:
+        @final
+        class AllPaths(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                from_expr: Column | str,
+                to_expr: Column | str,
+                edge_filter: Column | str,
+                max_path_length: int,
+                is_directed: bool,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.from_expr = from_expr
+                self.to_expr = to_expr
+                self.edge_filter = edge_filter
+                self.max_path_length = max_path_length
+                self.is_directed = is_directed
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.all_paths.CopyFrom(
+                    pb.AllPaths(
+                        from_expr=make_column_or_expr(self.from_expr, session),
+                        to_expr=make_column_or_expr(self.to_expr, session),
+                        edge_filter=make_column_or_expr(self.edge_filter, session),
+                        max_path_length=self.max_path_length,
+                        is_directed=self.is_directed,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        if edge_filter is None:
+            edge_filter: Column = F.lit(True)
+
+        return _dataframe_from_plan(
+            AllPaths(
+                v=self._vertices,
+                e=self._edges,
+                from_expr=from_expr,
+                to_expr=to_expr,
+                edge_filter=edge_filter,
+                max_path_length=max_path_length,
+                is_directed=is_directed,
+            ),
+            self._spark,
+        )
+
     def aggregateMessages(
         self,
         aggCol: list[Column | str],

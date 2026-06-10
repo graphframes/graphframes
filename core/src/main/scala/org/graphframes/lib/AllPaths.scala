@@ -59,33 +59,104 @@ class AllPaths private[graphframes] (private val graph: GraphFrame)
   private var toExpression: Column = _
   private var edgeFilterExpression: Option[Column] = None
 
+  /**
+   * Sets the expression identifying the source (starting) vertices.
+   *
+   * @param value
+   *   a Column expression evaluated against vertex attributes to select source vertices
+   * @return
+   *   this instance for method chaining
+   */
   def fromExpr(value: Column): this.type = {
     fromExpression = value
     this
   }
 
+  /**
+   * Sets the expression identifying the source (starting) vertices.
+   *
+   * @param value
+   *   a SQL expression string evaluated against vertex attributes to select source vertices
+   * @return
+   *   this instance for method chaining
+   */
   def fromExpr(value: String): this.type = fromExpr(expr(value))
 
+  /**
+   * Sets the expression identifying the destination (target) vertices.
+   *
+   * @param value
+   *   a Column expression evaluated against vertex attributes to select destination vertices
+   * @return
+   *   this instance for method chaining
+   */
   def toExpr(value: Column): this.type = {
     toExpression = value
     this
   }
 
+  /**
+   * Sets the expression identifying the destination (target) vertices.
+   *
+   * @param value
+   *   a SQL expression string evaluated against vertex attributes to select destination vertices
+   * @return
+   *   this instance for method chaining
+   */
   def toExpr(value: String): this.type = toExpr(expr(value))
 
+  /**
+   * Sets the maximum path length (number of edges) for the enumerated paths.
+   *
+   * Setting a large value (e.g. on the scale of the graph diameter) may cause the algorithm to
+   * attempt to collect a very large number of paths, leading to severe performance degradation or
+   * out-of-memory errors. Use with caution on large or densely connected graphs.
+   *
+   * @param value
+   *   the maximum number of edges in a path; must be greater than 0. Default is 5.
+   * @return
+   *   this instance for method chaining
+   */
   def maxPathLength(value: Int): this.type = {
     require(value > 0, s"AllPaths maxPathLength must be > 0, but was set to $value")
     maxPathLength = value
     this
   }
 
+  /**
+   * Sets an optional filter expression applied to edges during traversal. Only edges satisfying
+   * this condition will be considered.
+   *
+   * @param value
+   *   a Column expression evaluated against edge attributes
+   * @return
+   *   this instance for method chaining
+   */
   def edgeFilter(value: Column): this.type = {
     edgeFilterExpression = Some(value)
     this
   }
 
+  /**
+   * Sets an optional filter expression applied to edges during traversal. Only edges satisfying
+   * this condition will be considered.
+   *
+   * @param value
+   *   a SQL expression string evaluated against edge attributes
+   * @return
+   *   this instance for method chaining
+   */
   def edgeFilter(value: String): this.type = edgeFilter(expr(value))
 
+  /**
+   * Executes the AllPaths algorithm and returns all simple paths between the specified source and
+   * destination vertices.
+   *
+   * @return
+   *   a DataFrame with the following columns:
+   *   - `path`: an array of vertex ids in traversal order
+   *   - `len`: the number of edges in the path (Long)
+   */
   def run(): DataFrame = {
     require(fromExpression != null, "fromExpr is required.")
     require(toExpression != null, "toExpr is required.")

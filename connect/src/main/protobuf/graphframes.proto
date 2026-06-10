@@ -39,6 +39,7 @@ message GraphFramesAPI {
     MaximalIndependentSet mis = 22;
     RandomWalkEmbeddings rw_embeddings = 23;
     AggregateNeighbors aggregate_neighbors = 24;
+    AllPaths all_paths = 25;
   }
 }
 
@@ -85,6 +86,14 @@ message BFS {
   ColumnOrExpression to_expr = 2;
   ColumnOrExpression edge_filter = 3;
   int32 max_path_length = 4;
+}
+
+message AllPaths {
+  ColumnOrExpression from_expr = 1;
+  ColumnOrExpression to_expr = 2;
+  ColumnOrExpression edge_filter = 3;
+  int32 max_path_length = 4;
+  bool is_directed = 5;
 }
 
 message ConnectedComponents {

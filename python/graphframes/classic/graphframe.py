@@ -140,6 +140,32 @@ class GraphFrame:
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
+    def all_paths(
+        self,
+        from_expr: Column | str,
+        to_expr: Column | str,
+        edge_filter: Column | str | None = None,
+        max_path_length: int = 5,
+        is_directed: bool = True,
+    ) -> DataFrame:
+        builder = self._jvm_graph.allPaths()
+        if isinstance(from_expr, Column):
+            builder = builder.fromExpr(from_expr._jc)
+        else:
+            builder = builder.fromExpr(from_expr)
+        if isinstance(to_expr, Column):
+            builder = builder.toExpr(to_expr._jc)
+        else:
+            builder = builder.toExpr(to_expr)
+        builder = builder.maxPathLength(max_path_length).setIsDirected(is_directed)
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder = builder.edgeFilter(edge_filter._jc)
+            else:
+                builder = builder.edgeFilter(edge_filter)
+        jdf = builder.run()
+        return DataFrame(jdf, self._spark)
+
     def aggregateMessages(
         self,
         aggCol: list[Column | str],
