@@ -32,6 +32,19 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
+
+  // vertices and edges for pruning node optimization tests.
+  var verticesOpt: DataFrame = _
+  var edgesOpt: DataFrame = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    verticesOpt = spark.range(7L).toDF(ID)
+    edgesOpt = spark
+      .createDataFrame(Seq((0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)))
+      .toDF(SRC, DST)
+  }
+
   test("default params") {
     val g = Graphs.empty[Int]
     val cc = g.connectedComponents
@@ -317,6 +330,47 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     components.unpersist(blocking = true)
 
     assert(spark.sparkContext.getPersistentRDDs.size === priorCachedDFsSize)
+  }
+
+  test("prune process for pruning nodes optimization") {
+    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
+    val shrinkageThreshold = 2.0
+    val Some(r1) = TwoPhase.pruneLeafNodes(
+      edgesOpt,
+      intermediateStorageLevel,
+      verticesOpt.count(),
+      shrinkageThreshold)
+
+    val expectedV = Set(Row(0L), Row(1L), Row(2L))
+    val expectedE = Set(Row(0L, 1L), Row(1L, 2L), Row(0L, 2L))
+
+    assert(r1._1.collect().toSet == expectedV)
+    assert(r1._2.select(SRC, DST).collect().toSet == expectedE)
+    assert(r1._3 == expectedV.size)
+    r1._1.unpersist()
+    r1._2.unpersist()
+  }
+
+  test("shrinkage condition for pruning nodes optimization") {
+    val intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK
+    val shrinkageThreshold = 4.0
+    // new_vv_cnt = 3, nodeNum = 7, shrinkageThreshold = 4
+    // new_vv_cnt * shrinkageThreshold > nodeNum. Do not perform the optimization.
+    val r1 = TwoPhase.pruneLeafNodes(
+      edgesOpt,
+      intermediateStorageLevel,
+      verticesOpt.count(),
+      shrinkageThreshold)
+    assert(r1 == None)
+  }
+
+  test("join back for pruning node optimization") {
+    val v1 = spark.range(3L).toDF(ID)
+    val e1 = spark.createDataFrame(Seq((0L, 1L), (0L, 2L))).toDF(SRC, DST)
+    val r = TwoPhase.joinBack(v1, e1, edgesOpt)
+    val expectedR =
+      Set(Row(0L, 0L), Row(0L, 1L), Row(0L, 2L), Row(0L, 3L), Row(0L, 4L), Row(0L, 5L))
+    assert(r.collect().toSet == expectedR)
   }
 
   private def assertComponents[T: ClassTag: TypeTag](

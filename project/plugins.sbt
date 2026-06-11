@@ -37,3 +37,8 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_ % circeVersion)
+
+// Eclipse project export:
+// - use it with VSCode, Emacs, Vim, etc
+//   to make the autocompletion work for Java files
+addSbtPlugin("com.github.sbt" % "sbt-eclipse" % "6.0.0")

@@ -592,6 +592,23 @@ class GraphFrame private (
    * This can return duplicate rows. E.g., a query `"(u)-[]->()"` will return a result for each
    * matching edge, even if those edges share the same vertex `u`.
    *
+   * ==Performance==
+   * Motif finding translates patterns into a series of joins. Enabling Spark's Cost-Based
+   * Optimizer (CBO) and join reordering can significantly improve performance by letting Spark
+   * choose more efficient join orderings based on table statistics:
+   * {{{
+   * spark.conf.set("spark.sql.cbo.enabled", "true")
+   * spark.conf.set("spark.sql.cbo.joinReorder.enabled", "true")
+   * }}}
+   * The join reorder algorithm is bounded by `spark.sql.cbo.joinReorder.dp.threshold` (default:
+   * `12`). If the estimated number of joins in your motif exceeds this threshold, increase it
+   * accordingly:
+   * {{{
+   * spark.conf.set("spark.sql.cbo.joinReorder.dp.threshold", "20")
+   * }}}
+   * CBO relies on table statistics, so run `ANALYZE TABLE <tableName> COMPUTE STATISTICS` on the
+   * vertices and edges tables to ensure accurate statistics are available.
+   *
    * @param pattern
    *   Pattern specifying a motif to search for.
    * @return
@@ -683,6 +700,15 @@ class GraphFrame private (
    * @group stdlib
    */
   def bfs: BFS = new BFS(this)
+
+  /**
+   * Enumerate all paths between source and destination vertices.
+   *
+   * See [[org.graphframes.lib.AllPaths]] for details.
+   *
+   * @group stdlib
+   */
+  def allPaths: AllPaths = new AllPaths(this)
 
   /**
    * Aggregate information from neighboring vertices and edges through a controlled traversal.
@@ -810,6 +836,16 @@ class GraphFrame private (
    * @group stdlib
    */
   def labelPropagation: LabelPropagation = new LabelPropagation(this)
+
+  /**
+   * Mix of label- and structure propagation.
+   *
+   * See [[org.graphframes.lib.StructureAwareLabelPropagation]] for more details.
+   *
+   * @group stdlib
+   */
+  def structureAwareLabelPropagation: StructureAwareLabelPropagation =
+    new StructureAwareLabelPropagation(this)
 
   /**
    * PageRank algorithm.
