@@ -28,7 +28,7 @@ Credits to [@SemyonSinchenko](https://github.com/SemyonSinchenko).
 
 The Two-Phase algorithm is based on the idea of rewiring edges to end up with a star-like graph structure. However, during the rewiring process, a large number of leaves, or vertices with no outgoing edges, appear. Although determining components for these vertices is trivial, and they do not participate in the main algorithm loop, they still shuffle and join until full convergence. The new optimization adds an efficient way to determine the optimal time to remove such leaves and offset the cost of rejoining them after convergence. Based on initial benchmarks, the optimization delivers a ~25% performance boost.
 
-Credits to [WeichenXu123](https://github.com/WeichenXu123)
+Credits to [@WeichenXu123](https://github.com/WeichenXu123)
 
 ## Important note
 
