@@ -185,6 +185,7 @@ class StructureAwareLabelPropagation private[graphframes] (private val graph: Gr
       .setCheckpointInterval(checkpointInterval)
       .setUseLocalCheckpoints(useLocalCheckpoints)
       .setIntermediateStorageLevel(intermediateStorageLevel)
+      .requiredEdgeColumns(EDGE_WEIGHT_COL)
       .sendMsgToDst(struct(Pregel.src(LABEL_COL), Pregel.edge(EDGE_WEIGHT_COL)))
       .aggMsgs(aggregateMessages(Pregel.msg, vertices.schema(INITIAL_LABEL_COL).dataType))
       .withVertexColumn(
