@@ -113,4 +113,40 @@ class HyperANFSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(ids === Set(1L, 3L))
     result.unpersist()
   }
+
+  test("HyperANF does not fail on dead-ends") {
+    // Graph: 1 -> 2 -> 3, vertex 4 is isolated (no edges at all)
+    // Dead-ends: vertex 3 (no outgoing edges), vertex 4 (no edges at all)
+    val vertices = spark
+      .createDataFrame((1L to 4L).map(id => (id, s"v$id")))
+      .toDF("id", "name")
+    val edges = spark
+      .createDataFrame(Seq((1L, 2L), (2L, 3L)))
+      .toDF("src", "dst")
+    val graph = GraphFrame(vertices, edges)
+
+    val nHops = 3
+    val result = new HyperANF(graph)
+      .setNHops(nHops)
+      .setLgNomEntries(12)
+      .run()
+
+    val ids = result.select("id").collect().map(_.getAs[Long]("id")).toSet
+
+    // 1. Dead-end vertices are not present in the output
+    assert(!ids.contains(3L), "Dead-end vertex 3 (no outgoing edges) should not be in output")
+    assert(!ids.contains(4L), "Isolated vertex 4 (no edges at all) should not be in output")
+    assert(ids === Set(1L, 2L))
+
+    // 2. hop_2 for vertex 2 reaches dead-end 3, producing an empty sketch (estimate 0, not null)
+    val estimates = estimateHopCounts(result, nHops)
+    assert(estimates(2L)(2) === 0L, "hop_2 estimate for vertex 2 should be 0")
+
+    val row2 = result.filter(col("id") === 2L).collect()(0)
+    assert(
+      row2.getAs[Array[Byte]]("hop_2") !== null,
+      "hop_2 sketch for vertex 2 should not be null")
+
+    result.unpersist()
+  }
 }

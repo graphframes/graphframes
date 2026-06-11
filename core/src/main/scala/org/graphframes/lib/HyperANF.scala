@@ -24,10 +24,17 @@ import org.apache.spark.sql.functions.hll_sketch_agg
 import org.apache.spark.sql.functions.hll_union_agg
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.types.ByteType
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.ShortType
+import org.apache.spark.sql.types.StringType
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesUnsupportedVertexTypeException
 import org.graphframes.Logging
+import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithIntermediateStorageLevel
-import org.graphframes.WithLgNomEntries
+import org.graphframes.WithLocalCheckpoints
 
 /**
  * HyperANF-style approximation of the neighbourhood function on top of GraphFrames.
@@ -56,10 +63,21 @@ import org.graphframes.WithLgNomEntries
 class HyperANF private[graphframes] (graph: GraphFrame)
     extends Serializable
     with Logging
+    with WithCheckpointInterval
     with WithIntermediateStorageLevel
-    with WithLgNomEntries {
+    with WithLocalCheckpoints {
   private var nHops: Int = 3
   private var edgesFilterExpression: Column = lit(true)
+  private var lgNomEntries: Int = 12
+
+  /**
+   * Sets the log2 of nominal entries used by HLL sketch aggregations.
+   */
+  def setLgNomEntries(value: Int): this.type = {
+    require((value >= 4) && (value <= 21), "lgNomEntries must be between 4 and 21")
+    lgNomEntries = value
+    this
+  }
 
   /**
    * Sets the edge filter expression used before running the computation.
@@ -92,7 +110,7 @@ class HyperANF private[graphframes] (graph: GraphFrame)
    *   this HyperANF instance
    */
   def setNHops(value: Int): this.type = {
-    require(value > 0, "n-hops cannot be nagative or zero")
+    require(value > 0, "n-hops cannot be negative or zero")
     nHops = value
     this
   }
@@ -120,16 +138,32 @@ class HyperANF private[graphframes] (graph: GraphFrame)
         .persist(intermediateStorageLevel)
     var hop = 1
 
-    val hop0func = udf(HyperANF.hll(lgNomEntries))
+    val hop0Func = graph.vertices.schema(GraphFrame.ID).dataType match {
+      case IntegerType => udf(HyperANF.hllInt(lgNomEntries))
+      case LongType => udf(HyperANF.hllLong(lgNomEntries))
+      case StringType => udf(HyperANF.hllString(lgNomEntries))
+      case ShortType => udf(HyperANF.hllShort(lgNomEntries))
+      case ByteType => udf(HyperANF.hllByte(lgNomEntries))
+      case _ =>
+        throw new GraphFramesUnsupportedVertexTypeException(
+          s"Unsupported vertex ID type: ${graph.vertices.schema(GraphFrame.ID).dataType}")
+    }
     var state = edges
       .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
       .agg(hll_sketch_agg(GraphFrame.DST, lgNomEntries).alias("hop_1"))
-      .select(col(GraphFrame.ID), hop0func(col(GraphFrame.ID)).alias("hop_0"), col("hop_1"))
+      .select(col(GraphFrame.ID), hop0Func(col(GraphFrame.ID)).alias("hop_0"), col("hop_1"))
+      .persist(intermediateStorageLevel)
+
+    // materialize
+    val cnt = state.count()
+    logInfo(s"found $cnt vertices with at least one outgoing edge")
+
+    val shouldCheckpoint = (checkpointInterval > 0) && (checkpointInterval < nHops)
 
     while (hop < nHops) {
       hop += 1
 
-      val n_state = edges
+      val nState = edges
         .join(
           state.select(GraphFrame.ID, s"hop_${hop - 1}"),
           col(GraphFrame.DST) === col(GraphFrame.ID),
@@ -137,7 +171,26 @@ class HyperANF private[graphframes] (graph: GraphFrame)
         .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
         .agg(hll_union_agg(s"hop_${hop - 1}").alias(s"hop_${hop}"))
 
-      state = state.join(n_state, GraphFrame.ID)
+      // stanard GF persist-unpersist-checkpoint flow
+      state = {
+        val stateToPersist = state.join(nState, GraphFrame.ID)
+        if (shouldCheckpoint && hop % checkpointInterval == 0) {
+          if (useLocalCheckpoints) {
+            stateToPersist.localCheckpoint(eager = false)
+          } else {
+            stateToPersist.checkpoint(eager = false)
+          }
+        } else {
+          stateToPersist.persist(intermediateStorageLevel)
+          // materialize
+          stateToPersist.count()
+
+          state.unpersist()
+          stateToPersist
+        }
+      }
+
+      logInfo(s"hop $hop / $nHops was computed")
     }
 
     val result = state.persist(intermediateStorageLevel)
@@ -152,9 +205,36 @@ class HyperANF private[graphframes] (graph: GraphFrame)
 }
 
 private object HyperANF extends Serializable {
-  def hll(lgNomEntries: Int): Any => Array[Byte] = (id) => {
+  // If you are confusing to see 5 almost identical functions:
+  // it was intentional. HLL does not have `update(Object)`.
+
+  def hllInt(lgNomEntries: Int): Int => Array[Byte] = (id) => {
     val sketch = new org.apache.datasketches.hll.HllSketch(lgNomEntries)
-    sketch.update(id.toString())
+    sketch.update(id.toLong)
+    sketch.toCompactByteArray()
+  }
+
+  def hllLong(lgNomEntries: Int): Long => Array[Byte] = (id) => {
+    val sketch = new org.apache.datasketches.hll.HllSketch(lgNomEntries)
+    sketch.update(id)
+    sketch.toCompactByteArray()
+  }
+
+  def hllString(lgNomEntries: Int): String => Array[Byte] = (id) => {
+    val sketch = new org.apache.datasketches.hll.HllSketch(lgNomEntries)
+    sketch.update(id)
+    sketch.toCompactByteArray()
+  }
+
+  def hllShort(lgNomEntries: Int): Short => Array[Byte] = (id) => {
+    val sketch = new org.apache.datasketches.hll.HllSketch(lgNomEntries)
+    sketch.update(id.toLong)
+    sketch.toCompactByteArray()
+  }
+
+  def hllByte(lgNomEntries: Int): Byte => Array[Byte] = (id) => {
+    val sketch = new org.apache.datasketches.hll.HllSketch(lgNomEntries)
+    sketch.update(id.toLong)
     sketch.toCompactByteArray()
   }
 }
