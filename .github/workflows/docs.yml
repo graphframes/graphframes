@@ -57,6 +57,10 @@ jobs:
         run: |
           python ./dev/run_doc_benchmarks.py --spark-version 4.0.0
 
+      - name: Set mtime to git-time for doc files
+        run: |
+          python ./dev/restore_mtime.py
+
       - name: Build with Laika
         run: |
           ./build/sbt -Dspark.version=4.0.0 -Ddocs.mode=production "docs/laikaHTML"
