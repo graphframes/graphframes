@@ -6,7 +6,7 @@ Pregel API is one of the core backbones of GraphFrames. It is based on the imple
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
@@ -52,14 +52,16 @@ Under the hood, the passed name of the column will be resolved to get the corres
 
 By default, all vertex columns are included when constructing triplets. For algorithms with large per-vertex state (e.g., cycle detection storing sequences, random walks), this can create huge intermediate datasets in memory.
 
-To reduce memory usage, you can specify only the columns that are actually needed using `requiredSrcColumns` and `requiredDstColumns`:
+To reduce memory usage, you can specify only the columns that are actually needed using `requiredSrcColumns`, `requiredDstColumns`, and `requiredEdgeColumns`:
 
 ```scala
 graph.pregel
   .withVertexColumn("distances", ...)
   .sendMsgToDst(Pregel.src("distances"))  // Only needs "distances" from source
+  .sendMsgToDst(Pregel.edge("weight"))    // Needs "weight" from edge
   .requiredSrcColumns("distances")         // Only include "distances" in src struct
   .requiredDstColumns("distances")         // Only include "distances" in dst struct
+  .requiredEdgeColumns("weight")           // Only include "weight" in edge struct
   .aggMsgs(...)
   .run()
 ```
@@ -70,13 +72,23 @@ In Python:
 graph.pregel \
   .withVertexColumn("distances", ...) \
   .sendMsgToDst(Pregel.src("distances")) \
+  .sendMsgToDst(Pregel.edge("weight")) \
   .required_src_columns("distances") \
   .required_dst_columns("distances") \
+  .required_edge_columns("weight") \
   .aggMsgs(...) \
   .run()
 ```
 
-The `id` column and the active flag column (if used) are always included automatically, so you don't need to specify them.
+The `id` column (and `src`/`dst` for edges) and the active flag column (if used) are always included automatically, so you don't need to specify them.
+
+---
+
+**NOTE**
+
+_Before 0.12.0, all edge columns were always included in triplets by default. This was caused by an unspecified bug that kept and persisted all edge columns as a `StructType`, creating significant memory pressure. Starting from 0.12.0, only the source and destination ID columns from edges are included by default. If your message expressions reference edge properties (e.g., `Pregel.edge("weight")`), you must explicitly specify them using `requiredEdgeColumns`._
+
+---
 
 ### Sending Messages
 
@@ -103,5 +115,5 @@ graph.pregel.aggMsgs(sum(Pregel.msg))
 GraphFrames Pregel API provides the following termination conditions:
 
 - **By a number of iterations.** Users can specify the maximum number of iterations with `setMaxIter(value: Int)`.
-- **In case of no new messages are sent.** User can say GF to terminate the computations if all the messages sent on the iteration are empty (`null`). To do this, user should specify `setEarlyStopping(value: Boolean)`. **Be careful, because the checking of nullity is a not free operation, but Apache Spark action!** So, for example, if messages cannot be empty, this condition should be set to `false`. For example, in algorithms like `ShortestPaths`, this condition should be set to `true`, but for algorithms like `PageRank`, this condition should be set to `false`  because the messages cannot be empty.
+- **In case of no new messages are sent.** User can say GF to terminate the computations if all the messages sent on the iteration are empty (`null`). To do this, user should specify `setEarlyStopping(value: Boolean)`. **Be careful, because the checking of nullity is a not free operation, but Apache Spark action!** So, for example, if messages cannot be empty, this condition should be set to `false`. For example, in algorithms like `ShortestPaths`, this condition should be set to `true`, but for algorithms like `PageRank`, this condition should be set to `false` because the messages cannot be empty.
 - **By vertex voting.** Users can specify the participation condition per vertex with `setInitialActiveVertexExpression(expression: Column` and `setUpdateActiveVertexExpression(expression: Column)`. In the case if `stopIfAllNonActiveVertices(value: Boolean)` is set to `true`, the computation will stop if all the vertices are inactive. This is useful for algorithms like `LabelPropagation`, when messages are always not `null`, but if no vertex changed a label on the last iteration, the computation should stop. **Be careful, because the checking of vertex status is a not free operation, but Apache Spark action!**

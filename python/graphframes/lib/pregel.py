@@ -276,6 +276,23 @@ class Pregel(JavaWrapper):
         )
         return self
 
+    def required_edge_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which edge columns are required when constructing triplets.
+
+        By default, only src and dst columns are included from edges. Use this method to
+        specify additional edge columns that are needed by the sendMsgToSrc and sendMsgToDst
+        expressions.
+
+        :param col_name: the first required edge column name
+        :param col_names: additional required edge column names
+
+        See also :func:`required_src_columns` and :func:`required_dst_columns`
+        """
+        self._java_obj.requiredEdgeColumns(
+            col_name, _to_seq(self.graph._spark.sparkContext, col_names)
+        )
+        return self
+
     def run(self) -> DataFrame:
         """Runs the defined Pregel algorithm.
 
