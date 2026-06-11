@@ -30,9 +30,12 @@ The Two-Phase algorithm is based on the idea of rewiring edges to end up with a 
 
 Credits to [WeichenXu123](https://github.com/WeichenXu123)
 
+## Important note
+
+Previous versions of Graphframes had an unspecified contract within the Pregel API regarding the handling of edge attributes. All edge attributes, including the IDs of the source (`src`) and destination (`dst`) vertices, were implicitly packed into a `StructType` and persisted. Although persisting was required for performance, it blocked the Catalyst optimizer from eliminating these columns if they were not used. This resulted in an almost twofold increase in peak memory load in all scenarios and was considered a bug. Starting with version 0.12.0, users who want to use edge attributes in the low-level Pregel should specify them explicitly using `requiredEdgeColumns(...)` in Scala or `required_edge_columns(...)` in the Python API.
+
 ## Future steps
 
 - Moving in the direction of support of full-featured graph queries
 - Improving GraphFrames capabilities in Graph ML
 - Adding features useful in Spatial Graphs analysis
-
