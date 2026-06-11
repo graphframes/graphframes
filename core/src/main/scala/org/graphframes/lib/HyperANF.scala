@@ -193,14 +193,11 @@ class HyperANF private[graphframes] (graph: GraphFrame)
       logInfo(s"hop $hop / $nHops was computed")
     }
 
-    val result = state.persist(intermediateStorageLevel)
-    // materialize
-    val _ = result.count()
+    // state is already persisted at the moment
     resultIsPersistent()
-
     edges.unpersist()
 
-    result
+    state
   }
 }
 
