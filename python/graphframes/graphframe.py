@@ -293,10 +293,9 @@ class GraphFrame:
          - "outDegrees": a struct with a field for each edge type, storing the out-degree count
 
         :param edge_type_col: Name of the column in edges DataFrame that contains edge types
-        :param edge_types: Optional list of edge type values. If None, edge types will be
-        discovered automatically.
+        :param edge_types: Optional list of edge type values. If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "outDegrees" (struct type)
-        """
+        """  # noqa: E501
         if edge_types is not None:
             pivot_df = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).pivot(
                 edge_type_col, edge_types
@@ -322,10 +321,9 @@ class GraphFrame:
          - "inDegrees": a struct with a field for each edge type, storing the in-degree count
 
         :param edge_type_col: Name of the column in edges DataFrame that contains edge types
-        :param edge_types: Optional list of edge type values. If None, edge types will be
-        discovered automatically.
+        :param edge_types: Optional list of edge type values. If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "inDegrees" (struct type)
-        """
+        """  # noqa: E501
         if edge_types is not None:
             pivot_df = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).pivot(
                 edge_type_col, edge_types
@@ -347,14 +345,14 @@ class GraphFrame:
         """
         The total degree of each vertex per edge type (both in and out), returned as a DataFrame
         with two columns:
+
          - "id": the ID of the vertex
          - "degrees": a struct with a field for each edge type, storing the total degree count
 
         :param edge_type_col: Name of the column in edges DataFrame that contains edge types
-        :param edge_types: Optional list of edge type values. If None, edge types will be
-        discovered automatically.
+        :param edge_types: Optional list of edge type values. If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "degrees" (struct type)
-        """
+        """  # noqa: E501
         exploded_edges = self._impl._edges.select(
             F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID),
             F.col(edge_type_col),
@@ -529,8 +527,8 @@ class GraphFrame:
 
         **Returned DataFrame schema:**
 
-        - ``path``: array of vertex ids in traversal order
-        - ``len``: number of edges in the path (Long)
+         - ``path``: array of vertex ids in traversal order
+         - ``len``: number of edges in the path (Long)
 
         .. note::
             In the case of an undirected graph, the algorithm runs on an internal graph
@@ -887,10 +885,10 @@ class GraphFrame:
 
         This algorithm is a Label Propagation variant where each incoming label vote is weighted
         by a combination of:
-          - optional direct-link baseline strength (enabled unless
-            ``ignore_direct_links = True``), and
-          - neighborhood-overlap strength
-            (``structural_similarity_multiplier * common_neighbors``).
+        - optional direct-link baseline strength (enabled unless
+        ``ignore_direct_links = True``), and
+        - neighborhood-overlap strength
+        (``structural_similarity_multiplier * common_neighbors``).
 
         Intuitively, labels from neighbors that are structurally similar to the destination
         (many common neighbors) can be amplified instead of treating all edges equally.
@@ -899,10 +897,10 @@ class GraphFrame:
         the label with maximum total weight.
 
         Edge-weight regimes:
-          - ``ignore_direct_links = False``:
-            ``edge_weight = 1 + structural_similarity_multiplier * common_neighbors``
-          - ``ignore_direct_links = True``:
-            ``edge_weight = structural_similarity_multiplier * common_neighbors``
+        - ``ignore_direct_links = False``:
+        ``edge_weight = 1 + structural_similarity_multiplier * common_neighbors``
+        - ``ignore_direct_links = True``:
+        ``edge_weight = structural_similarity_multiplier * common_neighbors``
 
         :param max_iter: maximum number of propagation rounds.
         :param structural_similarity_multiplier: scales neighborhood-overlap contribution.
@@ -1116,13 +1114,14 @@ class GraphFrame:
         This algorithm identifies sets of three vertices where each pair is connected by an edge.
 
         The implementation provides two algorithms:
+
         - "exact": Computes the exact triangle count using set intersection of neighbor lists.
-          Note: This method can fail or encounter OOM errors on power-law graphs or graphs with
-          very high-degree nodes, as it requires collecting and intersecting the full neighbor
-          lists for the source and destination vertices of every edge.
-        - "approx": Uses DataSketches (Theta sketches) to estimate the triangle count. This
-          trades off perfect accuracy for significantly improved performance and lower memory
-          overhead, making it suitable for large-scale or dense graphs.
+
+        Note: This method can fail or encounter OOM errors on power-law graphs or graphs with
+        very high-degree nodes, as it requires collecting and intersecting the full neighbor
+        lists for the source and destination vertices of every edge.
+
+        - "approx": Uses DataSketches (Theta sketches) to estimate the triangle count. This trades off perfect accuracy for significantly improved performance and lower memory overhead, making it suitable for large-scale or dense graphs.
 
         :param storage_level: Storage level for caching intermediate DataFrames.
         :param algorithm: The triangle counting algorithm to use, "exact" or "approx" (default: "exact").
@@ -1141,9 +1140,7 @@ class GraphFrame:
         self, k: int, maxIter: int, weightCol: str | None = None
     ) -> DataFrame:
         """
-        Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen.
-        From the abstract: PIC finds a very low-dimensional embedding of a dataset using truncated power iteration
-        on a normalized pair-wise similarity matrix of the data.
+        Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen. From the abstract: PIC finds a very low-dimensional embedding of a dataset using truncated power iteration on a normalized pair-wise similarity matrix of the data.
 
         :param k: the numbers of clusters to create
         :param maxIter: param for maximum number of iterations (>= 0)
