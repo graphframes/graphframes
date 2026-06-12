@@ -41,6 +41,7 @@ message GraphFramesAPI {
     AggregateNeighbors aggregate_neighbors = 24;
     NeighborhoodAwareCDLP neighborhood_aware_cdlp = 25;
     AllPaths all_paths = 26;
+    HyperANF hyper_anf = 27;
   }
 }
 
@@ -98,6 +99,15 @@ message AllPaths {
   int32 checkpoint_interval = 6;
   bool use_local_checkpoints = 7;
   optional StorageLevel storage_level = 8;
+}
+
+message HyperANF {
+  int32 n_hops = 1;
+  int32 lg_nom_entries = 2;
+  optional ColumnOrExpression edges_filter_expression = 3;
+  int32 checkpoint_interval = 4;
+  bool use_local_checkpoints = 5;
+  optional StorageLevel storage_level = 6;
 }
 
 message ConnectedComponents {

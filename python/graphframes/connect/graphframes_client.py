@@ -1397,6 +1397,73 @@ class GraphFrameConnect:
             self._spark,
         )
 
+    def hyper_anf(
+        self,
+        n_hops: int,
+        lg_nom_entries: int,
+        edge_filter: Column | str | None,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
+        class HyperANF(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                n_hops: int,
+                lg_nom_entries: int,
+                edge_filter: Column | str | None,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.n_hops = n_hops
+                self.lg_nom_entries = lg_nom_entries
+                self.edge_filter = edge_filter
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                ha_message = pb.HyperANF(
+                    n_hops=self.n_hops,
+                    lg_nom_entries=self.lg_nom_entries,
+                    checkpoint_interval=self.checkpoint_interval,
+                    use_local_checkpoints=self.use_local_checkpoints,
+                    storage_level=storage_level_to_proto(self.storage_level),
+                )
+                if self.edge_filter is not None:
+                    ha_message.edges_filter_expression.CopyFrom(
+                        make_column_or_expr(self.edge_filter, session)
+                    )
+                graphframes_api_call.hyper_anf.CopyFrom(ha_message)
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            HyperANF(
+                self._vertices,
+                self._edges,
+                n_hops,
+                lg_nom_entries,
+                edge_filter,
+                checkpoint_interval,
+                use_local_checkpoints,
+                storage_level,
+            ),
+            self._spark,
+        )
+
     def aggregate_neighbors(
         self,
         starting_vertices: Column | str,

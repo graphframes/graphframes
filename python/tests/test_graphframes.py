@@ -1054,3 +1054,70 @@ def test_aggregate_neighbors_multiple_accumulators(spark: SparkSession) -> None:
     assert abs(rows[0]["sum_weights"] - 11.0) < 0.001
 
     _ = result.unpersist()
+
+
+def test_hyper_anf_basic(spark: SparkSession) -> None:
+    """Smoke test: verify hyper_anf returns correct columns and basic functionality."""
+    # Directed graph: 1 -> 2, 2 -> 3, 3 -> 1 (cycle)
+    v = spark.createDataFrame([(1,), (2,), (3,)], ["id"])
+    e = spark.createDataFrame([(1, 2), (2, 3), (3, 1)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    result = g.hyper_anf(n_hops=2, use_local_checkpoints=True)
+
+    # Verify columns: id, hop_0, hop_1, hop_2
+    assert "id" in result.columns
+    assert "hop_0" in result.columns
+    assert "hop_1" in result.columns
+    assert "hop_2" in result.columns
+
+    # Every vertex with an outgoing edge should be present (all 3)
+    assert result.count() == 3
+
+    _ = result.unpersist()
+
+
+def test_hyper_anf_args_passed(spark: SparkSession) -> None:
+    """Verify that non-default args (lg_nom_entries, edge_filter) are passed correctly."""
+    v = spark.createDataFrame([(1,), (2,), (3,), (4,)], ["id"])
+    e = spark.createDataFrame([(1, 2), (2, 3), (3, 4), (1, 3)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    # Use non-default lg_nom_entries to verify the arg is forwarded
+    result_default = g.hyper_anf(n_hops=1, lg_nom_entries=10, use_local_checkpoints=True)
+    assert "hop_0" in result_default.columns
+    assert "hop_1" in result_default.columns
+    assert result_default.count() > 0
+    _ = result_default.unpersist()
+
+    # Use edge_filter to restrict computation to edges where src == 1
+    result_filtered = g.hyper_anf(
+        n_hops=1,
+        edge_filter=sqlfunctions.col("src") == 1,
+        use_local_checkpoints=True,
+    )
+    rows = result_filtered.collect()
+    # Only vertex 1 has outgoing edges with src == 1
+    ids = {row["id"] for row in rows}
+    assert ids == {1}
+
+    _ = result_filtered.unpersist()
+
+
+def test_hyper_anf_invalid_args(spark: SparkSession) -> None:
+    """Verify that invalid arguments raise ValueError on the Python side."""
+    v = spark.createDataFrame([(1,), (2,)], ["id"])
+    e = spark.createDataFrame([(1, 2)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    with pytest.raises(ValueError, match="n_hops must be a positive integer"):
+        g.hyper_anf(n_hops=0)
+
+    with pytest.raises(ValueError, match="n_hops must be a positive integer"):
+        g.hyper_anf(n_hops=-1)
+
+    with pytest.raises(ValueError, match="lg_nom_entries must be between 4 and 21"):
+        g.hyper_anf(lg_nom_entries=3)
+
+    with pytest.raises(ValueError, match="lg_nom_entries must be between 4 and 21"):
+        g.hyper_anf(lg_nom_entries=22)

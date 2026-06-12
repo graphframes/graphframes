@@ -47,11 +47,10 @@ class Pregel(JavaWrapper):
     When a run starts, it expands the vertices DataFrame using column expressions defined by :func:`withVertexColumn`.
     Those additional vertex properties can be changed during Pregel iterations.
     In each Pregel iteration, there are three phases:
-      - Given each edge triplet, generate messages and specify target vertices to send,
-        described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
-      - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
-      - Update additional vertex properties based on aggregated messages and states from previous iteration,
-        described by :func:`withVertexColumn`.
+
+    - Given each edge triplet, generate messages and specify target vertices to send, described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
+    - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
+    - Update additional vertex properties based on aggregated messages and states from previous iteration, described by :func:`withVertexColumn`.
 
     Please find what columns you can reference at each phase in the method API docs.
 
