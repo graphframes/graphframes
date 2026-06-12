@@ -592,6 +592,25 @@ object GraphFramesConnectUtils {
           aggregateNeighborsSeed = message.getAggregateNeighborsSeed(),
           cleanUpAfterRun = message.getCleanUpAfterRun())
       }
+      case proto.GraphFramesAPI.MethodCase.HYPER_ANF => {
+        val haProto = apiMessage.getHyperAnf
+        val haBuilder = graphFrame.hyperANF
+          .setNHops(haProto.getNHops)
+          .setLgNomEntries(haProto.getLgNomEntries)
+          .setCheckpointInterval(haProto.getCheckpointInterval)
+          .setUseLocalCheckpoints(haProto.getUseLocalCheckpoints)
+
+        if (haProto.hasEdgesFilterExpression) {
+          haBuilder.setEdgesFilterExpression(
+            parseColumnOrExpression(haProto.getEdgesFilterExpression, planner))
+        }
+
+        if (haProto.hasStorageLevel) {
+          haBuilder.setIntermediateStorageLevel(parseStorageLevel(haProto.getStorageLevel)).run()
+        } else {
+          haBuilder.run()
+        }
+      }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }
   }

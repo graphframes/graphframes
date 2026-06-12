@@ -765,6 +765,74 @@ class GraphFrame:
         """  # noqa: E501
         return self._impl.k_core(checkpoint_interval, use_local_checkpoints, storage_level)
 
+    def hyper_anf(
+        self,
+        n_hops: int = 3,
+        lg_nom_entries: int = 12,
+        edge_filter: Column | str | None = None,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """HyperANF-style approximation of the neighbourhood function.
+
+        This implementation is inspired by
+        `HyperANF: Approximating the Neighbourhood Function of Very Large Graphs on a Budget
+        <https://arxiv.org/pdf/1011.5599>`_
+        (Vigna, Boldi, Rosa; 2010).
+
+        The input graph is treated as directed: for each vertex, reachability is computed by
+        following outgoing edges from ``src`` to ``dst``.
+
+        Compared with the cumulative neighbourhood-function presentation in the paper, this
+        implementation returns one column per hop: ``hop_0``, ``hop_1``, ``hop_2``, …, ``hop_N``.
+        The ``hop_0`` column contains a HyperLogLog sketch of the source vertex itself, and each
+        ``hop_k`` column for ``k >= 1`` contains a HyperLogLog sketch of the set of vertices
+        reachable in exactly ``k`` hops.  To derive the cumulative approximate neighbourhood
+        function for distances up to some hop ``k``, combine ``hop_0`` through ``hop_k`` with
+        ``hll_union`` and then apply ``hll_sketch_estimate`` to the merged sketch.
+
+        The computation can also be restricted to a subgraph by supplying an edge filter
+        expression via ``edge_filter``.  A common use case is to filter on ``src``, for example
+        ``"src IN (1, 2, 3)"``, to obtain sketches only for a selected set of starting vertices.
+
+        **Example:**
+
+        >>> result = g.hyper_anf(n_hops=2)
+        >>> result.columns
+        ['id', 'hop_0', 'hop_1', 'hop_2']
+
+        :param n_hops: Maximum hop distance to compute (positive integer). The result will
+            contain columns ``hop_0`` through ``hop_N`` where ``N = n_hops``.
+        :param lg_nom_entries: Log2 of nominal entries used by HLL sketch aggregations.
+            Must be between 4 and 21 (inclusive). Higher values increase accuracy at the
+            cost of memory. Default is 12.
+        :param edge_filter: Optional column expression or SQL expression string applied to
+            edges before computation. Only edges satisfying this predicate participate in
+            the directed reachability expansion.
+        :param checkpoint_interval: Checkpoint interval in terms of number of iterations
+            (default: 2). Use 0 to disable checkpointing.
+        :param use_local_checkpoints: Whether to use local checkpoints instead of a
+            persistent checkpoint directory. Local checkpoints are faster but less reliable.
+        :param storage_level: Storage level for intermediate and final DataFrames.
+
+        :return: Persisted DataFrame with vertex ``id`` and one sketch column per hop
+            (``hop_0``, ``hop_1``, …, ``hop_N``).
+        """  # noqa: E501
+        if n_hops <= 0:
+            raise ValueError("n_hops must be a positive integer")
+        if not (4 <= lg_nom_entries <= 21):
+            raise ValueError("lg_nom_entries must be between 4 and 21 (inclusive)")
+
+        return self._impl.hyper_anf(
+            n_hops=n_hops,
+            lg_nom_entries=lg_nom_entries,
+            edge_filter=edge_filter,
+            checkpoint_interval=checkpoint_interval,
+            use_local_checkpoints=use_local_checkpoints,
+            storage_level=storage_level,
+        )
+
     def labelPropagation(
         self,
         maxIter: int,
