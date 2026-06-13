@@ -2,7 +2,7 @@
 
 - **Published:** 2026-06-12T00:00:00Z
 - **Title:** GraphFrames 0.12.0 release
-- **Summary:** This release brings new Community Detection algorithm, new API to find all simple paths between subset of vertices and significant performance improvements for the Two-Phase Connected Components Algorithm.
+- **Summary:** This release brings new Community Detection algorithm, new API to find all simple paths between subset of vertices, approximate neighbor functions and significant performance improvements for the Two-Phase Connected Components Algorithm.
 
 ## New Contributors
 
@@ -21,6 +21,12 @@ Credits to [@SemyonSinchenko](https://github.com/SemyonSinchenko).
 ## New all paths API
 
 After introducing the `AggregateNeighbors` API in version `0.11.0`, which is a generic, multi-hop aggregation API, GraphFrames is receiving built-in implementations based on neighbor aggregation. The first is the long-awaited API that finds all simple paths between a subset of vertices.
+
+Credits to [@SemyonSinchenko](https://github.com/SemyonSinchenko).
+
+## Aproximate Neighbor Functions
+
+This release brings a foundation API for the approximate neighbor functions. Users can use it to cpmoute an approximate graph diameter, HyperBALL or approximate closeness centrality.
 
 Credits to [@SemyonSinchenko](https://github.com/SemyonSinchenko).
 
