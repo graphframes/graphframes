@@ -144,7 +144,7 @@ The only runtime dependency of the GraphFrames core is `graphframes-graphx-*`. I
 
 ### Microsoft Fabric Note
 
-It was [reported](github.com/graphframes/graphframes/issues/748) that Microsft Fabric cannot resolve runtime dependencies of JVM pckages automatically. MS Fabric users should specify both core and `graphframes-graphx-*` (depends on the Apache Spark version).
+It was [reported](https://github.com/graphframes/graphframes/issues/748) that Microsft Fabric cannot resolve runtime dependencies of JVM pckages automatically. MS Fabric users should specify both core and `graphframes-graphx-*` (depends on the Apache Spark version).
 
 ## Building GraphFrames from Source
 

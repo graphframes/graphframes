@@ -88,7 +88,7 @@ Compared to NSW 2011, this GraphFrames implementation intentionally extends and 
 
 - The paper is for **undirected graphs**; this implementation supports **directed and undirected** execution.
 - The paper does **not** support turning off direct-link contribution; this implementation adds `ignoreDirectLinks`.
-- The paper uses structural factor in **[0, 1]**; this implementation exposes a non-negative multiplier, allowing a wider tuning range.
+- The paper uses structural factor in **\[0, 1\]**; this implementation exposes a non-negative multiplier, allowing a wider tuning range.
 
 ### Directed common-neighbor definition: pragmatic, not canonical
 
