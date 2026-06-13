@@ -75,6 +75,7 @@ lazy val commonSetting = Seq(
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.slf4j" % "slf4j-api" % "2.0.17" % "provided",
+    "org.apache.datasketches" % "datasketches-java" % "6.2.0", // transitive dependency from Spark
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   Compile / doc / scalacOptions ++= Seq(

@@ -1000,6 +1000,15 @@ class GraphFrame private (
    */
   def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
 
+  /**
+   * Run an approximate neighbor function backed by the HLL-sketches.
+   *
+   * See [[org.graphframes.lib.HyperANF]] for more details.
+   *
+   * @group stdlib
+   */
+  def hyperANF: HyperANF = new HyperANF(this)
+
   // ========= Graph Machine Learning ==========
 
   /**
