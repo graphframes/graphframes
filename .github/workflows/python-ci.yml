@@ -12,7 +12,7 @@ jobs:
             scala-version: 2.12
             python-version: "3.10"
             java-version: 11
-          - spark-version: 4.0.2
+          - spark-version: 4.0.3
             scala-version: 2.13
             python-version: "3.12"
             java-version: 17

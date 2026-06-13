@@ -14,7 +14,7 @@ jobs:
             java-version: 11
           - spark-version: 3.5.8
             java-version: 17
-          - spark-version: 4.0.2
+          - spark-version: 4.0.3
             java-version: 17
           - spark-version: 4.1.2
             java-version: 17
