@@ -20,12 +20,11 @@ if __name__ == "__main__":
     spark_full_link = SPARK_ARCHIVE_LINK.format(spark, spark)
     
     prj_root = Path(__file__).parent.parent.parent
-    scala_root = prj_root.joinpath("connect")
 
     print("Build Graphframes...")
     os.chdir(prj_root)
 
-    build_command = ["./build/sbt", f"-Dspark.version={spark}", "connect/clean", "+", "connect/assembly"]
+    build_command = ["./build/sbt", f"-Dspark.version={spark}", "clean", "+", "package"]
     build_sbt = subprocess.run(
         build_command,
         stdout=subprocess.PIPE,
@@ -95,17 +94,40 @@ if __name__ == "__main__":
     spark_home = tmp_dir.joinpath(unpackaed_spark_binary)
     os.chdir(spark_home)
 
-    gf_jar = None
-    scala_target_dir = scala_root.joinpath("target").joinpath("scala-2.13")
-    print(f"looking for the connect asembly in {scala_target_dir.absolute()}")
-    for ff in scala_target_dir.glob("graphframes-connect-spark4*"):
-        gf_jar = ff
+    connect_jar = None
+    target_dir = prj_root.joinpath("connect").joinpath("target").joinpath("scala-2.13")
+    print(f"looking for the connect JAR in {target_dir.absolute()}")
+    for ff in target_dir.glob("graphframes-connect-spark4*"):
+        connect_jar = ff
         break
 
-    if gf_jar is None:
-        raise ValueError("faile to locate connect assembly JAR")
+    if connect_jar is None:
+        raise ValueError("faile to locate connect JAR")
+
+    graphx_jar = None
+    target_dir = prj_root.joinpath("graphx").joinpath("target").joinpath("scala-2.13")
+    print(f"looking for the graphx JAR in {target_dir.absolute()}")
+    for ff in target_dir.glob("graphframes-graphx-spark4*"):
+        graphx_jar = ff
+        break
+
+    if graphx_jar is None:
+        raise ValueError("faile to locate graphx JAR")
+
+    core_jar = None
+    target_dir = prj_root.joinpath("core").joinpath("target").joinpath("scala-2.13")
+    print(f"looking for the core JAR in {target_dir.absolute()}")
+    for ff in target_dir.glob("graphframes-spark4*"):
+        core_jar = ff
+        break
+
+    if core_jar is None:
+        raise ValueError("faile to locate core JAR")
+
     
-    _ = shutil.copyfile(gf_jar, spark_home.joinpath(gf_jar.name))
+    _ = shutil.copyfile(core_jar, spark_home.joinpath(core_jar.name))
+    _ = shutil.copyfile(graphx_jar, spark_home.joinpath(graphx_jar.name))
+    _ = shutil.copyfile(connect_jar, spark_home.joinpath(connect_jar.name))
     checkpoint_dir = Path("/tmp/GFTestsCheckpointDir")
     if checkpoint_dir.exists():
         shutil.rmtree(checkpoint_dir.absolute().__str__(), ignore_errors=True)
@@ -115,11 +137,15 @@ if __name__ == "__main__":
     run_connect_command = [
         "./sbin/start-connect-server.sh",
         "--jars",
-        f"{gf_jar.name}",
+        f"{core_jar.name},{graphx_jar.name},{connect_jar.name}",
         "--conf",
         "spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect",
         "--conf",
         "spark.checkpoint.dir=/tmp/GFTestsCheckpointDir",
+        "--conf",
+        "spark.driver.memory=6g",
+        "--conf",
+        "spark.sql.shuffle.partitions=4",
     ]
     
     print("Starting SparkConnect Server...")

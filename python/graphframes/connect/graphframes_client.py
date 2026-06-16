@@ -637,6 +637,9 @@ class GraphFrameConnect:
                 edge_filter=edge_filter,
                 max_path_length=max_path_length,
                 is_directed=is_directed,
+                checkpoint_interval=checkpoint_interval,
+                use_local_checkpoints=use_local_checkpoints,
+                storage_level=storage_level,
             ),
             self._spark,
         )

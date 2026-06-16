@@ -87,8 +87,6 @@ def spark():
                 SparkSession.Builder()
                 .appName("GraphFramesTest")
                 .config("spark.sql.shuffle.partitions", 4)
-                .config("spark.checkpoint.dir", tmp_dir)
-                .config("spark.driver.memory", "6g")
                 .remote("sc://localhost:15002")
                 .getOrCreate()
             )
