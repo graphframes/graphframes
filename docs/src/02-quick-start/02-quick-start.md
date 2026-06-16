@@ -97,7 +97,7 @@ supported algorithms:
 | Triangle Count                 | Yes         | Yes              | GF provides smoother API                        |
 | SVD++                          | Yes         | No               | GX                                              |
 | Cycles Detection               | No          | Yes              | GF                                              |
-| Triangel Count                 | No          | Yes              | GF                                              |
+| Triangle Count                 | No          | Yes              | GF                                              |
 | K-Core                         | No          | Yes              | GF                                              |
 | Maximal Independent Set        | No          | Yes              | GF                                              |
 | Approximate Neighbor Functions | No          | Yes              | GF                                              |

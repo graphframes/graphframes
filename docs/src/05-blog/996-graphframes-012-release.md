@@ -24,7 +24,7 @@ After introducing the `AggregateNeighbors` API in version `0.11.0`, which is a g
 
 Credits to [@SemyonSinchenko](https://github.com/SemyonSinchenko).
 
-## Aproximate Neighbor Functions
+## Approximate Neighbor Functions
 
 This release brings a foundation API for the approximate neighbor functions. Users can use it to cpmoute an approximate graph diameter, HyperBALL or approximate closeness centrality.
 

@@ -847,7 +847,7 @@ class GraphFrame:
         See Scala documentation for more details.
 
         :param maxIter: the number of iterations to be performed
-        :param algorithm: implementation to use, posible values are "graphframes" and "graphx";
+        :param algorithm: implementation to use, possible values are "graphframes" and "graphx";
                           "graphx" is faster for small-medium sized graphs,
                           "graphframes" requires less amount of memory
         :param use_local_checkpoints: should local checkpoints be used, default false;
@@ -1005,7 +1005,7 @@ class GraphFrame:
         See Scala documentation for more details.
 
         :param landmarks: a set of one or more landmarks
-        :param algorithm: implementation to use, posible values are "graphframes" and "graphx";
+        :param algorithm: implementation to use, possible values are "graphframes" and "graphx";
                           "graphx" is faster for small-medium sized graphs,
                           "graphframes" requires less amount of memory
         :param use_local_checkpoints: should local checkpoints be used, default false;

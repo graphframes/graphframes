@@ -222,7 +222,7 @@ private[graphframes] trait WithDirection {
   }
 
   /**
-   * Gets should graph be considred as directed.
+   * Gets should graph be considered as directed.
    *
    * @return
    *   true if directed
