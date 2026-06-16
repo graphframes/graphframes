@@ -1133,7 +1133,9 @@ class GraphFrame:
         :return: A DataFrame containing the vertex "id" and the triangle "count".
         """  # noqa: E501
         if (__version__[:3] < "4.1") and (algorithm == "approx"):
-            raise ValueError("approximate algorithm requires Spark 4.1+")
+            err_msg = "approximate algorithm requires Spark 4.1+"
+            err_msg += f" version {__version__[:3]} is not supported"
+            raise ValueError(err_msg)
         return self._impl.triangleCount(
             storage_level=storage_level, algorithm=algorithm, log_nom_entries=lg_nom_entries
         )
