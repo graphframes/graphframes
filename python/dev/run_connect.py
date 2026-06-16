@@ -1,12 +1,11 @@
 #!/usr/bin/python
 
+import argparse
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
-import argparse
 
 SPARK_ARCHIVE_LINK = "https://dlcdn.apache.org/spark/spark-{}/spark-{}-bin-hadoop3-connect.tgz"
 
@@ -18,7 +17,7 @@ if __name__ == "__main__":
     spark = str(args.spark)
 
     spark_full_link = SPARK_ARCHIVE_LINK.format(spark, spark)
-    
+
     prj_root = Path(__file__).parent.parent.parent
 
     print("Build Graphframes...")
@@ -47,7 +46,7 @@ if __name__ == "__main__":
 
     spark_archive = spark_full_link.split("/")[-1]
     unpacked_spark_binary = spark_archive[:-4]
-    
+
     if not tmp_dir.joinpath(unpacked_spark_binary).exists():
         print(f"Downloading spark {spark}...")
         if tmp_dir.joinpath(spark_archive).exists():
@@ -82,8 +81,8 @@ if __name__ == "__main__":
                 "-xzf",
                 spark_archive,
             ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             universal_newlines=True,
         )
         if unpack_spark.returncode == 0:
@@ -127,7 +126,6 @@ if __name__ == "__main__":
     if core_jar is None:
         raise ValueError("failed to locate core JAR")
 
-    
     _ = shutil.copyfile(core_jar, spark_home.joinpath(core_jar.name))
     _ = shutil.copyfile(graphx_jar, spark_home.joinpath(graphx_jar.name))
     _ = shutil.copyfile(connect_jar, spark_home.joinpath(connect_jar.name))
@@ -142,7 +140,7 @@ if __name__ == "__main__":
         "--jars",
         f"{core_jar.name},{graphx_jar.name},{connect_jar.name}",
         "--conf",
-        "spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect",
+        "spark.connect.extensions.relation.classes=org.apache.spark.sql.graphframes.GraphFramesConnect",  # noqa: E501
         "--conf",
         "spark.checkpoint.dir=/tmp/GFTestsCheckpointDir",
         "--conf",
@@ -150,7 +148,7 @@ if __name__ == "__main__":
         "--conf",
         "spark.sql.shuffle.partitions=4",
     ]
-    
+
     print("Starting SparkConnect Server...")
     spark_connect = subprocess.run(
         run_connect_command,
