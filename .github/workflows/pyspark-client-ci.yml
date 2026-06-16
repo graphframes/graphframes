@@ -54,6 +54,7 @@ jobs:
 
     - name: Test SparkConnect
       env:
+        SPARK_CONNECT_MODE_ENABLED: 1
         SPARK_CLIENT_MODE_ENABLED: 1
       working-directory: ./python
       run: |
