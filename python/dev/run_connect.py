@@ -13,7 +13,7 @@ SPARK_ARCHIVE_LINK = "https://dlcdn.apache.org/spark/spark-{}/spark-{}-bin-hadoo
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    _ = parser.add_argument("spark", type=str, default="4.1.2")
+    _ = parser.add_argument("spark", type=str)
     args = parser.parse_args()
     spark = str(args.spark)
 
@@ -28,6 +28,7 @@ if __name__ == "__main__":
     build_sbt = subprocess.run(
         build_command,
         stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         universal_newlines=True,
     )
 
@@ -63,14 +64,15 @@ if __name__ == "__main__":
                 spark_full_link,
             ],
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             universal_newlines=True,
         )
         if get_spark.returncode == 0:
             print("Done.")
         else:
-            print("Downlading failed.")
+            print("Downloading failed.")
             print("stdout: ", get_spark.stdout)
-            print("stdeerr: ", get_spark.stderr)
+            print("stderr: ", get_spark.stderr)
             sys.exit(1)
 
         print("Unpacking Spark...")
@@ -80,7 +82,8 @@ if __name__ == "__main__":
                 "-xzf",
                 spark_archive,
             ],
-            stdout=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
             universal_newlines=True,
         )
         if unpack_spark.returncode == 0:
@@ -88,7 +91,7 @@ if __name__ == "__main__":
         else:
             print("Unpacking failed.")
             print("stdout: ", unpack_spark.stdout)
-            print("stdeerr: ", unpack_spark.stderr)
+            print("stderr: ", unpack_spark.stderr)
             sys.exit(1)
 
     spark_home = tmp_dir.joinpath(unpackaed_spark_binary)
@@ -102,7 +105,7 @@ if __name__ == "__main__":
         break
 
     if connect_jar is None:
-        raise ValueError("faile to locate connect JAR")
+        raise ValueError("failed to locate connect JAR")
 
     graphx_jar = None
     target_dir = prj_root.joinpath("graphx").joinpath("target").joinpath("scala-2.13")
@@ -112,7 +115,7 @@ if __name__ == "__main__":
         break
 
     if graphx_jar is None:
-        raise ValueError("faile to locate graphx JAR")
+        raise ValueError("failed to locate graphx JAR")
 
     core_jar = None
     target_dir = prj_root.joinpath("core").joinpath("target").joinpath("scala-2.13")
@@ -122,7 +125,7 @@ if __name__ == "__main__":
         break
 
     if core_jar is None:
-        raise ValueError("faile to locate core JAR")
+        raise ValueError("failed to locate core JAR")
 
     
     _ = shutil.copyfile(core_jar, spark_home.joinpath(core_jar.name))

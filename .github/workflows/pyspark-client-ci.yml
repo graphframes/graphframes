@@ -57,8 +57,8 @@ jobs:
         SPARK_CLIENT_MODE_ENABLED: 1
       working-directory: ./python
       run: |
-        poetry run python dev/run_connect.py ${{ matrxi.spark-version }}
+        poetry run python dev/run_connect.py ${{ matrix.spark-version }}
         poetry run python -m pytest
-        poetry run python dev/stop_connect.py ${{ matrxi.spark-version }}
+        poetry run python dev/stop_connect.py ${{ matrix.spark-version }}
 
 

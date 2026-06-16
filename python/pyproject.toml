@@ -69,7 +69,7 @@ pytest = "^9.0.3"
 
 [tool.poetry.group.connect.dependencies]
 pytest = "^9.0.3"
-pyspark-client = "4.1.2"
+pyspark-client = ">=4.0,<4.2"
 
 [tool.poetry.group.tutorials.dependencies]
 py7zr = "^0.22.0"
