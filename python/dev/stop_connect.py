@@ -19,8 +19,8 @@ if __name__ == "__main__":
     prj_root = Path(__file__).parent.parent.parent
     scala_root = prj_root.joinpath("connect")
     tmp_dir = prj_root.joinpath("tmp")
-    unpackaed_spark_binary = f"spark-{spark}-bin-hadoop3-connect"
-    spark_home = tmp_dir.joinpath(unpackaed_spark_binary)
+    unpacked_spark_binary = f"spark-{spark}-bin-hadoop3-connect"
+    spark_home = tmp_dir.joinpath(unpacked_spark_binary)
 
     os.chdir(spark_home)
 
