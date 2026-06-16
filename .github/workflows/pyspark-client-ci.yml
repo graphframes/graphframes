@@ -49,7 +49,7 @@ jobs:
     - name: Build Python package and its dependencies
       working-directory: ./python
       run: |
-        poetry install --with=connect
+        poetry install --with=connect --without=dev
         poetry run pip install pyspark-client==${{ matrix.spark-version }}
 
     - name: Test SparkConnect
