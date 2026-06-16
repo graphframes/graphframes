@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: black
         name: black
-        entry: bash -c 'cd python && poetry run black graphframes/ dev/ ../dev/' --
+        entry: bash -c 'cd python && poetry run black --config pyproject.toml graphframes/ dev/ ../dev/' --
         language: system
         types: [python]
 
@@ -15,7 +15,7 @@ repos:
 
       - id: isort
         name: isort
-        entry: bash -c 'cd python && poetry run isort graphframes/ dev/ ../dev/' --
+        entry: bash -c 'cd python && poetry run isort --settings-path pyproject.toml graphframes/ dev/ ../dev/' --
         language: system
         types: [python]
 
