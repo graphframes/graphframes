@@ -46,9 +46,9 @@ if __name__ == "__main__":
     os.chdir(tmp_dir)
 
     spark_archive = spark_full_link.split("/")[-1]
-    unpackaed_spark_binary = spark_archive[:-4]
+    unpacked_spark_binary = spark_archive[:-4]
     
-    if not tmp_dir.joinpath(unpackaed_spark_binary).exists():
+    if not tmp_dir.joinpath(unpacked_spark_binary).exists():
         print(f"Downloading spark {spark}...")
         if tmp_dir.joinpath(spark_archive).exists():
             shutil.rmtree(
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             print("stderr: ", unpack_spark.stderr)
             sys.exit(1)
 
-    spark_home = tmp_dir.joinpath(unpackaed_spark_binary)
+    spark_home = tmp_dir.joinpath(unpacked_spark_binary)
     os.chdir(spark_home)
 
     connect_jar = None
