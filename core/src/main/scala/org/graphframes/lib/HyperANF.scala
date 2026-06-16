@@ -171,7 +171,7 @@ class HyperANF private[graphframes] (graph: GraphFrame)
         .groupBy(col(GraphFrame.SRC).alias(GraphFrame.ID))
         .agg(hll_union_agg(s"hop_${hop - 1}").alias(s"hop_${hop}"))
 
-      // stanard GF persist-unpersist-checkpoint flow
+      // standard GF persist-unpersist-checkpoint flow
       state = {
         val stateToPersist = state.join(nState, GraphFrame.ID)
         if (shouldCheckpoint && hop % checkpointInterval == 0) {

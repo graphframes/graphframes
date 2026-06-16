@@ -1,14 +1,12 @@
 #!/usr/bin/python
 
 
+import argparse
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
-import argparse
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

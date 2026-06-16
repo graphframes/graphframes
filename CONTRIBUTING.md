@@ -117,7 +117,8 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/graphf
 We are using the following tools for enforcing of the codestyle:
 
 - for python we are relying on the `black` + `flake8` + `isort`;
-- for scala we are relying on the `scalafmt`.
+- for scala we are relying on the `scalafmt`;
+- for spelling (across yml, python, and scala) we are relying on `codespell` (configured in `.codespellrc`).
 
 You can enforce the code style using the [pre-commit-hooks](https://pre-commit.com/):
 
