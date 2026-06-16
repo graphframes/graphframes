@@ -86,7 +86,6 @@ else:
         return False
 
 
-from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
 from graphframes.internal.utils import (
     _HASH2VEC_DECAY_FUNCTIONS,
     _RandomWalksEmbeddingsParameters,
@@ -96,6 +95,7 @@ from graphframes.lib import Pregel
 if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
 
+    from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
     from graphframes.connect.graphframes_client import GraphFrameConnect
 
 """Constant for the vertices ID column name."""
@@ -177,6 +177,8 @@ class GraphFrame:
 
             self._impl = GraphFrameConnect(v, e)  # ty: ignore[invalid-argument-type]
         else:
+            from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
+
             self._impl = GraphFrameClassic(v, e)  # ty: ignore[invalid-argument-type]
 
     @property
