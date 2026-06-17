@@ -63,7 +63,7 @@ import scala.collection.mutable
  *     .run()
  * }}}
  *
- * The returned [[DataFrame]] has columns `src`, `dst`, `count`, followed by one column per
+ * The returned `DataFrame` has columns `src`, `dst`, `count`, followed by one column per
  * additionally registered aggregation expression.
  */
 class PathCompaction private[graphframes] (graph: GraphFrame)
@@ -222,7 +222,7 @@ class PathCompaction private[graphframes] (graph: GraphFrame)
     }).persist(intermediateStorageLevel)
 
     val cntAnnotated = annotated.count()
-    logInfo(s"$cntAnnotated vertices have been choosen for compaction")
+    logInfo(s"$cntAnnotated vertices have been chosen for compaction")
     persistedBaseVertices.unpersist(blocking = true)
 
     // STEP 4 - induced subgraph (edges with both endpoints candidates) + connected components.
