@@ -38,6 +38,7 @@ class GraphFramesAPI(_message.Message):
         "aggregate_neighbors",
         "neighborhood_aware_cdlp",
         "all_paths",
+        "hyper_anf",
     )
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
@@ -65,6 +66,7 @@ class GraphFramesAPI(_message.Message):
     AGGREGATE_NEIGHBORS_FIELD_NUMBER: _ClassVar[int]
     NEIGHBORHOOD_AWARE_CDLP_FIELD_NUMBER: _ClassVar[int]
     ALL_PATHS_FIELD_NUMBER: _ClassVar[int]
+    HYPER_ANF_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -91,6 +93,7 @@ class GraphFramesAPI(_message.Message):
     aggregate_neighbors: AggregateNeighbors
     neighborhood_aware_cdlp: NeighborhoodAwareCDLP
     all_paths: AllPaths
+    hyper_anf: HyperANF
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -123,6 +126,7 @@ class GraphFramesAPI(_message.Message):
         aggregate_neighbors: _Optional[_Union[AggregateNeighbors, _Mapping]] = ...,
         neighborhood_aware_cdlp: _Optional[_Union[NeighborhoodAwareCDLP, _Mapping]] = ...,
         all_paths: _Optional[_Union[AllPaths, _Mapping]] = ...,
+        hyper_anf: _Optional[_Union[HyperANF, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -250,6 +254,37 @@ class AllPaths(_message.Message):
         edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         max_path_length: _Optional[int] = ...,
         is_directed: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+    ) -> None: ...
+
+class HyperANF(_message.Message):
+    __slots__ = (
+        "n_hops",
+        "lg_nom_entries",
+        "edges_filter_expression",
+        "checkpoint_interval",
+        "use_local_checkpoints",
+        "storage_level",
+    )
+    N_HOPS_FIELD_NUMBER: _ClassVar[int]
+    LG_NOM_ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    EDGES_FILTER_EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    n_hops: int
+    lg_nom_entries: int
+    edges_filter_expression: ColumnOrExpression
+    checkpoint_interval: int
+    use_local_checkpoints: bool
+    storage_level: StorageLevel
+    def __init__(
+        self,
+        n_hops: _Optional[int] = ...,
+        lg_nom_entries: _Optional[int] = ...,
+        edges_filter_expression: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         checkpoint_interval: _Optional[int] = ...,
         use_local_checkpoints: _Optional[bool] = ...,
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
@@ -468,6 +503,7 @@ class Pregel(_message.Message):
         "skip_messages_from_non_active",
         "required_src_columns",
         "required_dst_columns",
+        "required_edge_columns",
     )
     AGG_MSGS_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_DST_FIELD_NUMBER: _ClassVar[int]
@@ -486,6 +522,7 @@ class Pregel(_message.Message):
     SKIP_MESSAGES_FROM_NON_ACTIVE_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_SRC_COLUMNS_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_DST_COLUMNS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_EDGE_COLUMNS_FIELD_NUMBER: _ClassVar[int]
     agg_msgs: ColumnOrExpression
     send_msg_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     send_msg_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
@@ -503,6 +540,7 @@ class Pregel(_message.Message):
     skip_messages_from_non_active: bool
     required_src_columns: str
     required_dst_columns: str
+    required_edge_columns: str
     def __init__(
         self,
         agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
@@ -522,6 +560,7 @@ class Pregel(_message.Message):
         skip_messages_from_non_active: _Optional[bool] = ...,
         required_src_columns: _Optional[str] = ...,
         required_dst_columns: _Optional[str] = ...,
+        required_edge_columns: _Optional[str] = ...,
     ) -> None: ...
 
 class ShortestPaths(_message.Message):

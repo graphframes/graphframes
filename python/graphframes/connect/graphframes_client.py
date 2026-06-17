@@ -60,6 +60,7 @@ class PregelConnect:
         self._skip_messages_from_non_active = False
         self._required_src_columns: list[str] = []
         self._required_dst_columns: list[str] = []
+        self._required_edge_columns: list[str] = []
 
     def setMaxIter(self, value: int) -> Self:
         self._max_iter = value
@@ -146,6 +147,19 @@ class PregelConnect:
         self._required_dst_columns = [col_name] + list(col_names)
         return self
 
+    def required_edge_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which edge columns are required when constructing triplets.
+
+        By default, only src and dst columns are included. Use this method to specify
+        additional edge columns that are needed by the sendMsgToSrc and sendMsgToDst
+        expressions.
+
+        :param col_name: the first required edge column name
+        :param col_names: additional required edge column names
+        """
+        self._required_edge_columns = [col_name] + list(col_names)
+        return self
+
     def run(self) -> DataFrame:
         @final
         class Pregel(LogicalPlan):
@@ -168,6 +182,7 @@ class PregelConnect:
                 skip_message_from_non_active: bool,
                 required_src_columns: list[str],
                 required_dst_columns: list[str],
+                required_edge_columns: list[str],
                 vertices: DataFrame,
                 edges: DataFrame,
             ) -> None:
@@ -189,6 +204,7 @@ class PregelConnect:
                 self.skip_message_from_non_active = skip_message_from_non_active
                 self.required_src_columns = required_src_columns
                 self.required_dst_columns = required_dst_columns
+                self.required_edge_columns = required_edge_columns
                 self.vertices = vertices
                 self.edges = edges
 
@@ -223,6 +239,9 @@ class PregelConnect:
                     else None,
                     required_dst_columns=",".join(self.required_dst_columns)
                     if self.required_dst_columns
+                    else None,
+                    required_edge_columns=",".join(self.required_edge_columns)
+                    if self.required_edge_columns
                     else None,
                 )
                 pb_message = pb.GraphFramesAPI(
@@ -262,6 +281,7 @@ class PregelConnect:
                 skip_message_from_non_active=self._skip_messages_from_non_active,
                 required_src_columns=self._required_src_columns,
                 required_dst_columns=self._required_dst_columns,
+                required_edge_columns=self._required_edge_columns,
                 storage_level=self._storage_level,
                 vertices=self.graph._vertices,
                 edges=self.graph._edges,
@@ -617,6 +637,9 @@ class GraphFrameConnect:
                 edge_filter=edge_filter,
                 max_path_length=max_path_length,
                 is_directed=is_directed,
+                checkpoint_interval=checkpoint_interval,
+                use_local_checkpoints=use_local_checkpoints,
+                storage_level=storage_level,
             ),
             self._spark,
         )
@@ -1370,6 +1393,73 @@ class GraphFrameConnect:
             KCore(
                 self._vertices,
                 self._edges,
+                checkpoint_interval,
+                use_local_checkpoints,
+                storage_level,
+            ),
+            self._spark,
+        )
+
+    def hyper_anf(
+        self,
+        n_hops: int,
+        lg_nom_entries: int,
+        edge_filter: Column | str | None,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
+        class HyperANF(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                n_hops: int,
+                lg_nom_entries: int,
+                edge_filter: Column | str | None,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.n_hops = n_hops
+                self.lg_nom_entries = lg_nom_entries
+                self.edge_filter = edge_filter
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                ha_message = pb.HyperANF(
+                    n_hops=self.n_hops,
+                    lg_nom_entries=self.lg_nom_entries,
+                    checkpoint_interval=self.checkpoint_interval,
+                    use_local_checkpoints=self.use_local_checkpoints,
+                    storage_level=storage_level_to_proto(self.storage_level),
+                )
+                if self.edge_filter is not None:
+                    ha_message.edges_filter_expression.CopyFrom(
+                        make_column_or_expr(self.edge_filter, session)
+                    )
+                graphframes_api_call.hyper_anf.CopyFrom(ha_message)
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            HyperANF(
+                self._vertices,
+                self._edges,
+                n_hops,
+                lg_nom_entries,
+                edge_filter,
                 checkpoint_interval,
                 use_local_checkpoints,
                 storage_level,

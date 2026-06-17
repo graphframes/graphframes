@@ -4,7 +4,7 @@ If you are new to using Apache Spark, refer to the [Apache Spark Documentation](
 
 ## Maven Central Coordinates
 
-GraphFrames core is [published](https://central.sonatype.com/namespace/io.graphframes) in the Maven Central under namespace `io.graphframes`. All the artifacts are groupped using the following logic.
+GraphFrames core is [published](https://central.sonatype.com/namespace/io.graphframes) in the Maven Central under namespace `io.graphframes`. All the artifacts are grouped using the following logic.
 
 ```
 graphframes-{component-name}-{spark-major-version}_{scala-version}
@@ -137,6 +137,14 @@ message GraphFramesAPI {
   }
 }
 ```
+
+## GraphFrames runtime dependencies
+
+The only runtime dependency of the GraphFrames core is `graphframes-graphx-*`. In most of the cases it is enough to specify only the core inside the `--package` or inside a dependency management configurations for managed Apache Spark.
+
+### Microsoft Fabric Note
+
+It was [reported](https://github.com/graphframes/graphframes/issues/748) that Microsoft Fabric cannot resolve runtime dependencies of JVM packages automatically. MS Fabric users should specify both core and `graphframes-graphx-*` (depends on the Apache Spark version).
 
 ## Building GraphFrames from Source
 

@@ -17,7 +17,7 @@ There are some popular use cases when GraphFrames is almost irreplaceable, inclu
 - Compliance analytics with a scalable shortest paths algorithm and motif analysis;
 - Anti-fraud with scalable cycles detection in large networks and by using K-Core algorithm;
 - Identity resolution at the scale of billions with highly efficient connected components;
-- Plan marketing campaigns in social networks using Maximal Indpendent Set algorithm;
+- Plan marketing campaigns in social networks using Maximal Independent Set algorithm;
 - Rank search result with a distributed, Pregel-based PageRank;
 - Cluster huge graphs with Label Propagation and Power Iteration Clustering;
 - Compute node embeddings at billion scale using Random-Walks and Hash2Vec model;

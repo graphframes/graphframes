@@ -49,7 +49,7 @@ import org.graphframes.WithLocalCheckpoints
  *   - `len`: number of edges in the path (Long)
  *
  * Note: in the case of undirected graph an algorithm run on the internal graph made by union
- * edges and reversed edges. It is assummed that graph does not have multi-edges. Results may be
+ * edges and reversed edges. It is assumed that graph does not have multi-edges. Results may be
  * unstable and unpredictable for the graph with multi-edges.
  */
 class AllPaths private[graphframes] (private val graph: GraphFrame)

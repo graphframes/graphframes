@@ -224,7 +224,7 @@ PySpark session.
 
 ### 4.2 PySpark Connect update
 
-PySpark Connect Plugin messages are located in `connect/src/main/protobuf`. After making any changes to messages, for exampple, after adding a new API the following is required:
+PySpark Connect Plugin messages are located in `connect/src/main/protobuf`. After making any changes to messages, for example, after adding a new API the following is required:
 
 - re-compile the connect project that will trigger generation of new Java classes: `./build/sbt connect/compile`
 - re-generate Python classes from protobuf via `buf`: `buf generate`
@@ -296,7 +296,7 @@ An example is:
 
 A full list of built-in directives may be found in [Laika Documentation](https://typelevel.org/Laika/latest/07-reference/01-standard-directives.html).
 
-### 7.2 Build and preivew
+### 7.2 Build and preview
 
 To build documentation and run a preview server run `./build/sbt docs/laikaPreview`.
 

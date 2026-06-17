@@ -86,17 +86,17 @@ else:
         return False
 
 
-from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
 from graphframes.internal.utils import (
     _HASH2VEC_DECAY_FUNCTIONS,
     _RandomWalksEmbeddingsParameters,
 )
-from graphframes.lib import Pregel
 
 if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
 
+    from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
     from graphframes.connect.graphframes_client import GraphFrameConnect
+    from graphframes.lib import Pregel
 
 """Constant for the vertices ID column name."""
 ID = "id"
@@ -177,6 +177,8 @@ class GraphFrame:
 
             self._impl = GraphFrameConnect(v, e)  # ty: ignore[invalid-argument-type]
         else:
+            from graphframes.classic.graphframe import GraphFrame as GraphFrameClassic
+
             self._impl = GraphFrameClassic(v, e)  # ty: ignore[invalid-argument-type]
 
     @property
@@ -293,10 +295,9 @@ class GraphFrame:
          - "outDegrees": a struct with a field for each edge type, storing the out-degree count
 
         :param edge_type_col: Name of the column in edges DataFrame that contains edge types
-        :param edge_types: Optional list of edge type values. If None, edge types will be
-        discovered automatically.
+        :param edge_types: Optional list of edge type values. If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "outDegrees" (struct type)
-        """
+        """  # noqa: E501
         if edge_types is not None:
             pivot_df = self._impl._edges.groupBy(F.col(self.SRC).alias(self.ID)).pivot(
                 edge_type_col, edge_types
@@ -322,10 +323,9 @@ class GraphFrame:
          - "inDegrees": a struct with a field for each edge type, storing the in-degree count
 
         :param edge_type_col: Name of the column in edges DataFrame that contains edge types
-        :param edge_types: Optional list of edge type values. If None, edge types will be
-        discovered automatically.
+        :param edge_types: Optional list of edge type values. If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "inDegrees" (struct type)
-        """
+        """  # noqa: E501
         if edge_types is not None:
             pivot_df = self._impl._edges.groupBy(F.col(self.DST).alias(self.ID)).pivot(
                 edge_type_col, edge_types
@@ -347,14 +347,14 @@ class GraphFrame:
         """
         The total degree of each vertex per edge type (both in and out), returned as a DataFrame
         with two columns:
+
          - "id": the ID of the vertex
          - "degrees": a struct with a field for each edge type, storing the total degree count
 
         :param edge_type_col: Name of the column in edges DataFrame that contains edge types
-        :param edge_types: Optional list of edge type values. If None, edge types will be
-        discovered automatically.
+        :param edge_types: Optional list of edge type values. If None, edge types will be discovered automatically.
         :return: DataFrame with columns "id" and "degrees" (struct type)
-        """
+        """  # noqa: E501
         exploded_edges = self._impl._edges.select(
             F.explode(F.array(F.col(self.SRC), F.col(self.DST))).alias(self.ID),
             F.col(edge_type_col),
@@ -529,8 +529,8 @@ class GraphFrame:
 
         **Returned DataFrame schema:**
 
-        - ``path``: array of vertex ids in traversal order
-        - ``len``: number of edges in the path (Long)
+         - ``path``: array of vertex ids in traversal order
+         - ``len``: number of edges in the path (Long)
 
         .. note::
             In the case of an undirected graph, the algorithm runs on an internal graph
@@ -765,6 +765,74 @@ class GraphFrame:
         """  # noqa: E501
         return self._impl.k_core(checkpoint_interval, use_local_checkpoints, storage_level)
 
+    def hyper_anf(
+        self,
+        n_hops: int = 3,
+        lg_nom_entries: int = 12,
+        edge_filter: Column | str | None = None,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """HyperANF-style approximation of the neighbourhood function.
+
+        This implementation is inspired by
+        `HyperANF: Approximating the Neighbourhood Function of Very Large Graphs on a Budget
+        <https://arxiv.org/pdf/1011.5599>`_
+        (Vigna, Boldi, Rosa; 2010).
+
+        The input graph is treated as directed: for each vertex, reachability is computed by
+        following outgoing edges from ``src`` to ``dst``.
+
+        Compared with the cumulative neighbourhood-function presentation in the paper, this
+        implementation returns one column per hop: ``hop_0``, ``hop_1``, ``hop_2``, …, ``hop_N``.
+        The ``hop_0`` column contains a HyperLogLog sketch of the source vertex itself, and each
+        ``hop_k`` column for ``k >= 1`` contains a HyperLogLog sketch of the set of vertices
+        reachable in exactly ``k`` hops.  To derive the cumulative approximate neighbourhood
+        function for distances up to some hop ``k``, combine ``hop_0`` through ``hop_k`` with
+        ``hll_union`` and then apply ``hll_sketch_estimate`` to the merged sketch.
+
+        The computation can also be restricted to a subgraph by supplying an edge filter
+        expression via ``edge_filter``.  A common use case is to filter on ``src``, for example
+        ``"src IN (1, 2, 3)"``, to obtain sketches only for a selected set of starting vertices.
+
+        **Example:**
+
+        >>> result = g.hyper_anf(n_hops=2)
+        >>> result.columns
+        ['id', 'hop_0', 'hop_1', 'hop_2']
+
+        :param n_hops: Maximum hop distance to compute (positive integer). The result will
+            contain columns ``hop_0`` through ``hop_N`` where ``N = n_hops``.
+        :param lg_nom_entries: Log2 of nominal entries used by HLL sketch aggregations.
+            Must be between 4 and 21 (inclusive). Higher values increase accuracy at the
+            cost of memory. Default is 12.
+        :param edge_filter: Optional column expression or SQL expression string applied to
+            edges before computation. Only edges satisfying this predicate participate in
+            the directed reachability expansion.
+        :param checkpoint_interval: Checkpoint interval in terms of number of iterations
+            (default: 2). Use 0 to disable checkpointing.
+        :param use_local_checkpoints: Whether to use local checkpoints instead of a
+            persistent checkpoint directory. Local checkpoints are faster but less reliable.
+        :param storage_level: Storage level for intermediate and final DataFrames.
+
+        :return: Persisted DataFrame with vertex ``id`` and one sketch column per hop
+            (``hop_0``, ``hop_1``, …, ``hop_N``).
+        """  # noqa: E501
+        if n_hops <= 0:
+            raise ValueError("n_hops must be a positive integer")
+        if not (4 <= lg_nom_entries <= 21):
+            raise ValueError("lg_nom_entries must be between 4 and 21 (inclusive)")
+
+        return self._impl.hyper_anf(
+            n_hops=n_hops,
+            lg_nom_entries=lg_nom_entries,
+            edge_filter=edge_filter,
+            checkpoint_interval=checkpoint_interval,
+            use_local_checkpoints=use_local_checkpoints,
+            storage_level=storage_level,
+        )
+
     def labelPropagation(
         self,
         maxIter: int,
@@ -779,7 +847,7 @@ class GraphFrame:
         See Scala documentation for more details.
 
         :param maxIter: the number of iterations to be performed
-        :param algorithm: implementation to use, posible values are "graphframes" and "graphx";
+        :param algorithm: implementation to use, possible values are "graphframes" and "graphx";
                           "graphx" is faster for small-medium sized graphs,
                           "graphframes" requires less amount of memory
         :param use_local_checkpoints: should local checkpoints be used, default false;
@@ -819,10 +887,10 @@ class GraphFrame:
 
         This algorithm is a Label Propagation variant where each incoming label vote is weighted
         by a combination of:
-          - optional direct-link baseline strength (enabled unless
-            ``ignore_direct_links = True``), and
-          - neighborhood-overlap strength
-            (``structural_similarity_multiplier * common_neighbors``).
+        - optional direct-link baseline strength (enabled unless
+        ``ignore_direct_links = True``), and
+        - neighborhood-overlap strength
+        (``structural_similarity_multiplier * common_neighbors``).
 
         Intuitively, labels from neighbors that are structurally similar to the destination
         (many common neighbors) can be amplified instead of treating all edges equally.
@@ -831,10 +899,10 @@ class GraphFrame:
         the label with maximum total weight.
 
         Edge-weight regimes:
-          - ``ignore_direct_links = False``:
-            ``edge_weight = 1 + structural_similarity_multiplier * common_neighbors``
-          - ``ignore_direct_links = True``:
-            ``edge_weight = structural_similarity_multiplier * common_neighbors``
+        - ``ignore_direct_links = False``:
+        ``edge_weight = 1 + structural_similarity_multiplier * common_neighbors``
+        - ``ignore_direct_links = True``:
+        ``edge_weight = structural_similarity_multiplier * common_neighbors``
 
         :param max_iter: maximum number of propagation rounds.
         :param structural_similarity_multiplier: scales neighborhood-overlap contribution.
@@ -937,7 +1005,7 @@ class GraphFrame:
         See Scala documentation for more details.
 
         :param landmarks: a set of one or more landmarks
-        :param algorithm: implementation to use, posible values are "graphframes" and "graphx";
+        :param algorithm: implementation to use, possible values are "graphframes" and "graphx";
                           "graphx" is faster for small-medium sized graphs,
                           "graphframes" requires less amount of memory
         :param use_local_checkpoints: should local checkpoints be used, default false;
@@ -1048,13 +1116,14 @@ class GraphFrame:
         This algorithm identifies sets of three vertices where each pair is connected by an edge.
 
         The implementation provides two algorithms:
+
         - "exact": Computes the exact triangle count using set intersection of neighbor lists.
-          Note: This method can fail or encounter OOM errors on power-law graphs or graphs with
-          very high-degree nodes, as it requires collecting and intersecting the full neighbor
-          lists for the source and destination vertices of every edge.
-        - "approx": Uses DataSketches (Theta sketches) to estimate the triangle count. This
-          trades off perfect accuracy for significantly improved performance and lower memory
-          overhead, making it suitable for large-scale or dense graphs.
+
+        Note: This method can fail or encounter OOM errors on power-law graphs or graphs with
+        very high-degree nodes, as it requires collecting and intersecting the full neighbor
+        lists for the source and destination vertices of every edge.
+
+        - "approx": Uses DataSketches (Theta sketches) to estimate the triangle count. This trades off perfect accuracy for significantly improved performance and lower memory overhead, making it suitable for large-scale or dense graphs.
 
         :param storage_level: Storage level for caching intermediate DataFrames.
         :param algorithm: The triangle counting algorithm to use, "exact" or "approx" (default: "exact").
@@ -1063,8 +1132,11 @@ class GraphFrame:
                                cost of memory. (default: 12).
         :return: A DataFrame containing the vertex "id" and the triangle "count".
         """  # noqa: E501
-        if (__version__[:3] < "4.1") and (algorithm == "approx"):
-            raise ValueError("approximate algorithm requires Spark 4.1+")
+        spark_version = self._impl._spark.version
+        if (spark_version[:3] < "4.1") and (algorithm == "approx"):
+            err_msg = "approximate algorithm requires Spark 4.1+"
+            err_msg += f" version {spark_version[:3]} is not supported"
+            raise ValueError(err_msg)
         return self._impl.triangleCount(
             storage_level=storage_level, algorithm=algorithm, log_nom_entries=lg_nom_entries
         )
@@ -1073,9 +1145,7 @@ class GraphFrame:
         self, k: int, maxIter: int, weightCol: str | None = None
     ) -> DataFrame:
         """
-        Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen.
-        From the abstract: PIC finds a very low-dimensional embedding of a dataset using truncated power iteration
-        on a normalized pair-wise similarity matrix of the data.
+        Power Iteration Clustering (PIC), a scalable graph clustering algorithm developed by Lin and Cohen. From the abstract: PIC finds a very low-dimensional embedding of a dataset using truncated power iteration on a normalized pair-wise similarity matrix of the data.
 
         :param k: the numbers of clusters to create
         :param maxIter: param for maximum number of iterations (>= 0)

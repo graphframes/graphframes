@@ -79,24 +79,29 @@ results.vertices.select("id", "pagerank").show()
 
 Historically, Apache Spark had a built-in graph processing tool named `GraphX`, that was based on `RDD` (pre Spark 2.x
 way of doing things). GraphX provided a set of graph algorithms, like `PageRank`, `LabelPropagation`, etc. In Spark
-4.0.x GraphX was deprecated and is not recommended for usage. Opposite, `GraphFrames` represent graphs using Spark's
+4.0.x GraphX was deprecated and is not recommended for usage\*. Opposite, `GraphFrames` represent graphs using Spark's
 `Dataset` / `Dataframe`. `GraphFrames`. It also provides the set of standard graph algorithms, and this set is growing.
 For algorithms implemented in `GraphX` but currently not supported natively in `GraphFrames`, the library also provides
 a conversion method (see [user guide](/04-user-guide/12-graphx-conversion.md)). The following table shows the currently
 supported algorithms:
 
-| Algorithm                      | GraphX Wrapper | GraphFrames Implementation | Recommendations                                              |
-| ------------------------------ | -------------- | -------------------------- | ------------------------------------------------------------ |
-| BFS                            | Yes            | Yes                        | GraphFrames provides smoother API                            |
-| Connected Components           | Yes            | Yes                        | For small graphs and streaming GraphX, otherwise GraphFrames |
-| Strongly Connected Components  | Yes            | No                         | GraphX                                                       |
-| Label Propagation Algorithm    | Yes            | Yes                        | For small graphs and streaming GraphX, otherwise GraphFrames |
-| PageRank                       | Yes            | No                         | GraphX                                                       |
-| Parallel Personalized PageRank | Yes            | No                         | GraphX                                                       |
-| Shortest Paths                 | Yes            | Yes                        | For small graphs and streaming GraphX, otherwise GraphFrames |
-| Triangle Count                 | Yes            | Yes                        | GraphFrames provides smoother API                            |
-| SVD++                          | Yes            | No                         | GraphX                                                       |
-| Cycles Detection               | No             | Yes                        | GraphFrames                                                  |
-| Triangel Count                 | No             | Yes                        | GraphFrames                                                  |
-| K-Core                         | No             | Yes                        | GraphFrames                                                  |
-| Maximal Independent Set        | No             | Yes                        | GraphFrames                                                  |
+| Algorithm                      | GraphX (GX) | GraphFrames (GF) | Recommendations                                 |
+| ------------------------------ | ----------- | ---------------- | ----------------------------------------------- |
+| BFS                            | Yes         | Yes              | GF provides smoother API                        |
+| Connected Components           | Yes         | Yes              | For small graphs and streaming GX, otherwise GF |
+| Strongly Connected Components  | Yes         | No               | GX                                              |
+| Label Propagation Algorithm    | Yes         | Yes              | GF is faster on both small and big graphs       |
+| PageRank                       | Yes         | No               | GX                                              |
+| Parallel Personalized PageRank | Yes         | No               | GX                                              |
+| Shortest Paths                 | Yes         | Yes              | For small graphs and streaming GX, otherwise GF |
+| Triangle Count                 | Yes         | Yes              | GF provides smoother API                        |
+| SVD++                          | Yes         | No               | GX                                              |
+| Cycles Detection               | No          | Yes              | GF                                              |
+| Triangle Count                 | No          | Yes              | GF                                              |
+| K-Core                         | No          | Yes              | GF                                              |
+| Maximal Independent Set        | No          | Yes              | GF                                              |
+| Approximate Neighbor Functions | No          | Yes              | GF                                              |
+| All Simple Paths               | No          | Yes              | GF                                              |
+| Random Walk Embeddings         | No          | Yes              | GF: Word2Vec if \|V\| < 15M or Hash2Vec         |
+
+\* Starting from `0.10.0` GraphFrames comes with it's own internal fork of GraphX package with multiple fixes and improvements.

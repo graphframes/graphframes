@@ -439,6 +439,30 @@ class GraphFrame:
 
         return DataFrame(jdf, self._spark)
 
+    def hyper_anf(
+        self,
+        n_hops: int,
+        lg_nom_entries: int,
+        edge_filter: Column | str | None,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        builder = self._jvm_graph.hyperANF()
+        builder.setNHops(n_hops)
+        builder.setLgNomEntries(lg_nom_entries)
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.setEdgesFilterExpression(edge_filter._jc)
+            else:
+                builder.setEdgesFilterExpression(edge_filter)
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = builder.run()
+
+        return DataFrame(jdf, self._spark)
+
     def aggregate_neighbors(
         self,
         starting_vertices: Column | str,
