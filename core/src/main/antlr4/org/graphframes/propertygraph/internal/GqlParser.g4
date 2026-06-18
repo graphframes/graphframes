@@ -43,7 +43,7 @@ nodePattern
     : LPAREN (variable=IDENTIFIER)? (COLON label=IDENTIFIER)? RPAREN
     ;
 
-// Edge pattern. Only directed edges are accepted in v1, and direction is
+// Edge pattern. Only directed edges are accepted for now, and direction is
 // expressed at the syntax level (not deferred to semantic analysis) so that
 // undirected patterns like (a)-[:KNOWS]-(b) are rejected by the parser.
 // Two forms:

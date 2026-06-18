@@ -31,8 +31,7 @@ What it does
    regenerated on every run so the test always reflects the current grammar.
 3. Imports the freshly generated modules and parses each query in
    :data:`CASES`, asserting that the grammar accepts/rejects each one as
-   expected. Cases mirror the v1 scope in ``GQL_GF_PROPOSAL_v1.md`` (section
-   2.1 accept / 2.2 reject).
+   expected.
 
 Usage
 -----
@@ -70,7 +69,7 @@ GRAMMAR_DIR = (
 LEXER_G4 = GRAMMAR_DIR / "GqlLexer.g4"
 PARSER_G4 = GRAMMAR_DIR / "GqlParser.g4"
 
-# (query, should_accept). Keep aligned with GQL_GF_PROPOSAL_v1.md sections 2.1/2.2.
+# (query, should_accept).
 CASES: list[tuple[str, bool]] = [
     # --- proposal 2.1: must accept ---
     ("MATCH (a:Person)", True),
@@ -84,7 +83,7 @@ CASES: list[tuple[str, bool]] = [
     ("MATCH (a:Person) RETURN a.name AS person_name", True),  # aliased property
     ("MATCH (a:Person) RETURN a, b", True),
     ("MATCH (a:Person) RETURN *", True),
-    # --- extras within the v1 subset ---
+
     ("MATCH (a:Person) WHERE NOT (a.age > 30) RETURN a", True),
     ("MATCH (a:Person) WHERE a.age > 30 AND a.age < 90 OR a.age = 100 RETURN a", True),
     ("MATCH (a:Person) WHERE a.name = 'Bob''s' RETURN a", True),  # '' escape

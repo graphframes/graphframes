@@ -35,10 +35,11 @@ case class PropertyGraphFrame(
     vertexPropertyGroups: Seq[VertexPropertyGroup],
     edgesPropertyGroups: Seq[EdgePropertyGroup]) {
   import PropertyGraphFrame._
+  // Keys are lowercased so that lookups in toGraphFrame and projectionBy are case-insensitive.
   lazy private val vertexGroups: Map[String, VertexPropertyGroup] =
-    vertexPropertyGroups.map(pg => pg.name -> pg).toMap
+    vertexPropertyGroups.map(pg => pg.name.toLowerCase -> pg).toMap
   lazy private val edgeGroups: Map[String, EdgePropertyGroup] =
-    edgesPropertyGroups.map(pg => pg.name -> pg).toMap
+    edgesPropertyGroups.map(pg => pg.name.toLowerCase -> pg).toMap
 
   lazy private val schemaGraphSnapshot: SchemaGraphSnapshot =
     SchemaGraphSnapshot.fromPropertyGraphFrame(this)
@@ -100,16 +101,18 @@ case class PropertyGraphFrame(
       edgeGroupFilters: Map[String, Column],
       vertexGroupFilters: Map[String, Column]): GraphFrame = {
     vertexPropertyGroups.foreach(name =>
-      require(vertexGroups.contains(name), s"Vertex property group $name does not exist"))
+      require(
+        vertexGroups.contains(name.toLowerCase),
+        s"Vertex property group $name does not exist"))
     edgePropertyGroups.foreach(name =>
-      require(edgeGroups.contains(name), s"Edge property group $name does not exist"))
+      require(edgeGroups.contains(name.toLowerCase), s"Edge property group $name does not exist"))
 
     val vertices = vertexPropertyGroups
-      .map(name => vertexGroups(name).getData(vertexGroupFilters(name)))
+      .map(name => vertexGroups(name.toLowerCase).getData(vertexGroupFilters(name)))
       .reduce(_ union _)
 
     val edges = edgePropertyGroups
-      .map(name => edgeGroups(name).getData(edgeGroupFilters(name)))
+      .map(name => edgeGroups(name.toLowerCase).getData(edgeGroupFilters(name)))
       .reduce(_ union _)
 
     GraphFrame(vertices, edges)
@@ -138,15 +141,18 @@ case class PropertyGraphFrame(
       rightBiGraphPart: String,
       edgeGroup: String,
       newEdgeWeight: Option[(Column, Column) => Column] = None): PropertyGraphFrame = {
+    // Hoisted before the require checks so the lowercased lookup is performed only once.
+    val oldGroup = edgeGroups(edgeGroup.toLowerCase)
     require(
-      edgeGroups(edgeGroup).srcPropertyGroup.name == leftBiGraphPart,
-      s"Edge Property Group should have $leftBiGraphPart source group but has ${edgeGroups(edgeGroup).srcPropertyGroup.name}")
+      oldGroup.srcPropertyGroup.name.equalsIgnoreCase(leftBiGraphPart),
+      s"Edge Property Group should have $leftBiGraphPart source group but has ${oldGroup.srcPropertyGroup.name}")
     require(
-      edgeGroups(edgeGroup).dstPropertyGroup.name == rightBiGraphPart,
-      s"Edge Property Group should have $rightBiGraphPart destination group but has ${edgeGroups(edgeGroup).dstPropertyGroup.name}")
-    val keptVPropertyGroups = vertexPropertyGroups.filterNot(g => g.name == rightBiGraphPart)
-    val keptEPropertyGroups = edgesPropertyGroups.filterNot(g => g.name == edgeGroup)
-    val oldGroup = edgeGroups(edgeGroup)
+      oldGroup.dstPropertyGroup.name.equalsIgnoreCase(rightBiGraphPart),
+      s"Edge Property Group should have $rightBiGraphPart destination group but has ${oldGroup.dstPropertyGroup.name}")
+    val keptVPropertyGroups =
+      vertexPropertyGroups.filterNot(g => g.name.equalsIgnoreCase(rightBiGraphPart))
+    val keptEPropertyGroups =
+      edgesPropertyGroups.filterNot(g => g.name.equalsIgnoreCase(edgeGroup))
     val oldEdgesData = oldGroup.data
 
     // Create new edges by joining vertices through their common neighbors
@@ -168,8 +174,8 @@ case class PropertyGraphFrame(
     val newEdgeGroup = EdgePropertyGroup(
       name = s"projected_$edgeGroup",
       data = projectedEdges,
-      srcPropertyGroup = vertexGroups(leftBiGraphPart),
-      dstPropertyGroup = vertexGroups(leftBiGraphPart),
+      srcPropertyGroup = vertexGroups(leftBiGraphPart.toLowerCase),
+      dstPropertyGroup = vertexGroups(leftBiGraphPart.toLowerCase),
       isDirected = false,
       srcColumnName = GraphFrame.SRC,
       dstColumnName = GraphFrame.DST,
