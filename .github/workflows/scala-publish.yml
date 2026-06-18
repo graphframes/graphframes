@@ -25,7 +25,7 @@ jobs:
         include:
           - spark-version: 3.5.8
             java-version: 8
-          - spark-version: 4.1.0
+          - spark-version: 4.1.2
             java-version: 17
     runs-on: ubuntu-latest
     steps:

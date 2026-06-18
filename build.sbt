@@ -3,7 +3,7 @@ import laika.config.SyntaxHighlighting
 import laika.format.Markdown.GitHubFlavor
 import org.typelevel.scalacoptions.ScalacOptions
 
-lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.7")
+lazy val sparkVer = sys.props.getOrElse("spark.version", "3.5.8")
 lazy val sparkMajorVer = sparkVer.substring(0, 1)
 lazy val sparkBranch = sparkVer.substring(0, 3)
 lazy val scalaVersions = sparkMajorVer match {
@@ -75,6 +75,7 @@ lazy val commonSetting = Seq(
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.slf4j" % "slf4j-api" % "2.0.17" % "provided",
+    "org.apache.datasketches" % "datasketches-java" % "6.2.0", // transitive dependency from Spark
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   Compile / doc / scalacOptions ++= Seq(
@@ -226,6 +227,7 @@ lazy val benchmarks = (project in file("benchmarks"))
 lazy val buildAndCopyScalaDoc = taskKey[Unit]("Build and copy ScalaDoc to docs/api")
 lazy val buildAndCopyPythonDoc = taskKey[Unit]("Build and copy PythonDoc to docs/api")
 lazy val generateAtomFeed = taskKey[Unit]("Generate Atom feed")
+lazy val generateSitemap = taskKey[Unit]("Generate sitemap.xml for SEO")
 
 lazy val docs = (project in file("docs"))
   .dependsOn(core)
@@ -252,6 +254,8 @@ lazy val docs = (project in file("docs"))
       (core / Compile / doc).value.toPath),
     generateAtomFeed := LaikaCustoms
       .generateAtomFeed(baseDirectory.value.toPath.resolve("src/05-blog"), siteBaseUri),
+    generateSitemap := LaikaCustoms
+      .generateSitemap(baseDirectory.value.toPath.resolve("src"), siteBaseUri),
     laikaConfig := LaikaCustoms
       .laikaConfig((benchmarks / baseDirectory).value.toPath.resolve("jmh-result.json"))
       .withConfigValue(LaikaKeys.siteBaseURL, siteBaseUri)
@@ -261,8 +265,8 @@ lazy val docs = (project in file("docs"))
       .withConfigValue("scala.version", scalaVer),
     laikaExtensions := Seq(GitHubFlavor, SyntaxHighlighting, LaikaCustomDirectives),
     laikaHTML := (laikaHTML dependsOn mdoc.toTask(
-      "") dependsOn generateAtomFeed dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
+      "") dependsOn generateAtomFeed dependsOn generateSitemap dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
     laikaPreview := (laikaPreview dependsOn mdoc.toTask(
-      "") dependsOn generateAtomFeed dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
+      "") dependsOn generateAtomFeed dependsOn generateSitemap dependsOn buildAndCopyScalaDoc dependsOn buildAndCopyPythonDoc dependsOn (core / Compile / doc)).value,
     laikaTheme := LaikaCustoms.heliumTheme(version.value),
     Laika / sourceDirectories := Seq((ThisBuild / baseDirectory).value / "docs" / "src"))

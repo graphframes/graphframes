@@ -623,7 +623,7 @@ class GraphFrame private (
       case VarLengthPattern(src, name, min, max, direction, dst) =>
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
-            s"Unbounded length patten ${pattern} is not supported! " +
+            s"Unbounded length pattern ${pattern} is not supported! " +
               "Please a pattern of defined length.")
         }
         findVarLengthPattern(src, name, min.toInt, max.toInt, direction, dst)
@@ -700,6 +700,15 @@ class GraphFrame private (
    * @group stdlib
    */
   def bfs: BFS = new BFS(this)
+
+  /**
+   * Enumerate all paths between source and destination vertices.
+   *
+   * See [[org.graphframes.lib.AllPaths]] for details.
+   *
+   * @group stdlib
+   */
+  def allPaths: AllPaths = new AllPaths(this)
 
   /**
    * Aggregate information from neighboring vertices and edges through a controlled traversal.
@@ -827,6 +836,16 @@ class GraphFrame private (
    * @group stdlib
    */
   def labelPropagation: LabelPropagation = new LabelPropagation(this)
+
+  /**
+   * Mix of label- and structure propagation.
+   *
+   * See [[org.graphframes.lib.StructureAwareLabelPropagation]] for more details.
+   *
+   * @group stdlib
+   */
+  def structureAwareLabelPropagation: StructureAwareLabelPropagation =
+    new StructureAwareLabelPropagation(this)
 
   /**
    * PageRank algorithm.
@@ -963,7 +982,7 @@ class GraphFrame private (
    * large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
    * (SBPO’15) (2015): 1-11.
    *
-   * Returns a DataFrame with unque cycles.
+   * Returns a DataFrame with unique cycles.
    *
    * @return
    *   an instance of DetectingCycles initialized with the current context
@@ -980,6 +999,15 @@ class GraphFrame private (
    * @group stdlib
    */
   def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
+
+  /**
+   * Run an approximate neighbor function backed by the HLL-sketches.
+   *
+   * See [[org.graphframes.lib.HyperANF]] for more details.
+   *
+   * @group stdlib
+   */
+  def hyperANF: HyperANF = new HyperANF(this)
 
   // ========= Graph Machine Learning ==========
 

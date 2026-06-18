@@ -54,7 +54,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   /** Unique identifier for the current random walk run. */
   protected var runID: String = java.util.UUID.randomUUID().toString
 
-  /** Starting batch index for continous mode */
+  /** Starting batch index for continuous mode */
   protected var startingIteration: Int = 1
 
   /** Internal handler of vertex data type */
@@ -187,7 +187,7 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
   def getRunId(): String = runID
 
   /**
-   * Sets the startng batch index for the continous mode. See @setWalkId comment for details.
+   * Sets the startng batch index for the continuous mode. See @setWalkId comment for details.
    *
    * @param value
    * @return

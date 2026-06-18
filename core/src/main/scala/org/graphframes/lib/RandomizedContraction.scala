@@ -168,7 +168,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       }
 
       logInfo(s"graph was successfully contracted for $iter iterations")
-      logInfo("start reverse tranformation")
+      logInfo("start reverse transformation")
 
       var accA = 1L
       var accB = 0L

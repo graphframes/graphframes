@@ -97,7 +97,7 @@ class Graphs:
                 "Grid graph must have size >= 1, but was given invalid value n = {}".format(n)
             )
 
-        # create coodinates grid
+        # create coordinates grid
         coordinates = self._spark.createDataFrame(
             itertools.product(range(n), range(n)), schema=("i", "j")
         )

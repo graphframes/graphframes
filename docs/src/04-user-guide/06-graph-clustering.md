@@ -10,7 +10,7 @@ See [Wikipedia](https://en.wikipedia.org/wiki/Label_Propagation_Algorithm) for t
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
@@ -44,7 +44,7 @@ result.select("id", "label").show()
 
 - `maxIter`
 
-An amount of Pregel iterations. While in theory, Label Propagation algorithm should converge sooner or later to some stable state, there are a lot of problems with it on a real-world graphs. The first one is oscillations: even if the algorithm is almost converged, on a big graphs some vertices at the border between detected communities may contibue oscilate from one iteration to another. The biggest problme, however, is that algorithm may easily converge to the state when all vertices has the same label. It is strongly recommended to set `maxIter` to some reasonable value from `5` to `10` and do some experiments depends of the task and the goal.
+An amount of Pregel iterations. While in theory, Label Propagation algorithm should converge sooner or later to some stable state, there are a lot of problems with it on a real-world graphs. The first one is oscillations: even if the algorithm is almost converged, on a big graphs some vertices at the border between detected communities may contibue oscillate from one iteration to another. The biggest problem, however, is that algorithm may easily converge to the state when all vertices has the same label. It is strongly recommended to set `maxIter` to some reasonable value from `5` to `10` and do some experiments depends of the task and the goal.
 
 - `algorithm`
 
@@ -56,11 +56,129 @@ For `graphframes` only. To avoid exponential growing of the Spark' Logical Plan,
 
 - `use_local_checkpoints`
 
-For `graphframes` only. By default, GraphFrames uses persistent checkpoints. They are realiable and reduce the errors rate. The downside of the persistent checkpoints is that they are requiride to set up a `checkpointDir` in persistent storage like `S3` or `HDFS`. By providing `use_local_checkpoints=True`, user can say GraphFrames to use local disks of Spark' executurs for checkpointing. Local checkpoints are faster, but they are less reliable: if the executur lost, for example, is taking by the higher priority job, checkpoints will be lost and the whole job fails.
+For `graphframes` only. By default, GraphFrames uses persistent checkpoints. They are reliable and reduce the errors rate. The downside of the persistent checkpoints is that they are requiride to set up a `checkpointDir` in persistent storage like `S3` or `HDFS`. By providing `use_local_checkpoints=True`, user can say GraphFrames to use local disks of Spark' executurs for checkpointing. Local checkpoints are faster, but they are less reliable: if the executur lost, for example, is taking by the higher priority job, checkpoints will be lost and the whole job fails.
 
 - `storage_level`
 
-The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarious, using `DISK_ONLY` may be faster.
+The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarios, using `DISK_ONLY` may be faster.
+
+## Neighborhood-Aware CDLP
+
+Neighborhood-Aware (or Structure-Aware) CDLP is a weighted variant of label propagation. Instead of counting every incoming label vote equally, it gives more influence to neighbors that are structurally similar to the destination vertex.
+
+This implementation is inspired by:
+
+Xie, Jierui, and Boleslaw K. Szymanski. "Community detection using a neighborhood strength driven label propagation algorithm." 2011 IEEE Network Science Workshop (NSW), 2011.
+
+### Intuition
+
+Each incoming label vote has two parts:
+
+- direct-link baseline (can be enabled or disabled),
+- structural-overlap part (`structuralSimilarityMultiplier * commonNeighbors`).
+
+Simple intuition for `structuralSimilarityMultiplier`:
+
+- smaller values: behavior is closer to standard LPA,
+- larger values: labels from structurally similar neighbors (many common neighbors) get stronger weight.
+
+### Important differences from the paper
+
+Compared to NSW 2011, this GraphFrames implementation intentionally extends and adapts behavior:
+
+- The paper is for **undirected graphs**; this implementation supports **directed and undirected** execution.
+- The paper does **not** support turning off direct-link contribution; this implementation adds `ignoreDirectLinks`.
+- The paper uses structural factor in **\[0, 1\]**; this implementation exposes a non-negative multiplier, allowing a wider tuning range.
+
+### Directed common-neighbor definition: pragmatic, not canonical
+
+For directed mode, common neighbors are defined as **shared out-neighbors** of source and destination.
+
+This is a practical choice for scalable message-passing pipelines and consistent directional semantics, but it is not the only valid definition in directed graphs. Other definitions (for example, shared in-neighbors or mixed in/out motifs) may emphasize different structural patterns and lead to different communities.
+
+### Important approximation warning (sketch-based implementation)
+
+This implementation uses **Theta sketches** to estimate common-neighbor overlap.
+
+That makes it scalable, but it is still an approximation. Estimation noise can accumulate through iterative label propagation, and the effect is usually more visible when overlap is small (for example, edges between low-degree vertices where true common-neighbor counts are tiny).
+
+In short: treat very small overlap differences with caution, especially on sparse/low-degree regions.
+
+### Relationship to classical CDLP
+
+You can make this algorithm behave close to classical CDLP/LPA by using:
+
+- `ignoreDirectLinks = false`
+- `structuralSimilarityMultiplier = 0`
+
+This effectively removes structural-overlap amplification and leaves direct-link voting only.
+
+However, this is **not recommended** as a replacement for classical CDLP in production. If you need classical behavior, use the dedicated CDLP API (`labelPropagation`) because it is more optimized.
+
+### Python API
+
+For API details, refer to the @:pydoc(graphframes.GraphFrame.neighborhood_aware_cdlp).
+
+```python
+from graphframes.examples import Graphs
+
+g = Graphs(spark).friends()
+
+result = g.neighborhood_aware_cdlp(
+    max_iter=5,
+    structural_similarity_multiplier=0.5,
+    ignore_direct_links=False,
+)
+result.select("id", "label").show()
+```
+
+### Scala API
+
+For API details, refer to the @:scaladoc(org.graphframes.lib.StructureAwareLabelPropagation).
+
+```scala
+import org.graphframes.{examples, GraphFrame}
+
+val g: GraphFrame = examples.Graphs.friends
+
+val result = g.structureAwareLabelPropagation
+  .maxIter(5)
+  .setStructuralSimilarityMultiplier(0.5)
+  .setIgnoreDirectLinks(false)
+  .run()
+
+result.select("id", "label").show()
+```
+
+### Arguments
+
+- `max_iter`
+
+Maximum number of propagation iterations.
+
+- `structural_similarity_multiplier`
+
+Non-negative factor controlling the strength of structural-overlap voting.
+
+- `ignore_direct_links`
+
+If `False`, direct edges contribute baseline vote mass. If `True`, only structural overlap contributes.
+
+- `initial_label_col`
+
+Optional vertex column used as initial labels. By default, vertex `id` is used.
+
+- `is_directed`
+
+Controls whether edges are treated as directed (`True`) or internally symmetrized (`False`).
+
+- `lg_nom_entries`
+
+Theta-sketch precision parameter used in approximate common-neighbor estimation.
+
+- `checkpoint_interval`, `use_local_checkpoints`, `storage_level`
+
+Runtime controls with the same meaning as in other iterative GraphFrames algorithms.
 
 ## Power Iteration Clustering (PIC)
 
@@ -70,7 +188,7 @@ GraphFrames provides a wrapper for the [Power Iteration Clustering](https://www.
 
 **NOTE**
 
-*Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!*
+_Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
 ---
 
@@ -95,7 +213,7 @@ An MIS is a set of vertices such that no two vertices in the set are adjacent (i
 
 The algorithm implemented in GraphFrames is based on the paper: Ghaffari, Mohsen. "An improved distributed algorithm for maximal independent set." Proceedings of the twenty-seventh annual ACM-SIAM symposium on Discrete algorithms. Society for Industrial and Applied Mathematics, 2016. ([https://doi.org/10.1137/1.9781611974331.ch20](https://doi.org/10.1137/1.9781611974331.ch20))
 
-Algorithm is useful, for example, if you are planning a marketing campaign and want to cover at most of users of the social network by minimizing communications. In that case, you need to find a big subset of nodes does not connected to each other but connected to othe nodes of the network. It is exactly what Maximal Independent Set do. It returns a set of not connected vertices so no more vertices can be added to the set without violation of the independence.
+Algorithm is useful, for example, if you are planning a marketing campaign and want to cover at most of users of the social network by minimizing communications. In that case, you need to find a big subset of nodes does not connected to each other but connected to other nodes of the network. It is exactly what Maximal Independent Set do. It returns a set of not connected vertices so no more vertices can be added to the set without violation of the independence.
 
 Note: This is a randomized, non-deterministic algorithm. The result may vary between runs even if a fixed random seed is provided because how Apache Spark works.
 

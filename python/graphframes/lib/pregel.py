@@ -47,11 +47,10 @@ class Pregel(JavaWrapper):
     When a run starts, it expands the vertices DataFrame using column expressions defined by :func:`withVertexColumn`.
     Those additional vertex properties can be changed during Pregel iterations.
     In each Pregel iteration, there are three phases:
-      - Given each edge triplet, generate messages and specify target vertices to send,
-        described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
-      - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
-      - Update additional vertex properties based on aggregated messages and states from previous iteration,
-        described by :func:`withVertexColumn`.
+
+    - Given each edge triplet, generate messages and specify target vertices to send, described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
+    - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
+    - Update additional vertex properties based on aggregated messages and states from previous iteration, described by :func:`withVertexColumn`.
 
     Please find what columns you can reference at each phase in the method API docs.
 
@@ -272,6 +271,23 @@ class Pregel(JavaWrapper):
         See also :func:`required_src_columns`
         """
         self._java_obj.requiredDstColumns(
+            col_name, _to_seq(self.graph._spark.sparkContext, col_names)
+        )
+        return self
+
+    def required_edge_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which edge columns are required when constructing triplets.
+
+        By default, only src and dst columns are included from edges. Use this method to
+        specify additional edge columns that are needed by the sendMsgToSrc and sendMsgToDst
+        expressions.
+
+        :param col_name: the first required edge column name
+        :param col_names: additional required edge column names
+
+        See also :func:`required_src_columns` and :func:`required_dst_columns`
+        """
+        self._java_obj.requiredEdgeColumns(
             col_name, _to_seq(self.graph._spark.sparkContext, col_names)
         )
         return self

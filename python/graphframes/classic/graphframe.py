@@ -140,6 +140,42 @@ class GraphFrame:
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
+    def all_paths(
+        self,
+        from_expr: Column | str,
+        to_expr: Column | str,
+        edge_filter: Column | str | None = None,
+        max_path_length: int = 5,
+        is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        builder = self._jvm_graph.allPaths()
+        if isinstance(from_expr, Column):
+            builder.fromExpr(from_expr._jc)
+        else:
+            builder.fromExpr(from_expr)
+        if isinstance(to_expr, Column):
+            builder.toExpr(to_expr._jc)
+        else:
+            builder.toExpr(to_expr)
+        builder.maxPathLength(max_path_length).setIsDirected(is_directed)
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.edgeFilter(edge_filter._jc)
+            else:
+                builder.edgeFilter(edge_filter)
+
+        if checkpoint_interval > 0:
+            builder.setCheckpointInterval(checkpoint_interval)
+
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+
+        jdf = builder.run()
+        return DataFrame(jdf, self._spark)
+
     def aggregateMessages(
         self,
         aggCol: list[Column | str],
@@ -241,6 +277,34 @@ class GraphFrame:
         java_cdlp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
         jdf = java_cdlp.run()
 
+        return DataFrame(jdf, self._spark)
+
+    def neighborhood_aware_cdlp(
+        self,
+        max_iter: int,
+        structural_similarity_multiplier: float,
+        ignore_direct_links: bool,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        is_directed: bool,
+        lg_nom_entries: int,
+        initial_label_col: str | None,
+    ) -> DataFrame:
+        java_nacdlp = self._jvm_graph.structureAwareLabelPropagation()
+        java_nacdlp.maxIter(max_iter)
+        java_nacdlp.setStructuralSimilarityMultiplier(structural_similarity_multiplier)
+        java_nacdlp.setIgnoreDirectLinks(ignore_direct_links)
+        java_nacdlp.setUseLocalCheckpoints(use_local_checkpoints)
+        java_nacdlp.setCheckpointInterval(checkpoint_interval)
+        java_nacdlp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        java_nacdlp.setIsDirected(is_directed)
+        java_nacdlp.setLgNomEntries(lg_nom_entries)
+
+        if initial_label_col is not None:
+            java_nacdlp.setInitialLabelCol(initial_label_col)
+
+        jdf = java_nacdlp.run()
         return DataFrame(jdf, self._spark)
 
     def pageRank(
@@ -372,6 +436,30 @@ class GraphFrame:
         java_kcore.setCheckpointInterval(checkpoint_interval)
         java_kcore.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
         jdf = java_kcore.run()
+
+        return DataFrame(jdf, self._spark)
+
+    def hyper_anf(
+        self,
+        n_hops: int,
+        lg_nom_entries: int,
+        edge_filter: Column | str | None,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        builder = self._jvm_graph.hyperANF()
+        builder.setNHops(n_hops)
+        builder.setLgNomEntries(lg_nom_entries)
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.setEdgesFilterExpression(edge_filter._jc)
+            else:
+                builder.setEdgesFilterExpression(edge_filter)
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = builder.run()
 
         return DataFrame(jdf, self._spark)
 

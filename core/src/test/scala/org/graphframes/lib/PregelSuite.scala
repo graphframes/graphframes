@@ -400,6 +400,7 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     // Only uses Pregel.edge("weight") - dst join should be skipped
     val resultDF = graph.pregel
+      .requiredEdgeColumns("weight")
       .setMaxIter(1)
       .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
       .sendMsgToSrc(Pregel.edge("weight"))
@@ -425,6 +426,7 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
     // Only uses Pregel.edge("weight") - dst join should be skipped
     val result = graph.pregel
+      .requiredEdgeColumns("weight")
       .setMaxIter(1) // Single iteration to simplify testing
       .withVertexColumn("total", lit(0.0), coalesce(Pregel.msg, col("total")))
       .sendMsgToDst(Pregel.edge("weight"))
@@ -523,6 +525,7 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val graph = GraphFrame(vertices, edges)
 
     val result = graph.pregel
+      .requiredEdgeColumns("weights")
       .setMaxIter(1)
       .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
       // Use dst.key to look up value in edge.weights map
@@ -545,6 +548,7 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val graph = GraphFrame(vertices, edges)
 
     val result = graph.pregel
+      .requiredEdgeColumns("values")
       .setMaxIter(1)
       .withVertexColumn("received", lit(0L), coalesce(Pregel.msg, col("received")))
       // Use dst.idx to index into edge.values array (element_at is 1-based)
