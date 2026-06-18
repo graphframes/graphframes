@@ -13,6 +13,21 @@ addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.6")
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.8")
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.10"
 
+// ANTLR4 tool used by the internal GraphFramesAntlr4Plugin to generate the GQL
+// parser/lexer Java sources. This is a build-time-only dependency; the
+// antlr4-runtime stays "provided" transitively via Spark SQL.
+//
+// The tool version MUST match the antlr4-runtime bundled with the targeted
+// Spark major (the generated ATN format is version-locked to it):
+//   Spark 3.5.x -> 4.9.3,  Spark 4.x -> 4.13.1
+// The default "3.5.8" mirrors build.sbt's sparkVer default.
+val antlr4ToolVersion = sys.props.getOrElse("spark.version", "3.5.8").substring(0, 1) match {
+  case "4" => "4.13.1"
+  case "3" => "4.9.3"
+  case v   => throw new IllegalArgumentException(s"Unsupported Spark version major: $v")
+}
+libraryDependencies += "org.antlr" % "antlr4" % antlr4ToolVersion
+
 // Scalafix
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.5")
 

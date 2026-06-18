@@ -36,6 +36,18 @@ lazy val protocVersion = sparkMajorVer match {
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 
+// ANTLR4 runtime version matching the antlr4-runtime bundled with each Spark
+// major (Spark 3.5.x -> 4.9.3, Spark 4.x -> 4.13.1). The runtime is provided
+// transitively by Spark SQL, so no explicit dependency is added to the build;
+// this constant documents the contract and is mirrored (for the build-time
+// tool) in project/plugins.sbt. The generated ATN format is version-locked to
+// it, so the GraphFramesAntlr4Plugin tool version must match.
+lazy val antlr4Version = sparkMajorVer match {
+  case "4" => "4.13.1"
+  case "3" => "4.9.3"
+  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
+}
+
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "io.graphframes"
 ThisBuild / homepage := Some(url("https://graphframes.io/"))
@@ -158,6 +170,7 @@ lazy val graphx = (project in file("graphx"))
 
 lazy val core = (project in file("core"))
   .dependsOn(graphx)
+  .enablePlugins(GraphFramesAntlr4Plugin)
   .settings(
     commonSetting,
     name := "graphframes",

@@ -1,0 +1,140 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+parser grammar GqlParser;
+
+options {
+    tokenVocab = GqlLexer;
+}
+
+// ---------------------------------------------------------------------------
+// Top-level statement.
+//
+// RETURN is optional in the grammar so the engine can default to returning
+// matched IDs when the user omits it (forward-compatible; trivially tightened
+// later by making RETURN mandatory).
+// ---------------------------------------------------------------------------
+gqlStatement
+    : MATCH matchPattern (WHERE whereClause)? (RETURN returnClause)? EOF
+    ;
+
+// A match pattern is a chain of alternating nodes and directed edges,
+// e.g. (a:Person)-[:KNOWS]->(b:Person)-[:WORKS_AT]->(c:Company).
+matchPattern
+    : nodePattern (edgePattern nodePattern)*
+    ;
+
+// Node pattern: typed (a:Person), untyped (x), or anonymous ().
+nodePattern
+    : LPAREN (variable=IDENTIFIER)? (COLON label=IDENTIFIER)? RPAREN
+    ;
+
+// Edge pattern. Only directed edges are accepted in v1, and direction is
+// expressed at the syntax level (not deferred to semantic analysis) so that
+// undirected patterns like (a)-[:KNOWS]-(b) are rejected by the parser.
+// Two forms:
+//   -[e:KNOWS]->   (left-to-right)   and   <-[e:KNOWS]-   (right-to-left)
+// The edge body [variable? :label?] is shared via edgeBody.
+edgePattern
+    : DASH    edgeBody ARROW_RIGHT   // a -[e]-> b
+    | ARROW_LEFT edgeBody DASH       // a <-[e]- b
+    ;
+
+edgeBody
+    : LBRACK (variable=IDENTIFIER)? (COLON label=IDENTIFIER)? RBRACK
+    ;
+
+// ---------------------------------------------------------------------------
+// WHERE clause: a single boolean expression.
+// ---------------------------------------------------------------------------
+whereClause
+    : expression
+    ;
+
+// ---------------------------------------------------------------------------
+// RETURN clause: either SELECT * or a comma-separated list of items.
+// ---------------------------------------------------------------------------
+returnClause
+    : STAR
+    | returnItem (COMMA returnItem)*
+    ;
+
+returnItem
+    : expression (AS alias=IDENTIFIER)?
+    ;
+
+// ---------------------------------------------------------------------------
+// Expression grammar.
+//
+// Precedence (lowest -> highest): OR < AND < NOT < comparison < additive <
+// primary. Standard recursive-descent shape; ANTLR4 resolves left-recursive
+// alternatives correctly.
+// ---------------------------------------------------------------------------
+expression
+    : orExpr
+    ;
+
+orExpr
+    : andExpr (OR andExpr)*
+    ;
+
+andExpr
+    : notExpr (AND notExpr)*
+    ;
+
+notExpr
+    : NOT notExpr
+    | comparison
+    ;
+
+comparison
+    : additive (compOp additive)?
+    ;
+
+additive
+    : primary ((PLUS | DASH) primary)*
+    ;
+
+primary
+    : LPAREN expression RPAREN
+    | literal
+    | propertyAccess
+    | variable=IDENTIFIER
+    ;
+
+propertyAccess
+    : variable=IDENTIFIER DOT property=IDENTIFIER
+    ;
+
+compOp
+    : EQ
+    | NEQ
+    | NEQ_BANG
+    | LT
+    | LTE
+    | GT
+    | GTE
+    ;
+
+literal
+    : INTEGER_LITERAL
+    | DECIMAL_LITERAL
+    | STRING_LITERAL
+    | TRUE
+    | FALSE
+    | NULL
+    ;

@@ -66,6 +66,8 @@ flake8 = "^7.1.1"
 isort = "^6.0.0"
 pyspark = { version = ">=3.5, <4.2", extras = ["connect"] }
 pytest = "^9.0.3"
+antlr4-tools = "0.2.2"
+antlr4-python3-runtime = "4.13.1"
 
 [tool.poetry.group.connect.dependencies]
 pytest = "^9.0.3"
