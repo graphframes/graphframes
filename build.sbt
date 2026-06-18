@@ -178,6 +178,11 @@ lazy val core = (project in file("core"))
     // Export the JAR so that this can be excluded from shading in connect
     exportJars := true,
 
+    // Emit the generated GQL parser/lexer into the internal package so the
+    // (forthcoming) AstBuilder can import them. Done via ANTLR's -package option
+    // rather than a grammar @header, so the Python smoke test stays package-free.
+    antlr4GenPackage := Some("org.graphframes.propertygraph.internal"),
+
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
     autoAPIMappings := true,

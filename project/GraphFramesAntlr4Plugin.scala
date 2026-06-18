@@ -32,6 +32,12 @@ import sbt.Keys._
  *   - The ANTLR4 tool is a build-time-only dependency; the antlr4-runtime is
  *     provided transitively by Spark SQL at runtime, so no new dependency is
  *     added to the application build.
+ *   - The parser is generated with `-visitor -no-listener`: the AST is built
+ *     with a visitor (the AstBuilder extends the generated `*BaseVisitor`), so
+ *     the default listener would be dead weight.
+ *   - Generated sources should be emitted into a named package (set
+ *     `antlr4GenPackage`); otherwise the unnamed-package classes cannot be
+ *     imported from packaged Scala/Java sources.
  *   - The lexer must be generated before the parser, because the parser grammar
  *     references the lexer via `options { tokenVocab = GqlLexer; }`. We point
  *     ANTLR's `-lib` at the output directory so the freshly emitted
@@ -92,9 +98,9 @@ object GraphFramesAntlr4Plugin extends AutoPlugin {
       // The parser imports the lexer's token vocab, so the lexer is generated
       // first; the generated GqlLexer.tokens then lives in the output dir.
       log.info(s"ANTLR4: generating lexer from ${lexerG4.getName} into $outDir")
-      runAntlr(lexerG4, outDir, pkgOpt, libDir = None)
+      runAntlr(lexerG4, outDir, pkgOpt, libDir = None, genVisitor = false)
       log.info(s"ANTLR4: generating parser from ${parserG4.getName} into $outDir")
-      runAntlr(parserG4, outDir, pkgOpt, libDir = Some(outDir))
+      runAntlr(parserG4, outDir, pkgOpt, libDir = Some(outDir), genVisitor = true)
     },
     // Register the generated Java as managed Compile sources, and regenerate
     // them automatically before compile. Returning the files from
@@ -104,22 +110,32 @@ object GraphFramesAntlr4Plugin extends AutoPlugin {
     Compile / sourceGenerators += Def.task {
       antlr4Generate.value
       (antlr4OutputDir.value ** "*.java").get
-    }.taskValue
+    }.taskValue,
+    // Generated ANTLR Java is not public API and carries javadoc {@inheritDoc}
+    // tags that scaladoc cannot resolve. Keep it out of the doc task while
+    // leaving it in the compile sources.
+    Compile / doc / sources := (Compile / doc / sources).value.filterNot(
+      _.getAbsolutePath.startsWith(antlr4OutputDir.value.getAbsolutePath))
   )
 
   /**
    * Invoke the ANTLR4 tool on a single grammar file. Throws on any error.
    *
-   * @param grammar the `.g4` file to process
-   * @param outDir  the `-o` output directory
-   * @param pkgOpt  optional `-package` argument
-   * @param libDir  optional `-lib` directory (where to find imported `.tokens`)
+   * @param grammar    the `.g4` file to process
+   * @param outDir     the `-o` output directory
+   * @param pkgOpt     optional `-package` argument
+   * @param libDir     optional `-lib` directory (where to find imported `.tokens`)
+   * @param genVisitor when true, emit a visitor and suppress the listener
+   *                   (`-visitor -no-listener`). The AST is built with a visitor,
+   *                   so the listener is dead weight. These options are
+   *                   parser-grammar only; pass false for the lexer.
    */
   private def runAntlr(
       grammar: File,
       outDir: File,
       pkgOpt: Option[String],
-      libDir: Option[File]): Unit = {
+      libDir: Option[File],
+      genVisitor: Boolean): Unit = {
     val args = scala.collection.mutable.ArrayBuffer.empty[String]
     args += "-o"
     args += outDir.getAbsolutePath
@@ -130,6 +146,10 @@ object GraphFramesAntlr4Plugin extends AutoPlugin {
     pkgOpt.foreach { pkg =>
       args += "-package"
       args += pkg
+    }
+    if (genVisitor) {
+      args += "-visitor"
+      args += "-no-listener"
     }
     args += grammar.getAbsolutePath
 
