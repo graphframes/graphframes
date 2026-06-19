@@ -43,7 +43,7 @@ private[propertygraph] final case class NodePattern(
     extends PatternElement
 
 /**
- * `-[variable?:label?]->` or `<-[variable?:label?]-`. Only directed edges exist in v1; the parser
+ * `-[variable?:label?]->` or `<-[variable?:label?]-`. Only directed edges for now; the parser
  * rejects undirected `(a)-[e]-(b)`.
  */
 private[propertygraph] final case class EdgePattern(

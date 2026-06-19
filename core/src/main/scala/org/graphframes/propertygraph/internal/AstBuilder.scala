@@ -26,6 +26,7 @@ import org.antlr.v4.runtime.tree.TerminalNode
 import org.graphframes.InvalidParseException
 
 import scala.jdk.CollectionConverters.*
+import org.graphframes.GraphFramesUnreachableException
 
 /**
  * Lowers an ANTLR parse tree (produced by the generated `GqlParser`) into the hand-written
@@ -87,7 +88,7 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
   // The generated context exposes IDENTIFIERs as a flat list; use COLON presence to disambiguate.
   override def visitNodePattern(ctx: GqlParser.NodePatternContext): NodePattern = {
     val (variable, label) =
-      readVariableLabel(ctx.IDENTIFIER().asScala.map(_.getText), ctx.COLON())
+      readVariableLabel(ctx.IDENTIFIER().asScala.map(_.getText).toSeq, ctx.COLON())
     NodePattern(variable, label)
   }
 
@@ -96,7 +97,7 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
     val direction = if (ctx.ARROW_RIGHT() != null) LeftToRight else RightToLeft
     val (variable, label) =
       readVariableLabel(
-        ctx.edgeBody().IDENTIFIER().asScala.map(_.getText),
+        ctx.edgeBody().IDENTIFIER().asScala.map(_.getText).toSeq,
         ctx.edgeBody().COLON())
     EdgePattern(variable, label, direction)
   }
@@ -108,7 +109,7 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
     if (ctx.STAR() != null) {
       ReturnStar
     } else {
-      ReturnItems(ctx.returnItem().asScala.map(visitReturnItem))
+      ReturnItems(ctx.returnItem().asScala.map(visitReturnItem).toSeq)
     }
   }
 
@@ -128,12 +129,12 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
 
   override def visitOrExpr(ctx: GqlParser.OrExprContext): Expression = {
     val parts = ctx.andExpr().asScala.map(visitAndExpr)
-    parts.reduceLeftOption(Or).getOrElse(Literal(true))
+    parts.reduceLeftOption(Or.apply).getOrElse(Literal(true))
   }
 
   override def visitAndExpr(ctx: GqlParser.AndExprContext): Expression = {
     val parts = ctx.notExpr().asScala.map(visitNotExpr)
-    parts.reduceLeftOption(And).getOrElse(Literal(true))
+    parts.reduceLeftOption(And.apply).getOrElse(Literal(true))
   }
 
   override def visitNotExpr(ctx: GqlParser.NotExprContext): Expression = {
@@ -195,8 +196,7 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
     else if (ctx.GT() != null) Gt
     else if (ctx.GTE() != null) Gte
     else {
-      // Unreachable: the grammar forces exactly one of the compOp alternatives.
-      throw new InvalidParseException(s"Unrecognized comparison operator: ${ctx.getText}")
+      throw new GraphFramesUnreachableException()
     }
   }
 
