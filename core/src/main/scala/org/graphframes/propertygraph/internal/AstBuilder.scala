@@ -23,10 +23,10 @@ import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.misc.ParseCancellationException
 import org.antlr.v4.runtime.tree.TerminalNode
+import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.InvalidParseException
 
 import scala.jdk.CollectionConverters.*
-import org.graphframes.GraphFramesUnreachableException
 
 /**
  * Lowers an ANTLR parse tree (produced by the generated `GqlParser`) into the hand-written
