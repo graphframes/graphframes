@@ -62,6 +62,28 @@ private[propertygraph] final case class SchemaPath(
     steps: Vector[PathStep]) {
   require(nodes.size == steps.size + 1)
   def length: Int = steps.length
+
+  override def toString: String = {
+    val sb = new StringBuilder("SchemaPath(")
+    for (i <- nodes.indices) {
+      if (i > 0) {
+        val step = steps(i - 1)
+        val arrow = if (step.traversedForward) "->" else "<-"
+        val edgeLabel = step.variable match {
+          case Some(v) => s"[$v:${step.edge.edgeGroupName}]"
+          case None => s"[${step.edge.edgeGroupName}]"
+        }
+        sb.append(s"$arrow$edgeLabel$arrow")
+      }
+      val node = nodes(i)
+      val nodeLabel = node.variable match {
+        case Some(v) => s"($v:${node.vertexGroupName})"
+        case None => s"(${node.vertexGroupName})"
+      }
+      sb.append(nodeLabel)
+    }
+    sb.append(")").toString()
+  }
 }
 
 private[propertygraph] final case class SchemaGraphSnapshot(

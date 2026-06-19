@@ -111,11 +111,6 @@ object GraphFramesAntlr4Plugin extends AutoPlugin {
       antlr4Generate.value
       (antlr4OutputDir.value ** "*.java").get
     }.taskValue,
-    // Generated ANTLR Java is not public API and carries javadoc {@inheritDoc}
-    // tags that scaladoc cannot resolve. Keep it out of the doc task while
-    // leaving it in the compile sources.
-    Compile / doc / sources := (Compile / doc / sources).value.filterNot(
-      _.getAbsolutePath.startsWith(antlr4OutputDir.value.getAbsolutePath))
   )
 
   /**

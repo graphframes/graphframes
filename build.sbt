@@ -41,18 +41,6 @@ lazy val protocVersion = sparkMajorVer match {
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 
-// ANTLR4 runtime version matching the antlr4-runtime bundled with each Spark
-// major (Spark 3.5.x -> 4.9.3, Spark 4.x -> 4.13.1). The runtime is provided
-// transitively by Spark SQL, so no explicit dependency is added to the build;
-// this constant documents the contract and is mirrored (for the build-time
-// tool) in project/plugins.sbt. The generated ATN format is version-locked to
-// it, so the GraphFramesAntlr4Plugin tool version must match.
-lazy val antlr4Version = sparkMajorVer match {
-  case "4" => "4.13.1"
-  case "3" => "4.9.3"
-  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
-}
-
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "io.graphframes"
 ThisBuild / homepage := Some(url("https://graphframes.io/"))
@@ -100,7 +88,12 @@ lazy val commonSetting = Seq(
     "-groups",
     "-implicits",
     "-skip-packages",
-    Seq("org.apache.spark").mkString(":")),
+    // org.apache.spark is skipped to avoid rendering transitive Spark types; the GQL query engine
+    // under org.graphframes.propertygraph.internal is entirely private[propertygraph] (and
+    // AstBuilder references generated ANTLR Java types), so it is skipped from rendered output too.
+    // The internal package is still type-checked so that the public PropertyGraphFrame, which calls
+    // into it, compiles in doc.
+    Seq("org.apache.spark", "org.graphframes.propertygraph.internal").mkString(":")),
   Test / doc / scalacOptions ++= Seq("-groups", "-implicits"),
 
   // Test settings
@@ -187,11 +180,6 @@ lazy val core = (project in file("core"))
     // Emit the generated GQL parser/lexer into the internal package so the
     // (forthcoming) AstBuilder can import them.
     antlr4GenPackage := Some("org.graphframes.propertygraph.internal"),
-
-    // AstBuilder necessarily references the generated ANTLR Java types (GqlParser / GqlLexer /
-    // GqlParserBaseVisitor), which GraphFramesAntlr4Plugin deliberately keeps out of scaladoc.
-    Compile / doc / sources := (Compile / doc / sources).value
-      .filterNot(_.getName == "AstBuilder.scala"),
 
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
