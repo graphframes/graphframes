@@ -83,9 +83,7 @@ case class PropertyGraphFrame(
    *     `path: array<struct<edge_property_group, node_id, node_property_group>>` column for
    *     intermediate hops.
    *
-   * This is a convenience overload equivalent to `query(gql, QueryOptions())`. Use
-   * [[query(gql:String,options:org.graphframes.propertygraph.QueryOptions)*]] to pass custom
-   * query options.
+   * This is a convenience overload equivalent to `query(gql, QueryOptions())`.
    *
    * @param gql
    *   a GQL `MATCH` statement in the supported subset.
@@ -131,9 +129,7 @@ case class PropertyGraphFrame(
    * Renders the logical (resolved) plan of `gql` without executing it.
    *
    * This is a convenience overload equivalent to `explain(gql, ExplainMode.Logical)`. To see the
-   * per-path join plans (order + statistics basis), use
-   * [[explain(gql:String,mode:org.graphframes.propertygraph.ExplainMode)*]] with
-   * [[ExplainMode.Physical]].
+   * per-path join plans (order + statistics basis).
    *
    * @param gql
    *   a GQL `MATCH` statement in the supported subset.
@@ -147,8 +143,7 @@ case class PropertyGraphFrame(
    *
    * This is a convenience overload equivalent to `explain(gql, mode, QueryOptions())`. Pass
    * [[ExplainMode.Physical]] to see the per-path join plans (order + statistics basis);
-   * [[ExplainMode.Logical]] shows the resolved (logical) plan. To pass custom query options, use
-   * [[explain(gql:String,mode:org.graphframes.propertygraph.ExplainMode,options:org.graphframes.propertygraph.QueryOptions)*]].
+   * [[ExplainMode.Logical]] shows the resolved (logical) plan.
    *
    * @param gql
    *   a GQL `MATCH` statement in the supported subset.

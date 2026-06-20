@@ -18,19 +18,17 @@
 package org.graphframes.propertygraph
 
 /**
- * Options for [[PropertyGraphFrame.query]] / [[PropertyGraphFrame.explain]].
+ * Options for query resolution and optimization.
  *
  * @param enableStatistics
- *   whether the optimizer may consume statistics for join ordering (default `true`). In v1 the
- *   optimizer plans in pattern order regardless, so this flag is accepted for API stability and
- *   reserved for the future statistics-driven ordering (design §5.4/§6).
+ *   whether the optimizer may consume statistics for join ordering (default `true`).
  * @param maxSchemaPathLength
  *   cap on schema-path enumeration depth, to bound the fan-out of untyped/ambiguous patterns
  *   (default `10`).
  */
 final case class QueryOptions(enableStatistics: Boolean = true, maxSchemaPathLength: Int = 10)
 
-/** Selects which plan to render via [[PropertyGraphFrame.explain]]. */
+/** Selects which plan to render via explain. */
 sealed trait ExplainMode
 
 object ExplainMode {
