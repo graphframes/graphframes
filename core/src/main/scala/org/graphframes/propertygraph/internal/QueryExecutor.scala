@@ -63,6 +63,12 @@ private[propertygraph] object QueryExecutor {
    *
    * Empty plans (disconnected pattern) -> an empty DataFrame with the fixed output schema (see
    * [[outputSchema]]). Empty result of a single plan is also a valid empty DataFrame.
+   *
+   * Scan sharing: a per-call memo (`scanMemo`) de-duplicates scans across the per-path fan-out.
+   * It is keyed by a canonical scan signature ([[ScanKey]]) so every plan that references the
+   * same group with the same scan-local filter and the same carried-column set pulls the *same*
+   * `DataFrame` reference. This is the "floor" of scan reuse: never construct the same scan
+   * twice.
    */
   def execute(pgf: PropertyGraphFrame, plans: Seq[JoinPlan]): DataFrame = {
     if (plans.isEmpty) {
@@ -78,93 +84,177 @@ private[propertygraph] object QueryExecutor {
         spark.sparkContext.emptyRDD[org.apache.spark.sql.Row],
         outputSchema)
     }
-    val perPlan = plans.map(executePlan(pgf, _))
+    val scanMemo = scala.collection.mutable.Map.empty[ScanKey, DataFrame]
+    val perPlan = plans.map(executePlan(pgf, _, scanMemo))
     perPlan.reduce(_ unionByName _)
   }
+
+  /**
+   * Test-only (debug) variant of [[execute]] that also returns the per-call scan memo, so tests
+   * can assert the scan-reuse "floor" (a scan is never constructed twice for an equal
+   * [[ScanKey]]) by reference-identity on the memo values. Package-private; not part of any
+   * public contract.
+   */
+  private[propertygraph] def executeWithScanMemo(
+      pgf: PropertyGraphFrame,
+      plans: Seq[JoinPlan]): (DataFrame, Map[ScanKey, DataFrame]) = {
+    val scanMemo = scala.collection.mutable.Map.empty[ScanKey, DataFrame]
+    val result =
+      if (plans.isEmpty) execute(pgf, plans)
+      else {
+        val perPlan = plans.map(executePlan(pgf, _, scanMemo))
+        perPlan.reduce(_ unionByName _)
+      }
+    (result, scanMemo.toMap)
+  }
+
+  /**
+   * Canonical signature of a scan. Two scans with equal keys share one `DataFrame` in the memo.
+   * `Expression` AST nodes (including the scan-local filters) are case classes with structural
+   * equality, so they key correctly without extra canonicalization. `carriedCols` is a `Set`, so
+   * column order does not affect sharing.
+   */
+  private[propertygraph] final case class ScanKey(
+      groupName: String,
+      scanFilter: Seq[Expression],
+      carriedCols: Set[String])
 
   // -------------------------------------------------------------------------
   // Per-plan execution.
   // -------------------------------------------------------------------------
 
-  private def executePlan(pgf: PropertyGraphFrame, plan: JoinPlan): DataFrame = {
+  private def executePlan(
+      pgf: PropertyGraphFrame,
+      plan: JoinPlan,
+      scanMemo: scala.collection.mutable.Map[ScanKey, DataFrame]): DataFrame = {
     val path = plan.path
     val env = PrefixEnv(path)
 
-    // Gather, per element, the property names that must be carried through the scan so that
-    // WHERE/RETURN expressions referencing them can be lowered. (Join/post predicates, scan filters,
-    // and RETURN items are all sources.)
-    val requiredNodeProps: Map[Int, Set[String]] =
-      collectRequiredProperties(path, plan, node = true)
-    val requiredEdgeProps: Map[Int, Set[String]] =
-      collectRequiredProperties(path, plan, node = false)
+    // Classify, per element, which property columns are CARRIED through the scan (predicate /
+    // filter-also-returned columns that influence join cardinality) vs which are OUTPUT-ONLY
+    // (referenced solely by RETURN, deferred to a terminal join-back).
+    val nodeProps: Map[Int, ElementProps] = classifyElementProps(path, plan, node = true)
+    val edgeProps: Map[Int, ElementProps] = classifyElementProps(path, plan, node = false)
 
-    // Scan each element once and alias its columns under the element's prefix.
+    // Scan each element once (shared via the memo below the rename) and alias its columns under the
+    // element's prefix. The expensive shared node sits below a thin per-use Project (the rename).
     val nodeFrames: Map[Int, DataFrame] = path.nodes.indices.map { i =>
-      i -> scanNode(pgf, path, i, env, requiredNodeProps.getOrElse(i, Set.empty))
+      val shared =
+        sharedScanNode(pgf, path, i, nodeProps.getOrElse(i, ElementProps.Empty), scanMemo)
+      i -> renameAll(shared, env.nodePrefix(i))
     }.toMap
     val edgeFrames: Map[Int, DataFrame] = path.steps.indices.map { i =>
-      i -> scanEdge(pgf, path, i, env, requiredEdgeProps.getOrElse(i, Set.empty))
+      val shared =
+        sharedScanEdge(pgf, path, i, edgeProps.getOrElse(i, ElementProps.Empty), scanMemo)
+      i -> renameAll(shared, env.edgePrefix(i))
     }.toMap
 
-    // Walk the join order, joining each element onto the growing frame.
+    // Walk the join order, joining each element onto the growing frame, placing every multi-variable
+    // predicate at the earliest element where all its operands are bound (replacing a blanket
+    // post-tree `.where`).
+    val allPredicates: Seq[Expression] = plan.joinPredicates ++ plan.postFilters
+    val predicateVarSets: Seq[Set[String]] = allPredicates.map(GqlAst.referencedVariables)
+    val placed = scala.collection.mutable.BitSet.empty
     var frame: DataFrame = null
+    var boundVars: Set[String] = Set.empty
+    def bindElement(i: Int, isNode: Boolean): Unit = {
+      if (isNode) path.nodes(i).variable.foreach(v => boundVars += v)
+      else path.steps(i).variable.foreach(v => boundVars += v)
+    }
     plan.order.foreach {
       case NodeRef(i) =>
         val f = nodeFrames(i)
-        frame = if (frame == null) f else joinElement(frame, f, path, env)
+        bindElement(i, isNode = true)
+        if (frame == null) {
+          frame = f
+        } else {
+          val ready = readyPredicateIndices(predicateVarSets, placed, boundVars)
+          val readyExprs = ready.map(allPredicates)
+          frame = joinElement(frame, f, path, env, readyExprs)
+          ready.foreach(placed.add)
+        }
       case EdgeRef(i) =>
         val f = edgeFrames(i)
-        frame = if (frame == null) f else joinElement(frame, f, path, env)
+        bindElement(i, isNode = false)
+        if (frame == null) {
+          frame = f
+        } else {
+          val ready = readyPredicateIndices(predicateVarSets, placed, boundVars)
+          val readyExprs = ready.map(allPredicates)
+          frame = joinElement(frame, f, path, env, readyExprs)
+          ready.foreach(placed.add)
+        }
     }
     if (frame == null) {
       // Degenerate: a path with a single node and no edges (MATCH (a:Person)).
       // Synthesize a trivially-valid frame from that node scan; nodeFrames is non-empty here.
       frame = nodeFrames(0)
     }
-
-    // Apply WHERE predicates that span multiple elements.
-    // P.S. These are only filters that can be applied after joins.
-    // Everything else is pushed to the before join.
-    val joinConds = plan.joinPredicates.map(expr => ExpressionLowering.lower(expr, env))
-    if (joinConds.nonEmpty) frame = frame.where(joinConds.reduce(_ && _))
-    plan.postFilters.foreach { expr =>
+    // Place any predicates not consumed during the join walk (e.g. a predicate whose variables were
+    // all bound by the seed element, or a literal-only predicate) as a residual filter.
+    val leftover = allPredicates.indices.filterNot(placed.contains).map(allPredicates)
+    leftover.foreach { expr =>
       frame = frame.filter(ExpressionLowering.lower(expr, env))
     }
 
-    project(frame, plan)
+    // edgeProps is classified (and consumed by the shared edge scans above) but NOT join-backed
+    // edge groups may be undirected (doubling rows), so edge RETURN-properties are CARRIED rather
+    // than resolved by an id-keyed join-back.
+    project(frame, plan, nodeProps, pgf)
   }
+
+  /** Indices of predicates whose referenced variables are all bound and not yet placed. */
+  private def readyPredicateIndices(
+      varSets: Seq[Set[String]],
+      placed: scala.collection.mutable.BitSet,
+      boundVars: Set[String]): Seq[Int] =
+    varSets.indices.collect {
+      case k if !placed.contains(k) && varSets(k).subsetOf(boundVars) => k
+    }
 
   // -------------------------------------------------------------------------
   // Scans + aliasing.
   // -------------------------------------------------------------------------
 
-  private def scanNode(
+  /**
+   * Return the shared (memoized), *un-prefixed* node scan for element `i`. The caller applies the
+   * per-element rename on top. `ElementProps.carriedToScan` is what the scan requests;
+   * output-only columns are NOT requested here (they are resolved by the terminal join-back in
+   * `project`).
+   */
+  private def sharedScanNode(
       pgf: PropertyGraphFrame,
       path: SchemaPath,
       i: Int,
-      env: PrefixEnv,
-      requiredProps: Set[String]): DataFrame = {
+      props: ElementProps,
+      scanMemo: scala.collection.mutable.Map[ScanKey, DataFrame]): DataFrame = {
     val node = path.nodes(i)
-    val group = pgf.vertexGroups(node.vertexGroupName.toLowerCase)
-    // Scan-local filters reference only this node's variable and are applied by `getData` against
-    // the RAW group columns (before aliasing), so they are lowered with the empty (raw) prefix.
-    val filterCol = lowerScanFilter(node.scanFilter)
-    val scanned = group.getData(filterCol, requiredProps.toSeq)
-    val prefix = env.nodePrefix(i)
-    renameAll(scanned, prefix)
+    val key = ScanKey(node.vertexGroupName.toLowerCase, node.scanFilter, props.carriedToScan)
+    scanMemo.getOrElseUpdate(
+      key, {
+        val group = pgf.vertexGroups(node.vertexGroupName.toLowerCase)
+        val filterCol = lowerScanFilter(node.scanFilter)
+        group.getData(filterCol, props.carriedToScan.toSeq.sorted)
+      })
   }
 
-  private def scanEdge(
+  /**
+   * Return the shared (memoized), *un-prefixed* edge scan for element `i`.
+   */
+  private def sharedScanEdge(
       pgf: PropertyGraphFrame,
       path: SchemaPath,
       i: Int,
-      env: PrefixEnv,
-      requiredProps: Set[String]): DataFrame = {
+      props: ElementProps,
+      scanMemo: scala.collection.mutable.Map[ScanKey, DataFrame]): DataFrame = {
     val step = path.steps(i)
-    val group = pgf.edgeGroups(step.edge.edgeGroupName.toLowerCase)
-    val scanned = group.getData(lit(true), requiredProps.toSeq)
-    val prefix = env.edgePrefix(i)
-    renameAll(scanned, prefix)
+    val key = ScanKey(step.edge.edgeGroupName.toLowerCase, Seq.empty, props.carriedToScan)
+    scanMemo.getOrElseUpdate(
+      key, {
+        // lit(true) is a placeholder for the future edge-filters
+        val group = pgf.edgeGroups(step.edge.edgeGroupName.toLowerCase)
+        group.getData(lit(true), props.carriedToScan.toSeq.sorted)
+      })
   }
 
   /**
@@ -201,14 +291,19 @@ private[propertygraph] object QueryExecutor {
       frame: DataFrame,
       incoming: DataFrame,
       path: SchemaPath,
-      env: PrefixEnv): DataFrame = {
+      env: PrefixEnv,
+      residualPredicates: Seq[Expression]): DataFrame = {
     val presentCols = frame.columns.toSet
     val conditions = adjacencyConditions(incoming.columns.toSet, presentCols, path, env)
     require(
       conditions.nonEmpty,
       "Join order produced an element with no adjacency to the already-joined frame; " +
         "this indicates an invalid join order" + s" for path ${path.toString()}")
-    frame.join(incoming, conditions.reduce(_ && _), "inner")
+    // The residual predicates are multi-variable WHERE conjuncts whose operands are all bound at
+    // this join.
+    val residualCols = residualPredicates.map(ExpressionLowering.lower(_, env))
+    val allConds = conditions ++ residualCols
+    frame.join(incoming, allConds.reduce(_ && _), "inner")
   }
 
   /**
@@ -261,11 +356,50 @@ private[propertygraph] object QueryExecutor {
         StructField(PATH, ArrayType(pathElement), nullable = true)))
   }
 
-  private def project(frame: DataFrame, plan: JoinPlan): DataFrame = {
+  private def project(
+      frame: DataFrame,
+      plan: JoinPlan,
+      nodeProps: Map[Int, ElementProps],
+      pgf: PropertyGraphFrame): DataFrame = {
     val path = plan.path
     val env = PrefixEnv(path)
     plan.projection match {
       case Projection.Items(items) =>
+        // For any node element with output-only (RETURN-only) properties, join the masked id back to
+        // the group's properties so those columns are available for the RETURN projection. Carried
+        // columns (predicate / filter-also-returned) are already on `frame` under the element
+        // prefix; only output-only columns need the terminal join-back. Edges are NOT join-backed
+        // and edge RETURN-properties are carried instead.
+        //
+        // The joined-back property columns are aliased to the element's PREFIXED names so that
+        // `ExpressionLowering.lower(PropertyAccess(v, p))` -- which resolves to `<prefix>_p` --
+        // finds them. (Carried columns already live under those prefixed names; this puts the
+        // output-only ones under the same convention.)
+        var withOutput = frame
+        path.nodes.indices.foreach { i =>
+          val props = nodeProps.getOrElse(i, ElementProps.Empty)
+          if (props.outputOnly.nonEmpty) {
+            val node = path.nodes(i)
+            val group = pgf.vertexGroups(node.vertexGroupName.toLowerCase)
+            val prefix = env.nodePrefix(i)
+            // Build a narrow join-back frame: the masked `id` (join key) plus the output-only
+            // property columns, renamed to the element's prefixed names so `ExpressionLowering`
+            // resolves `PropertyAccess(v, p)` -> `<prefix>_p` against them. We drop
+            // `property_group` (the group name is a constant the projection emits itself) and avoid
+            // surfacing a second un-prefixed `id` column that would collide across multiple
+            // join-backs; the masked `id` is kept only as the join key and dropped afterward.
+            val carryCols = props.outputOnly.toSeq.sorted
+            // `_gjid_<i>` is a throwaway join-key alias unique per element, so multiple join-backs
+            // never collide on a raw `id` column.
+            val joinKey = s"_gjid_$i"
+            val groupId = group
+              .getData(lit(true), carryCols)
+              .select((col(GraphFrame.ID).alias(joinKey) +: carryCols
+                .map(p => col(p).alias(env.join(prefix, p)))): _*)
+            val idCol = env.nodeCol(i, GraphFrame.ID)
+            withOutput = withOutput.join(groupId, withOutput(idCol) === groupId(joinKey), "left")
+          }
+        }
         val cols = items.map { item =>
           val c = ExpressionLowering.lower(item.expression, env)
           item.alias match {
@@ -278,7 +412,7 @@ private[propertygraph] object QueryExecutor {
               }
           }
         }
-        frame.select(cols: _*)
+        withOutput.select(cols: _*)
 
       case Projection.Default | Projection.Star =>
         val namedIndices = path.nodes.indices.filter(i => path.nodes(i).variable.isDefined)
@@ -341,36 +475,81 @@ private[propertygraph] object QueryExecutor {
   }
 
   // -------------------------------------------------------------------------
-  // Required-property collection.
+  // Required-property classification (carry vs defer).
+  //
+  // Per scan-reuse: every required property is classified by the role that
+  // references it:
+  //   - scan-local filter columns  -> pushed into getData's filter, consumed before the shuffle;
+  //   - join / post-filter columns -> CARRIED through the join tree to the predicate's evaluation
+  //     point (they let the predicate cut the join's output cardinality);
+  //   - output-only columns        -> DEFERRED to a terminal join-back (they never reduce
+  //     cardinality, so carrying them only widens shuffles and fragments scan signatures).
+  // A property referenced by BOTH a filter and RETURN is carried (the filter need dominates).
   // -------------------------------------------------------------------------
 
+  /** Per-element property classification. */
+  private[propertygraph] final case class ElementProps(
+      carriedToScan: Set[String], // requested at the scan; rides the join tree to its consumers
+      outputOnly: Set[String]
+  ) // RETURN-only; resolved by the terminal join-back, never carried
+
+  private[propertygraph] object ElementProps {
+    val Empty: ElementProps = ElementProps(Set.empty, Set.empty)
+  }
+
   /**
-   * Collect, for every element of the requested kind, the set of property names referenced in
-   * WHERE / RETURN expressions that must be carried through the scan.
+   * Classify the properties of every element of the requested kind (node or edge) into carried vs
+   * output-only.
+   *
+   * For an element bound to variable `v`:
+   *   - `scanFilterProps(v)` = props referenced in this element's scan-local filters;
+   *   - `joinPostProps(v)` = props of `v` referenced in join/post predicates;
+   *   - `returnProps(v)` = props of `v` referenced in RETURN items (empty for Default/Star);
+   *   - `carry(v)` = `joinPostProps(v) ∪ (returnProps(v) ∩ scanFilterProps(v))`;
+   *   - `outputOnly(v)` = `returnProps(v) − carry(v)`.
    */
-  private def collectRequiredProperties(
+  private def classifyElementProps(
       path: SchemaPath,
       plan: JoinPlan,
-      node: Boolean): Map[Int, Set[String]] = {
+      node: Boolean): Map[Int, ElementProps] = {
     val nodeVarIndex: Map[String, Int] = path.nodes.zipWithIndex.collect {
       case (n, i) if n.variable.isDefined => n.variable.get -> i
     }.toMap
     val edgeVarIndex: Map[String, Int] = path.steps.zipWithIndex.collect {
       case (s, i) if s.variable.isDefined => s.variable.get -> i
     }.toMap
+    val varIndex = if (node) nodeVarIndex else edgeVarIndex
 
-    // All expressions that could reference a property: scan-local filters, join/post predicates,
-    // and (for Items projections) the RETURN items.
-    val allExprs: Seq[Expression] = plan.projection match {
-      case Projection.Items(items) =>
-        path.nodes.flatMap(_.scanFilter) ++ plan.joinPredicates ++ plan.postFilters ++
-          items.map(_.expression)
-      case _ =>
-        path.nodes.flatMap(_.scanFilter) ++ plan.joinPredicates ++ plan.postFilters
+    // Per-element scan-filter properties (these are applied at the scan; they do NOT by themselves
+    // earn a carry -- they are consumed before the shuffle).
+    val scanFilterExprs: Seq[Expression] =
+      if (node) path.nodes.flatMap(_.scanFilter) else Seq.empty
+    val scanFilterProps: Map[Int, Set[String]] = collectProps(scanFilterExprs, varIndex)
+
+    // Join/post-predicate properties: these DO earn a carry (they ride to the predicate's point).
+    val joinPostProps: Map[Int, Set[String]] =
+      collectProps(plan.joinPredicates ++ plan.postFilters, varIndex)
+
+    // RETURN properties (only for Items projections).
+    val returnProps: Map[Int, Set[String]] = plan.projection match {
+      case Projection.Items(items) => collectProps(items.map(_.expression), varIndex)
+      case _ => Map.empty
     }
 
-    val varIndex = if (node) nodeVarIndex else edgeVarIndex
-    collectProps(allExprs, varIndex)
+    val acc =
+      scala.collection.mutable.Map.empty[Int, ElementProps].withDefaultValue(ElementProps.Empty)
+
+    // For edges we should actually carry all the returnProps
+    varIndex.values.foreach { idx =>
+      val sf = scanFilterProps.getOrElse(idx, Set.empty)
+      val jp = joinPostProps.getOrElse(idx, Set.empty)
+      val rp = returnProps.getOrElse(idx, Set.empty)
+      val carry = if (node) jp ++ rp.intersect(sf) else jp ++ rp
+      // there is no join-back for edges and all the rp are already carried along the join-path
+      val outputOnly = if (node) rp -- carry else Set.empty[String]
+      acc(idx) = ElementProps(carry, outputOnly)
+    }
+    acc.toMap
   }
 
   /** Gather (elementIndex -> propertyNames) from the PropertyAccess nodes in `exprs`. */

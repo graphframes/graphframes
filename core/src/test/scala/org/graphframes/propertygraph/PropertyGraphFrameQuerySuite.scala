@@ -642,4 +642,29 @@ class PropertyGraphFrameQuerySuite extends SparkFunSuite with GraphFrameTestSpar
       pgf.query("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person) WHERE a.age > c.age")
     assert(df.count() === 0)
   }
+
+  // ---------------------------------------------------------------------------
+  // Scan reuse: output-only property join-back (end-to-end through the public API).
+  // ---------------------------------------------------------------------------
+
+  test("multi-hop output-only join-back resolves a Company property through RETURN") {
+    // `c.name` is RETURN-only (no filter references it) -> output-only -> terminal join-back on the
+    // masked id. WORKS_AT: (1,10) Alice -> Acme. So exactly one row, `name` = "Acme". (Per the
+    // Items-projection convention, the output column is named after the property, `name`.)
+    val df = pgf.query("MATCH (a:Person)-[:WORKS_AT]->(c:Company) RETURN c.name")
+    assert(df.schema.fieldNames.toSeq === Seq("name"))
+    val names = df.collect().map(_.getString(0)).toSet
+    assert(names === Set("Acme"))
+  }
+
+  test("mixed carry + output-only resolves both a carried and a join-backed column end-to-end") {
+    // `a.age` is referenced by both the filter (`a.age >= 30`) and RETURN -> carried (no join-back).
+    // `a.name` is RETURN-only -> output-only -> join-backed. WORKS_AT only has Alice(1)->Acme, and
+    // Alice's age is 30, so `a.age >= 30` keeps exactly Alice. Result: one row (Alice, 30). The
+    // `age` column is read as Int (its physical type in the fixture).
+    val df = pgf.query(
+      "MATCH (a:Person)-[:WORKS_AT]->(c:Company) WHERE a.age >= 30 RETURN a.name, a.age")
+    val rows = df.collect().map(r => (r.getString(0), r.getInt(1))).toSet
+    assert(rows === Set(("Alice", 30)))
+  }
 }

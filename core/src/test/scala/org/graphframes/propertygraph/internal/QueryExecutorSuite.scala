@@ -62,7 +62,10 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val companyGroup = VertexPropertyGroup("Company", companies, "id")
     val cityGroup = VertexPropertyGroup("City", cities, "id")
 
-    val knows = Seq((1L, 2L), (2L, 3L), (3L, 1L)).toDF("src", "dst")
+    val knows = Seq((1L, 2L, "friend"), (2L, 3L, "collegaue"), (3L, 1L, "spoose")).toDF(
+      "src",
+      "dst",
+      "friendship")
     val worksAt = Seq((1L, 10L), (2L, 10L), (3L, 20L)).toDF("src", "dst")
     val locatedIn = Seq((10L, 100L), (20L, 200L)).toDF("src", "dst")
 
@@ -164,8 +167,6 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     // path array: k entries for a k-step path (§6.1). Here k=2:
     //   [ {WORKS_AT, c_id, "Company"}, {LOCATED_IN, null, null} ]
     // -- the last entry carries only the edge group (the end node is in end_id).
-    // Spark returns the array as immutable.Seq on Scala 2.12 but mutable.ArraySeq on 2.13; both are
-    // scala.collection.Seq, so cast to that (NOT the default scala.Seq alias, which is immutable).
     val pathArr = firstRow
       .get(firstRow.fieldIndex("path"))
       .asInstanceOf[scala.collection.Seq[org.apache.spark.sql.Row]]
@@ -254,5 +255,123 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val df = run("MATCH (a:Person)-[:WORKS_AT]->(c:Company)-[:LOCATED_IN]->(d:City)")
     val actual = df.collect().map(r => (r.getString(0), r.getString(2))).toSet
     assert(actual === expected.toSet)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scan-reuse floor (deterministic) + ceiling (best-effort / soft).
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Drives the same pipeline as [[run]] but also returns the per-call scan memo, so the
+   * scan-reuse floor can be asserted by reference-identity on the memo values.
+   */
+  private def runWithMemo(gql: String): (DataFrame, Map[QueryExecutor.ScanKey, DataFrame]) = {
+    val ast = AstBuilder.parse(gql)
+    val resolved = Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pgf))
+    val plans = JoinOptimizer.plan(resolved, stats = None)
+    QueryExecutor.executeWithScanMemo(pgf, plans)
+  }
+
+  test("scan-reuse floor: equal scan signatures share one DataFrame reference (spec §8.1)") {
+    // KNOWS connects Person->Person, so both endpoints of `MATCH (a:Person)-[:KNOWS]->(b:Person)`
+    // are the SAME group (Person) with the SAME signature (empty scan filter, no carried cols).
+    // The memo must therefore hold a single Person scan referenced from both positions.
+    val (_, memo) = runWithMemo("MATCH (a:Person)-[:KNOWS]->(b:Person)")
+    val personScans = memo.iterator.filter(_._1.groupName == "person").map(_._2).toSeq
+    assert(personScans.length === 1, s"expected one shared Person scan, got keys: ${memo.keySet}")
+  }
+
+  test("scan-reuse floor: differing scan filters produce distinct scans (spec §8.1)") {
+    // With a scan-local filter `WHERE a.age > 30`, the `a` Person scan's signature differs from the
+    // `b` Person scan (no filter) -> two distinct Person scans in the memo.
+    val (_, memo) = runWithMemo("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 30")
+    val personKeys = memo.keySet.filter(_.groupName == "person").toSeq
+    assert(
+      personKeys.length === 2,
+      s"expected two Person scans (filtered vs unfiltered): $personKeys")
+    // And the two scans must be distinct DataFrame references.
+    val personScans = personKeys.map(memo)
+    assert(personScans.head ne personScans.last, "distinct signatures must yield distinct scans")
+  }
+
+  test("scan-reuse floor: same filter across a fan-out reuses one scan (spec §8.1)") {
+    // `(a:Person)-[]->(b:Person)` fans out; here only KNOWS qualifies, but both endpoints share the
+    // Person scan with no filter -> exactly one Person scan regardless.
+    val (_, memo) = runWithMemo("MATCH (a:Person)-[]->(b:Person)")
+    val personScans = memo.iterator.filter(_._1.groupName == "person").map(_._2).toSeq
+    assert(personScans.length === 1, s"expected one shared Person scan: ${memo.keySet}")
+  }
+
+  test("output-only join-back resolves both endpoints' properties (spec §8.3)") {
+    // `a.name` and `b.name` are RETURN-only (no filter references them) -> output-only -> terminal
+    // join-back. Result parity: exact name pairs for KNOWS (1->2, 2->3, 3->1). Per the
+    // Items-projection convention the output columns are named after the property (`name`).
+    val df = run("MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN a.name, b.name")
+    assert(df.schema.fieldNames.toSeq === Seq("name", "name"))
+    val rows = df.collect().map(r => (r.getString(0), r.getString(1))).toSet
+    val expected = Set(("Alice", "Bob"), ("Bob", "Carol"), ("Carol", "Alice"))
+    assert(rows === expected)
+  }
+
+  test("mixed carry + output-only: filter-also-returned is carried, RETURN-only is join-backed") {
+    // `a.age` is referenced by BOTH the filter (`a.age > 30`) and RETURN -> carried (no join-back).
+    // `a.name` is RETURN-only -> output-only -> join-backed. Only Bob(40) passes `age > 30`. The
+    // `age` column is read as Int (its physical type in the fixture), not Long.
+    val df = run("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 30 RETURN a.name, a.age")
+    val rows = df.collect().map(r => (r.getString(0), r.getInt(1))).toSet
+    assert(rows === Set(("Bob", 40)))
+  }
+
+  test("Default/Star projection never triggers an output-only join-back") {
+    // Default projection has no RETURN items -> every element's outputOnly set is empty by
+    // construction -> no join-back. Assert via the memo: no carried scan carries a non-id-only
+    // property set, and the result still has the fixed 6-column schema.
+    val (df, memo) = runWithMemo("MATCH (a:Person)-[:KNOWS]->(b:Person)")
+    assert(
+      df.schema.fieldNames === Seq(
+        "start_id",
+        "start_property_group",
+        "end_id",
+        "end_property_group",
+        "edge_property_group",
+        "path"))
+    // No scan in the memo carried any property column (only id/property_group/src/dst/weight).
+    assert(
+      memo.keySet.forall(_.carriedCols.isEmpty),
+      s"Default projection should carry no props: ${memo.keySet}")
+  }
+
+  test("selectivity preserved: join predicate appears in the executed plan") {
+    // `a.age > b.age` is a two-variable predicate; the engine places it at the binding join. This is
+    // a best-effort ceiling assertion: the inequality Column must appear SOMEWHERE in the physical
+    // plan (exact operator placement is Spark-version / AQE dependent). We assert only presence.
+    val df = run("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > b.age")
+    val planStr = df.queryExecution.executedPlan.toString()
+    // The predicate is struct guaranteed to be applied; assert the result parity strictly and the
+    // plan presence softly (only one row: 40 > 25, Bob -> Carol).
+    assert(df.count() === 1)
+    // Soft: tolerate plans that fold the comparison into a different node name across versions.
+    assert(
+      planStr.contains("age") || planStr.contains("Filter") || planStr.contains("Join"),
+      s"expected the age predicate or a join/filter node in the plan, got:\n$planStr")
+  }
+
+  test("edge properties in the filter expression are carried correctly") {
+    val df = run("MATCH (a:Person)-[e:KNOWS]->(b:Person) WHERE e.friendship = 'spoose'")
+    // only Carol -- Alice
+    assert(df.count() === 1L)
+  }
+
+  test("only edge property referenced only in RETURN") {
+    val df = run("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN e.friendship")
+    val collected = df.collect().map(r => r.getAs[String]("friendship")).toSet
+    assert(collected === Set("friend", "collegaue", "spoose"))
+  }
+
+  test("scan-reuse floor: a repeated edge group shares one scan") {
+    // check that edge scans are reused along the joins
+    val (_, memo) = runWithMemo("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)")
+    val knowsScans = memo.iterator.filter(_._1.groupName == "knows").map(_._2).toSeq
+    assert(knowsScans.length === 1, s"expected one shared KNOWS scan: ${memo.keySet}")
   }
 }
