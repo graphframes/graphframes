@@ -15,9 +15,9 @@ class SchemaGraphSnapshotSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val snapshot = SchemaGraphSnapshot(
       vertexGroupNames = Set("movies", "people", "genres"),
       edges = Vector(
-        SchemaEdge("likes", "people", "movies"),
-        SchemaEdge("belongs_to", "movies", "genres"),
-        SchemaEdge("follows", "people", "people")))
+        SchemaEdge("likes", "people", "movies", true),
+        SchemaEdge("belongs_to", "movies", "genres", true),
+        SchemaEdge("follows", "people", "people", true)))
 
     val dot = SchemaGraphSnapshot.toDOT(snapshot)
 
@@ -37,7 +37,7 @@ class SchemaGraphSnapshotSuite extends SparkFunSuite with GraphFrameTestSparkCon
   test("toDOT escapes quotes and backslashes in names") {
     val snapshot = SchemaGraphSnapshot(
       vertexGroupNames = Set("v\"1", "path\\node"),
-      edges = Vector(SchemaEdge("edge\"name", "v\"1", "path\\node")))
+      edges = Vector(SchemaEdge("edge\"name", "v\"1", "path\\node", true)))
 
     val dot = SchemaGraphSnapshot.toDOT(snapshot)
 
@@ -67,9 +67,9 @@ class SchemaGraphSnapshotSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val snapshot = SchemaGraphSnapshot(
       vertexGroupNames = Set("movies", "people", "genres"),
       edges = Vector(
-        SchemaEdge("likes", "people", "movies"),
-        SchemaEdge("belongs_to", "movies", "genres"),
-        SchemaEdge("follows", "people", "people")))
+        SchemaEdge("likes", "people", "movies", true),
+        SchemaEdge("belongs_to", "movies", "genres", true),
+        SchemaEdge("follows", "people", "people", true)))
 
     val description = SchemaGraphSnapshot.toString(snapshot)
 
@@ -133,17 +133,17 @@ class SchemaGraphSnapshotSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(snapshot.vertexGroupNames === Set("users", "posts"))
     assert(
       snapshot.edges === Vector(
-        SchemaEdge("writes", "users", "posts"),
-        SchemaEdge("follows", "users", "users")))
+        SchemaEdge("writes", "users", "posts", true),
+        SchemaEdge("follows", "users", "users", true)))
 
     assert(
       snapshot.outgoing === Map(
         "users" -> Vector(
-          SchemaEdge("writes", "users", "posts"),
-          SchemaEdge("follows", "users", "users"))))
+          SchemaEdge("writes", "users", "posts", true),
+          SchemaEdge("follows", "users", "users", true))))
     assert(
       snapshot.incoming === Map(
-        "posts" -> Vector(SchemaEdge("writes", "users", "posts")),
-        "users" -> Vector(SchemaEdge("follows", "users", "users"))))
+        "posts" -> Vector(SchemaEdge("writes", "users", "posts", true)),
+        "users" -> Vector(SchemaEdge("follows", "users", "users", true))))
   }
 }

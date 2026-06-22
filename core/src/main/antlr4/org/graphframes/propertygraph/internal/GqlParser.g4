@@ -43,15 +43,17 @@ nodePattern
     : LPAREN (variable=IDENTIFIER)? (COLON label=IDENTIFIER)? RPAREN
     ;
 
-// Edge pattern. Only directed edges are accepted for now, and direction is
-// expressed at the syntax level (not deferred to semantic analysis) so that
-// undirected patterns like (a)-[:KNOWS]-(b) are rejected by the parser.
-// Two forms:
-//   -[e:KNOWS]->   (left-to-right)   and   <-[e:KNOWS]-   (right-to-left)
+// Edge pattern.
+//
+// Three forms:
+//   -[e:KNOWS]->     (left-to-right)
+//   <-[e:KNOWS]-     (right-to-left)
+//   -[:KNOWS]-       (undirected)
 // The edge body [variable? :label?] is shared via edgeBody.
 edgePattern
     : DASH    edgeBody ARROW_RIGHT   // a -[e]-> b
     | ARROW_LEFT edgeBody DASH       // a <-[e]- b
+    | DASH    edgeBody DASH          // a -[e]- b
     ;
 
 edgeBody

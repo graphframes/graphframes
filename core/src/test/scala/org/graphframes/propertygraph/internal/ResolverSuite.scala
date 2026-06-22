@@ -34,9 +34,9 @@ class ResolverSuite extends SparkFunSuite {
   private val schema = SchemaGraphSnapshot(
     vertexGroupNames = Set("Person", "Company", "City"),
     edges = Vector(
-      SchemaEdge("KNOWS", "Person", "Person"),
-      SchemaEdge("WORKS_AT", "Person", "Company"),
-      SchemaEdge("LOCATED_IN", "Company", "City")))
+      SchemaEdge("KNOWS", "Person", "Person", true),
+      SchemaEdge("WORKS_AT", "Person", "Company", true),
+      SchemaEdge("LOCATED_IN", "Company", "City", true)))
 
   test("typed single-hop pattern resolves to exactly one path") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")
@@ -46,7 +46,7 @@ class ResolverSuite extends SparkFunSuite {
     val path = rq.paths.head
     assert(path.length === 1)
     assert(path.nodes.map(_.vertexGroupName) === Vector("Person", "Person"))
-    assert(path.steps.head.edge === SchemaEdge("KNOWS", "Person", "Person"))
+    assert(path.steps.head.edge === SchemaEdge("KNOWS", "Person", "Person", true))
     assert(path.steps.head.traversedForward === true)
     assert(path.nodes.head.variable === Some("a"))
     assert(path.nodes(1).variable === Some("b"))
@@ -63,8 +63,8 @@ class ResolverSuite extends SparkFunSuite {
     assert(rq.paths.length === 1)
     val path = rq.paths.head
     assert(path.nodes.map(_.vertexGroupName) === Vector("Person", "Company", "City"))
-    assert(path.steps(0).edge === SchemaEdge("WORKS_AT", "Person", "Company"))
-    assert(path.steps(1).edge === SchemaEdge("LOCATED_IN", "Company", "City"))
+    assert(path.steps(0).edge === SchemaEdge("WORKS_AT", "Person", "Company", true))
+    assert(path.steps(1).edge === SchemaEdge("LOCATED_IN", "Company", "City", true))
     assert(path.steps.forall(_.traversedForward === true))
   }
 
@@ -83,7 +83,7 @@ class ResolverSuite extends SparkFunSuite {
     val step = rq.paths.head.steps.head
     // The edge group is WORKS_AT: Person->Company. Traversed right-to-left means the current node
     // is the edge's dst (Company) and the next node is the edge's src (Person).
-    assert(step.edge === SchemaEdge("WORKS_AT", "Person", "Company"))
+    assert(step.edge === SchemaEdge("WORKS_AT", "Person", "Company", true))
     assert(step.traversedForward === false)
     assert(rq.paths.head.nodes.map(_.vertexGroupName) === Vector("Company", "Person"))
   }
@@ -205,10 +205,10 @@ class ResolverSuite extends SparkFunSuite {
     val multi = SchemaGraphSnapshot(
       vertexGroupNames = Set("A", "B", "C", "D"),
       edges = Vector(
-        SchemaEdge("e1", "A", "B"),
-        SchemaEdge("e2", "A", "C"),
-        SchemaEdge("e3", "B", "D"),
-        SchemaEdge("e4", "C", "D")))
+        SchemaEdge("e1", "A", "B", true),
+        SchemaEdge("e2", "A", "C", true),
+        SchemaEdge("e3", "B", "D", true),
+        SchemaEdge("e4", "C", "D", true)))
     val ast = AstBuilder.parse("MATCH (x:A)-[]->()-[]->(y:D)")
     val rq = Resolver.resolve(ast, multi)
 
@@ -317,7 +317,7 @@ class ResolverSuite extends SparkFunSuite {
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 1)
-    assert(p.steps.head.edge === SchemaEdge("KNOWS", "Person", "Person"))
+    assert(p.steps.head.edge === SchemaEdge("KNOWS", "Person", "Person", true))
     assert(p.steps.head.traversedForward === true)
     assert(p.nodes.map(_.vertexGroupName) === Vector("Person", "Person"))
     assert(p.nodes.map(_.variable) === Vector(Some("a"), Some("b")))
@@ -406,7 +406,7 @@ class ResolverSuite extends SparkFunSuite {
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 1)
-    assert(p.steps.head.edge === SchemaEdge("WORKS_AT", "Person", "Company"))
+    assert(p.steps.head.edge === SchemaEdge("WORKS_AT", "Person", "Company", true))
     assert(p.steps.head.traversedForward === false)
     // Backward step: current node is the edge's dst (Company), next node is the edge's src (Person).
     assert(p.nodes.map(_.vertexGroupName) === Vector("Company", "Person"))
@@ -438,7 +438,7 @@ class ResolverSuite extends SparkFunSuite {
     // dedicated one.
     val src = SchemaGraphSnapshot(
       vertexGroupNames = Set("A", "B"),
-      edges = Vector(SchemaEdge("ab", "A", "B")))
+      edges = Vector(SchemaEdge("ab", "A", "B", true)))
     val (nodes, edges) = parsed("MATCH (x:A)<-[]-(y)")
     val paths = Resolver.enumeratePaths(nodes, edges, src)
     assert(paths.isEmpty)
@@ -450,9 +450,9 @@ class ResolverSuite extends SparkFunSuite {
     val chain = SchemaGraphSnapshot(
       vertexGroupNames = Set("A", "B", "C", "D"),
       edges = Vector(
-        SchemaEdge("e1", "A", "B"),
-        SchemaEdge("e2", "B", "C"),
-        SchemaEdge("e3", "C", "D")))
+        SchemaEdge("e1", "A", "B", true),
+        SchemaEdge("e2", "B", "C", true),
+        SchemaEdge("e3", "C", "D", true)))
     val (nodes, edges) = parsed("MATCH (x:A)-[]->()-[]->()-[]->(y:D)")
     val paths = Resolver.enumeratePaths(nodes, edges, chain)
     assert(paths.length === 1)
@@ -467,10 +467,10 @@ class ResolverSuite extends SparkFunSuite {
     val diamond = SchemaGraphSnapshot(
       vertexGroupNames = Set("A", "B", "C", "D"),
       edges = Vector(
-        SchemaEdge("ab", "A", "B"),
-        SchemaEdge("ac", "A", "C"),
-        SchemaEdge("bd", "B", "D"),
-        SchemaEdge("cd", "C", "D")))
+        SchemaEdge("ab", "A", "B", true),
+        SchemaEdge("ac", "A", "C", true),
+        SchemaEdge("bd", "B", "D", true),
+        SchemaEdge("cd", "C", "D", true)))
     val (nodes, edges) = parsed("MATCH (x:A)-[]->()-[]->(y:D)")
     val paths = Resolver.enumeratePaths(nodes, edges, diamond)
     assert(paths.length === 2)
@@ -531,7 +531,7 @@ class ResolverSuite extends SparkFunSuite {
   test("enumeratePaths: parallel edge groups between the same vertex pair each yield a path") {
     val parallel = SchemaGraphSnapshot(
       vertexGroupNames = Set("A", "B"),
-      edges = Vector(SchemaEdge("e1", "A", "B"), SchemaEdge("e2", "A", "B")))
+      edges = Vector(SchemaEdge("e1", "A", "B", true), SchemaEdge("e2", "A", "B", true)))
     val (nodes, edges) = parsed("MATCH (a:A)-[]->(b:B)")
     val paths = Resolver.enumeratePaths(nodes, edges, parallel)
     assert(paths.length === 2)
@@ -547,10 +547,10 @@ class ResolverSuite extends SparkFunSuite {
     val diamond = SchemaGraphSnapshot(
       vertexGroupNames = Set("A", "B", "C", "D"),
       edges = Vector(
-        SchemaEdge("ab", "A", "B"),
-        SchemaEdge("ac", "A", "C"),
-        SchemaEdge("bd", "B", "D"),
-        SchemaEdge("cd", "C", "D")))
+        SchemaEdge("ab", "A", "B", true),
+        SchemaEdge("ac", "A", "C", true),
+        SchemaEdge("bd", "B", "D", true),
+        SchemaEdge("cd", "C", "D", true)))
     val (nodes, edges) = parsed("MATCH (x)-[]->()-[]->(y)")
     val paths = Resolver.enumeratePaths(nodes, edges, diamond)
     assert(paths.length === 2)
@@ -566,5 +566,78 @@ class ResolverSuite extends SparkFunSuite {
     val (nodes, edges) = parsed("MATCH (a:A)-[]->(b:B)")
     val paths = Resolver.enumeratePaths(nodes, edges, noEdges)
     assert(paths.isEmpty)
+  }
+
+  // --- Undirected patterns -------------------------------------------------
+  //
+  //   KNOWS:    Person -> Person, UNDIRECTED (isDirected = false)
+  //   FOLLOWS:  Person -> Person, directed
+  //   WORKS_AT: Person -> Company, directed
+  private val mixedSchema = SchemaGraphSnapshot(
+    vertexGroupNames = Set("Person", "Company"),
+    edges = Vector(
+      SchemaEdge("KNOWS", "Person", "Person", isDirected = false),
+      SchemaEdge("FOLLOWS", "Person", "Person", isDirected = true),
+      SchemaEdge("WORKS_AT", "Person", "Company", isDirected = true)))
+
+  test(
+    "enumeratePaths: undirected pattern over a directed cross-group edge -> one forward path") {
+    val (nodes, edges) = parsed("MATCH (a:Person)-[:WORKS_AT]-(b:Company)")
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    assert(paths.length === 1)
+    assert(paths.head.steps.head.edge.edgeGroupName === "WORKS_AT")
+    assert(paths.head.steps.head.traversedForward === true)
+    assert(paths.head.nodes.map(_.vertexGroupName) === Vector("Person", "Company"))
+  }
+
+  test(
+    "enumeratePaths: undirected pattern over a directed edge from the dst side -> one backward path") {
+    val (nodes, edges) = parsed("MATCH (a:Company)-[:WORKS_AT]-(b:Person)")
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    assert(paths.length === 1)
+    assert(paths.head.steps.head.traversedForward === false)
+    assert(paths.head.nodes.map(_.vertexGroupName) === Vector("Company", "Person"))
+  }
+
+  test("enumeratePaths: undirected pattern over a DIRECTED self-loop -> both orientations") {
+    // FOLLOWS is directed: (a follows b) and (b follows a) are distinct matches,
+    // so an undirected match must surface BOTH as separate paths.
+    val (nodes, edges) = parsed("MATCH (a:Person)-[:FOLLOWS]-(b:Person)")
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    assert(paths.length === 2)
+    assert(paths.map(_.steps.head.traversedForward).toSet === Set(true, false))
+    paths.foreach { p =>
+      assert(p.steps.head.edge.edgeGroupName === "FOLLOWS")
+      assert(p.nodes.map(_.vertexGroupName) === Vector("Person", "Person"))
+    }
+  }
+
+  test(
+    "enumeratePaths: undirected pattern over an UNDIRECTED self-loop is de-duplicated to one path") {
+    // KNOWS is isDirected = false: getData already unions both orientations, so the
+    // resolver must emit a SINGLE forward path -- a second path would double-count.
+    val (nodes, edges) = parsed("MATCH (a:Person)-[:KNOWS]-(b:Person)")
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    assert(paths.length === 1)
+    assert(paths.head.steps.head.edge.edgeGroupName === "KNOWS")
+    assert(paths.head.steps.head.traversedForward === true)
+  }
+
+  test("enumeratePaths: untyped undirected edge from Person fans out, with self-loop dedup") {
+    val (nodes, edges) = parsed("MATCH (a:Person)-[]-(b)")
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    // forward (outgoing): KNOWS->Person, FOLLOWS->Person, WORKS_AT->Company
+    // backward (incoming, dst==Person): KNOWS (dropped: undirected self-loop), FOLLOWS (kept)
+    val sig =
+      paths.map(p => (p.steps.head.edge.edgeGroupName, p.steps.head.traversedForward)).toSet
+    assert(
+      sig === Set(("KNOWS", true), ("FOLLOWS", true), ("WORKS_AT", true), ("FOLLOWS", false)))
+    assert(!sig.contains(("KNOWS", false))) // the undirected self-loop's backward copy is gone
+    assert(paths.length === 4)
+  }
+
+  test("enumeratePaths: undirected disconnected pattern yields no paths") {
+    val (nodes, edges) = parsed("MATCH (a:Company)-[:WORKS_AT]-(b:Company)")
+    assert(Resolver.enumeratePaths(nodes, edges, mixedSchema).isEmpty)
   }
 }

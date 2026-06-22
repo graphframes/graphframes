@@ -183,12 +183,6 @@ class AstBuilderSuite extends SparkFunSuite {
     }
   }
 
-  test("reject undirected edge pattern") {
-    intercept[InvalidParseException] {
-      AstBuilder.parse("MATCH (a)-[:KNOWS]-(b)")
-    }
-  }
-
   test("reject ORDER BY") {
     intercept[InvalidParseException] {
       AstBuilder.parse("MATCH (a:Person) RETURN a ORDER BY a.name")
@@ -205,5 +199,28 @@ class AstBuilderSuite extends SparkFunSuite {
     intercept[InvalidParseException] {
       AstBuilder.parse("MATCH (a)-[e:KNOWS]->")
     }
+  }
+
+  test("single undirected edge, typed") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]-(b:Person)")
+    val GraphPattern(elements) = ast.pattern
+    assert(elements(1) === EdgePattern(None, Some("KNOWS"), Undirected))
+  }
+
+  test("undirected edge with variable") {
+    val ast = AstBuilder.parse("MATCH (a)-[e:KNOWS]-(b)")
+    val GraphPattern(Seq(_, EdgePattern(Some("e"), Some("KNOWS"), Undirected), _)) = ast.pattern
+  }
+
+  test("anonymous undirected edge") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[]-(b:Person)")
+    val GraphPattern(Seq(_, EdgePattern(None, None, Undirected), _)) = ast.pattern
+  }
+
+  test("undirected edge in a multi-hop chain mixes with directed arrows") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]-(b:Person)-[:WORKS_AT]->(c:Company)")
+    val GraphPattern(elements) = ast.pattern
+    assert(elements(1) === EdgePattern(None, Some("KNOWS"), Undirected))
+    assert(elements(3) === EdgePattern(None, Some("WORKS_AT"), LeftToRight))
   }
 }

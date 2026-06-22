@@ -92,9 +92,15 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
     NodePattern(variable, label)
   }
 
-  // edgePattern: DASH edgeBody ARROW_RIGHT | ARROW_LEFT edgeBody DASH
+  // edgePatterns:
+  // - DASH edgeBody ARROW_RIGHT
+  // - ARROW_LEFT edgeBody DASH
+  // - DASH edgeBody DASH
   override def visitEdgePattern(ctx: GqlParser.EdgePatternContext): EdgePattern = {
-    val direction = if (ctx.ARROW_RIGHT() != null) LeftToRight else RightToLeft
+    val direction =
+      if (ctx.ARROW_RIGHT() == null && ctx.ARROW_LEFT() == null) Undirected
+      else if (ctx.ARROW_RIGHT() != null) LeftToRight
+      else RightToLeft
     val (variable, label) =
       readVariableLabel(
         ctx.edgeBody().IDENTIFIER().asScala.map(_.getText).toSeq,

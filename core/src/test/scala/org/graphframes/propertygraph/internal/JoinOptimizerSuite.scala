@@ -30,9 +30,9 @@ class JoinOptimizerSuite extends SparkFunSuite {
   private val schema = SchemaGraphSnapshot(
     vertexGroupNames = Set("Person", "Company", "City"),
     edges = Vector(
-      SchemaEdge("KNOWS", "Person", "Person"),
-      SchemaEdge("WORKS_AT", "Person", "Company"),
-      SchemaEdge("LOCATED_IN", "Company", "City")))
+      SchemaEdge("KNOWS", "Person", "Person", true),
+      SchemaEdge("WORKS_AT", "Person", "Company", true),
+      SchemaEdge("LOCATED_IN", "Company", "City", true)))
 
   test("single-hop path yields one plan in pattern order n0,e0,n1") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")

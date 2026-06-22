@@ -55,6 +55,7 @@ private[propertygraph] final case class EdgePattern(
 private[propertygraph] sealed trait Direction
 private[propertygraph] case object LeftToRight extends Direction // `-[e]->`
 private[propertygraph] case object RightToLeft extends Direction // `<-[e]-`
+private[propertygraph] case object Undirected extends Direction // `-[e]-`
 
 // ---------------------------------------------------------------------------
 // RETURN clause

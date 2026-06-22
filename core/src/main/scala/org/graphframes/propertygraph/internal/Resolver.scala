@@ -101,6 +101,11 @@ private[propertygraph] object Resolver {
   // Step 2: schema-graph path enumeration (bounded DFS).
   // ---------------------------------------------------------------------
 
+  // A note about the `enumerataPaths`:
+  // It is very naive and on the case of thousands of groups
+  // it may be quite a slow. At the same time, I cannot imagine the case
+  // when it became a bottlneck even with all it's scala wrappers, GC-pressure
+  // and multiple iterations over the same data.
   private[propertygraph] def enumeratePaths(
       nodes: Seq[NodePattern],
       edges: Seq[EdgePattern],
@@ -145,6 +150,24 @@ private[propertygraph] object Resolver {
           schema.incoming
             .getOrElse(currentGroup, Vector.empty)
             .map(e => (e, e.srcVertexGroupName, false))
+
+        case Undirected => {
+          // Undirected edge: combine both of the above
+          val backward = schema.incoming
+            .getOrElse(currentGroup, Vector.empty)
+            .map(e => (e, e.srcVertexGroupName, false))
+          val forward = schema.outgoing
+            .getOrElse(currentGroup, Vector.empty)
+            .map(e => (e, e.dstVertexGroupName, true))
+
+          // if the edge is undirected we should deduplicate manually:
+          // for undirected edge Alice-Bob and Bob-Alice is the same edge
+          // for directed edge these two are different edges (so called "parallel")
+          // we should handle this.
+          (forward ++ backward.filterNot { case (edge, _, _) =>
+            !edge.isDirected && edge.srcVertexGroupName.equalsIgnoreCase(edge.dstVertexGroupName)
+          }).toVector
+        }
       }
 
       candidates.foreach { case (edge, nextGroup, forward) =>

@@ -32,8 +32,8 @@ class ResolverCaseInsensitiveSuite extends SparkFunSuite {
   private val schema: SchemaGraphSnapshot = SchemaGraphSnapshot(
     vertexGroupNames = Set("Person", "Company"),
     edges = Vector(
-      SchemaEdge("KNOWS", "Person", "Person"),
-      SchemaEdge("WORKS_AT", "Person", "Company")))
+      SchemaEdge("KNOWS", "Person", "Person", true),
+      SchemaEdge("WORKS_AT", "Person", "Company", true)))
 
   // ----- vertex label resolution --------------------------------------------
 

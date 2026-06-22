@@ -102,11 +102,13 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       Seq(knowsGroup, worksAtGroup, locatedInGroup))
   }
 
-  private def run(gql: String): DataFrame = {
+  private def run(gql: String): DataFrame = runOn(pgf, gql)
+
+  private def runOn(pg: PropertyGraphFrame, gql: String): DataFrame = {
     val ast = AstBuilder.parse(gql)
-    val resolved = Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pgf))
+    val resolved = Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pg))
     val plans = JoinOptimizer.plan(resolved, stats = None)
-    QueryExecutor.execute(pgf, plans)
+    QueryExecutor.execute(pg, plans)
   }
 
   test("single-hop directed query matches a hand-computed join") {
@@ -390,5 +392,85 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(
       knowsScans.head ne knowsScans.last,
       "distinct edge signatures must yield distinct scans")
+  }
+
+  test("undirected pattern over a directed self-loop returns both orientations") {
+    // KNOWS is directed (1->2, 2->3, 3->1). Undirected must surface each edge BOTH ways.
+    // No reciprocal pairs exist, so 3 stored edges -> 6 distinct rows.
+    val df = run("MATCH (a:Person)-[:KNOWS]-(b:Person)")
+    assert(df.count() === 6) // would be 3 if the backward path were dropped
+    val rows = df.collect().map(r => (r.getString(0), r.getString(2))).toSet
+    assert(
+      rows === Set(
+        (maskedId(1L, "Person"), maskedId(2L, "Person")),
+        (maskedId(2L, "Person"), maskedId(3L, "Person")),
+        (maskedId(3L, "Person"), maskedId(1L, "Person")),
+        (maskedId(2L, "Person"), maskedId(1L, "Person")),
+        (maskedId(3L, "Person"), maskedId(2L, "Person")),
+        (maskedId(1L, "Person"), maskedId(3L, "Person"))))
+  }
+
+  test("undirected pattern equals the union of both directed arrows") {
+    // The semantics-pinning invariant: -[:KNOWS]- == (-[:KNOWS]->) ∪ (<-[:KNOWS]-).
+    def pairs(gql: String) = run(gql).collect().map(r => (r.getString(0), r.getString(2))).toSet
+    assert(
+      pairs("MATCH (a:Person)-[:KNOWS]-(b:Person)") ===
+        pairs("MATCH (a:Person)-[:KNOWS]->(b:Person)") ++ pairs(
+          "MATCH (a:Person)<-[:KNOWS]-(b:Person)"))
+  }
+
+  test("undirected pattern over a directed cross-group edge matches forward from the src side") {
+    // WORKS_AT: Person->Company; no Company->Person edge, so only the forward orientation matches.
+    val df = run("MATCH (a:Person)-[:WORKS_AT]-(c:Company)")
+    assert(df.count() === 3)
+    val rows = df.collect().map(r => (r.getString(0), r.getString(2))).toSet
+    assert(
+      rows === Set(
+        (maskedId(1L, "Person"), maskedId(10L, "Company")),
+        (maskedId(2L, "Person"), maskedId(10L, "Company")),
+        (maskedId(3L, "Person"), maskedId(20L, "Company"))))
+    assert(df.head().getAs[String]("start_property_group") === "Person")
+    assert(df.head().getAs[String]("end_property_group") === "Company")
+  }
+
+  test("undirected pattern over the same cross-group edge matches backward from the dst side") {
+    val df = run("MATCH (c:Company)-[:WORKS_AT]-(a:Person)")
+    assert(df.count() === 3)
+    val rows = df.collect().map(r => (r.getString(0), r.getString(2))).toSet
+    assert(
+      rows === Set(
+        (maskedId(10L, "Company"), maskedId(1L, "Person")),
+        (maskedId(10L, "Company"), maskedId(2L, "Person")),
+        (maskedId(20L, "Company"), maskedId(3L, "Person"))))
+    assert(df.head().getAs[String]("start_property_group") === "Company")
+  }
+
+  test("undirected pattern over an UNDIRECTED edge group is not double-counted") {
+    import sqlImplicits._
+    // isDirected=false: getData already emits both orientations, so the resolver must keep a
+    // SINGLE (forward) path. 2 stored edges -> 4 rows; a regressed dedup would yield 8.
+    val persons = Seq((1L, "Alice"), (2L, "Bob"), (3L, "Carol")).toDF("id", "name")
+    val personGroup = VertexPropertyGroup("Person", persons, "id")
+    val friends = Seq((1L, 2L), (2L, 3L)).toDF("src", "dst")
+    val friendGroup = EdgePropertyGroup(
+      "FRIEND",
+      friends,
+      personGroup,
+      personGroup,
+      isDirected = false,
+      "src",
+      "dst",
+      lit(1.0))
+    val ug = PropertyGraphFrame(Seq(personGroup), Seq(friendGroup))
+
+    val df = runOn(ug, "MATCH (a:Person)-[:FRIEND]-(b:Person)")
+    assert(df.count() === 4) // NOT 8 -- multiset count is what catches the duplicate
+    val rows = df.collect().map(r => (r.getString(0), r.getString(2))).toSet
+    assert(
+      rows === Set(
+        (maskedId(1L, "Person"), maskedId(2L, "Person")),
+        (maskedId(2L, "Person"), maskedId(1L, "Person")),
+        (maskedId(2L, "Person"), maskedId(3L, "Person")),
+        (maskedId(3L, "Person"), maskedId(2L, "Person"))))
   }
 }

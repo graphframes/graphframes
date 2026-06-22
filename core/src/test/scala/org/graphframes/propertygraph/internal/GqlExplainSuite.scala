@@ -28,9 +28,9 @@ class GqlExplainSuite extends SparkFunSuite {
   private val schema = SchemaGraphSnapshot(
     vertexGroupNames = Set("Person", "Company", "City"),
     edges = Vector(
-      SchemaEdge("KNOWS", "Person", "Person"),
-      SchemaEdge("WORKS_AT", "Person", "Company"),
-      SchemaEdge("LOCATED_IN", "Company", "City")))
+      SchemaEdge("KNOWS", "Person", "Person", true),
+      SchemaEdge("WORKS_AT", "Person", "Company", true),
+      SchemaEdge("LOCATED_IN", "Company", "City", true)))
 
   test("logical explain renders the path with a forward arrow") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")

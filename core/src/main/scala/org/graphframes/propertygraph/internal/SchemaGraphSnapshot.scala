@@ -12,11 +12,14 @@ import org.graphframes.propertygraph.PropertyGraphFrame
  *   name of the source vertex property group.
  * @param dstVertexGroupName
  *   name of the destination vertex property group.
+ * @param isDirected
+ *   is edge directed
  */
 private[propertygraph] final case class SchemaEdge(
     edgeGroupName: String,
     srcVertexGroupName: String,
-    dstVertexGroupName: String)
+    dstVertexGroupName: String,
+    isDirected: Boolean)
 
 /**
  * One resolved vertex slot in a schema path.
@@ -108,7 +111,8 @@ private[propertygraph] object SchemaGraphSnapshot {
         SchemaEdge(
           edgeGroupName = eg.name,
           srcVertexGroupName = eg.srcPropertyGroup.name,
-          dstVertexGroupName = eg.dstPropertyGroup.name)
+          dstVertexGroupName = eg.dstPropertyGroup.name,
+          isDirected = eg.isDirected)
       }.toVector
 
     SchemaGraphSnapshot(vertexNames, edges)
