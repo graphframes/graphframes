@@ -51,10 +51,13 @@ private[propertygraph] object Resolver {
 
     val paths = enumeratePaths(nodes, edges, schema)
 
-    val (joinPredicates, postFilters, nodeScanFilters) = classifyWhere(ast.where, nodes, edges)
+    val (joinPredicates, postFilters, nodeScanFilters, edgeScanFilters) =
+      classifyWhere(ast.where, nodes, edges)
 
     // Attach scan-local predicates to the matching PathNode(s) in every enumerated path.
-    val pathsWithFilters = paths.map(attachScanFilters(_, nodeScanFilters))
+    val pathsWithFilters = paths
+      .map(attachNodeScanFilters(_, nodeScanFilters))
+      .map(attachEdgeScanFilters(_, edgeScanFilters))
 
     val projection = ast.returnClause match {
       case Some(ReturnStar) => Projection.Star
@@ -150,7 +153,7 @@ private[propertygraph] object Resolver {
         // Filter by typed next-node label, if any (case-insensitive).
         val nextLabelOk = nextNodePat.label.forall(_.equalsIgnoreCase(nextGroup))
         if (edgeLabelOk && nextLabelOk) {
-          val step = PathStep(edge, forward, edgePat.variable)
+          val step = PathStep(edge, forward, edgePat.variable, scanFilter = Seq.empty)
           dfs(nodeIndex + 1, nextGroup, nodesSoFar, accSteps :+ step)
         }
       }
@@ -163,15 +166,17 @@ private[propertygraph] object Resolver {
   // ---------------------------------------------------------------------
   // Step 3: WHERE classification.
   //
-  // Returns (joinPredicates, postFilters, nodeScanFilters) where nodeScanFilters maps a node
-  // variable to the predicates to attach to every PathNode bound to that variable.
+  // Returns (joinPredicates, postFilters, nodeScanFilters, edgeScanFilter)
   // ---------------------------------------------------------------------
 
   private def classifyWhere(
       whereOpt: Option[Expression],
       nodes: Seq[NodePattern],
-      edges: Seq[EdgePattern])
-      : (Seq[Expression], Seq[Expression], Map[String, Seq[Expression]]) = {
+      edges: Seq[EdgePattern]): (
+      Seq[Expression],
+      Seq[Expression],
+      Map[String, Seq[Expression]],
+      Map[String, Seq[Expression]]) = {
     // Variable -> node positions (0-based into `nodes`). The same variable may bind several
     // positions (e.g. a triangle pattern `(a)-[..]->(b)-[..]->(a)`).
     val nodeVarPositions: Map[String, Set[Int]] =
@@ -186,7 +191,8 @@ private[propertygraph] object Resolver {
 
     val join = scala.collection.mutable.ListBuffer.empty[Expression]
     val post = scala.collection.mutable.ListBuffer.empty[Expression]
-    val scan = scala.collection.mutable.Map.empty[String, Seq[Expression]]
+    val nodeScan = scala.collection.mutable.Map.empty[String, Seq[Expression]]
+    val edgeScan = scala.collection.mutable.Map.empty[String, Seq[Expression]]
 
     val conjuncts = whereOpt.map(GqlAst.flattenAnd).getOrElse(Seq.empty)
     conjuncts.foreach { conjunct =>
@@ -196,7 +202,7 @@ private[propertygraph] object Resolver {
       if (edgeRefs.isEmpty && nodeRefs.size == 1) {
         // Scan-local: a single node variable (possibly bound at several positions).
         val v = nodeRefs.head
-        scan(v) = scan.getOrElse(v, Seq.empty) :+ conjunct
+        nodeScan(v) = nodeScan.getOrElse(v, Seq.empty) :+ conjunct
       } else if (edgeRefs.isEmpty && nodeRefs.size == 2) {
         val Seq(v1, v2) = nodeRefs.toSeq
         if (areAdjacent(nodeVarPositions(v1), nodeVarPositions(v2))) {
@@ -204,13 +210,17 @@ private[propertygraph] object Resolver {
         } else {
           post += conjunct
         }
+      } else if (edgeRefs.size == 1 && nodeRefs.isEmpty) {
+        // only one edge varibale in WHERE: push it to the scan
+        val e = edgeRefs.head
+        edgeScan(e) = edgeScan.getOrElse(e, Seq.empty) :+ conjunct
       } else {
-        // 3+ vars, any edge var, or a literal-only conjunct: evaluate after the join tree.
+        // 3+ vars or a literal-only conjunct: evaluate after the join tree.
         post += conjunct
       }
     }
 
-    (join.toSeq, post.toSeq, scan.toMap)
+    (join.toSeq, post.toSeq, nodeScan.toMap, edgeScan.toMap)
   }
 
   /**
@@ -221,7 +231,8 @@ private[propertygraph] object Resolver {
   private def areAdjacent(p1: Set[Int], p2: Set[Int]): Boolean =
     p1.exists(a => p2.exists(b => Math.abs(a - b) == 1))
 
-  private def attachScanFilters(
+  // Pushdown of vertex group "where" to the scan
+  private def attachNodeScanFilters(
       path: SchemaPath,
       nodeScanFilters: Map[String, Seq[Expression]]): SchemaPath = {
     if (nodeScanFilters.isEmpty) path
@@ -231,6 +242,20 @@ private[propertygraph] object Resolver {
         if (extra.isEmpty) n else n.copy(scanFilter = n.scanFilter ++ extra)
       }
       path.copy(nodes = newNodes)
+    }
+  }
+
+  // Pushdown of edge group "where" to the scan
+  private def attachEdgeScanFilters(
+      path: SchemaPath,
+      edgeScanFilters: Map[String, Seq[Expression]]): SchemaPath = {
+    if (edgeScanFilters.isEmpty) path
+    else {
+      val newEdges = path.steps.map { p =>
+        val extra = p.variable.flatMap(edgeScanFilters.get).getOrElse(Seq.empty)
+        if (extra.isEmpty) p else p.copy(scanFilter = p.scanFilter ++ extra)
+      }
+      path.copy(steps = newEdges)
     }
   }
 }

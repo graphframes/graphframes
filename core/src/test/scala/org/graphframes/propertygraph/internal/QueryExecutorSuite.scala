@@ -374,4 +374,21 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val knowsScans = memo.iterator.filter(_._1.groupName == "knows").map(_._2).toSeq
     assert(knowsScans.length === 1, s"expected one shared KNOWS scan: ${memo.keySet}")
   }
+
+  test("scan-reuse floor: differing edge scan filters produce distinct edge scans") {
+    // Two KNOWS hops. The first edge is filtered (`e1.friendship = 'spouse'`), the second is not,
+    // so the two KNOWS scans have different ScanKeys -> two distinct KNOWS scans in the memo.
+    val (_, memo) = runWithMemo(
+      "MATCH (a:Person)-[e1:KNOWS]->(b:Person)-[e2:KNOWS]->(c:Person) " +
+        "WHERE e1.friendship = 'spouse'")
+    val knowsKeys = memo.keySet.filter(_.groupName == "knows").toSeq
+    assert(
+      knowsKeys.length === 2,
+      s"expected two KNOWS scans (filtered vs unfiltered): $knowsKeys")
+    // And they must be distinct DataFrame references (the whole point of keying on the filter).
+    val knowsScans = knowsKeys.map(memo)
+    assert(
+      knowsScans.head ne knowsScans.last,
+      "distinct edge signatures must yield distinct scans")
+  }
 }

@@ -49,7 +49,8 @@ private[propertygraph] final case class PathNode(
 private[propertygraph] final case class PathStep(
     edge: SchemaEdge,
     traversedForward: Boolean,
-    variable: Option[String])
+    variable: Option[String],
+    scanFilter: Seq[Expression])
 
 /**
  * A fully-resolved, concrete path through the schema graph: a linear chain of

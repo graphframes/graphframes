@@ -248,12 +248,12 @@ private[propertygraph] object QueryExecutor {
       props: ElementProps,
       scanMemo: scala.collection.mutable.Map[ScanKey, DataFrame]): DataFrame = {
     val step = path.steps(i)
-    val key = ScanKey(step.edge.edgeGroupName.toLowerCase, Seq.empty, props.carriedToScan)
+    val key = ScanKey(step.edge.edgeGroupName.toLowerCase, step.scanFilter, props.carriedToScan)
     scanMemo.getOrElseUpdate(
       key, {
-        // lit(true) is a placeholder for the future edge-filters
         val group = pgf.edgeGroups(step.edge.edgeGroupName.toLowerCase)
-        group.getData(lit(true), props.carriedToScan.toSeq.sorted)
+        val filterCol = lowerScanFilter(step.scanFilter)
+        group.getData(filterCol, props.carriedToScan.toSeq.sorted)
       })
   }
 
