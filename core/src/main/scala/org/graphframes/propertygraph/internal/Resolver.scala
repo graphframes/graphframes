@@ -104,7 +104,7 @@ private[propertygraph] object Resolver {
   // A note about the `enumerataPaths`:
   // It is very naive and on the case of thousands of groups
   // it may be quite a slow. At the same time, I cannot imagine the case
-  // when it became a bottlneck even with all it's scala wrappers, GC-pressure
+  // when it became a bottleneck even with all it's scala wrappers, GC-pressure
   // and multiple iterations over the same data.
   private[propertygraph] def enumeratePaths(
       nodes: Seq[NodePattern],

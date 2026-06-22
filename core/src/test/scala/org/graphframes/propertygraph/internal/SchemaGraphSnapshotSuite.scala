@@ -134,16 +134,16 @@ class SchemaGraphSnapshotSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(
       snapshot.edges === Vector(
         SchemaEdge("writes", "users", "posts", true),
-        SchemaEdge("follows", "users", "users", true)))
+        SchemaEdge("follows", "users", "users", false)))
 
     assert(
       snapshot.outgoing === Map(
         "users" -> Vector(
           SchemaEdge("writes", "users", "posts", true),
-          SchemaEdge("follows", "users", "users", true))))
+          SchemaEdge("follows", "users", "users", false))))
     assert(
       snapshot.incoming === Map(
         "posts" -> Vector(SchemaEdge("writes", "users", "posts", true)),
-        "users" -> Vector(SchemaEdge("follows", "users", "users", true))))
+        "users" -> Vector(SchemaEdge("follows", "users", "users", false))))
   }
 }

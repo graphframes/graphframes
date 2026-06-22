@@ -13,33 +13,6 @@ files = [
 ]
 
 [[package]]
-name = "antlr4-python3-runtime"
-version = "4.13.1"
-description = "ANTLR 4.13.1 runtime for Python 3"
-optional = false
-python-versions = "*"
-groups = ["dev"]
-files = [
-    {file = "antlr4-python3-runtime-4.13.1.tar.gz", hash = "sha256:3cd282f5ea7cfb841537fe01f143350fdb1c0b1ce7981443a2fa8513fddb6d1a"},
-    {file = "antlr4_python3_runtime-4.13.1-py3-none-any.whl", hash = "sha256:78ec57aad12c97ac039ca27403ad61cb98aaec8a3f9bb8144f889aa0fa28b943"},
-]
-
-[[package]]
-name = "antlr4-tools"
-version = "0.2.2"
-description = "Tools to run ANTLR4 tool and grammar interpreter/profiler"
-optional = false
-python-versions = "*"
-groups = ["dev"]
-files = [
-    {file = "antlr4_tools-0.2.2-py3-none-any.whl", hash = "sha256:79a0b971cf8337db49df076495332e9e401e2217d114ee1ac7797d3b28df001b"},
-    {file = "antlr4_tools-0.2.2.tar.gz", hash = "sha256:8af6fba512fc168e48eb93690ed21bdbe8848ed812d12b365d9d259a26ad6ba3"},
-]
-
-[package.dependencies]
-install-jdk = "*"
-
-[[package]]
 name = "babel"
 version = "2.17.0"
 description = "Internationalization utilities"
@@ -787,31 +760,6 @@ groups = ["connect", "dev"]
 files = [
     {file = "iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760"},
     {file = "iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7"},
-]
-
-[[package]]
-name = "install-jdk"
-version = "0.3.0"
-description = "Installs AdoptOpenJDK Java"
-optional = false
-python-versions = ">=3.6"
-groups = ["dev"]
-markers = "python_version >= \"3.12\""
-files = [
-    {file = "install-jdk-0.3.0.tar.gz", hash = "sha256:889965b0af68bb4669166804f33d5dce9cd6cf57f02a045e427e508998d569a1"},
-]
-
-[[package]]
-name = "install-jdk"
-version = "1.1.0"
-description = "install-jdk allows you to easily install latest Java OpenJDK version. Supports OpenJDK builds from Adoptium (previously AdoptOpenJDK), Corretto, and Zulu. Simplify your Java development with the latest OpenJDK builds."
-optional = false
-python-versions = ">=3.6,<4.0"
-groups = ["dev"]
-markers = "python_version < \"3.12\""
-files = [
-    {file = "install_jdk-1.1.0-py3-none-any.whl", hash = "sha256:b63f0fcd63f7abab3443d4120ba92716397753b8a8ea3c85762a629925a9936e"},
-    {file = "install_jdk-1.1.0.tar.gz", hash = "sha256:2bfd53caf660e4916df0215a5715519dcb9547fa2a5f07421fd97a8046851eaa"},
 ]
 
 [[package]]
@@ -2310,4 +2258,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "884ace883aa5b0b9a136fa4e4ff874ffca1f6ebe8dda39b47dab4619d870a797"
+content-hash = "49aa8ff03d24b1dccffacd503a93c37bb9a5c4cf7c74917b14166b1beb8f8a7b"
