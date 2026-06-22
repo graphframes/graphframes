@@ -211,7 +211,7 @@ private[propertygraph] object Resolver {
           post += conjunct
         }
       } else if (edgeRefs.size == 1 && nodeRefs.isEmpty) {
-        // only one edge varibale in WHERE: push it to the scan
+        // only one edge variable in WHERE: push it to the scan
         val e = edgeRefs.head
         edgeScan(e) = edgeScan.getOrElse(e, Seq.empty) :+ conjunct
       } else {
