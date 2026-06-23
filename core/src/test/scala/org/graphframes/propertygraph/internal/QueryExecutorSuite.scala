@@ -102,6 +102,7 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       Seq(knowsGroup, worksAtGroup, locatedInGroup))
   }
 
+  // this one is left just because I was lazy to rewrite all the tests :D
   private def run(gql: String): DataFrame = runOn(pgf, gql)
 
   private def runOn(pg: PropertyGraphFrame, gql: String): DataFrame = {
@@ -472,5 +473,185 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
         (maskedId(2L, "Person"), maskedId(1L, "Person")),
         (maskedId(2L, "Person"), maskedId(3L, "Person")),
         (maskedId(3L, "Person"), maskedId(2L, "Person"))))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scalar datetime functions (end-to-end).
+  //
+  // These exercise the full pipeline -- parse -> resolve (scan-local / join
+  // classification through the function-call argument) -> plan -> execute ->
+  // Spark built-in lowering. A dedicated graph with a DateType property is used
+  // since the default fixture has no date column.
+  // ---------------------------------------------------------------------------
+  private def dateGraph: PropertyGraphFrame = {
+    import sqlImplicits._
+    val persons = Seq(
+      (1L, "Alice", java.sql.Date.valueOf("2000-01-15")),
+      (2L, "Bob", java.sql.Date.valueOf("1995-06-20")),
+      (3L, "Carol", java.sql.Date.valueOf("2000-12-01"))).toDF("id", "name", "birthday")
+    val personGroup = VertexPropertyGroup("Person", persons, "id")
+    val knows = Seq((1L, 2L), (2L, 3L), (3L, 1L)).toDF("src", "dst")
+    val knowsGroup = EdgePropertyGroup(
+      "KNOWS",
+      knows,
+      personGroup,
+      personGroup,
+      isDirected = true,
+      "src",
+      "dst",
+      lit(1.0))
+    PropertyGraphFrame(Seq(personGroup), Seq(knowsGroup))
+  }
+
+  test("year() in a scan-local WHERE filters rows end-to-end") {
+    // KNOWS: 1(Alice,2000)->2(Bob,1995), 2(Bob,1995)->3(Carol,2000), 3(Carol,2000)->1(Alice,2000).
+    // `year(a.birthday) = 2000` is scan-local on `a`: Alice(1) and Carol(3) pass.
+    // As src of KNOWS: Alice->Bob and Carol->Alice => 2 rows.
+    val df =
+      runOn(dateGraph, "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE year(a.birthday) = 2000")
+    assert(df.count() === 2)
+    val startIds = df.collect().map(_.getString(0)).toSet
+    assert(startIds === Set(maskedId(1L, "Person"), maskedId(3L, "Person")))
+  }
+
+  test("RETURN year(a.birthday) AS y projects the lowered Spark year() column") {
+    val df =
+      runOn(dateGraph, "MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN year(a.birthday) AS y")
+    assert(df.schema.fieldNames.toSeq === Seq("y"))
+    val years = df.collect().map(_.getInt(0)).toSet
+    // src order: Alice(2000), Bob(1995), Carol(2000).
+    assert(years === Set(2000, 1995))
+  }
+
+  test("datediff() in a two-variable WHERE is applied as a join predicate end-to-end") {
+    // Spark `datediff(endDate, startDate)` = days from startDate to endDate, so
+    // `datediff(a.birthday, b.birthday)` = days from b's birthday to a's birthday.
+    // KNOWS edges (a -> b):
+    //   1->2 Alice(2000-01-15), Bob (1995-06-20): ~1639 days > 300 +
+    //   2->3 Bob  (1995-06-20), Carol(2000-12-01): ~-1636 days < 300 -
+    //   3->1 Carol(2000-12-01), Alice(2000-01-15): ~321 days > 300 +
+    // => two edges survive.
+    val df =
+      runOn(
+        dateGraph,
+        "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE datediff(a.birthday, b.birthday) > 300")
+    assert(df.count() === 2)
+    val startIds = df.collect().map(_.getString(0)).toSet
+    assert(startIds === Set(maskedId(1L, "Person"), maskedId(3L, "Person")))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Multiplicative operators and scalar functions (end-to-end).
+  // ---------------------------------------------------------------------------
+
+  test("multiplicative * / % produce correct values end-to-end") {
+    // a.age is Int. a.age * 2, a.age / 2 (floating-point), a.age % 4 -- project all three.
+    // Persons: Alice(30), Bob(40), Carol(25). KNOWS: 1->2, 2->3, 3->1.
+    // NB: Spark widens int*int and int%int to Long; read those columns as Long.
+    val df = run(
+      "MATCH (a:Person)-[:KNOWS]->(b:Person) " +
+        "RETURN a.age * 2 AS dbl, a.age / 2 AS half, a.age % 4 AS mod")
+    assert(df.schema.fieldNames.toSeq === Seq("dbl", "half", "mod"))
+    // src order: Alice(30)->Bob, Bob(40)->Carol, Carol(25)->Alice.
+    val rows = df.collect().map(r => (r.getLong(0), r.getDouble(1), r.getLong(2))).toSet
+    assert(
+      rows === Set(
+        (60L, 15.0, 2L), // Alice 30: 30*2=60, 30/2=15.0, 30%4=2
+        (80L, 20.0, 0L), // Bob 40: 40*2=80, 40/2=20.0, 40%4=0
+        (50L, 12.5, 1L)
+      )
+    ) // Carol 25: 25*2=50, 25/2=12.5, 25%4=1
+  }
+
+  test("WHERE pmod(hash(a.id), N) = 0 returns a deterministic, repeatable subset") {
+    // The deterministic-sampling idiom: `pmod(hash(a.id), N) = 0` must be reproducible
+    // across two executions (this is the scan-reuse memo correctness contract -- two identical
+    // scan signatures must yield identical rows).
+    val gql = "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE pmod(hash(a.id), 4) = 0"
+    val first = run(gql).collect().map(_.getString(0)).toSet
+    val second = run(gql).collect().map(_.getString(0)).toSet
+    assert(first === second, "hash-sampling must be deterministic across runs")
+    // The bucket must be a genuine subset of all source ids (non-empty and not all).
+    val allSrcs = Set(maskedId(1L, "Person"), maskedId(2L, "Person"), maskedId(3L, "Person"))
+    assert(first.nonEmpty && first.subsetOf(allSrcs))
+  }
+
+  test("lower() string predicate filters rows end-to-end") {
+    // Need a fixture with a string column to lower-case. KNOWS: 1->2,2->3,3->1.
+    import sqlImplicits._
+    val persons = Seq((1L, "Alice"), (2L, "BOB"), (3L, "carol")).toDF("id", "name")
+    val personGroup = VertexPropertyGroup("Person", persons, "id")
+    val knows = Seq((1L, 2L), (2L, 3L), (3L, 1L)).toDF("src", "dst")
+    val knowsGroup = EdgePropertyGroup(
+      "KNOWS",
+      knows,
+      personGroup,
+      personGroup,
+      isDirected = true,
+      "src",
+      "dst",
+      lit(1.0))
+    val sg = PropertyGraphFrame(Seq(personGroup), Seq(knowsGroup))
+
+    // Only Bob('BOB') lower-cases to 'bob'.
+    val df = runOn(sg, "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE lower(a.name) = 'bob'")
+    assert(df.count() === 1)
+    assert(df.head().getString(0) === maskedId(2L, "Person"))
+  }
+
+  test("get_json_object over a JSON string property returns expected scalars") {
+    // A dedicated fixture where every payload is a JSON document; get_json_object takes a
+    // lit-str path. Persons: Alice(score=42), Bob(score=7), Carol(score=5).
+    import sqlImplicits._
+    val persons =
+      Seq((1L, """{"score": 42}"""), (2L, """{"score": 7}"""), (3L, """{"score": 5}"""))
+        .toDF("id", "payload")
+    val personGroup = VertexPropertyGroup("Person", persons, "id")
+    val knows = Seq((1L, 2L), (2L, 3L), (3L, 1L)).toDF("src", "dst")
+    val knowsGroup = EdgePropertyGroup(
+      "KNOWS",
+      knows,
+      personGroup,
+      personGroup,
+      isDirected = true,
+      "src",
+      "dst",
+      lit(1.0))
+    val jg = PropertyGraphFrame(Seq(personGroup), Seq(knowsGroup))
+
+    val df =
+      runOn(
+        jg,
+        "MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN get_json_object(a.payload, '$.score') AS s")
+    val scores = df.collect().map(_.getString(0)).toSet
+    assert(scores === Set("42", "7", "5"))
+  }
+
+  test("xpath_int over an XML string property returns expected scalars") {
+    // A dedicated fixture where every payload is a valid XML document; xpath_int takes a
+    // Column path. Persons: Alice(<v>10</v>), Bob(<v>20</v>), Carol(<v>99</v>).
+    // NB: Spark's xpath_* throw on non-XML input rather than returning null, so all rows must be
+    // well-formed XML.
+    import sqlImplicits._
+    val persons =
+      Seq((1L, "<a><v>10</v></a>"), (2L, "<a><v>20</v></a>"), (3L, "<a><v>99</v></a>"))
+        .toDF("id", "payload")
+    val personGroup = VertexPropertyGroup("Person", persons, "id")
+    val knows = Seq((1L, 2L), (2L, 3L), (3L, 1L)).toDF("src", "dst")
+    val knowsGroup = EdgePropertyGroup(
+      "KNOWS",
+      knows,
+      personGroup,
+      personGroup,
+      isDirected = true,
+      "src",
+      "dst",
+      lit(1.0))
+    val xg = PropertyGraphFrame(Seq(personGroup), Seq(knowsGroup))
+
+    val df =
+      runOn(xg, "MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN xpath_int(a.payload, '/a/v') AS s")
+    val vals = df.collect().map(_.getInt(0)).toSet
+    assert(vals === Set(10, 20, 99))
   }
 }

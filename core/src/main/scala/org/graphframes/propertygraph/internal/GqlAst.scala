@@ -70,8 +70,10 @@ private[propertygraph] final case class ReturnItem(expression: Expression, alias
 // ---------------------------------------------------------------------------
 // Expressions (shared by WHERE and RETURN).
 //
-// Precedence mirrors the grammar: OR < AND < NOT < comparison < additive < primary. `Comparison` is
-// non-chained (single operator). `Arithmetic` is additive only (`+` / `-`).
+// Precedence mirrors the grammar: OR < AND < NOT < comparison < additive <
+// multiplicative < primary. `Comparison` is non-chained (single operator).
+// `Arithmetic` covers additive (`+`/`-`) and multiplicative (`*`/`/`/`%`) ops;
+// precedence is encoded in the grammar tier, not in the node.
 // ---------------------------------------------------------------------------
 
 private[propertygraph] sealed trait Expression
@@ -85,12 +87,17 @@ private[propertygraph] final case class Comparison(
     op: CompOp,
     right: Expression)
     extends Expression
-private[propertygraph] final case class Arithmetic(left: Expression, op: AddOp, right: Expression)
+private[propertygraph] final case class Arithmetic(
+    left: Expression,
+    op: ArithOp,
+    right: Expression)
     extends Expression
 private[propertygraph] final case class Not(expr: Expression) extends Expression
 private[propertygraph] final case class And(left: Expression, right: Expression)
     extends Expression
 private[propertygraph] final case class Or(left: Expression, right: Expression) extends Expression
+private[propertygraph] final case class FunctionCall(name: String, args: Seq[Expression])
+    extends Expression
 
 private[propertygraph] sealed trait CompOp
 private[propertygraph] case object Eq extends CompOp // `=`
@@ -100,9 +107,17 @@ private[propertygraph] case object Lte extends CompOp // `<=`
 private[propertygraph] case object Gt extends CompOp // `>`
 private[propertygraph] case object Gte extends CompOp // `>=`
 
-private[propertygraph] sealed trait AddOp
+// Arithmetic operators. `AddOp` (+/-) and `MulOp` (*///%) are subtraits of a common
+// `ArithOp` so the `Arithmetic` node carries one op type; precedence is encoded in the grammar
+// (multiplicative binds tighter than additive), not here.
+private[propertygraph] sealed trait ArithOp
+private[propertygraph] sealed trait AddOp extends ArithOp
 private[propertygraph] case object Plus extends AddOp // `+`
 private[propertygraph] case object Minus extends AddOp // `-`
+private[propertygraph] sealed trait MulOp extends ArithOp
+private[propertygraph] case object Mult extends MulOp // `*`
+private[propertygraph] case object Div extends MulOp // `/` (floating-point division)
+private[propertygraph] case object Mod extends MulOp // `%` (sign follows the dividend)
 
 private[propertygraph] object GqlAst {
 
@@ -116,6 +131,7 @@ private[propertygraph] object GqlAst {
     case Not(e) => referencedVariables(e)
     case And(l, r) => referencedVariables(l) ++ referencedVariables(r)
     case Or(l, r) => referencedVariables(l) ++ referencedVariables(r)
+    case FunctionCall(_, args) => args.flatMap(referencedVariables).toSet
   }
 
   /**

@@ -83,8 +83,8 @@ returnItem
 // Expression grammar.
 //
 // Precedence (lowest -> highest): OR < AND < NOT < comparison < additive <
-// primary. Standard recursive-descent shape; ANTLR4 resolves left-recursive
-// alternatives correctly.
+// multiplicative < primary. Standard recursive-descent shape; ANTLR4 resolves
+// left-recursive alternatives correctly.
 // ---------------------------------------------------------------------------
 expression
     : orExpr
@@ -108,14 +108,23 @@ comparison
     ;
 
 additive
-    : primary ((PLUS | DASH) primary)*
+    : multiplicative ((PLUS | DASH) multiplicative)*
+    ;
+
+multiplicative
+    : primary ((STAR | SLASH | PERCENT) primary)*
     ;
 
 primary
     : LPAREN expression RPAREN
     | literal
+    | functionCall
     | propertyAccess
     | variable=IDENTIFIER
+    ;
+
+functionCall
+    : name=IDENTIFIER LPAREN ( expression ( COMMA expression )* )? RPAREN
     ;
 
 propertyAccess

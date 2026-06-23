@@ -408,6 +408,7 @@ private[propertygraph] object QueryExecutor {
               item.expression match {
                 case Variable(v) => c.alias(v)
                 case PropertyAccess(_, p) => c.alias(p)
+                case FunctionCall(name, _) => c.alias(name.toLowerCase)
                 case _ => c
               }
           }
@@ -573,6 +574,7 @@ private[propertygraph] object QueryExecutor {
     case Not(e) => propertyAccesses(e)
     case And(l, r) => propertyAccesses(l) ++ propertyAccesses(r)
     case Or(l, r) => propertyAccesses(l) ++ propertyAccesses(r)
+    case FunctionCall(_, args) => args.flatMap(propertyAccesses)
     case _ => Seq.empty
   }
 }
@@ -669,6 +671,8 @@ private[propertygraph] object ExpressionLowering {
     case Not(e) => !lower(e, env)
     case And(left, right) => lower(left, env) && lower(right, env)
     case Or(left, right) => lower(left, env) || lower(right, env)
+    case FunctionCall(name, args) =>
+      FunctionRegistry.lower(name, args, args.map(lower(_, env)))
   }
 
   private def compOp(l: Column, op: CompOp, r: Column): Column = op match {
@@ -680,9 +684,12 @@ private[propertygraph] object ExpressionLowering {
     case Gte => l >= r
   }
 
-  private def arithOp(l: Column, op: AddOp, r: Column): Column = op match {
+  private def arithOp(l: Column, op: ArithOp, r: Column): Column = op match {
     case Plus => l + r
     case Minus => l - r
+    case Mult => l * r
+    case Div => l / r // NB: Spark `/` is floating-point division (5/2 = 2.5)
+    case Mod => l % r // NB: result follows the dividend's sign
   }
 
   /** Narrow `Literal.value: Any` to the appropriate Spark-typed literal. */

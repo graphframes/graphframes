@@ -183,6 +183,91 @@ class ResolverSuite extends SparkFunSuite {
     assert(rq.postFilters.length === 1)
   }
 
+  // -----------------------------------------------------------------------
+  // Scalar function calls in WHERE: classification regression guards.
+  // These guard the §4 traversal edits (`referencedVariables` + `propertyAccesses`):
+  // a function call over a property must still contribute its variable so the
+  // resolver can classify the predicate (scan-local vs join vs post).
+  // -----------------------------------------------------------------------
+  test("scan-local WHERE predicate inside a function call is attached to the matching node") {
+    // `year(a.creationDate) = 2012` references only `a` -> scan-local on `a`.
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE year(a.creationDate) = 2012")
+    val rq = Resolver.resolve(ast, schema)
+
+    assert(rq.joinPredicates === Nil)
+    assert(rq.postFilters === Nil)
+    val nodeA = rq.paths.head.nodes.head
+    val nodeB = rq.paths.head.nodes(1)
+    assert(nodeA.scanFilter.length === 1)
+    assert(
+      nodeA.scanFilter.head === Comparison(
+        FunctionCall("year", Seq(PropertyAccess("a", "creationDate"))),
+        Eq,
+        Literal(2012L)))
+    assert(nodeB.scanFilter === Nil)
+  }
+
+  test("two-variable adjacent WHERE predicate inside a function call becomes a join predicate") {
+    // `datediff(a.d, b.d) > 30` references `a` and `b` (adjacent) -> join predicate, with both
+    // `a.d` and `b.d` carried (this is the silent-drop regression guard: if `propertyAccesses`
+    // forgot the FunctionCall arm, these columns would not be classified as carry-to-scan).
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE datediff(a.d, b.d) > 30")
+    val rq = Resolver.resolve(ast, schema)
+
+    assert(rq.joinPredicates.length === 1)
+    assert(
+      rq.joinPredicates.head === Comparison(
+        FunctionCall("datediff", Seq(PropertyAccess("a", "d"), PropertyAccess("b", "d"))),
+        Gt,
+        Literal(30L)))
+    assert(rq.paths.head.nodes.forall(_.scanFilter === Nil))
+    assert(rq.postFilters === Nil)
+  }
+
+  test(
+    "hash-sampling WHERE predicate (pmod + hash) is classified scan-local on its only variable") {
+    // `pmod(hash(a.id), 512) = 0` references only `a` -> scan-local on `a`. This is the
+    // deterministic-sampling pushdown guard (spec §3): the predicate must reach the scan so the
+    // ScanKey memo sees a reproducible filter, not a post-join filter.
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE pmod(hash(a.id), 512) = 0")
+    val rq = Resolver.resolve(ast, schema)
+
+    assert(rq.joinPredicates === Nil)
+    assert(rq.postFilters === Nil)
+    val nodeA = rq.paths.head.nodes.head
+    val nodeB = rq.paths.head.nodes(1)
+    assert(nodeA.scanFilter.length === 1)
+    assert(
+      nodeA.scanFilter.head === Comparison(
+        FunctionCall(
+          "pmod",
+          Seq(FunctionCall("hash", Seq(PropertyAccess("a", "id"))), Literal(512L))),
+        Eq,
+        Literal(0L)))
+    assert(nodeB.scanFilter === Nil)
+  }
+
+  test("multiplicative cross-variable WHERE predicate becomes a join predicate") {
+    // `a.x * 2 > b.y` references `a` and `b` (adjacent) -> join predicate. Regression guard for
+    // the widened ArithOp: the Arithmetic node must still contribute both variables through
+    // referencedVariables / propertyAccesses (the node match is unchanged, only the op type
+    // widened, but this pins the behaviour).
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.x * 2 > b.y")
+    val rq = Resolver.resolve(ast, schema)
+
+    assert(rq.joinPredicates.length === 1)
+    assert(
+      rq.joinPredicates.head === Comparison(
+        Arithmetic(PropertyAccess("a", "x"), Mult, Literal(2L)),
+        Gt,
+        PropertyAccess("b", "y")))
+    assert(rq.paths.head.nodes.forall(_.scanFilter === Nil))
+    assert(rq.postFilters === Nil)
+  }
+
   test("projection default when RETURN omitted") {
     val ast = AstBuilder.parse("MATCH (a:Person)")
     assert(Resolver.resolve(ast, schema).projection === Projection.Default)

@@ -149,10 +149,12 @@ private[propertygraph] object GqlExplain {
     case Comparison(left, op, right) =>
       s"(${renderExpr(left)} ${renderCompOp(op)} ${renderExpr(right)})"
     case Arithmetic(left, op, right) =>
-      s"(${renderExpr(left)} ${renderAddOp(op)} ${renderExpr(right)})"
+      s"(${renderExpr(left)} ${renderArithOp(op)} ${renderExpr(right)})"
     case Not(e) => s"(NOT ${renderExpr(e)})"
     case And(left, right) => s"(${renderExpr(left)} AND ${renderExpr(right)})"
     case Or(left, right) => s"(${renderExpr(left)} OR ${renderExpr(right)})"
+    case FunctionCall(name, args) =>
+      s"$name(${args.map(renderExpr).mkString(", ")})"
   }
 
   private def renderCompOp(op: CompOp): String = op match {
@@ -164,8 +166,11 @@ private[propertygraph] object GqlExplain {
     case Gte => ">="
   }
 
-  private def renderAddOp(op: AddOp): String = op match {
+  private def renderArithOp(op: ArithOp): String = op match {
     case Plus => "+"
     case Minus => "-"
+    case Mult => "*"
+    case Div => "/"
+    case Mod => "%"
   }
 }

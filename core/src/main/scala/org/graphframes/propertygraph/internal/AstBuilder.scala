@@ -162,13 +162,29 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
     }
   }
 
-  // additive: primary ((PLUS | DASH) primary)*  (left-associative)
+  // additive: multiplicative ((PLUS | DASH) multiplicative)*  (left-associative)
   // ANTLR exposes PLUS and DASH as two separate token lists, which loses their interleaving. We
-  // instead walk the context's children in source order so operators stay aligned with primaries.
+  // instead walk the context's children in source order so operators stay aligned with their
+  // multiplicatives.
   override def visitAdditive(ctx: GqlParser.AdditiveContext): Expression = {
     val ops: Seq[AddOp] = ctx.children.asScala.collect {
       case t if t.getText == "+" => Plus: AddOp
       case t if t.getText == "-" => Minus: AddOp
+    }.toSeq
+    val parts = ctx.multiplicative().asScala.map(visitMultiplicative).toSeq
+    parts.tail.zip(ops).foldLeft(parts.head: Expression) { case (acc, (rhs, op)) =>
+      Arithmetic(acc, op, rhs)
+    }
+  }
+
+  // multiplicative: primary ((STAR | SLASH | PERCENT) primary)*  (left-associative)
+  // Same source-order child walk as visitAdditive; STAR/SLASH/PERCENT are distinct tokens so we
+  // collect them by text to keep operators aligned with their primaries.
+  override def visitMultiplicative(ctx: GqlParser.MultiplicativeContext): Expression = {
+    val ops: Seq[MulOp] = ctx.children.asScala.collect {
+      case t if t.getText == "*" => Mult: MulOp
+      case t if t.getText == "/" => Div: MulOp
+      case t if t.getText == "%" => Mod: MulOp
     }.toSeq
     val primaries = ctx.primary().asScala.map(visitPrimary).toSeq
     primaries.tail.zip(ops).foldLeft(primaries.head: Expression) { case (acc, (rhs, op)) =>
@@ -177,7 +193,9 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
   }
 
   override def visitPrimary(ctx: GqlParser.PrimaryContext): Expression = {
-    if (ctx.LPAREN() != null) {
+    if (ctx.functionCall() != null) {
+      visitFunctionCall(ctx.functionCall())
+    } else if (ctx.LPAREN() != null) {
       visitExpression(ctx.expression())
     } else if (ctx.literal() != null) {
       visitLiteral(ctx.literal())
@@ -186,6 +204,12 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
     } else {
       Variable(ctx.IDENTIFIER().getText)
     }
+  }
+
+  override def visitFunctionCall(ctx: GqlParser.FunctionCallContext): FunctionCall = {
+    val name = ctx.name.getText.toLowerCase()
+    val args = ctx.expression().asScala.map(visitExpression).toSeq
+    FunctionCall(name, args)
   }
 
   override def visitPropertyAccess(ctx: GqlParser.PropertyAccessContext): Expression = {

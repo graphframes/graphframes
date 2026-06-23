@@ -223,4 +223,219 @@ class AstBuilderSuite extends SparkFunSuite {
     assert(elements(1) === EdgePattern(None, Some("KNOWS"), Undirected))
     assert(elements(3) === EdgePattern(None, Some("WORKS_AT"), LeftToRight))
   }
+
+  // -----------------------------------------------------------------------
+  // Scalar function calls (datetime family).
+  // -----------------------------------------------------------------------
+  test("function call over a property access") {
+    val ast = AstBuilder.parse("MATCH (a:Person) WHERE year(a.creationDate) = 2012")
+    val Some(
+      Comparison(
+        FunctionCall("year", Seq(PropertyAccess("a", "creationDate"))),
+        Eq,
+        Literal(2012L))) =
+      ast.where
+  }
+
+  test("function call with multiple arguments") {
+    val ast = AstBuilder.parse("MATCH (a)-[:R]->(b) WHERE datediff(a.d, b.d) > 30")
+    val Some(
+      Comparison(
+        FunctionCall("datediff", Seq(PropertyAccess("a", "d"), PropertyAccess("b", "d"))),
+        Gt,
+        Literal(30L))) = ast.where
+  }
+
+  test("nested function calls inside arithmetic and comparison") {
+    val ast = AstBuilder.parse("MATCH (a)-[:R]->(b) WHERE year(a.d) - year(b.d) > 1")
+    val Some(
+      Comparison(
+        Arithmetic(
+          FunctionCall("year", Seq(PropertyAccess("a", "d"))),
+          Minus,
+          FunctionCall("year", Seq(PropertyAccess("b", "d")))),
+        Gt,
+        Literal(1L))) = ast.where
+  }
+
+  test("function call over a string literal argument") {
+    val ast = AstBuilder.parse("MATCH (a) WHERE a.d = date('2012-06-01')")
+    val Some(
+      Comparison(
+        PropertyAccess("a", "d"),
+        Eq,
+        FunctionCall("date", Seq(Literal("2012-06-01"))))) = ast.where
+  }
+
+  test("zero-argument function call") {
+    val ast = AstBuilder.parse("MATCH (a) WHERE a.d < current_timestamp()")
+    val Some(Comparison(PropertyAccess("a", "d"), Lt, FunctionCall("current_timestamp", Seq()))) =
+      ast.where
+  }
+
+  test("function name and same-named property coexist in one query") {
+    // `a.date` is a property access; `date(...)` is a function call. The parser disambiguates by
+    // the token following the IDENTIFIER (DOT vs LPAREN).
+    val ast = AstBuilder.parse("MATCH (a) WHERE date(a.date) = date('2012-06-01')")
+    val Some(
+      Comparison(
+        FunctionCall("date", Seq(PropertyAccess("a", "date"))),
+        Eq,
+        FunctionCall("date", Seq(Literal("2012-06-01"))))) = ast.where
+  }
+
+  test("RETURN of a function call") {
+    val ast = AstBuilder.parse("MATCH (a:Person) RETURN year(a.creationDate) AS y")
+    val Some(
+      ReturnItems(Seq(
+        ReturnItem(FunctionCall("year", Seq(PropertyAccess("a", "creationDate"))), Some("y"))))) =
+      ast.returnClause
+  }
+
+  test("unknown function name still parses (grammar allows any identifier)") {
+    // `frobnicate` is not in the whitelist, but the grammar accepts any IDENTIFIER as a function
+    // name; rejection happens at lowering, not parsing.
+    val ast = AstBuilder.parse("MATCH (a) WHERE frobnicate(a.x) = 1")
+    val Some(
+      Comparison(FunctionCall("frobnicate", Seq(PropertyAccess("a", "x"))), Eq, Literal(1L))) =
+      ast.where
+  }
+
+  test("referencedVariables recurses into function-call arguments") {
+    // Regression guard for the §4 traversal edit: a function call must contribute the variables
+    // referenced by its arguments (this is what makes the resolver classify
+    // `WHERE year(a.creationDate) = 2012` as scan-local on `a`).
+    val expr = FunctionCall("year", Seq(PropertyAccess("a", "creationDate")))
+    assert(GqlAst.referencedVariables(expr) === Set("a"))
+  }
+
+  test("lowering rejects an unknown function name") {
+    // Rejection of unsupported names happens at lowering, not parse time.
+    intercept[UnsupportedOperationException] {
+      ExpressionLowering.lower(
+        FunctionCall("frobnicate", Seq(PropertyAccess("a", "x"))),
+        PrefixEnv.raw)
+    }
+  }
+
+  test("lowering rejects wrong function arity") {
+    intercept[UnsupportedOperationException] {
+      ExpressionLowering.lower(
+        FunctionCall("year", Seq(PropertyAccess("a", "x"), PropertyAccess("a", "y"))),
+        PrefixEnv.raw)
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Multiplicative operators (*, /, %) -- precedence and shape.
+  // -----------------------------------------------------------------------
+  test("multiplicative * binds tighter than additive +") {
+    // a.x + a.y * a.z parses as (a.x + (a.y * a.z)).
+    val ast = AstBuilder.parse("MATCH (a) WHERE a.x + a.y * a.z = 1")
+    val Some(
+      Comparison(
+        Arithmetic(
+          PropertyAccess("a", "x"),
+          Plus,
+          Arithmetic(PropertyAccess("a", "y"), Mult, PropertyAccess("a", "z"))),
+        Eq,
+        Literal(1L))) = ast.where
+  }
+
+  test("multiplicative % over a property and a literal") {
+    val ast = AstBuilder.parse("MATCH (a) WHERE a.x % 512 = 0")
+    val Some(
+      Comparison(Arithmetic(PropertyAccess("a", "x"), Mod, Literal(512L)), Eq, Literal(0L))) =
+      ast.where
+  }
+
+  test("multiplicative chain is left-associative") {
+    // a.x / a.y / a.z -> ((a.x / a.y) / a.z)
+    val ast = AstBuilder.parse("MATCH (a) WHERE a.x / a.y / a.z = 1")
+    val Some(
+      Comparison(
+        Arithmetic(
+          Arithmetic(PropertyAccess("a", "x"), Div, PropertyAccess("a", "y")),
+          Div,
+          PropertyAccess("a", "z")),
+        Eq,
+        Literal(1L))) = ast.where
+  }
+
+  test("mixed additive and multiplicative precedence with parentheses") {
+    // (a.x + a.y) * 2 -> Arithmetic( (a.x + a.y), Mult, 2 )
+    val ast = AstBuilder.parse("MATCH (a) WHERE (a.x + a.y) * 2 = 1")
+    val Some(
+      Comparison(
+        Arithmetic(
+          Arithmetic(PropertyAccess("a", "x"), Plus, PropertyAccess("a", "y")),
+          Mult,
+          Literal(2L)),
+        Eq,
+        Literal(1L))) = ast.where
+  }
+
+  // -----------------------------------------------------------------------
+  // Scalar function calls (string/math/json/xml/hash families).
+  // -----------------------------------------------------------------------
+  test("variadic function call preserves all arguments") {
+    val ast = AstBuilder.parse("MATCH (a) WHERE coalesce(a.x, a.y, a.z) = 1")
+    val Some(
+      Comparison(
+        FunctionCall(
+          "coalesce",
+          Seq(PropertyAccess("a", "x"), PropertyAccess("a", "y"), PropertyAccess("a", "z"))),
+        Eq,
+        Literal(1L))) = ast.where
+  }
+
+  test("string-literal function argument parses as Literal") {
+    val ast = AstBuilder.parse("MATCH (a) WHERE get_json_object(a.p, '$.k') = 'x'")
+    val Some(
+      Comparison(
+        FunctionCall("get_json_object", Seq(PropertyAccess("a", "p"), Literal("$.k"))),
+        Eq,
+        Literal("x"))) = ast.where
+  }
+
+  test("nested arithmetic inside a function call") {
+    // pmod(hash(a.id), 512) = 0 -- the sampling idiom.
+    val ast = AstBuilder.parse("MATCH (a) WHERE pmod(hash(a.id), 512) = 0")
+    val Some(
+      Comparison(
+        FunctionCall(
+          "pmod",
+          Seq(FunctionCall("hash", Seq(PropertyAccess("a", "id"))), Literal(512L))),
+        Eq,
+        Literal(0L))) = ast.where
+  }
+
+  test("lowering accepts a variadic function with many args") {
+    // greatest is variadic (>=2); three args must lower without an arity error.
+    ExpressionLowering.lower(
+      FunctionCall(
+        "greatest",
+        Seq(PropertyAccess("a", "x"), PropertyAccess("a", "y"), PropertyAccess("a", "z"))),
+      PrefixEnv.raw)
+  }
+
+  test("lowering rejects a property reference where a string literal is required") {
+    // regexp_extract wants (col, lit-str, lit-int); passing a property as the pattern must fail.
+    intercept[UnsupportedOperationException] {
+      ExpressionLowering.lower(
+        FunctionCall(
+          "regexp_extract",
+          Seq(PropertyAccess("a", "s"), PropertyAccess("a", "p"), Literal(1L))),
+        PrefixEnv.raw)
+    }
+  }
+
+  test("lowering rejects a property reference where an integer literal is required") {
+    // sha2 wants (col, lit-int); passing a property as the bit length must fail.
+    intercept[UnsupportedOperationException] {
+      ExpressionLowering.lower(
+        FunctionCall("sha2", Seq(PropertyAccess("a", "s"), PropertyAccess("a", "bits"))),
+        PrefixEnv.raw)
+    }
+  }
 }

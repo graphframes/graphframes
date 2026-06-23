@@ -56,6 +56,8 @@ EQ:          '=';
 DASH:        '-';
 PLUS:        '+';
 STAR:        '*';
+SLASH:       '/';
+PERCENT:     '%';
 DOT:         '.';
 COMMA:       ',';
 COLON:       ':';
