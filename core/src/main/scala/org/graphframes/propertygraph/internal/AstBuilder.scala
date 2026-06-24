@@ -105,7 +105,21 @@ private[propertygraph] final class AstBuilder extends GqlParserBaseVisitor[AnyRe
       readVariableLabel(
         ctx.edgeBody().IDENTIFIER().asScala.map(_.getText).toSeq,
         ctx.edgeBody().COLON())
-    EdgePattern(variable, label, direction)
+
+    // *N or *A..B
+    val hopsRange = Option(ctx.edgeBody().quantifier()).map(qCtx => {
+      // Variable-length patterns are not compatible with variables
+      if (variable.isDefined) {
+        throw new InvalidParseException(
+          "using variables for variable length patterns is not supported")
+      }
+      if (qCtx.exact != null) {
+        (qCtx.exact.getText.toInt, qCtx.exact.getText.toInt)
+      } else {
+        (qCtx.lo.getText.toInt, qCtx.hi.getText.toInt)
+      }
+    })
+    EdgePattern(variable, label, direction, hopsRange)
   }
 
   override def visitWhereClause(ctx: GqlParser.WhereClauseContext): Expression =

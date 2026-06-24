@@ -18,6 +18,7 @@
 package org.graphframes.propertygraph.internal
 
 import org.graphframes.SparkFunSuite
+import org.graphframes.propertygraph.QueryOptions
 
 /**
  * Pure-JVM tests for the explain renderers. No SparkSession required; the renderers are pure
@@ -32,9 +33,11 @@ class GqlExplainSuite extends SparkFunSuite {
       SchemaEdge("WORKS_AT", "Person", "Company", true),
       SchemaEdge("LOCATED_IN", "Company", "City", true)))
 
+  private val options = QueryOptions()
+
   test("logical explain renders the path with a forward arrow") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val out = GqlExplain.logical(rq)
     assert(out.contains("Logical plan"))
     assert(out.contains("(a:Person)"))
@@ -44,14 +47,14 @@ class GqlExplainSuite extends SparkFunSuite {
 
   test("logical explain renders a backward arrow for <-[e]- ") {
     val ast = AstBuilder.parse("MATCH (a:Person)<-[:KNOWS]-(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val out = GqlExplain.logical(rq)
     assert(out.contains("<-[KNOWS]-"))
   }
 
   test("logical explain reports disconnected patterns as (none)") {
     val ast = AstBuilder.parse("MATCH (a:City)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.isEmpty)
     val out = GqlExplain.logical(rq)
     assert(out.contains("(none"))
@@ -61,7 +64,7 @@ class GqlExplainSuite extends SparkFunSuite {
     "logical explain lists scan-local filter on the node and join/post predicates separately") {
     val ast = AstBuilder.parse(
       "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 30 AND a.age > b.age RETURN a, b")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val out = GqlExplain.logical(rq)
     // scan-local filter rendered inline on the node
     assert(out.contains("a.age > 30"))
@@ -74,7 +77,7 @@ class GqlExplainSuite extends SparkFunSuite {
   test("physical explain renders plan order and statistics line") {
     val ast =
       AstBuilder.parse("MATCH (a:Person)-[:WORKS_AT]->(c:Company)-[:LOCATED_IN]->(d:City)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val plans = JoinOptimizer.plan(rq, stats = None)
     val out = GqlExplain.physical(plans)
     assert(out.contains("Physical plan"))
@@ -86,7 +89,7 @@ class GqlExplainSuite extends SparkFunSuite {
 
   test("physical explain on disconnected pattern reports no plans") {
     val ast = AstBuilder.parse("MATCH (a:City)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val plans = JoinOptimizer.plan(rq, stats = None)
     val out = GqlExplain.physical(plans)
     assert(out.contains("(none"))

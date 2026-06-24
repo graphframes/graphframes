@@ -18,6 +18,7 @@
 package org.graphframes.propertygraph.internal
 
 import org.graphframes.InvalidPropertyGroupException
+import org.graphframes.propertygraph.QueryOptions
 
 /**
  * Resolution: turns a `MatchStatement` AST plus a `SchemaGraphSnapshot` into a `ResolvedQuery`.
@@ -39,7 +40,10 @@ import org.graphframes.InvalidPropertyGroupException
  */
 private[propertygraph] object Resolver {
 
-  def resolve(ast: MatchStatement, schema: SchemaGraphSnapshot): ResolvedQuery = {
+  def resolve(
+      ast: MatchStatement,
+      schema: SchemaGraphSnapshot,
+      options: QueryOptions): ResolvedQuery = {
     val nodes = ast.pattern.elements.collect { case n: NodePattern => n }
     val edges = ast.pattern.elements.collect { case e: EdgePattern => e }
     // The grammar guarantees nodes.length == edges.length + 1; defend in depth.
@@ -49,7 +53,7 @@ private[propertygraph] object Resolver {
 
     validateLabels(nodes, edges, schema)
 
-    val paths = enumeratePaths(nodes, edges, schema)
+    val paths = enumeratePaths(nodes, edges, schema, options)
 
     val (joinPredicates, postFilters, nodeScanFilters, edgeScanFilters) =
       classifyWhere(ast.where, nodes, edges)
@@ -109,7 +113,8 @@ private[propertygraph] object Resolver {
   private[propertygraph] def enumeratePaths(
       nodes: Seq[NodePattern],
       edges: Seq[EdgePattern],
-      schema: SchemaGraphSnapshot): Vector[SchemaPath] = {
+      schema: SchemaGraphSnapshot,
+      options: QueryOptions): Vector[SchemaPath] = {
     // Start vertex-group candidates for node 0.
     // Resolve the user-supplied label to its canonical-case name so that subsequent
     // outgoing/incoming map lookups (keyed by original case) still hit.
@@ -137,47 +142,35 @@ private[propertygraph] object Resolver {
       val edgePat = edges(nodeIndex)
       val nextNodePat = nodes(nodeIndex + 1)
 
-      // Candidate schema edges, depending on the arrow direction.
-      val candidates: Vector[(SchemaEdge, String, Boolean)] = edgePat.direction match {
-        case LeftToRight =>
-          // Pattern arrow agrees with src->dst: enumerate edges whose src is the current group.
-          schema.outgoing
-            .getOrElse(currentGroup, Vector.empty)
-            .map(e => (e, e.dstVertexGroupName, true))
-        case RightToLeft =>
-          // Pattern arrow opposes src->dst: enumerate edges whose dst is the current group, and the
-          // next node becomes the edge's src.
-          schema.incoming
-            .getOrElse(currentGroup, Vector.empty)
-            .map(e => (e, e.srcVertexGroupName, false))
-
-        case Undirected => {
-          // Undirected edge: combine both of the above
-          val backward = schema.incoming
-            .getOrElse(currentGroup, Vector.empty)
-            .map(e => (e, e.srcVertexGroupName, false))
-          val forward = schema.outgoing
-            .getOrElse(currentGroup, Vector.empty)
-            .map(e => (e, e.dstVertexGroupName, true))
-
-          // if the edge is undirected we should deduplicate manually:
-          // for undirected edge Alice-Bob and Bob-Alice is the same edge
-          // for directed edge these two are different edges (so called "parallel")
-          // we should handle this.
-          (forward ++ backward.filterNot { case (edge, _, _) =>
-            !edge.isDirected && edge.srcVertexGroupName.equalsIgnoreCase(edge.dstVertexGroupName)
-          }).toVector
-        }
-      }
-
-      candidates.foreach { case (edge, nextGroup, forward) =>
-        // Filter by typed edge label, if any (case-insensitive).
-        val edgeLabelOk = edgePat.label.forall(_.equalsIgnoreCase(edge.edgeGroupName))
-        // Filter by typed next-node label, if any (case-insensitive).
-        val nextLabelOk = nextNodePat.label.forall(_.equalsIgnoreCase(nextGroup))
-        if (edgeLabelOk && nextLabelOk) {
-          val step = PathStep(edge, forward, edgePat.variable, scanFilter = Seq.empty)
-          dfs(nodeIndex + 1, nextGroup, nodesSoFar, accSteps :+ step)
+      edgePat.hopsRange match {
+        case None =>
+          // single hop
+          getCandidates(edgePat, currentGroup, schema)
+            .foreach { case (edge, nextGroup, forward) =>
+              // Filter by typed edge label, if any (case-insensitive).
+              val edgeLabelOk = edgePat.label.forall(_.equalsIgnoreCase(edge.edgeGroupName))
+              // Filter by typed next-node label, if any (case-insensitive).
+              val nextLabelOk = nextNodePat.label.forall(_.equalsIgnoreCase(nextGroup))
+              if (edgeLabelOk && nextLabelOk) {
+                val step = PathStep(edge, forward, edgePat.variable, scanFilter = Seq.empty)
+                dfs(nodeIndex + 1, nextGroup, nodesSoFar, accSteps :+ step)
+              }
+            }
+        // multi-hop
+        case Some((lo, hi)) => {
+          if ((hi > options.maxVarLength) || (hi - lo > options.maxVarLength) || (lo < 1) || (lo > hi)) {
+            throw new InvalidPropertyGroupException(
+              s"invalid variable length pattern $lo - $hi : it is required that lo >= 1, lo <= hi and lo - hi < ${options.maxVarLength}")
+          } else {
+            // for the 1-3 we should collect 1, 1-2, 1-2-3
+            (lo to hi).foreach(lHops =>
+              walkHops(currentGroup, lHops, edgePat, schema).foreach {
+                case (steps, intermediates, endGroup) =>
+                  if (nextNodePat.label.forall(_.equalsIgnoreCase(endGroup))) {
+                    dfs(nodeIndex + 1, endGroup, nodesSoFar ++ intermediates, accSteps ++ steps)
+                  }
+              })
+          }
         }
       }
     }
@@ -185,6 +178,70 @@ private[propertygraph] object Resolver {
     startGroups.foreach(g => dfs(nodeIndex = 0, currentGroup = g, Vector.empty, Vector.empty))
     results.toVector
   }
+
+  // All L-hop walks from `fromGroup` over edges matching edgePat's label + direction.
+  // Returns (steps, intermediateNodes, endGroup). The final endpoint is NOT added as an
+  // intermediate — the caller's next dfs() appends the far pattern node.
+  def walkHops(
+      fromGroup: String,
+      hopsLeft: Int,
+      edgePat: EdgePattern,
+      schema: SchemaGraphSnapshot): Vector[(Vector[PathStep], Vector[PathNode], String)] = {
+    def go(
+        group: String,
+        left: Int,
+        steps: Vector[PathStep],
+        mids: Vector[PathNode]): Vector[(Vector[PathStep], Vector[PathNode], String)] =
+      if (left == 0) Vector((steps, mids, group))
+      else
+        getCandidates(edgePat, group, schema).flatMap { case (edge, nextGroup, forward) =>
+          if (edgePat.label.forall(_.equalsIgnoreCase(edge.edgeGroupName))) {
+            val step = PathStep(edge, forward, variable = None, scanFilter = Seq.empty)
+            val midsNext =
+              if (left == 1) mids // last hop: endpoint is the far node
+              else mids :+ PathNode(nextGroup, None, Seq.empty) // intermediate, anonymous
+            go(nextGroup, left - 1, steps :+ step, midsNext)
+          } else Vector.empty
+        }
+    go(fromGroup, hopsLeft, Vector.empty, Vector.empty)
+  }
+
+  // Parse edge directions and handle deduplication logic
+  private def getCandidates(
+      edgePattern: EdgePattern,
+      currentGroup: String,
+      schema: SchemaGraphSnapshot): Vector[(SchemaEdge, String, Boolean)] =
+    edgePattern.direction match {
+      case LeftToRight =>
+        // Pattern arrow agrees with src->dst: enumerate edges whose src is the current group.
+        schema.outgoing
+          .getOrElse(currentGroup, Vector.empty)
+          .map(e => (e, e.dstVertexGroupName, true))
+      case RightToLeft =>
+        // Pattern arrow opposes src->dst: enumerate edges whose dst is the current group, and the
+        // next node becomes the edge's src.
+        schema.incoming
+          .getOrElse(currentGroup, Vector.empty)
+          .map(e => (e, e.srcVertexGroupName, false))
+
+      case Undirected => {
+        // Undirected edge: combine both of the above
+        val backward = schema.incoming
+          .getOrElse(currentGroup, Vector.empty)
+          .map(e => (e, e.srcVertexGroupName, false))
+        val forward = schema.outgoing
+          .getOrElse(currentGroup, Vector.empty)
+          .map(e => (e, e.dstVertexGroupName, true))
+
+        // if the edge is undirected we should deduplicate manually:
+        // for undirected edge Alice-Bob and Bob-Alice is the same edge
+        // for directed edge these two are different edges (so called "parallel")
+        // we should handle this.
+        (forward ++ backward.filterNot { case (edge, _, _) =>
+          !edge.isDirected && edge.srcVertexGroupName.equalsIgnoreCase(edge.dstVertexGroupName)
+        }).toVector
+      }
+    }
 
   // ---------------------------------------------------------------------
   // Step 3: WHERE classification.

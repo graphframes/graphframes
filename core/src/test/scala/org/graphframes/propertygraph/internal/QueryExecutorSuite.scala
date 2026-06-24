@@ -23,6 +23,7 @@ import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.SparkFunSuite
 import org.graphframes.propertygraph.PropertyGraphFrame
+import org.graphframes.propertygraph.QueryOptions
 import org.graphframes.propertygraph.property.EdgePropertyGroup
 import org.graphframes.propertygraph.property.VertexPropertyGroup
 
@@ -107,7 +108,8 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   private def runOn(pg: PropertyGraphFrame, gql: String): DataFrame = {
     val ast = AstBuilder.parse(gql)
-    val resolved = Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pg))
+    val resolved =
+      Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pg), QueryOptions())
     val plans = JoinOptimizer.plan(resolved, stats = None)
     QueryExecutor.execute(pg, plans)
   }
@@ -270,7 +272,8 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
    */
   private def runWithMemo(gql: String): (DataFrame, Map[QueryExecutor.ScanKey, DataFrame]) = {
     val ast = AstBuilder.parse(gql)
-    val resolved = Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pgf))
+    val resolved =
+      Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pgf), QueryOptions())
     val plans = JoinOptimizer.plan(resolved, stats = None)
     QueryExecutor.executeWithScanMemo(pgf, plans)
   }
@@ -653,5 +656,115 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       runOn(xg, "MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN xpath_int(a.payload, '/a/v') AS s")
     val vals = df.collect().map(_.getInt(0)).toSet
     assert(vals === Set(10, 20, 99))
+  }
+
+  // --- Variable-length patterns (end-to-end) ------------------------------
+  //
+  // KNOWS is a directed 3-cycle: 1(Alice) -> 2(Bob) -> 3(Carol) -> 1(Alice). That makes the
+  // walks of each length fully enumerable by hand, so these assert exact rows, exact intermediate
+  // ids in the `path` array, and structural properties (cycle closure) -- not just counts.
+  // Range forms (*lo..hi) are used so these exercise the executor regardless of the AstBuilder
+  // exact-form (*N) handling.
+
+  private def P(id: Long): String = maskedId(id, "Person")
+
+  private def pathArray(
+      r: org.apache.spark.sql.Row): scala.collection.Seq[org.apache.spark.sql.Row] =
+    r.get(r.fieldIndex("path")).asInstanceOf[scala.collection.Seq[org.apache.spark.sql.Row]]
+
+  test("var-length *1..2 unions the 1-hop and 2-hop walks with correct path arrays") {
+    // 1-hop: (1,2),(2,3),(3,1).  2-hop: (1,3),(2,1),(3,2).
+    val df = run("MATCH (a:Person)-[:KNOWS*1..2]->(b:Person)")
+    val rows = df.collect()
+    assert(rows.length === 6)
+
+    val pairs = rows.map(r => (r.getAs[String]("start_id"), r.getAs[String]("end_id"))).toSet
+    assert(
+      pairs === Set(
+        (P(1), P(2)),
+        (P(2), P(3)),
+        (P(3), P(1)), // length 1
+        (P(1), P(3)),
+        (P(2), P(1)),
+        (P(3), P(2))
+      )
+    ) // length 2
+
+    // path-array length == number of hops: 1 for the direct walks, 2 for the two-hop walks.
+    val sizeByPair =
+      rows
+        .map(r => (r.getAs[String]("start_id"), r.getAs[String]("end_id")) -> pathArray(r).length)
+        .toMap
+    assert(sizeByPair((P(1), P(2))) === 1)
+    assert(sizeByPair((P(1), P(3))) === 2)
+
+    // The 1->2->3 two-hop row must carry the intermediate node (Bob=2) in path[0].
+    val twoHop =
+      rows.find(r => r.getAs[String]("start_id") == P(1) && r.getAs[String]("end_id") == P(3)).get
+    val path = pathArray(twoHop)
+    assert(path.length === 2)
+    assert(path(0).getAs[String](0) === "KNOWS") // edge_property_group
+    assert(path(0).getAs[String](1) === P(2)) // node_id (the intermediate, Bob)
+    assert(path(0).getAs[String](2) === "Person") // node_property_group
+    assert(path(1).getAs[String](0) === "KNOWS") // final hop: edge only...
+    assert(path(1).isNullAt(1)) // ...node fields null (end node is in end_id)
+  }
+
+  test("var-length *2..2 yields exactly the two-hop walks with the right intermediate id") {
+    // 1->2->3, 2->3->1, 3->1->2.
+    val df = run("MATCH (a:Person)-[:KNOWS*2..2]->(b:Person)")
+    val rows = df.collect()
+    assert(rows.length === 3)
+    assert(rows.forall(r => pathArray(r).length == 2))
+
+    val byStart = rows.map(r => r.getAs[String]("start_id") -> r).toMap
+    def endOf(r: org.apache.spark.sql.Row) = r.getAs[String]("end_id")
+    def midOf(r: org.apache.spark.sql.Row) = pathArray(r)(0).getAs[String](1)
+
+    assert(endOf(byStart(P(1))) === P(3) && midOf(byStart(P(1))) === P(2)) // 1->2->3
+    assert(endOf(byStart(P(2))) === P(1) && midOf(byStart(P(2))) === P(3)) // 2->3->1
+    assert(endOf(byStart(P(3))) === P(2) && midOf(byStart(P(3))) === P(1)) // 3->1->2
+  }
+
+  test("var-length *3..3 traverses the full cycle: start equals end") {
+    // Each 3-hop walk returns to its start (the cycle has length 3).
+    val df = run("MATCH (a:Person)-[:KNOWS*3..3]->(b:Person)")
+    val rows = df.collect()
+    assert(rows.length === 3)
+    assert(rows.forall(r => r.getAs[String]("start_id") == r.getAs[String]("end_id")))
+    assert(rows.map(_.getAs[String]("start_id")).toSet === Set(P(1), P(2), P(3)))
+
+    // 1->2->3->1 carries intermediates Bob(2) then Carol(3); last entry has null node fields.
+    val r1 = rows.find(_.getAs[String]("start_id") == P(1)).get
+    val path = pathArray(r1)
+    assert(path.length === 3)
+    assert(path(0).getAs[String](1) === P(2))
+    assert(path(1).getAs[String](1) === P(3))
+    assert(path(2).isNullAt(1))
+  }
+
+  test("scan-local WHERE prunes the var-length start node end-to-end") {
+    // Only Bob (age 40) passes age > 30. From Bob: 2->3 (len 1) and 2->3->1 (len 2).
+    val df = run("MATCH (a:Person)-[:KNOWS*1..2]->(b:Person) WHERE a.age > 30")
+    val rows = df.collect()
+    assert(rows.length === 2)
+    assert(rows.forall(_.getAs[String]("start_id") == P(2)))
+    assert(rows.map(_.getAs[String]("end_id")).toSet === Set(P(3), P(1)))
+  }
+
+  test("var-length spliced before a fixed hop produces a heterogeneous path") {
+    // (a)-[:KNOWS*1..2]->(b)-[:WORKS_AT]->(c): 3 one-knows + 3 two-knows = 6 rows, ending on Company.
+    val df = run("MATCH (a:Person)-[:KNOWS*1..2]->(b:Person)-[:WORKS_AT]->(c:Company)")
+    val rows = df.collect()
+    assert(rows.length === 6)
+    assert(rows.forall(_.getAs[String]("start_property_group") == "Person"))
+    assert(rows.forall(_.getAs[String]("end_property_group") == "Company"))
+
+    // path length = total hops: 2 for one-KNOWS rows, 3 for two-KNOWS rows.
+    val sizes =
+      rows.map(r => pathArray(r).length).groupBy(identity).map(f => f._1 -> f._2.size).toMap
+    assert(sizes === Map(2 -> 3, 3 -> 3))
+    // The final hop is always WORKS_AT (the fixed tail), regardless of the KNOWS length.
+    assert(rows.forall(r => pathArray(r).last.getAs[String](0) == "WORKS_AT"))
   }
 }

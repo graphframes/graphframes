@@ -19,6 +19,7 @@ package org.graphframes.propertygraph.internal
 
 import org.graphframes.InvalidPropertyGroupException
 import org.graphframes.SparkFunSuite
+import org.graphframes.propertygraph.QueryOptions
 
 /**
  * Regression tests that lock in case-insensitive matching of vertex and edge labels in the GQL
@@ -35,25 +36,27 @@ class ResolverCaseInsensitiveSuite extends SparkFunSuite {
       SchemaEdge("KNOWS", "Person", "Person", true),
       SchemaEdge("WORKS_AT", "Person", "Company", true)))
 
+  val options: QueryOptions = QueryOptions()
+
   // ----- vertex label resolution --------------------------------------------
 
   test("lowercase vertex label resolves and preserves canonical case") {
     val ast = AstBuilder.parse("MATCH (a:person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.nodes.head.vertexGroupName === "Person")
   }
 
   test("uppercase vertex label resolves and preserves canonical case") {
     val ast = AstBuilder.parse("MATCH (a:PERSON)-[:WORKS_AT]->(b:company)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.nodes.map(_.vertexGroupName) === Vector("Person", "Company"))
   }
 
   test("mixed-case vertex label resolves and preserves canonical case") {
     val ast = AstBuilder.parse("MATCH (a:PeRsOn)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.nodes.head.vertexGroupName === "Person")
   }
@@ -62,14 +65,14 @@ class ResolverCaseInsensitiveSuite extends SparkFunSuite {
 
   test("lowercase edge label resolves and preserves canonical case") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:knows]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.steps.head.edge.edgeGroupName === "KNOWS")
   }
 
   test("mixed-case edge label resolves and preserves canonical case") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:WoRkS_aT]->(b:Company)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.steps.head.edge.edgeGroupName === "WORKS_AT")
   }
@@ -78,7 +81,7 @@ class ResolverCaseInsensitiveSuite extends SparkFunSuite {
 
   test("all-uppercase query resolves against mixed-case schema") {
     val ast = AstBuilder.parse("MATCH (a:PERSON)-[:WORKS_AT]->(b:COMPANY)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.nodes.map(_.vertexGroupName) === Vector("Person", "Company"))
     assert(rq.paths.head.steps.head.edge.edgeGroupName === "WORKS_AT")
@@ -89,14 +92,14 @@ class ResolverCaseInsensitiveSuite extends SparkFunSuite {
   test("unknown vertex label still throws InvalidPropertyGroupException") {
     val ast = AstBuilder.parse("MATCH (a:Nonexistent)")
     intercept[InvalidPropertyGroupException] {
-      Resolver.resolve(ast, schema)
+      Resolver.resolve(ast, schema, options)
     }
   }
 
   test("unknown edge label still throws InvalidPropertyGroupException") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:HATES]->(b:Person)")
     intercept[InvalidPropertyGroupException] {
-      Resolver.resolve(ast, schema)
+      Resolver.resolve(ast, schema, options)
     }
   }
 }

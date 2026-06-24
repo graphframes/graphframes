@@ -114,7 +114,8 @@ case class PropertyGraphFrame(
    *   a DataFrame over the fixed output schema.
    */
   def query(gql: String, options: QueryOptions): DataFrame = {
-    val resolved = resolve(gql, options, enforceMaxSchemaPathLength = true)
+    val resolved =
+      resolve(gql, options, enforceMaxSchemaPathLength = true, enforceMaxPathsCount = true)
     if (resolved.paths.isEmpty) {
       return QueryExecutor.execute(this, Seq.empty)
     }
@@ -174,7 +175,8 @@ case class PropertyGraphFrame(
   def explain(gql: String, mode: ExplainMode, options: QueryOptions): String = {
     // users should be able to see paths that exceed maxSchemaPathLength
     // even if it is not allowed for real queries.
-    val resolved = resolve(gql, options, enforceMaxSchemaPathLength = false)
+    val resolved =
+      resolve(gql, options, enforceMaxSchemaPathLength = false, enforceMaxPathsCount = false)
     mode match {
       case ExplainMode.Logical => GqlExplain.logical(resolved)
       case ExplainMode.Physical =>
@@ -192,12 +194,13 @@ case class PropertyGraphFrame(
   private def resolve(
       gql: String,
       options: QueryOptions,
-      enforceMaxSchemaPathLength: Boolean): ResolvedQuery = {
+      enforceMaxSchemaPathLength: Boolean,
+      enforceMaxPathsCount: Boolean): ResolvedQuery = {
     require(
       options.maxSchemaPathLength > 0,
       s"maxSchemaPathLength must be positive, got ${options.maxSchemaPathLength}")
     val ast = AstBuilder.parse(gql)
-    val resolved = Resolver.resolve(ast, schemaGraphSnapshot)
+    val resolved = Resolver.resolve(ast, schemaGraphSnapshot, options)
     if (enforceMaxSchemaPathLength) {
       resolved.paths.foreach { path =>
         require(
@@ -205,6 +208,11 @@ case class PropertyGraphFrame(
           s"Schema path length ${path.length} exceeds maxSchemaPathLength=${options.maxSchemaPathLength}: " +
             s"$path; try to rewrite the query and reduce a potential depth. Use `explain` to see the plan.")
       }
+    }
+    if (enforceMaxPathsCount) {
+      require(
+        resolved.paths.size <= options.maxEnumeratedPaths,
+        s"An amount of paths in the resolved query exceeds ${options.maxEnumeratedPaths}: " + "either use `explain` and modify the pattern or increase the value in `QueryOptions`")
     }
     resolved
   }

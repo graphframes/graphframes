@@ -18,6 +18,7 @@
 package org.graphframes.propertygraph.internal
 
 import org.graphframes.SparkFunSuite
+import org.graphframes.propertygraph.QueryOptions
 
 /**
  * Pure-JVM tests for `JoinOptimizer.plan`.
@@ -34,9 +35,11 @@ class JoinOptimizerSuite extends SparkFunSuite {
       SchemaEdge("WORKS_AT", "Person", "Company", true),
       SchemaEdge("LOCATED_IN", "Company", "City", true)))
 
+  val options: QueryOptions = QueryOptions()
+
   test("single-hop path yields one plan in pattern order n0,e0,n1") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val plans = JoinOptimizer.plan(rq, stats = None)
 
     assert(plans.length === 1)
@@ -51,7 +54,7 @@ class JoinOptimizerSuite extends SparkFunSuite {
   test("multi-hop pattern order interleaves nodes and edges") {
     val ast =
       AstBuilder.parse("MATCH (a:Person)-[:WORKS_AT]->(c:Company)-[:LOCATED_IN]->(d:City)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val plans = JoinOptimizer.plan(rq, stats = None)
 
     assert(plans.length === 1)
@@ -61,7 +64,7 @@ class JoinOptimizerSuite extends SparkFunSuite {
 
   test("untyped fan-out produces one plan per enumerated path") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[]->(x)-[]->(b:City)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val plans = JoinOptimizer.plan(rq, stats = None)
 
     // Only Person-WORKS_AT->Company-LOCATED_IN->City reaches City in two hops.
@@ -76,7 +79,7 @@ class JoinOptimizerSuite extends SparkFunSuite {
   test("predicates and projection are carried through to each plan") {
     val ast =
       AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > b.age RETURN a, b")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val plans = JoinOptimizer.plan(rq, stats = None)
 
     assert(plans.length === 1)
@@ -93,7 +96,7 @@ class JoinOptimizerSuite extends SparkFunSuite {
     // Construct a pattern that cannot resolve: City ->(none)-> Person in one hop is impossible
     // because no edge has City as src reaching Person. Use a label-only dead end.
     val ast = AstBuilder.parse("MATCH (a:City)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.isEmpty)
     val plans = JoinOptimizer.plan(rq, stats = None)
     assert(plans.isEmpty)
@@ -101,7 +104,7 @@ class JoinOptimizerSuite extends SparkFunSuite {
 
   test("stats argument is accepted but does not change v1 output") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val withStats = JoinOptimizer.plan(rq, Some(GraphStatistics.Empty))
     val withoutStats = JoinOptimizer.plan(rq, None)
     assert(withStats.map(_.order) === withoutStats.map(_.order))
@@ -110,7 +113,7 @@ class JoinOptimizerSuite extends SparkFunSuite {
 
   test("defaultPlanner and identityRefiner compose to the same as plan()") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     val direct = JoinOptimizer.plan(rq, None)
     val viaSPI = JoinOptimizer.identityRefiner(rq, JoinOptimizer.defaultPlanner(rq, None))
     assert(viaSPI.map(_.order) === direct.map(_.order))

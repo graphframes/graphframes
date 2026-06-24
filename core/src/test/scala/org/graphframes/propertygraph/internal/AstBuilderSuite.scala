@@ -49,18 +49,19 @@ class AstBuilderSuite extends SparkFunSuite {
     val GraphPattern(elements) = ast.pattern
     assert(elements.length === 3)
     assert(elements(0) === NodePattern(Some("a"), Some("Person")))
-    assert(elements(1) === EdgePattern(None, Some("KNOWS"), LeftToRight))
+    assert(elements(1) === EdgePattern(None, Some("KNOWS"), LeftToRight, None))
     assert(elements(2) === NodePattern(Some("b"), Some("Person")))
   }
 
   test("single directed edge left, with edge variable") {
     val ast = AstBuilder.parse("MATCH (a)<-[e:KNOWS]-(b)")
-    val GraphPattern(Seq(_, EdgePattern(Some("e"), Some("KNOWS"), RightToLeft), _)) = ast.pattern
+    val GraphPattern(Seq(_, EdgePattern(Some("e"), Some("KNOWS"), RightToLeft, None), _)) =
+      ast.pattern
   }
 
   test("anonymous edge") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[]->(b:Person)")
-    val GraphPattern(Seq(_, EdgePattern(None, None, LeftToRight), _)) = ast.pattern
+    val GraphPattern(Seq(_, EdgePattern(None, None, LeftToRight, None), _)) = ast.pattern
   }
 
   test("multi-hop chain") {
@@ -68,7 +69,7 @@ class AstBuilderSuite extends SparkFunSuite {
     val GraphPattern(elements) = ast.pattern
     assert(elements.length === 5)
     assert(elements(2) === NodePattern(Some("b"), Some("Person")))
-    assert(elements(3) === EdgePattern(None, Some("WORKS_AT"), LeftToRight))
+    assert(elements(3) === EdgePattern(None, Some("WORKS_AT"), LeftToRight, None))
     assert(elements(4) === NodePattern(Some("c"), Some("Company")))
   }
 
@@ -204,24 +205,25 @@ class AstBuilderSuite extends SparkFunSuite {
   test("single undirected edge, typed") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]-(b:Person)")
     val GraphPattern(elements) = ast.pattern
-    assert(elements(1) === EdgePattern(None, Some("KNOWS"), Undirected))
+    assert(elements(1) === EdgePattern(None, Some("KNOWS"), Undirected, None))
   }
 
   test("undirected edge with variable") {
     val ast = AstBuilder.parse("MATCH (a)-[e:KNOWS]-(b)")
-    val GraphPattern(Seq(_, EdgePattern(Some("e"), Some("KNOWS"), Undirected), _)) = ast.pattern
+    val GraphPattern(Seq(_, EdgePattern(Some("e"), Some("KNOWS"), Undirected, None), _)) =
+      ast.pattern
   }
 
   test("anonymous undirected edge") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[]-(b:Person)")
-    val GraphPattern(Seq(_, EdgePattern(None, None, Undirected), _)) = ast.pattern
+    val GraphPattern(Seq(_, EdgePattern(None, None, Undirected, None), _)) = ast.pattern
   }
 
   test("undirected edge in a multi-hop chain mixes with directed arrows") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]-(b:Person)-[:WORKS_AT]->(c:Company)")
     val GraphPattern(elements) = ast.pattern
-    assert(elements(1) === EdgePattern(None, Some("KNOWS"), Undirected))
-    assert(elements(3) === EdgePattern(None, Some("WORKS_AT"), LeftToRight))
+    assert(elements(1) === EdgePattern(None, Some("KNOWS"), Undirected, None))
+    assert(elements(3) === EdgePattern(None, Some("WORKS_AT"), LeftToRight, None))
   }
 
   // -----------------------------------------------------------------------

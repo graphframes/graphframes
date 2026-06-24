@@ -57,7 +57,13 @@ edgePattern
     ;
 
 edgeBody
-    : LBRACK (variable=IDENTIFIER)? (COLON label=IDENTIFIER)? RBRACK
+    : LBRACK (variable=IDENTIFIER)? (COLON label=IDENTIFIER)? quantifier? RBRACK
+    ;
+
+// Variable-length pattern: [KNOWS*1..3] or [KNOWS*3]
+quantifier
+    : STAR lo=INTEGER_LITERAL DOTDOT hi=INTEGER_LITERAL   // *1..3  (bounded range)
+    | STAR exact=INTEGER_LITERAL                          // *3     (exactly 3 hops)
     ;
 
 // ---------------------------------------------------------------------------

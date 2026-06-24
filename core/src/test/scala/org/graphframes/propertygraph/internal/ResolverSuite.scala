@@ -19,6 +19,7 @@ package org.graphframes.propertygraph.internal
 
 import org.graphframes.InvalidPropertyGroupException
 import org.graphframes.SparkFunSuite
+import org.graphframes.propertygraph.QueryOptions
 
 /**
  * Pure-JVM tests for `Resolver.resolve`. Each test builds a `MatchStatement` AST by hand (or via
@@ -38,9 +39,11 @@ class ResolverSuite extends SparkFunSuite {
       SchemaEdge("WORKS_AT", "Person", "Company", true),
       SchemaEdge("LOCATED_IN", "Company", "City", true)))
 
+  private val options = QueryOptions()
+
   test("typed single-hop pattern resolves to exactly one path") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.paths.length === 1)
     val path = rq.paths.head
@@ -58,7 +61,7 @@ class ResolverSuite extends SparkFunSuite {
     //   Person -WORKS_AT-> Company -LOCATED_IN-> City. (Person-KNOWS->Person has no onward edge to
     //   City.) So exactly one path survives, with the middle node resolved to Company.
     val ast = AstBuilder.parse("MATCH (a:Person)-[]->(x)-[]->(b:City)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.paths.length === 1)
     val path = rq.paths.head
@@ -71,13 +74,13 @@ class ResolverSuite extends SparkFunSuite {
   test("disconnected pattern yields no paths") {
     // No schema edge has City as src and Person as dst, and no 2-hop City->...->Person exists.
     val ast = AstBuilder.parse("MATCH (a:City)-[:KNOWS]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.isEmpty)
   }
 
   test("right-to-left arrow produces a backward step") {
     val ast = AstBuilder.parse("MATCH (a:Company)<-[:WORKS_AT]-(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.paths.length === 1)
     val step = rq.paths.head.steps.head
@@ -91,7 +94,7 @@ class ResolverSuite extends SparkFunSuite {
   test("self-loop group is enumerated without special-casing") {
     // KNOWS: Person->Person is a self-loop. A typed pattern over it resolves to a single path.
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.paths.length === 1)
     assert(rq.paths.head.length === 2)
@@ -102,7 +105,7 @@ class ResolverSuite extends SparkFunSuite {
     // MATCH (x)-[:LOCATED_IN]->(b:City): x must be a group that has an outgoing LOCATED_IN edge,
     // i.e. Company only. So one path.
     val ast = AstBuilder.parse("MATCH (x)-[:LOCATED_IN]->(b:City)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.nodes.head.vertexGroupName === "Company")
   }
@@ -111,7 +114,7 @@ class ResolverSuite extends SparkFunSuite {
     // MATCH (a:Person)-[]->(b:Person): Person->Person edges are KNOWS only. One path.
     // Person-WORKS_AT->Company does not land on Person. So one path.
     val ast = AstBuilder.parse("MATCH (a:Person)-[]->(b:Person)")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
     assert(rq.paths.length === 1)
     assert(rq.paths.head.steps.head.edge.edgeGroupName === "KNOWS")
   }
@@ -119,20 +122,20 @@ class ResolverSuite extends SparkFunSuite {
   test("unknown vertex label throws InvalidPropertyGroupException") {
     val ast = AstBuilder.parse("MATCH (a:Walrus)")
     intercept[InvalidPropertyGroupException] {
-      Resolver.resolve(ast, schema)
+      Resolver.resolve(ast, schema, options)
     }
   }
 
   test("unknown edge label throws InvalidPropertyGroupException") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:HATES]->(b:Person)")
     intercept[InvalidPropertyGroupException] {
-      Resolver.resolve(ast, schema)
+      Resolver.resolve(ast, schema, options)
     }
   }
 
   test("scan-local WHERE predicate is attached to the matching PathNode") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 30")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.joinPredicates === Nil)
     assert(rq.postFilters === Nil)
@@ -145,7 +148,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("two-variable adjacent WHERE predicate becomes a join predicate") {
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > b.age")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.joinPredicates.length === 1)
     assert(
@@ -160,7 +163,7 @@ class ResolverSuite extends SparkFunSuite {
   test("three-variable WHERE predicate becomes a post-filter") {
     val ast = AstBuilder.parse(
       "MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person) WHERE a.age > c.age")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     // a and c are non-adjacent (positions 0 and 4, differ by 4, not 2).
     assert(rq.joinPredicates === Nil)
@@ -175,7 +178,7 @@ class ResolverSuite extends SparkFunSuite {
   test("AND is split so each conjunct is classified independently") {
     val ast = AstBuilder.parse(
       "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 30 AND a.age > b.age AND 1 = 1")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.paths.head.nodes.head.scanFilter.length === 1) // a.age > 30
     assert(rq.joinPredicates.length === 1) // a.age > b.age
@@ -193,7 +196,7 @@ class ResolverSuite extends SparkFunSuite {
     // `year(a.creationDate) = 2012` references only `a` -> scan-local on `a`.
     val ast =
       AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE year(a.creationDate) = 2012")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.joinPredicates === Nil)
     assert(rq.postFilters === Nil)
@@ -214,7 +217,7 @@ class ResolverSuite extends SparkFunSuite {
     // forgot the FunctionCall arm, these columns would not be classified as carry-to-scan).
     val ast =
       AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE datediff(a.d, b.d) > 30")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.joinPredicates.length === 1)
     assert(
@@ -233,7 +236,7 @@ class ResolverSuite extends SparkFunSuite {
     // ScanKey memo sees a reproducible filter, not a post-join filter.
     val ast =
       AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE pmod(hash(a.id), 512) = 0")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.joinPredicates === Nil)
     assert(rq.postFilters === Nil)
@@ -256,7 +259,7 @@ class ResolverSuite extends SparkFunSuite {
     // referencedVariables / propertyAccesses (the node match is unchanged, only the op type
     // widened, but this pins the behaviour).
     val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.x * 2 > b.y")
-    val rq = Resolver.resolve(ast, schema)
+    val rq = Resolver.resolve(ast, schema, options)
 
     assert(rq.joinPredicates.length === 1)
     assert(
@@ -270,17 +273,17 @@ class ResolverSuite extends SparkFunSuite {
 
   test("projection default when RETURN omitted") {
     val ast = AstBuilder.parse("MATCH (a:Person)")
-    assert(Resolver.resolve(ast, schema).projection === Projection.Default)
+    assert(Resolver.resolve(ast, schema, options).projection === Projection.Default)
   }
 
   test("projection star") {
     val ast = AstBuilder.parse("MATCH (a:Person) RETURN *")
-    assert(Resolver.resolve(ast, schema).projection === Projection.Star)
+    assert(Resolver.resolve(ast, schema, options).projection === Projection.Star)
   }
 
   test("projection items") {
     val ast = AstBuilder.parse("MATCH (a:Person) RETURN a, a.name AS n")
-    val Projection.Items(items) = Resolver.resolve(ast, schema).projection
+    val Projection.Items(items) = Resolver.resolve(ast, schema, options).projection
     assert(items.length === 2)
     assert(items(1).alias === Some("n"))
   }
@@ -295,7 +298,7 @@ class ResolverSuite extends SparkFunSuite {
         SchemaEdge("e3", "B", "D", true),
         SchemaEdge("e4", "C", "D", true)))
     val ast = AstBuilder.parse("MATCH (x:A)-[]->()-[]->(y:D)")
-    val rq = Resolver.resolve(ast, multi)
+    val rq = Resolver.resolve(ast, multi, options)
 
     // Two chains: A-e1->B-e3->D and A-e2->C-e4->D.
     assert(rq.paths.length === 2)
@@ -331,7 +334,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: typed single node yields one zero-step path") {
     val (nodes, edges) = parsed("MATCH (a:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 0)
@@ -344,7 +347,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: untyped single node fans out over every vertex group") {
     val (nodes, edges) = parsed("MATCH (x)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 3)
     assert(paths.map(_.nodes.head.vertexGroupName).toSet === Set("Person", "Company", "City"))
     paths.foreach { p =>
@@ -356,7 +359,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: anonymous single node fans out with no variable") {
     val (nodes, edges) = parsed("MATCH ()")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 3)
     paths.foreach { p =>
       assert(p.length === 0)
@@ -366,7 +369,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: label-only single node (no variable) resolves") {
     val (nodes, edges) = parsed("MATCH (:Company)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     assert(paths.head.nodes.head.vertexGroupName === "Company")
     assert(paths.head.nodes.head.variable === None)
@@ -374,7 +377,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: typed start label matches case-insensitively") {
     val (nodes, edges) = parsed("MATCH (a:PERSON)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     // The resolved group preserves the schema's canonical casing, not the query's casing.
     assert(paths.head.nodes.head.vertexGroupName === "Person")
@@ -383,14 +386,14 @@ class ResolverSuite extends SparkFunSuite {
   test("enumeratePaths: unknown start label yields no paths rather than throwing") {
     // `validateLabels` (upstream) is what throws; the DFS itself just sees an empty start set.
     val (nodes, edges) = parsed("MATCH (a:Walrus)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.isEmpty)
   }
 
   test("enumeratePaths: empty schema yields no paths for an untyped single node") {
     val empty = SchemaGraphSnapshot(vertexGroupNames = Set.empty, edges = Vector.empty)
     val (nodes, edges) = parsed("MATCH (x)")
-    val paths = Resolver.enumeratePaths(nodes, edges, empty)
+    val paths = Resolver.enumeratePaths(nodes, edges, empty, options)
     assert(paths.isEmpty)
   }
 
@@ -398,7 +401,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: typed forward single hop resolves to exactly one path") {
     val (nodes, edges) = parsed("MATCH (a:Person)-[:KNOWS]->(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 1)
@@ -411,7 +414,7 @@ class ResolverSuite extends SparkFunSuite {
   test("enumeratePaths: untyped edge from Person fans out over both outgoing groups") {
     // Person has two outgoing edges: KNOWS->Person and WORKS_AT->Company.
     val (nodes, edges) = parsed("MATCH (a:Person)-[]->(b)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 2)
     val edgeNames = paths.map(_.steps.head.edge.edgeGroupName).toSet
     assert(edgeNames === Set("KNOWS", "WORKS_AT"))
@@ -425,7 +428,7 @@ class ResolverSuite extends SparkFunSuite {
     // From Person the candidates are KNOWS->Person and WORKS_AT->Company; typing the edge as
     // WORKS_AT keeps only the latter.
     val (nodes, edges) = parsed("MATCH (a:Person)-[:WORKS_AT]->(b)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     assert(paths.head.steps.head.edge.edgeGroupName === "WORKS_AT")
     assert(paths.head.nodes.map(_.vertexGroupName) === Vector("Person", "Company"))
@@ -434,7 +437,7 @@ class ResolverSuite extends SparkFunSuite {
   test("enumeratePaths: typed next-node label prunes candidates") {
     // From Person (untyped edge), only WORKS_AT lands on Company.
     val (nodes, edges) = parsed("MATCH (a:Person)-[]->(b:Company)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     assert(paths.head.steps.head.edge.edgeGroupName === "WORKS_AT")
     assert(paths.head.nodes.last.vertexGroupName === "Company")
@@ -443,27 +446,27 @@ class ResolverSuite extends SparkFunSuite {
   test("enumeratePaths: edge label absent from outgoing candidates yields no paths") {
     // Company's only outgoing edge is LOCATED_IN->City; asking for KNOWS yields nothing.
     val (nodes, edges) = parsed("MATCH (a:Company)-[:KNOWS]->(b)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.isEmpty)
   }
 
   test("enumeratePaths: start group with no outgoing edges yields no forward paths") {
     // City is a pure sink in the schema.
     val (nodes, edges) = parsed("MATCH (a:City)-[]->(b)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.isEmpty)
   }
 
   test("enumeratePaths: next-node label that no candidate satisfies yields no paths") {
     // From Person, neither KNOWS->Person nor WORKS_AT->Company lands on City.
     val (nodes, edges) = parsed("MATCH (a:Person)-[]->(b:City)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.isEmpty)
   }
 
   test("enumeratePaths: edge label matches case-insensitively") {
     val (nodes, edges) = parsed("MATCH (a:Person)-[:knows]->(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     // The step carries the schema's canonical edge-group name.
     assert(paths.head.steps.head.edge.edgeGroupName === "KNOWS")
@@ -471,14 +474,14 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: next-node label matches case-insensitively") {
     val (nodes, edges) = parsed("MATCH (a:Person)-[]->(b:COMPANY)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     assert(paths.head.nodes.last.vertexGroupName === "Company")
   }
 
   test("enumeratePaths: edge variable is preserved on the resolved step") {
     val (nodes, edges) = parsed("MATCH (a:Person)-[e:KNOWS]->(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     assert(paths.head.steps.head.variable === Some("e"))
   }
@@ -487,7 +490,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: typed backward single hop produces one backward step") {
     val (nodes, edges) = parsed("MATCH (a:Company)<-[:WORKS_AT]-(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 1)
@@ -500,7 +503,7 @@ class ResolverSuite extends SparkFunSuite {
   test("enumeratePaths: untyped backward edge fans out over all incoming edges") {
     // Untyped start + backward edge: each start group enumerates its incoming edges.
     val (nodes, edges) = parsed("MATCH (x)<-[]-(y)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     // Start candidates: Person, Company, City.
     //  - Person:  incoming = KNOWS from Person.   => Person<-KNOWS-Person.
     //  - Company: incoming = WORKS_AT from Person. => Company<-WORKS_AT-Person.
@@ -525,7 +528,7 @@ class ResolverSuite extends SparkFunSuite {
       vertexGroupNames = Set("A", "B"),
       edges = Vector(SchemaEdge("ab", "A", "B", true)))
     val (nodes, edges) = parsed("MATCH (x:A)<-[]-(y)")
-    val paths = Resolver.enumeratePaths(nodes, edges, src)
+    val paths = Resolver.enumeratePaths(nodes, edges, src, options)
     assert(paths.isEmpty)
   }
 
@@ -539,7 +542,7 @@ class ResolverSuite extends SparkFunSuite {
         SchemaEdge("e2", "B", "C", true),
         SchemaEdge("e3", "C", "D", true)))
     val (nodes, edges) = parsed("MATCH (x:A)-[]->()-[]->()-[]->(y:D)")
-    val paths = Resolver.enumeratePaths(nodes, edges, chain)
+    val paths = Resolver.enumeratePaths(nodes, edges, chain, options)
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 3)
@@ -557,7 +560,7 @@ class ResolverSuite extends SparkFunSuite {
         SchemaEdge("bd", "B", "D", true),
         SchemaEdge("cd", "C", "D", true)))
     val (nodes, edges) = parsed("MATCH (x:A)-[]->()-[]->(y:D)")
-    val paths = Resolver.enumeratePaths(nodes, edges, diamond)
+    val paths = Resolver.enumeratePaths(nodes, edges, diamond, options)
     assert(paths.length === 2)
     val midGroups = paths.map(_.nodes(1).vertexGroupName).toSet
     assert(midGroups === Set("B", "C"))
@@ -578,7 +581,7 @@ class ResolverSuite extends SparkFunSuite {
     //    => no paths.
     // Net: exactly one path survives, demonstrating the DFS prunes mid-chain, not just at the root.
     val (nodes, edges) = parsed("MATCH (a:Person)-[]->()-[]->(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 2)
@@ -588,7 +591,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: self-loop group enumerates a multi-hop chain without special-casing") {
     val (nodes, edges) = parsed("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 2)
@@ -602,7 +605,7 @@ class ResolverSuite extends SparkFunSuite {
     // Two employees of the same company: Person -WORKS_AT-> Company <-WORKS_AT- Person.
     val (nodes, edges) =
       parsed("MATCH (a:Person)-[:WORKS_AT]->(c:Company)<-[:WORKS_AT]-(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, schema)
+    val paths = Resolver.enumeratePaths(nodes, edges, schema, options)
     assert(paths.length === 1)
     val p = paths.head
     assert(p.length === 2)
@@ -618,7 +621,7 @@ class ResolverSuite extends SparkFunSuite {
       vertexGroupNames = Set("A", "B"),
       edges = Vector(SchemaEdge("e1", "A", "B", true), SchemaEdge("e2", "A", "B", true)))
     val (nodes, edges) = parsed("MATCH (a:A)-[]->(b:B)")
-    val paths = Resolver.enumeratePaths(nodes, edges, parallel)
+    val paths = Resolver.enumeratePaths(nodes, edges, parallel, options)
     assert(paths.length === 2)
     assert(paths.map(_.steps.head.edge.edgeGroupName).toSet === Set("e1", "e2"))
     paths.foreach { p =>
@@ -637,7 +640,7 @@ class ResolverSuite extends SparkFunSuite {
         SchemaEdge("bd", "B", "D", true),
         SchemaEdge("cd", "C", "D", true)))
     val (nodes, edges) = parsed("MATCH (x)-[]->()-[]->(y)")
-    val paths = Resolver.enumeratePaths(nodes, edges, diamond)
+    val paths = Resolver.enumeratePaths(nodes, edges, diamond, options)
     assert(paths.length === 2)
     paths.foreach { p =>
       assert(p.length === 2)
@@ -649,7 +652,7 @@ class ResolverSuite extends SparkFunSuite {
   test("enumeratePaths: edge-less schema yields no paths for any multi-hop pattern") {
     val noEdges = SchemaGraphSnapshot(vertexGroupNames = Set("A", "B"), edges = Vector.empty)
     val (nodes, edges) = parsed("MATCH (a:A)-[]->(b:B)")
-    val paths = Resolver.enumeratePaths(nodes, edges, noEdges)
+    val paths = Resolver.enumeratePaths(nodes, edges, noEdges, options)
     assert(paths.isEmpty)
   }
 
@@ -668,7 +671,7 @@ class ResolverSuite extends SparkFunSuite {
   test(
     "enumeratePaths: undirected pattern over a directed cross-group edge -> one forward path") {
     val (nodes, edges) = parsed("MATCH (a:Person)-[:WORKS_AT]-(b:Company)")
-    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema, options)
     assert(paths.length === 1)
     assert(paths.head.steps.head.edge.edgeGroupName === "WORKS_AT")
     assert(paths.head.steps.head.traversedForward === true)
@@ -678,7 +681,7 @@ class ResolverSuite extends SparkFunSuite {
   test(
     "enumeratePaths: undirected pattern over a directed edge from the dst side -> one backward path") {
     val (nodes, edges) = parsed("MATCH (a:Company)-[:WORKS_AT]-(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema, options)
     assert(paths.length === 1)
     assert(paths.head.steps.head.traversedForward === false)
     assert(paths.head.nodes.map(_.vertexGroupName) === Vector("Company", "Person"))
@@ -688,7 +691,7 @@ class ResolverSuite extends SparkFunSuite {
     // FOLLOWS is directed: (a follows b) and (b follows a) are distinct matches,
     // so an undirected match must surface BOTH as separate paths.
     val (nodes, edges) = parsed("MATCH (a:Person)-[:FOLLOWS]-(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema, options)
     assert(paths.length === 2)
     assert(paths.map(_.steps.head.traversedForward).toSet === Set(true, false))
     paths.foreach { p =>
@@ -702,7 +705,7 @@ class ResolverSuite extends SparkFunSuite {
     // KNOWS is isDirected = false: getData already unions both orientations, so the
     // resolver must emit a SINGLE forward path -- a second path would double-count.
     val (nodes, edges) = parsed("MATCH (a:Person)-[:KNOWS]-(b:Person)")
-    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema, options)
     assert(paths.length === 1)
     assert(paths.head.steps.head.edge.edgeGroupName === "KNOWS")
     assert(paths.head.steps.head.traversedForward === true)
@@ -710,7 +713,7 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: untyped undirected edge from Person fans out, with self-loop dedup") {
     val (nodes, edges) = parsed("MATCH (a:Person)-[]-(b)")
-    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema)
+    val paths = Resolver.enumeratePaths(nodes, edges, mixedSchema, options)
     // forward (outgoing): KNOWS->Person, FOLLOWS->Person, WORKS_AT->Company
     // backward (incoming, dst==Person): KNOWS (dropped: undirected self-loop), FOLLOWS (kept)
     val sig =
@@ -723,6 +726,148 @@ class ResolverSuite extends SparkFunSuite {
 
   test("enumeratePaths: undirected disconnected pattern yields no paths") {
     val (nodes, edges) = parsed("MATCH (a:Company)-[:WORKS_AT]-(b:Company)")
-    assert(Resolver.enumeratePaths(nodes, edges, mixedSchema).isEmpty)
+    assert(Resolver.enumeratePaths(nodes, edges, mixedSchema, options).isEmpty)
+  }
+
+  // --- Variable-length patterns -------------------------------------------
+  //
+  // A bounded `*lo..hi` edge desugars into the union of fixed-length paths (one per length in
+  // [lo, hi]) with anonymous intermediate nodes. These tests use the `schema` fixture, whose
+  // KNOWS edge is a Person->Person self-loop, so a single var-length edge produces several
+  // distinct path lengths over the same group.
+
+  test("var-length *1..3 over a self-loop expands to one path per length (1, 2, 3)") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..3]->(b:Person)")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.paths.length === 3)
+    assert(rq.paths.map(_.length).sorted === Vector(1, 2, 3))
+    rq.paths.foreach { p =>
+      assert(p.nodes.forall(_.vertexGroupName == "Person"))
+      assert(p.steps.forall(s => s.edge.edgeGroupName == "KNOWS" && s.traversedForward))
+    }
+  }
+
+  test("var-length keeps endpoint variables and makes intermediate nodes anonymous") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..2]->(b:Person)")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    // The 2-hop path is (a) - KNOWS -> (anon) - KNOWS -> (b).
+    val twoHop = rq.paths.find(_.length == 2).getOrElse(fail("expected a 2-hop path"))
+    assert(twoHop.nodes.head.variable === Some("a"))
+    assert(twoHop.nodes.last.variable === Some("b"))
+    assert(twoHop.nodes(1).variable === None)
+    // The synthetic step carries no edge variable.
+    assert(twoHop.steps.forall(_.variable.isEmpty))
+  }
+
+  test("var-length *2..2 resolves to exactly the two-hop path") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*2..2]->(b:Person)")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.paths.length === 1)
+    assert(rq.paths.head.length === 2)
+    assert(rq.paths.head.nodes(1).variable === None)
+  }
+
+  test("var-length *N (exact) matches exactly N hops, not 1..N") {
+    // `*3` means EXACTLY three hops -> a single 3-hop path, NOT the union of 1,2,3.
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*3]->(b:Person)")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.paths.length === 1)
+    assert(rq.paths.head.length === 3)
+  }
+
+  test("var-length endpoint label filters the final node group") {
+    // KNOWS only ever lands on Person, so a Company endpoint yields no paths.
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..2]->(b:Company)")
+    val rq = Resolver.resolve(ast, schema, options)
+    assert(rq.paths.isEmpty)
+  }
+
+  test("untyped var-length fans out over candidate edge groups at every hop") {
+    // (a:Person)-[*1..2]->(x):
+    //   length 1: Person-KNOWS->Person, Person-WORKS_AT->Company                      (2 paths)
+    //   length 2: Person-KNOWS->Person-{KNOWS->Person, WORKS_AT->Company},
+    //             Person-WORKS_AT->Company-LOCATED_IN->City                            (3 paths)
+    val ast = AstBuilder.parse("MATCH (a:Person)-[*1..2]->(x)")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.paths.length === 5)
+    assert(rq.paths.count(_.length == 1) === 2)
+    assert(rq.paths.count(_.length == 2) === 3)
+  }
+
+  test("var-length spliced before a following fixed hop") {
+    // (a:Person)-[:KNOWS*1..2]->(b:Person)-[:WORKS_AT]->(c:Company)
+    //   length 2: KNOWS, WORKS_AT
+    //   length 3: KNOWS, KNOWS, WORKS_AT
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..2]->(b:Person)-[:WORKS_AT]->(c:Company)")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.paths.length === 2)
+    assert(rq.paths.map(_.length).sorted === Vector(2, 3))
+    rq.paths.foreach { p =>
+      assert(p.steps.last.edge.edgeGroupName === "WORKS_AT")
+      assert(p.steps.init.forall(_.edge.edgeGroupName == "KNOWS"))
+      assert(p.nodes.last.vertexGroupName === "Company")
+    }
+  }
+
+  test("scan-local WHERE on a var-length endpoint is attached to that endpoint only") {
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..2]->(b:Person) WHERE a.age > 30")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.joinPredicates === Nil)
+    assert(rq.postFilters === Nil)
+    rq.paths.foreach { p =>
+      // `a` is always node 0; the predicate rides there. Intermediates/`b` carry nothing.
+      assert(p.nodes.head.scanFilter.length === 1)
+      assert(p.nodes.tail.forall(_.scanFilter.isEmpty))
+    }
+  }
+
+  test("var-length hi above maxVarLength is rejected") {
+    // Intended type is a parse/validation error; assert rejection regardless of the exact type.
+    intercept[Exception] {
+      Resolver.resolve(
+        AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..6]->(b:Person)"),
+        schema,
+        options
+      ) // default maxVarLength = 5
+    }
+  }
+
+  test("var-length hi above a custom maxVarLength is rejected (bound is on hi, not the span)") {
+    // *1..3 has span 2 but max-hops 3; with maxVarLength = 2 it must be rejected.
+    intercept[Exception] {
+      Resolver.resolve(
+        AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..3]->(b:Person)"),
+        schema,
+        QueryOptions(maxVarLength = 2))
+    }
+  }
+
+  test("var-length lo below 1 is rejected") {
+    // `*0..2` must be rejected (no zero-length hop in v1), not produce a malformed path.
+    intercept[Exception] {
+      Resolver.resolve(
+        AstBuilder.parse("MATCH (a:Person)-[:KNOWS*0..2]->(b:Person)"),
+        schema,
+        options)
+    }
+  }
+
+  test("var-length lo greater than hi is rejected") {
+    // `*3..1` is an empty range; it must fail rather than silently yield no paths.
+    intercept[Exception] {
+      Resolver.resolve(
+        AstBuilder.parse("MATCH (a:Person)-[:KNOWS*3..1]->(b:Person)"),
+        schema,
+        options)
+    }
   }
 }

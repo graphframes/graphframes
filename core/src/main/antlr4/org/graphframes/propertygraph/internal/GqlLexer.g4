@@ -59,6 +59,7 @@ STAR:        '*';
 SLASH:       '/';
 PERCENT:     '%';
 DOT:         '.';
+DOTDOT:      '..';
 COMMA:       ',';
 COLON:       ':';
 LPAREN:      '(';
@@ -75,7 +76,7 @@ RBRACE:      '}';
 // Single-quoted string with '' escape, per SQL/GQL convention.
 STRING_LITERAL: '\'' ( ~'\'' | '\'\'' )* '\'';
 
-DECIMAL_LITERAL: DIGIT+ '.' DIGIT+ | DIGIT+ '.' | '.' DIGIT+;
+DECIMAL_LITERAL: DIGIT+ '.' DIGIT+;
 INTEGER_LITERAL: DIGIT+;
 
 // ---------------------------------------------------------------------------

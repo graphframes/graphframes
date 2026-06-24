@@ -40,18 +40,43 @@ private[propertygraph] sealed trait PatternElement
 private[propertygraph] final case class NodePattern(
     variable: Option[String],
     label: Option[String])
-    extends PatternElement
+    extends PatternElement {
+
+  override def toString: String = {
+    val innerPart = variable.getOrElse("") + label.map(f => s":$f").getOrElse("")
+    s"($innerPart)"
+  }
+}
 
 /**
- * `-[variable?:label?]->` or `<-[variable?:label?]-`. Only directed edges for now; the parser
- * rejects undirected `(a)-[e]-(b)`.
+ * `-[variable?:label?]->` or `<-[variable?:label?]-`. Directed, undirected edges. Variable-length
+ * edges.
  */
 private[propertygraph] final case class EdgePattern(
     variable: Option[String],
     label: Option[String],
-    direction: Direction)
-    extends PatternElement
+    direction: Direction,
+    hopsRange: Option[(Int, Int)])
+    extends PatternElement {
 
+  override def toString: String = {
+    val varPart = variable.map(v => s"$v").getOrElse("")
+    val labelPart = label.map(l => s":$l").getOrElse("")
+    val edgeCore = s"$varPart$labelPart"
+    val hopsPart = hopsRange match {
+      case Some((lo, hi)) if lo == hi && lo == 1 => ""
+      case Some((lo, hi)) if lo == hi => s"*$lo"
+      case Some((lo, hi)) => s"*$lo..$hi"
+      case None => ""
+    }
+    val edgeStr = s"-[$edgeCore$hopsPart]-"
+    direction match {
+      case LeftToRight => s"$edgeStr>"
+      case RightToLeft => s"<$edgeStr"
+      case Undirected => edgeStr
+    }
+  }
+}
 private[propertygraph] sealed trait Direction
 private[propertygraph] case object LeftToRight extends Direction // `-[e]->`
 private[propertygraph] case object RightToLeft extends Direction // `<-[e]-`
