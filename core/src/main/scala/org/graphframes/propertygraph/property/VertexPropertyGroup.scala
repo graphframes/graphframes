@@ -57,23 +57,33 @@ case class VertexPropertyGroup(
     this
   }
 
-  private[graphframes] def internalIdMapping: DataFrame = data
+  private[propertygraph] def internalIdMapping: DataFrame = data
     .select(col(primaryKeyColumn).alias(PropertyGraphFrame.EXTERNAL_ID))
     .withColumn(
       GraphFrame.ID,
       concat(lit(name), sha2(col(PropertyGraphFrame.EXTERNAL_ID).cast(StringType), 256)))
 
-  override protected[graphframes] def getData(filter: Column): DataFrame = {
-    val filteredData = data
-      .filter(filter)
-    val withId = if (applyMaskOnId) {
-      filteredData.select(
-        concat(lit(name), sha2(col(primaryKeyColumn).cast(StringType), 256)).alias(GraphFrame.ID))
+  override private[propertygraph] def getData(
+      filter: Column,
+      requestedProperties: Seq[String]): DataFrame = {
+    val filteredData = data.filter(filter)
+
+    // The masked/raw id column is always emitted first, regardless of requested properties.
+    val idCol = if (applyMaskOnId) {
+      concat(lit(name), sha2(col(primaryKeyColumn).cast(StringType), 256))
     } else {
-      filteredData.select(col(primaryKeyColumn).cast(StringType).alias(GraphFrame.ID))
+      col(primaryKeyColumn).cast(StringType)
     }
 
-    withId.select(col(GraphFrame.ID), lit(name).alias(PropertyGraphFrame.PROPERTY_GROUP_COL_NAME))
+    // Requested properties are carried through unmodified (they are not join keys, never masked).
+    // Unknown requested property names are dropped silently -- the caller (the query engine) is
+    // expected to validate them against `data.columns` before requesting.
+    val availableProperties = requestedProperties.filter(data.columns.contains)
+
+    val baseCols =
+      Seq(idCol.alias(GraphFrame.ID), lit(name).alias(PropertyGraphFrame.PROPERTY_GROUP_COL_NAME))
+
+    filteredData.select(baseCols ++ availableProperties.map(col): _*)
   }
 }
 
