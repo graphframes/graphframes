@@ -21,9 +21,6 @@ package org.graphframes.propertygraph.internal
  * Per-column statistics for a property group. All fields optional and additive: future statistics
  * providers can fill more of them without changing callers or the path/plan types.
  *
- * v1 providers populate at most `distinctCount`/`nullCount`/`min`/`max`; most leave everything
- * `None`.
- *
  * @param distinctCount
  *   estimated number of distinct values, if known.
  * @param nullCount
@@ -42,9 +39,6 @@ private[propertygraph] final case class ColumnStatistics(
 /**
  * Per-group statistics (a vertex property group or an edge property group).
  *
- * v1 fills only `rowCount`; `sizeInBytes` and `columns` are reserved for richer future providers
- * (Parquet footers, CBO stats, …). All fields optional and additive.
- *
  * @param rowCount
  *   number of rows in the group, if known.
  * @param sizeInBytes
@@ -61,10 +55,6 @@ private[propertygraph] final case class GroupStatistics(
  * Statistics source SPI. The optimizer queries it by group name; the *source* is pluggable so
  * that future implementations (Parquet footer min/max, managed-table CBO, …) can be swapped in
  * with no change to callers or to the path/plan types.
- *
- * v1: the optimizer does not yet consume live statistics (it plans in pattern order); this trait
- * exists so the future optimization plugs in without API churn. `GraphStatistics.Empty` is the
- * no-op implementation used until then.
  */
 private[propertygraph] trait GraphStatistics {
 
@@ -87,9 +77,6 @@ private[propertygraph] object GraphStatistics {
    * Build a provider that caches `rowCount` per group on first access by calling `df.count()`.
    * The cache is built lazily and shared across `vertexGroup`/`edgeGroup` lookups. All
    * non-rowCount fields stay empty.
-   *
-   * NOTE: wired but not yet consumed by the v1 optimizer; parked for the statistics-driven join
-   * ordering described in design §5.4/§6.
    */
   def cachedRowCount(
       vertexRowCounts: Map[String, Long],

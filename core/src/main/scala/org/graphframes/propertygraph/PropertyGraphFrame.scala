@@ -121,7 +121,7 @@ case class PropertyGraphFrame(
     }
 
     // Cost-based optimization and statistics will follow
-    val _ = options.enableStatistics
+    val _ = options.enableStatistics // placeholder
     val plans = JoinOptimizer.plan(resolved, stats = None)
     QueryExecutor.execute(this, plans)
   }
@@ -129,7 +129,7 @@ case class PropertyGraphFrame(
   /**
    * Renders the logical (resolved) plan of `gql` without executing it.
    *
-   * This is a convenience overload equivalent to `explain(gql, ExplainMode.Logical)`. To see the
+   * This is a convenience overload equivalent to `fexplain(gql, ExplainMode.Logical)`. To see the
    * per-path join plans (order + statistics basis).
    *
    * @param gql
