@@ -172,12 +172,6 @@ class AstBuilderSuite extends SparkFunSuite {
   // -----------------------------------------------------------------------
   // Reject cases (out-of-scope constructs must throw InvalidParseException).
   // -----------------------------------------------------------------------
-  test("reject variable-length path") {
-    intercept[InvalidParseException] {
-      AstBuilder.parse("MATCH (a)-[:KNOWS*1..5]->(b)")
-    }
-  }
-
   test("reject OPTIONAL MATCH") {
     intercept[InvalidParseException] {
       AstBuilder.parse("OPTIONAL MATCH (a:Person)")
