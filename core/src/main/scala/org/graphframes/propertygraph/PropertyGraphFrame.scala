@@ -5,6 +5,13 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
 import org.graphframes.GraphFrame
+import org.graphframes.propertygraph.internal.AstBuilder
+import org.graphframes.propertygraph.internal.GqlExplain
+import org.graphframes.propertygraph.internal.JoinOptimizer
+import org.graphframes.propertygraph.internal.QueryExecutor
+import org.graphframes.propertygraph.internal.ResolvedQuery
+import org.graphframes.propertygraph.internal.Resolver
+import org.graphframes.propertygraph.internal.SchemaGraphSnapshot
 import org.graphframes.propertygraph.property.EdgePropertyGroup
 import org.graphframes.propertygraph.property.VertexPropertyGroup
 
@@ -34,10 +41,181 @@ case class PropertyGraphFrame(
     vertexPropertyGroups: Seq[VertexPropertyGroup],
     edgesPropertyGroups: Seq[EdgePropertyGroup]) {
   import PropertyGraphFrame._
-  lazy private val vertexGroups: Map[String, VertexPropertyGroup] =
-    vertexPropertyGroups.map(pg => pg.name -> pg).toMap
-  lazy private val edgeGroups: Map[String, EdgePropertyGroup] =
-    edgesPropertyGroups.map(pg => pg.name -> pg).toMap
+
+  // Keys are lowercased so that lookups in toGraphFrame and projectionBy are case-insensitive.
+  // It is an overall policy across all the LPG functionality.
+  lazy private[propertygraph] val vertexGroups: Map[String, VertexPropertyGroup] =
+    vertexPropertyGroups.map(pg => pg.name.toLowerCase -> pg).toMap
+  lazy private[propertygraph] val edgeGroups: Map[String, EdgePropertyGroup] =
+    edgesPropertyGroups.map(pg => pg.name.toLowerCase -> pg).toMap
+
+  lazy private[propertygraph] val schemaGraphSnapshot: SchemaGraphSnapshot =
+    SchemaGraphSnapshot.fromPropertyGraphFrame(this)
+
+  /**
+   * Returns a human-readable description of the property graph schema.
+   *
+   * The output lists all vertex property groups and edge property groups with their
+   * source/destination connections, sorted alphabetically for determinism.
+   *
+   * @return
+   *   a multi-line string describing the graph schema
+   */
+  def schemaString: String = SchemaGraphSnapshot.toString(schemaGraphSnapshot)
+
+  /**
+   * Returns the property graph schema in DOT (Graphviz) format.
+   *
+   * The output is a valid `digraph` that can be rendered by Graphviz tools. Vertex property
+   * groups appear as nodes and edge property groups appear as directed edges labeled with the
+   * group name.
+   *
+   * @return
+   *   a DOT-format string representing the graph schema
+   */
+  def schemaStringDOT: String = SchemaGraphSnapshot.toDOT(schemaGraphSnapshot)
+
+  /**
+   * Executes a GQL `MATCH` query against this property graph and returns the matched paths as a
+   * Spark DataFrame with a fixed output schema:
+   *   - `start_id`, `start_property_group`, `end_id`, `end_property_group`,
+   *     `edge_property_group`, and a
+   *     `path: array<struct<edge_property_group, node_id, node_property_group>>` column for
+   *     intermediate hops.
+   *
+   * This is a convenience overload equivalent to `query(gql, QueryOptions())`.
+   *
+   * @param gql
+   *   a GQL `MATCH` statement in the supported subset.
+   * @return
+   *   a DataFrame over the fixed output schema.
+   */
+  def query(gql: String): DataFrame = query(gql, QueryOptions())
+
+  /**
+   * Executes a GQL `MATCH` query against this property graph and returns the matched paths as a
+   * Spark DataFrame with a fixed output schema:
+   *   - `start_id`, `start_property_group`, `end_id`, `end_property_group`,
+   *     `edge_property_group`, and a
+   *     `path: array<struct<edge_property_group, node_id, node_property_group>>` column for
+   *     intermediate hops.
+   *
+   * The query is compiled through: ANTLR parse -> AST -> schema resolution -> join planning ->
+   * DataFrame execution (per-path `UNION ALL`). Disconnected patterns (no schema path matches)
+   * return an empty DataFrame without touching data. Bad syntax throws
+   * [[org.graphframes.InvalidParseException]]; unknown labels throw
+   * [[org.graphframes.InvalidPropertyGroupException]].
+   *
+   * @param gql
+   *   a GQL `MATCH` statement in the supported subset.
+   * @param options
+   *   query options
+   * @return
+   *   a DataFrame over the fixed output schema.
+   */
+  def query(gql: String, options: QueryOptions): DataFrame = {
+    val resolved =
+      resolve(gql, options, enforceMaxSchemaPathLength = true, enforceMaxPathsCount = true)
+    if (resolved.paths.isEmpty) {
+      return QueryExecutor.execute(this, Seq.empty)
+    }
+
+    // Cost-based optimization and statistics will follow
+    val _ = options.enableStatistics // placeholder
+    val plans = JoinOptimizer.plan(resolved, stats = None)
+    QueryExecutor.execute(this, plans)
+  }
+
+  /**
+   * Renders the logical (resolved) plan of `gql` without executing it.
+   *
+   * This is a convenience overload equivalent to `fexplain(gql, ExplainMode.Logical)`. To see the
+   * per-path join plans (order + statistics basis).
+   *
+   * @param gql
+   *   a GQL `MATCH` statement in the supported subset.
+   * @return
+   *   a string describing the resolved (logical) plan.
+   */
+  def explain(gql: String): String = explain(gql, ExplainMode.Logical)
+
+  /**
+   * Renders a plan of `gql` without executing it, using default query options.
+   *
+   * This is a convenience overload equivalent to `explain(gql, mode, QueryOptions())`. Pass
+   * [[ExplainMode.Physical]] to see the per-path join plans (order + statistics basis);
+   * [[ExplainMode.Logical]] shows the resolved (logical) plan.
+   *
+   * @param gql
+   *   a GQL `MATCH` statement in the supported subset.
+   * @param mode
+   *   the explain mode: [[ExplainMode.Logical]] for the resolved plan or [[ExplainMode.Physical]]
+   *   for the per-path join plans.
+   * @return
+   *   a string describing the requested plan.
+   */
+  def explain(gql: String, mode: ExplainMode): String = explain(gql, mode, QueryOptions())
+
+  /**
+   * Renders a plan of `gql` without executing it.
+   *
+   * Pass [[ExplainMode.Physical]] to see the per-path join plans (order + statistics basis);
+   * [[ExplainMode.Logical]] shows the resolved (logical) plan.
+   *
+   * @param gql
+   *   a GQL `MATCH` statement in the supported subset.
+   * @param mode
+   *   the explain mode: [[ExplainMode.Logical]] for the resolved plan or [[ExplainMode.Physical]]
+   *   for the per-path join plans.
+   * @param options
+   *   query options.
+   * @return
+   *   a string describing the requested plan.
+   */
+  def explain(gql: String, mode: ExplainMode, options: QueryOptions): String = {
+    // users should be able to see paths that exceed maxSchemaPathLength
+    // even if it is not allowed for real queries.
+    val resolved =
+      resolve(gql, options, enforceMaxSchemaPathLength = false, enforceMaxPathsCount = false)
+    mode match {
+      case ExplainMode.Logical => GqlExplain.logical(resolved)
+      case ExplainMode.Physical =>
+        val plans = JoinOptimizer.plan(resolved, stats = None)
+        GqlExplain.physical(plans)
+    }
+  }
+
+  /**
+   * Shared parse + resolve step for [[query]] and [[explain]]. Applies `maxSchemaPathLength` as a
+   * guard against pathological enumeration depth when [[enforceMaxSchemaPathLength]] is true (the
+   * [[query]] path). The [[explain]] path sets it to false so users can inspect the plan that
+   * exceeds the cap and understand why [[query]] rejects it.
+   */
+  private def resolve(
+      gql: String,
+      options: QueryOptions,
+      enforceMaxSchemaPathLength: Boolean,
+      enforceMaxPathsCount: Boolean): ResolvedQuery = {
+    require(
+      options.maxSchemaPathLength > 0,
+      s"maxSchemaPathLength must be positive, got ${options.maxSchemaPathLength}")
+    val ast = AstBuilder.parse(gql)
+    val resolved = Resolver.resolve(ast, schemaGraphSnapshot, options)
+    if (enforceMaxSchemaPathLength) {
+      resolved.paths.foreach { path =>
+        require(
+          path.length <= options.maxSchemaPathLength,
+          s"Schema path length ${path.length} exceeds maxSchemaPathLength=${options.maxSchemaPathLength}: " +
+            s"$path; try to rewrite the query and reduce a potential depth. Use `explain` to see the plan.")
+      }
+    }
+    if (enforceMaxPathsCount) {
+      require(
+        resolved.paths.size <= options.maxEnumeratedPaths,
+        s"An amount of paths in the resolved query exceeds ${options.maxEnumeratedPaths}: " + "either use `explain` and modify the pattern or increase the value in `QueryOptions`")
+    }
+    resolved
+  }
 
   /**
    * Converts a heterogeneous property graph into a unified GraphFrame representation.
@@ -73,16 +251,18 @@ case class PropertyGraphFrame(
       edgeGroupFilters: Map[String, Column],
       vertexGroupFilters: Map[String, Column]): GraphFrame = {
     vertexPropertyGroups.foreach(name =>
-      require(vertexGroups.contains(name), s"Vertex property group $name does not exist"))
+      require(
+        vertexGroups.contains(name.toLowerCase),
+        s"Vertex property group $name does not exist"))
     edgePropertyGroups.foreach(name =>
-      require(edgeGroups.contains(name), s"Edge property group $name does not exist"))
+      require(edgeGroups.contains(name.toLowerCase), s"Edge property group $name does not exist"))
 
     val vertices = vertexPropertyGroups
-      .map(name => vertexGroups(name).getData(vertexGroupFilters(name)))
+      .map(name => vertexGroups(name.toLowerCase).getData(vertexGroupFilters(name)))
       .reduce(_ union _)
 
     val edges = edgePropertyGroups
-      .map(name => edgeGroups(name).getData(edgeGroupFilters(name)))
+      .map(name => edgeGroups(name.toLowerCase).getData(edgeGroupFilters(name)))
       .reduce(_ union _)
 
     GraphFrame(vertices, edges)
@@ -111,15 +291,18 @@ case class PropertyGraphFrame(
       rightBiGraphPart: String,
       edgeGroup: String,
       newEdgeWeight: Option[(Column, Column) => Column] = None): PropertyGraphFrame = {
+    // Hoisted before the require checks so the lowercased lookup is performed only once.
+    val oldGroup = edgeGroups(edgeGroup.toLowerCase)
     require(
-      edgeGroups(edgeGroup).srcPropertyGroup.name == leftBiGraphPart,
-      s"Edge Property Group should have $leftBiGraphPart source group but has ${edgeGroups(edgeGroup).srcPropertyGroup.name}")
+      oldGroup.srcPropertyGroup.name.equalsIgnoreCase(leftBiGraphPart),
+      s"Edge Property Group should have $leftBiGraphPart source group but has ${oldGroup.srcPropertyGroup.name}")
     require(
-      edgeGroups(edgeGroup).dstPropertyGroup.name == rightBiGraphPart,
-      s"Edge Property Group should have $rightBiGraphPart destination group but has ${edgeGroups(edgeGroup).dstPropertyGroup.name}")
-    val keptVPropertyGroups = vertexPropertyGroups.filterNot(g => g.name == rightBiGraphPart)
-    val keptEPropertyGroups = edgesPropertyGroups.filterNot(g => g.name == edgeGroup)
-    val oldGroup = edgeGroups(edgeGroup)
+      oldGroup.dstPropertyGroup.name.equalsIgnoreCase(rightBiGraphPart),
+      s"Edge Property Group should have $rightBiGraphPart destination group but has ${oldGroup.dstPropertyGroup.name}")
+    val keptVPropertyGroups =
+      vertexPropertyGroups.filterNot(g => g.name.equalsIgnoreCase(rightBiGraphPart))
+    val keptEPropertyGroups =
+      edgesPropertyGroups.filterNot(g => g.name.equalsIgnoreCase(edgeGroup))
     val oldEdgesData = oldGroup.data
 
     // Create new edges by joining vertices through their common neighbors
@@ -141,8 +324,8 @@ case class PropertyGraphFrame(
     val newEdgeGroup = EdgePropertyGroup(
       name = s"projected_$edgeGroup",
       data = projectedEdges,
-      srcPropertyGroup = vertexGroups(leftBiGraphPart),
-      dstPropertyGroup = vertexGroups(leftBiGraphPart),
+      srcPropertyGroup = vertexGroups(leftBiGraphPart.toLowerCase),
+      dstPropertyGroup = vertexGroups(leftBiGraphPart.toLowerCase),
       isDirected = false,
       srcColumnName = GraphFrame.SRC,
       dstColumnName = GraphFrame.DST,
