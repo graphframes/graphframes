@@ -1,12 +1,10 @@
 package org.graphframes.examples
 
-import java.net.URL
 import java.nio.file.*
 import scala.sys.process.*
 
 object LDBCUtils {
   private val LDBC_URL_PREFIX = "https://datasets.ldbcouncil.org/graphalytics/"
-  private val bufferSize = 8192 // 8Kb
 
   val TEST_BFS_DIRECTED = "test-bfs-directed"
   val TEST_BFS_UNDIRECTED = "test-bfs-undirected"
@@ -18,7 +16,14 @@ object LDBCUtils {
   val TEST_WCC_UNDIRECTED = "test-wcc-undirected"
   val KGS = "kgs"
   val GRAPH500_22 = "graph500-22"
+  val GRAPH500_23 = "graph500-23"
   val GRAPH500_24 = "graph500-24"
+  val GRAPH500_25 = "graph500-25"
+  val GRAPH500_26 = "graph500-26"
+  val GRAPH500_27 = "graph500-27"
+  val GRAPH500_28 = "graph500-28"
+  val GRAPH500_29 = "graph500-29"
+  val GRAPH500_30 = "graph500-30"
   val CIT_PATENTS = "cit-Patents"
   val WIKI_TALKS = "wiki-Talk"
 
@@ -33,11 +38,18 @@ object LDBCUtils {
     TEST_WCC_UNDIRECTED,
     KGS,
     GRAPH500_22,
+    GRAPH500_23,
     GRAPH500_24,
+    GRAPH500_25,
+    GRAPH500_26,
+    GRAPH500_27,
+    GRAPH500_28,
+    GRAPH500_29,
+    GRAPH500_30,
     CIT_PATENTS,
     WIKI_TALKS)
 
-  private def ldbcURL(caseName: String): URL = new URL(s"${LDBC_URL_PREFIX}${caseName}.tar.zst")
+  private def ldbcURL(caseName: String): String = s"${LDBC_URL_PREFIX}${caseName}.tar.zst"
 
   private def checkZSTD(): Unit = {
     try {
@@ -67,16 +79,24 @@ object LDBCUtils {
         Files.createDirectories(dir)
       }
       val archivePath = path.resolve(s"${name}.tar.zst")
-      val connection = ldbcURL(name).openConnection()
-      val inputStream = connection.getInputStream
-      val outputStream = Files.newOutputStream(archivePath)
-      val buffer = new Array[Byte](bufferSize)
-      var bytesRead = 0
-      while ({ bytesRead = inputStream.read(buffer); bytesRead } != -1) {
-        outputStream.write(buffer, 0, bytesRead)
+      // Use curl instead of Java's URLConnection because the LDBC CDN (Cloudflare)
+      // rejects Java 8's TLS fingerprint with HTTP 403.
+      // TODO: restore URLConnection after Spark 3.5.x EOL (~April 2026) when JDK 8 can be dropped:
+      //   val connection = new java.net.URL(ldbcURL(name)).openConnection()
+      //   val inputStream = connection.getInputStream
+      //   val outputStream = Files.newOutputStream(archivePath)
+      //   val buffer = new Array[Byte](8192)
+      //   var bytesRead = 0
+      //   while ({ bytesRead = inputStream.read(buffer); bytesRead } != -1) {
+      //     outputStream.write(buffer, 0, bytesRead)
+      //   }
+      //   inputStream.close()
+      //   outputStream.close()
+      val curlExit = s"curl -fSL -o ${archivePath.toString} ${ldbcURL(name)}".!
+      if (curlExit != 0) {
+        throw new RuntimeException(
+          s"Failed to download ${ldbcURL(name)} (curl exit code: $curlExit)")
       }
-      inputStream.close()
-      outputStream.close()
       println(s"Uncompressing ${archivePath.toString} to ${dir.toString}...")
       s"zstd -d ${archivePath.toString} -o ${archivePath.toString.replace(".zst", "")}".!
       s"tar -xf ${archivePath.toString.replace(".zst", "")} -C ${dir.toString}".!

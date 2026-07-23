@@ -96,6 +96,10 @@ object DetectingCycles {
       .withVertexColumn(storedSeqCol, initSequences, updateSequences)
       .withVertexColumn(foundSeqCol, foundSequences, updateFound)
       .aggMsgs(filterOutSequences)
+      // Memory optimization: only include required columns in triplets
+      // For cycle detection, we only need the sequences from source vertex
+      // and just the ID from destination vertex (ID is always included)
+      .requiredSrcColumns(storedSeqCol)
       .run()
   }
 }

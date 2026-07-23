@@ -79,3 +79,26 @@ spark-*
 
 # Zed
 .zed
+
+# Emacs
+.dir-locals.el
+*~
+
+# AI
+.claude
+.opencode
+.qwen
+.cursor
+openspec
+.aider*
+
+# Eclipse project files
+.settings
+.classpath
+.project
+*/.settings
+*/.classpath
+*/.project
+
+# Laika
+*sitemap.xml

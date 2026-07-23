@@ -21,6 +21,7 @@ from typing import final
 from py4j.java_gateway import JavaObject
 from pyspark import SparkContext, __version__
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
 if __version__.startswith("4"):
     from pyspark.sql.classic.column import Column, _to_seq
@@ -32,6 +33,7 @@ else:
 from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.utils import storage_level_to_jvm
+from graphframes.internal.utils import _RandomWalksEmbeddingsParameters
 from graphframes.lib import Pregel
 
 
@@ -68,6 +70,7 @@ class GraphFrame:
         self._spark = v.sparkSession
         self._sc = self._spark._sc
         self._jvm_gf_api = _java_api(self._sc)
+        self._jvm = self._spark._jvm
 
         self._ATTR: str = self._jvm_gf_api.ATTR()
 
@@ -134,6 +137,42 @@ class GraphFrame:
         )
         if edgeFilter is not None:
             builder.edgeFilter(edgeFilter)
+        jdf = builder.run()
+        return DataFrame(jdf, self._spark)
+
+    def all_paths(
+        self,
+        from_expr: Column | str,
+        to_expr: Column | str,
+        edge_filter: Column | str | None = None,
+        max_path_length: int = 5,
+        is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        builder = self._jvm_graph.allPaths()
+        if isinstance(from_expr, Column):
+            builder.fromExpr(from_expr._jc)
+        else:
+            builder.fromExpr(from_expr)
+        if isinstance(to_expr, Column):
+            builder.toExpr(to_expr._jc)
+        else:
+            builder.toExpr(to_expr)
+        builder.maxPathLength(max_path_length).setIsDirected(is_directed)
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.edgeFilter(edge_filter._jc)
+            else:
+                builder.edgeFilter(edge_filter)
+
+        if checkpoint_interval > 0:
+            builder.setCheckpointInterval(checkpoint_interval)
+
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
@@ -240,6 +279,34 @@ class GraphFrame:
 
         return DataFrame(jdf, self._spark)
 
+    def neighborhood_aware_cdlp(
+        self,
+        max_iter: int,
+        structural_similarity_multiplier: float,
+        ignore_direct_links: bool,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        is_directed: bool,
+        lg_nom_entries: int,
+        initial_label_col: str | None,
+    ) -> DataFrame:
+        java_nacdlp = self._jvm_graph.structureAwareLabelPropagation()
+        java_nacdlp.maxIter(max_iter)
+        java_nacdlp.setStructuralSimilarityMultiplier(structural_similarity_multiplier)
+        java_nacdlp.setIgnoreDirectLinks(ignore_direct_links)
+        java_nacdlp.setUseLocalCheckpoints(use_local_checkpoints)
+        java_nacdlp.setCheckpointInterval(checkpoint_interval)
+        java_nacdlp.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        java_nacdlp.setIsDirected(is_directed)
+        java_nacdlp.setLgNomEntries(lg_nom_entries)
+
+        if initial_label_col is not None:
+            java_nacdlp.setInitialLabelCol(initial_label_col)
+
+        jdf = java_nacdlp.run()
+        return DataFrame(jdf, self._spark)
+
     def pageRank(
         self,
         resetProbability: float = 0.15,
@@ -323,9 +390,13 @@ class GraphFrame:
         v = DataFrame(jdf, self._spark)
         return (v, loss)
 
-    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+    def triangleCount(
+        self, storage_level: StorageLevel, algorithm: str, log_nom_entries: int
+    ) -> DataFrame:
         builder = self._jvm_graph.triangleCount()
         builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        builder.setAlgorithm(algorithm)
+        builder.setLgNomEntries(log_nom_entries)
         jdf = builder.run()
         return DataFrame(jdf, self._spark)
 
@@ -365,5 +436,166 @@ class GraphFrame:
         java_kcore.setCheckpointInterval(checkpoint_interval)
         java_kcore.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
         jdf = java_kcore.run()
+
+        return DataFrame(jdf, self._spark)
+
+    def hyper_anf(
+        self,
+        n_hops: int,
+        lg_nom_entries: int,
+        edge_filter: Column | str | None,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        builder = self._jvm_graph.hyperANF()
+        builder.setNHops(n_hops)
+        builder.setLgNomEntries(lg_nom_entries)
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.setEdgesFilterExpression(edge_filter._jc)
+            else:
+                builder.setEdgesFilterExpression(edge_filter)
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = builder.run()
+
+        return DataFrame(jdf, self._spark)
+
+    def aggregate_neighbors(
+        self,
+        starting_vertices: Column | str,
+        max_hops: int,
+        accumulator_names: list[str],
+        accumulator_inits: list[Column | str],
+        accumulator_updates: list[Column | str],
+        stopping_condition: Column | str | None = None,
+        target_condition: Column | str | None = None,
+        required_vertex_attributes: list[str] | None = None,
+        required_edge_attributes: list[str] | None = None,
+        edge_filter: Column | str | None = None,
+        remove_loops: bool = False,
+        checkpoint_interval: int = 0,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        builder = self._jvm_graph.aggregateNeighbors()
+
+        # Set required parameters
+        if isinstance(starting_vertices, Column):
+            builder.setStartingVertices(starting_vertices._jc)
+        else:
+            builder.setStartingVertices(starting_vertices)
+
+        builder.setMaxHops(max_hops)
+
+        jvm = self._sc._jvm
+        # Handle accumulators with proper py4j conversion
+        if len(accumulator_names) > 0:
+            names_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(accumulator_names).toSeq()
+
+            inits_list = []
+            for init in accumulator_inits:
+                if isinstance(init, Column):
+                    inits_list.append(init._jc)
+                else:
+                    inits_list.append(F.expr(init)._jc)
+            inits_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(inits_list).toSeq()
+
+            updates_list = []
+            for update in accumulator_updates:
+                if isinstance(update, Column):
+                    updates_list.append(update._jc)
+                else:
+                    updates_list.append(F.expr(update)._jc)
+            updates_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(updates_list).toSeq()
+
+            builder.setAccumulators(names_seq, inits_seq, updates_seq)
+
+        # Set optional parameters
+        if stopping_condition is not None:
+            if isinstance(stopping_condition, Column):
+                builder.setStoppingCondition(stopping_condition._jc)
+            else:
+                builder.setStoppingCondition(stopping_condition)
+
+        if target_condition is not None:
+            if isinstance(target_condition, Column):
+                builder.setTargetCondition(target_condition._jc)
+            else:
+                builder.setTargetCondition(target_condition)
+
+        if required_vertex_attributes is not None and len(required_vertex_attributes) > 0:
+            attrs_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(
+                required_vertex_attributes
+            ).toSeq()
+            builder.setRequiredVertexAttributes(attrs_seq)
+
+        if required_edge_attributes is not None and len(required_edge_attributes) > 0:
+            attrs_seq = jvm.scala.collection.JavaConverters.asScalaBuffer(
+                required_edge_attributes
+            ).toSeq()
+            builder.setRequiredEdgeAttributes(attrs_seq)
+
+        if edge_filter is not None:
+            if isinstance(edge_filter, Column):
+                builder.setEdgeFilter(edge_filter._jc)
+            else:
+                builder.setEdgeFilter(edge_filter)
+
+        builder.setRemoveLoops(remove_loops)
+
+        if checkpoint_interval > 0:
+            builder.setCheckpointInterval(checkpoint_interval)
+
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+
+        jdf = builder.run()
+        assert jdf is not None
+
+        return DataFrame(jdf, self._spark)
+
+    def rw_embeddings(self, params: _RandomWalksEmbeddingsParameters) -> DataFrame:
+        assert self._jvm is not None
+        j_rw_embeddings = self._jvm.org.graphframes.embeddings.RandomWalkEmbeddings
+        assert j_rw_embeddings is not None
+        jdf: JavaObject = j_rw_embeddings.pythonAPI(
+            self._jvm_graph,
+            params.use_edge_direction,
+            params.rw_model,
+            params.rw_max_nbrs,
+            params.rw_num_walks_per_node,
+            params.rw_batch_size,
+            params.rw_num_batches,
+            params.rw_seed,
+            params.rw_restart_probability,
+            params.rw_temporary_prefix,
+            params.rw_cached_walks,
+            params.sequence_model,
+            params.hash2vec_context_size,
+            params.hash2vec_num_partitions,
+            params.hash2vec_embeddings_dim,
+            params.hash2vec_decay_function,
+            params.hash2vec_gaussian_sigma,
+            params.hash2vec_hashing_seed,
+            params.hash2vec_sign_seed,
+            params.hash2vec_do_l2_norm,
+            params.hash2vec_safe_l2,
+            params.word2vec_max_iter,
+            params.word2vec_embeddings_dim,
+            params.word2vec_window_size,
+            params.word2vec_num_partitions,
+            params.word2vec_min_count,
+            params.word2vec_max_sentence_length,
+            params.word2vec_seed,
+            params.word2vec_step_size,
+            params.aggregate_neighbors,
+            params.aggregate_neighbors_max_nbrs,
+            params.aggregate_neighbors_seed,
+            params.clean_up_after_run,
+        )
+        assert jdf is not None
 
         return DataFrame(jdf, self._spark)

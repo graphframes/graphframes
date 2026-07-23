@@ -16,9 +16,9 @@ object LaikaCustomDirectives extends DirectiveRegistry {
           error => InvalidSpan(s"Invalid PyDocs baseUri: $error", source),
           baseUri => {
             val companion = if (pyClass.startsWith("graphframes.lib")) {
-              SpanLink.external(s"$baseUri/graphframes/lib.html#$pyClass")
+              SpanLink.external(s"$baseUri/graphframes.lib.html#$pyClass")
             } else if (pyClass.startsWith("graphframes.examples")) {
-              SpanLink.external(s"$baseUri/graphframes/examples.html#$pyClass")
+              SpanLink.external(s"$baseUri/graphframes.examples.html#$pyClass")
             } else {
               SpanLink.external(s"$baseUri/graphframes.html#$pyClass")
             }

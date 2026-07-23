@@ -103,7 +103,7 @@ private object LabelPropagation {
     // Overall:
     // - Initial labels - IDs
     // - Active vertex col (halt voting) - did the label changed?
-    // - Choosing a new label - top across neighbours (tie-braking is determenistic)
+    // - Choosing a new label - top across neighbours (tie-braking is deterministic)
 
     val preparedGraph = GraphFrame(
       graph.vertices.select(GraphFrame.ID),
@@ -119,6 +119,9 @@ private object LabelPropagation {
       .setUpdateActiveVertexExpression(col(LABEL_ID) =!= keyWithMaxValue(Pregel.msg))
       .setUseLocalCheckpoints(useLocalCheckpoints)
       .setIntermediateStorageLevel(intermediateStorageLevel)
+      // Memory optimization: only include required columns in triplets
+      .requiredSrcColumns(LABEL_ID)
+      .requiredDstColumns(LABEL_ID)
 
     if (isDirected) {
       pregel = pregel.sendMsgToDst(Pregel.src(LABEL_ID))

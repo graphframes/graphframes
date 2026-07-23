@@ -13,7 +13,9 @@ import laika.theme.ThemeProvider
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import scala.util.Try
@@ -122,6 +124,55 @@ object LaikaCustoms {
     Files.write(feedFile, feedContent.getBytes)
   }
 
+  /**
+   * Generate a sitemap.xml from the Laika source markdown files.
+   *
+   * Each .md file maps 1:1 to an .html URL. The lastmod timestamp is taken from
+   * the .md file's last-modified time so that it reflects the actual content age
+   * rather than the build timestamp.
+   *
+   * The resulting sitemap.xml is written into the docs source directory so that
+   * Laika copies it through to the generated site as a static file.
+   */
+  def generateSitemap(sourceDir: Path, baseUrl: String): Unit = {
+    val mdFiles = Files
+      .walk(sourceDir)
+      .iterator()
+      .asScala
+      .filter(_.getFileName.toString.endsWith(".md"))
+      .toSeq
+      .sortBy(_.toString)
+
+    val w3cFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"))
+
+    val entries = mdFiles.map { mdFile =>
+      val relative = sourceDir.relativize(mdFile).toString.replaceAll("\\.md$", ".html")
+      val loc = s"$baseUrl/$relative"
+      val lastModified = Files.getLastModifiedTime(mdFile)
+      val lastmod = w3cFormatter.format(Instant.ofEpochMilli(lastModified.toMillis))
+      println(s"Generating sitemap entry for $loc (lastmod=$lastmod)")
+      s"""<url>
+         |  <loc>$loc</loc>
+         |  <lastmod>$lastmod</lastmod>
+         |</url>""".stripMargin
+    }
+
+    val sitemap = new StringBuilder()
+    sitemap.append("""<?xml version="1.0" encoding="UTF-8"?>""")
+    sitemap.append("\n")
+    sitemap.append("""<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">""")
+    sitemap.append("\n")
+    entries.foreach { entry =>
+      sitemap.append(entry)
+      sitemap.append("\n")
+    }
+    sitemap.append("</urlset>")
+
+    val sitemapFile = sourceDir.resolve("sitemap.xml")
+    Files.write(sitemapFile, sitemap.mkString.getBytes)
+    println(s"Sitemap written to $sitemapFile with ${entries.size} entries")
+  }
+
   def laikaConfig(benchmarksFile: Path): LaikaConfig = {
     val baseConfig = LaikaConfig.defaults.withRawContent
       .withConfigValue(LaikaKeys.site.apiPath, "api/scaladoc")
@@ -145,6 +196,13 @@ object LaikaCustoms {
               {
                 val name =
                   bench.hcursor.downField("benchmark").as[String].getOrElse("").split("\\.").last
+                val algorithm =
+                  bench.hcursor
+                    .downField("params")
+                    .downField("algorithm")
+                    .as[String]
+                    .getOrElse("")
+                val keyName = if (algorithm.nonEmpty) s"$name.$algorithm" else name
                 val measurements =
                   bench.hcursor.downField("measurementIterations").as[Int].getOrElse(-1)
                 val metric = bench.hcursor
@@ -169,25 +227,39 @@ object LaikaCustoms {
                   .as[Array[Double]]
                   .getOrElse(Array.empty)
 
-                quantiles.foldLeft(
-                  config
-                    .withConfigValue(s"benchmarks.$name.metric", f"$metric%.4f")
-                    .withConfigValue(s"benchmarks.$name.measurements", measurements)
-                    .withConfigValue(
-                      s"benchmarks.$name.ciLeft",
-                      f"${Try(confidence(0)).getOrElse(0.0)}%.4f")
-                    .withConfigValue(
-                      s"benchmarks.$name.ciRight",
-                      f"${Try(confidence(1)).getOrElse(0.0)}%.4f")
-                    .withConfigValue(s"benchmarks.$name.stdErr", f"$stdErr%.4f")) {
-                  (conf, quantile) =>
-                    {
-                      conf
+                def addMetrics(conf: LaikaConfig, key: String): LaikaConfig = {
+                  quantiles.foldLeft(
+                    conf
+                      .withConfigValue(s"benchmarks.$key.metric", f"$metric%.4f")
+                      .withConfigValue(s"benchmarks.$key.measurements", measurements)
+                      .withConfigValue(
+                        s"benchmarks.$key.ciLeft",
+                        f"${Try(confidence(0)).getOrElse(0.0)}%.4f")
+                      .withConfigValue(
+                        s"benchmarks.$key.ciRight",
+                        f"${Try(confidence(1)).getOrElse(0.0)}%.4f")
+                      .withConfigValue(s"benchmarks.$key.stdErr", f"$stdErr%.4f")) {
+                    (acc, quantile) =>
+                      acc
                         .withConfigValue(
-                          s"benchmarks.$name.quantiles.${quantile._1}",
-                          f"${quantile._2}.4f")
-                    }
+                          s"benchmarks.$key.quantiles.${quantile._1}",
+                          f"${quantile._2}%.4f")
+                  }
                 }
+
+                val withKeyName = addMetrics(config, keyName)
+
+                val maybeLegacyAlias = (name, algorithm) match {
+                  case ("benchmarkShortestPaths", "graphframes") => Some("benchmarkSP")
+                  case ("benchmarkShortestPaths", "graphx") => Some("benchmarkSPGraphX")
+                  case ("benchmarkConnectedComponents", "graphframes") => Some("benchmarkCC")
+                  case ("benchmarkConnectedComponents", "graphx") => Some("benchmarkCCGraphX")
+                  case ("benchmarkLabelPropagation", "graphframes") => Some("benchmarkCDLP")
+                  case ("benchmarkLabelPropagation", "graphx") => Some("benchmarkCDLPGraphX")
+                  case _ => None
+                }
+
+                maybeLegacyAlias.map(alias => addMetrics(withKeyName, alias)).getOrElse(withKeyName)
               }
             })
       }
@@ -202,13 +274,15 @@ object LaikaCustoms {
         version = Some(v),
         language = Some("en"))
       .all
-      .tableOfContent("Table of Content", depth = 4)
+      .tableOfContent("Table of Content", depth = 3)
       .site
       .topNavigationBar(navLinks = Seq(
         IconLink.external("https://github.com/graphframes/graphframes", HeliumIcon.github),
         IconLink.external(
           "https://discord.com/channels/1162999022819225631/1326257052368113674",
           HeliumIcon.chat)))
+      .site
+      .pageNavigation(depth = 1)
       .site
       .landingPage(
         title = Some("GraphFrames"),
@@ -256,6 +330,8 @@ object LaikaCustoms {
           Teaser(
             "PySpark support",
             "Not only scala, but also Python with a full support of Spark Connect protocol")))
+      .site
+      .pageNavigation(depth = 2)
       .build
   }
 

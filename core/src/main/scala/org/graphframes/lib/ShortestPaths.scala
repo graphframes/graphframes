@@ -139,7 +139,7 @@ private object ShortestPaths extends Logging {
 
     // For landmark vertices the initial distance to itself is set to 0
     // Example: graph with vertices a, b, c, d; landmarks = (c, d)
-    // we shoudl init the following:
+    // we should init the following:
     // (a, Map()), (b, Map()), (c, Map(c -> 0)), (d, Map(d -> 0))
     //
     // Inside the following function it is done by applying multiple case-when
@@ -233,6 +233,9 @@ private object ShortestPaths extends Logging {
       .setSkipMessagesFromNonActiveVertices(true)
       .setCheckpointInterval(checkpointInterval)
       .setUseLocalCheckpoints(useLocalCheckpoints)
+      // Memory optimization: only include required columns in triplets
+      .requiredSrcColumns(DISTANCE_ID)
+      .requiredDstColumns(DISTANCE_ID)
 
     // Experimental feature
     if (isDirected) {

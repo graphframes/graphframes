@@ -211,10 +211,15 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
       expectedComponents)
   }
 
-  Seq("graphframes", "graphx").foreach { algo =>
+  Seq("two_phase", "graphx", "randomized_contraction").foreach { algo =>
     test(s"test undirected WCC with LDBC for impl ${algo}") {
       val testCase = ldbcTestWCCUndirected
-      val ccResults = testCase._1.connectedComponents.setAlgorithm(algo).run()
+      var cc = testCase._1.connectedComponents.setAlgorithm(algo)
+      if (algo == "randomized_contraction") {
+        // RC is randomized by it's nature;
+        cc = cc.setUseLabelsAsComponents(true)
+      }
+      val ccResults = cc.run()
       assert(ccResults.count() == testCase._1.vertices.count())
       assert(
         ccResults

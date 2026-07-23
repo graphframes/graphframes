@@ -10,12 +10,13 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.sql.connect.session import SparkSession
 from pyspark.storagelevel import StorageLevel
-from typing_extensions import override
 
 try:
-    from typing import Self
+    from typing import Self, override
 except ImportError:
-    from typing_extensions import Self
+    from typing_extensions import Self, override
+
+from graphframes.internal.utils import _RandomWalksEmbeddingsParameters
 
 from .proto import graphframes_pb2 as pb
 from .utils import (
@@ -57,6 +58,9 @@ class PregelConnect:
         self._update_active_expr: Column | str | None = None
         self._stop_if_all_non_active = False
         self._skip_messages_from_non_active = False
+        self._required_src_columns: list[str] = []
+        self._required_dst_columns: list[str] = []
+        self._required_edge_columns: list[str] = []
 
     def setMaxIter(self, value: int) -> Self:
         self._max_iter = value
@@ -117,6 +121,45 @@ class PregelConnect:
         self._storage_level = storage_level
         return self
 
+    def required_src_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which source vertex columns are required when constructing triplets.
+
+        By default, all source vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state. Use this method to reduce
+        memory usage by specifying only the columns that are actually needed.
+
+        :param col_name: the first required source vertex column name
+        :param col_names: additional required source vertex column names
+        """
+        self._required_src_columns = [col_name] + list(col_names)
+        return self
+
+    def required_dst_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which destination vertex columns are required when constructing triplets.
+
+        By default, all destination vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state. Use this method to reduce
+        memory usage by specifying only the columns that are actually needed.
+
+        :param col_name: the first required destination vertex column name
+        :param col_names: additional required destination vertex column names
+        """
+        self._required_dst_columns = [col_name] + list(col_names)
+        return self
+
+    def required_edge_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which edge columns are required when constructing triplets.
+
+        By default, only src and dst columns are included. Use this method to specify
+        additional edge columns that are needed by the sendMsgToSrc and sendMsgToDst
+        expressions.
+
+        :param col_name: the first required edge column name
+        :param col_names: additional required edge column names
+        """
+        self._required_edge_columns = [col_name] + list(col_names)
+        return self
+
     def run(self) -> DataFrame:
         @final
         class Pregel(LogicalPlan):
@@ -137,6 +180,9 @@ class PregelConnect:
                 update_active_col: Column | str | None,
                 stop_if_all_non_active: bool,
                 skip_message_from_non_active: bool,
+                required_src_columns: list[str],
+                required_dst_columns: list[str],
+                required_edge_columns: list[str],
                 vertices: DataFrame,
                 edges: DataFrame,
             ) -> None:
@@ -156,6 +202,9 @@ class PregelConnect:
                 self.update_active_expr = update_active_col
                 self.stop_if_all_non_active = stop_if_all_non_active
                 self.skip_message_from_non_active = skip_message_from_non_active
+                self.required_src_columns = required_src_columns
+                self.required_dst_columns = required_dst_columns
+                self.required_edge_columns = required_edge_columns
                 self.vertices = vertices
                 self.edges = edges
 
@@ -184,6 +233,15 @@ class PregelConnect:
                     else None,
                     update_active_expr=make_column_or_expr(self.update_active_expr, session)
                     if self.update_active_expr is not None
+                    else None,
+                    required_src_columns=",".join(self.required_src_columns)
+                    if self.required_src_columns
+                    else None,
+                    required_dst_columns=",".join(self.required_dst_columns)
+                    if self.required_dst_columns
+                    else None,
+                    required_edge_columns=",".join(self.required_edge_columns)
+                    if self.required_edge_columns
                     else None,
                 )
                 pb_message = pb.GraphFramesAPI(
@@ -221,6 +279,9 @@ class PregelConnect:
                 update_active_col=self._update_active_expr,
                 stop_if_all_non_active=self._stop_if_all_non_active,
                 skip_message_from_non_active=self._skip_messages_from_non_active,
+                required_src_columns=self._required_src_columns,
+                required_dst_columns=self._required_dst_columns,
+                required_edge_columns=self._required_edge_columns,
                 storage_level=self._storage_level,
                 vertices=self.graph._vertices,
                 edges=self.graph._edges,
@@ -505,6 +566,84 @@ class GraphFrameConnect:
             self._spark,
         )
 
+    def all_paths(
+        self,
+        from_expr: Column | str,
+        to_expr: Column | str,
+        edge_filter: Column | str | None = None,
+        max_path_length: int = 5,
+        is_directed: bool = True,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        @final
+        class AllPaths(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                from_expr: Column | str,
+                to_expr: Column | str,
+                edge_filter: Column | str,
+                max_path_length: int,
+                is_directed: bool,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.from_expr = from_expr
+                self.to_expr = to_expr
+                self.edge_filter = edge_filter
+                self.max_path_length = max_path_length
+                self.is_directed = is_directed
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.all_paths.CopyFrom(
+                    pb.AllPaths(
+                        from_expr=make_column_or_expr(self.from_expr, session),
+                        to_expr=make_column_or_expr(self.to_expr, session),
+                        edge_filter=make_column_or_expr(self.edge_filter, session),
+                        max_path_length=self.max_path_length,
+                        is_directed=self.is_directed,
+                        checkpoint_interval=self.checkpoint_interval,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        if edge_filter is None:
+            edge_filter: Column = F.lit(True)
+
+        return _dataframe_from_plan(
+            AllPaths(
+                v=self._vertices,
+                e=self._edges,
+                from_expr=from_expr,
+                to_expr=to_expr,
+                edge_filter=edge_filter,
+                max_path_length=max_path_length,
+                is_directed=is_directed,
+                checkpoint_interval=checkpoint_interval,
+                use_local_checkpoints=use_local_checkpoints,
+                storage_level=storage_level,
+            ),
+            self._spark,
+        )
+
     def aggregateMessages(
         self,
         aggCol: list[Column | str],
@@ -689,6 +828,86 @@ class GraphFrameConnect:
                 use_local_checkpoints,
                 checkpoint_interval,
                 storage_level,
+            ),
+            self._spark,
+        )
+
+    def neighborhood_aware_cdlp(
+        self,
+        max_iter: int,
+        structural_similarity_multiplier: float,
+        ignore_direct_links: bool,
+        use_local_checkpoints: bool,
+        checkpoint_interval: int,
+        storage_level: StorageLevel,
+        is_directed: bool,
+        lg_nom_entries: int,
+        initial_label_col: str | None,
+    ) -> DataFrame:
+        @final
+        class NeighborhoodAwareCDLP(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                max_iter: int,
+                structural_similarity_multiplier: float,
+                ignore_direct_links: bool,
+                use_local_checkpoints: bool,
+                checkpoint_interval: int,
+                storage_level: StorageLevel,
+                is_directed: bool,
+                lg_nom_entries: int,
+                initial_label_col: str | None,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.max_iter = max_iter
+                self.structural_similarity_multiplier = structural_similarity_multiplier
+                self.ignore_direct_links = ignore_direct_links
+                self.use_local_checkpoints = use_local_checkpoints
+                self.checkpoint_interval = checkpoint_interval
+                self.storage_level = storage_level
+                self.is_directed = is_directed
+                self.lg_nom_entries = lg_nom_entries
+                self.initial_label_col = initial_label_col
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.neighborhood_aware_cdlp.CopyFrom(
+                    pb.NeighborhoodAwareCDLP(
+                        max_iter=self.max_iter,
+                        structural_similarity_multiplier=self.structural_similarity_multiplier,
+                        ignore_direct_links=self.ignore_direct_links,
+                        use_local_checkpoints=self.use_local_checkpoints,
+                        checkpoint_interval=self.checkpoint_interval,
+                        storage_level=storage_level_to_proto(self.storage_level),
+                        is_directed=self.is_directed,
+                        lg_nom_entries=self.lg_nom_entries,
+                        initial_label_col=self.initial_label_col,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            NeighborhoodAwareCDLP(
+                self._vertices,
+                self._edges,
+                max_iter,
+                structural_similarity_multiplier,
+                ignore_direct_links,
+                use_local_checkpoints,
+                checkpoint_interval,
+                storage_level,
+                is_directed,
+                lg_nom_entries,
+                initial_label_col,
             ),
             self._spark,
         )
@@ -1045,7 +1264,9 @@ class GraphFrameConnect:
         else:
             return (output.drop("loss"), -1.0)
 
-    def triangleCount(self, storage_level: StorageLevel) -> DataFrame:
+    def triangleCount(
+        self, storage_level: StorageLevel, algorithm: str, log_nom_entries: int
+    ) -> DataFrame:
         @final
         class TriangleCount(LogicalPlan):
             def __init__(self, v: DataFrame, e: DataFrame, storage_level: StorageLevel) -> None:
@@ -1060,7 +1281,11 @@ class GraphFrameConnect:
                     self.v, self.e, session
                 )
                 graphframes_api_call.triangle_count.CopyFrom(
-                    pb.TriangleCount(storage_level=storage_level_to_proto(self.storage_level))
+                    pb.TriangleCount(
+                        storage_level=storage_level_to_proto(self.storage_level),
+                        algorithm=algorithm,
+                        lg_nom_entries=log_nom_entries,
+                    )
                 )
                 plan = self._create_proto_relation()
                 plan.extension.Pack(graphframes_api_call)
@@ -1174,3 +1399,249 @@ class GraphFrameConnect:
             ),
             self._spark,
         )
+
+    def hyper_anf(
+        self,
+        n_hops: int,
+        lg_nom_entries: int,
+        edge_filter: Column | str | None,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
+        class HyperANF(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                n_hops: int,
+                lg_nom_entries: int,
+                edge_filter: Column | str | None,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.n_hops = n_hops
+                self.lg_nom_entries = lg_nom_entries
+                self.edge_filter = edge_filter
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                ha_message = pb.HyperANF(
+                    n_hops=self.n_hops,
+                    lg_nom_entries=self.lg_nom_entries,
+                    checkpoint_interval=self.checkpoint_interval,
+                    use_local_checkpoints=self.use_local_checkpoints,
+                    storage_level=storage_level_to_proto(self.storage_level),
+                )
+                if self.edge_filter is not None:
+                    ha_message.edges_filter_expression.CopyFrom(
+                        make_column_or_expr(self.edge_filter, session)
+                    )
+                graphframes_api_call.hyper_anf.CopyFrom(ha_message)
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            HyperANF(
+                self._vertices,
+                self._edges,
+                n_hops,
+                lg_nom_entries,
+                edge_filter,
+                checkpoint_interval,
+                use_local_checkpoints,
+                storage_level,
+            ),
+            self._spark,
+        )
+
+    def aggregate_neighbors(
+        self,
+        starting_vertices: Column | str,
+        max_hops: int,
+        accumulator_names: list[str],
+        accumulator_inits: list[Column | str],
+        accumulator_updates: list[Column | str],
+        stopping_condition: Column | str | None = None,
+        target_condition: Column | str | None = None,
+        required_vertex_attributes: list[str] | None = None,
+        required_edge_attributes: list[str] | None = None,
+        edge_filter: Column | str | None = None,
+        remove_loops: bool = False,
+        checkpoint_interval: int = 0,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        @final
+        class AggregateNeighbors(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                starting_vertices: Column | str,
+                max_hops: int,
+                accumulator_names: list[str],
+                accumulator_inits: list[Column | str],
+                accumulator_updates: list[Column | str],
+                stopping_condition: Column | str | None,
+                target_condition: Column | str | None,
+                required_vertex_attributes: list[str] | None,
+                required_edge_attributes: list[str] | None,
+                edge_filter: Column | str | None,
+                remove_loops: bool,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.starting_vertices = starting_vertices
+                self.max_hops = max_hops
+                self.accumulator_names = accumulator_names
+                self.accumulator_inits = accumulator_inits
+                self.accumulator_updates = accumulator_updates
+                self.stopping_condition = stopping_condition
+                self.target_condition = target_condition
+                self.required_vertex_attributes = required_vertex_attributes or []
+                self.required_edge_attributes = required_edge_attributes or []
+                self.edge_filter = edge_filter
+                self.remove_loops = remove_loops
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                # Build the protobuf message
+                an_message = pb.AggregateNeighbors(
+                    starting_vertices=make_column_or_expr(self.starting_vertices, session),
+                    max_hops=self.max_hops,
+                    accumulator_names=self.accumulator_names,
+                    accumulator_inits=[
+                        make_column_or_expr(init, session) for init in self.accumulator_inits
+                    ],
+                    accumulator_updates=[
+                        make_column_or_expr(update, session) for update in self.accumulator_updates
+                    ],
+                    required_vertex_attributes=self.required_vertex_attributes,
+                    required_edge_attributes=self.required_edge_attributes,
+                    remove_loops=self.remove_loops,
+                    checkpoint_interval=self.checkpoint_interval,
+                    use_local_checkpoints=self.use_local_checkpoints,
+                    storage_level=storage_level_to_proto(self.storage_level),
+                )
+
+                # Add optional fields if present
+                if self.stopping_condition is not None:
+                    an_message.stopping_condition.CopyFrom(
+                        make_column_or_expr(self.stopping_condition, session)
+                    )
+
+                if self.target_condition is not None:
+                    an_message.target_condition.CopyFrom(
+                        make_column_or_expr(self.target_condition, session)
+                    )
+
+                if self.edge_filter is not None:
+                    an_message.edge_filter.CopyFrom(make_column_or_expr(self.edge_filter, session))
+
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.aggregate_neighbors.CopyFrom(an_message)
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            AggregateNeighbors(
+                self._vertices,
+                self._edges,
+                starting_vertices,
+                max_hops,
+                accumulator_names,
+                accumulator_inits,
+                accumulator_updates,
+                stopping_condition,
+                target_condition,
+                required_vertex_attributes,
+                required_edge_attributes,
+                edge_filter,
+                remove_loops,
+                checkpoint_interval,
+                use_local_checkpoints,
+                storage_level,
+            ),
+            self._spark,
+        )
+
+    def rw_embeddings(self, params: _RandomWalksEmbeddingsParameters) -> DataFrame:
+        @final
+        class RWEmbeddings(LogicalPlan):
+            def __init__(
+                self, v: DataFrame, e: DataFrame, params: _RandomWalksEmbeddingsParameters
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.params = params
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                graphframes_api_call.rw_embeddings.CopyFrom(
+                    pb.RandomWalkEmbeddings(
+                        use_edge_direction=self.params.use_edge_direction,
+                        rw_model=self.params.rw_model,
+                        rw_max_nbrs=self.params.rw_max_nbrs,
+                        rw_num_walks_per_node=self.params.rw_num_walks_per_node,
+                        rw_batch_size=self.params.rw_batch_size,
+                        rw_num_batches=self.params.rw_num_batches,
+                        rw_seed=self.params.rw_seed,
+                        rw_restart_probability=self.params.rw_restart_probability,
+                        rw_temporary_prefix=self.params.rw_temporary_prefix,
+                        rw_cached_walks=self.params.rw_cached_walks,
+                        sequence_model=self.params.sequence_model,
+                        hash2vec_context_size=self.params.hash2vec_context_size,
+                        hash2vec_num_partitions=self.params.hash2vec_num_partitions,
+                        hash2vec_embeddings_dim=self.params.hash2vec_embeddings_dim,
+                        hash2vec_decay_function=self.params.hash2vec_decay_function,
+                        hash2vec_gaussian_sigma=self.params.hash2vec_gaussian_sigma,
+                        hash2vec_hashing_seed=self.params.hash2vec_hashing_seed,
+                        hash2vec_sign_seed=self.params.hash2vec_sign_seed,
+                        hash2vec_do_l2_norm=self.params.hash2vec_do_l2_norm,
+                        hash2vec_safe_l2=self.params.hash2vec_safe_l2,
+                        word2vec_max_iter=self.params.word2vec_max_iter,
+                        word2vec_embeddings_dim=self.params.word2vec_embeddings_dim,
+                        word2vec_window_size=self.params.word2vec_window_size,
+                        word2vec_num_partitions=self.params.word2vec_num_partitions,
+                        word2vec_min_count=self.params.word2vec_min_count,
+                        word2vec_max_sentence_length=self.params.word2vec_max_sentence_length,
+                        word2vec_seed=self.params.word2vec_seed,
+                        word2vec_step_size=self.params.word2vec_step_size,
+                        aggregate_neighbors=self.params.aggregate_neighbors,
+                        aggregate_neighbors_max_nbrs=self.params.aggregate_neighbors_max_nbrs,
+                        aggregate_neighbors_seed=self.params.aggregate_neighbors_seed,
+                        clean_up_after_run=self.params.clean_up_after_run,
+                    )
+                )
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(RWEmbeddings(self._vertices, self._edges, params), self._spark)

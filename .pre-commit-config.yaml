@@ -3,33 +3,38 @@ repos:
     hooks:
       - id: black
         name: black
-        entry: bash -c 'cd python && poetry run black graphframes/' --
+        entry: bash -c 'cd python && poetry run black --config pyproject.toml graphframes/ dev/ ../dev/' --
         language: system
         types: [python]
 
       - id: flake8
         name: flake8
-        entry: bash -c 'cd python && poetry run flake8 graphframes/' --
+        entry: bash -c 'cd python && poetry run flake8 graphframes/ dev/ ../dev/' --
         language: system
         types: [python]
 
       - id: isort
         name: isort
-        entry: bash -c 'cd python && poetry run isort graphframes/' --
+        entry: bash -c 'cd python && poetry run isort --settings-path pyproject.toml graphframes/ dev/ ../dev/' --
         language: system
         types: [python]
 
       - id: scalafmt
         name: scalafmt
-        entry: build/sbt scalafmtCheckAll
+        entry: build/sbt scalafmtAll
         language: system
         types: [scala]
         pass_filenames: false
 
       - id: scalafix
         name: scalafix
-        entry: build/sbt "scalafixAll --check"
+        entry: build/sbt scalafixAll
         language: system
         types: [scala]
         pass_filenames: false
 
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.2
+    hooks:
+      - id: codespell
+        # Configuration (skips and ignore list) lives in .codespellrc.

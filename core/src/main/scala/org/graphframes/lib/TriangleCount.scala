@@ -21,30 +21,52 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.*
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.GraphFramesSparkVersionException
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithLgNomEntries
 
 /**
- * Computes the number of triangles passing through each vertex.
+ * Triangle count implementation.
  *
- * This algorithm ignores edge direction; i.e., all edges are treated as undirected. In a
- * multigraph, duplicate edges will be counted only once.
+ * This class provides two algorithms for counting triangles:
+ *   - A direct version that computes exact triangle counts using set intersection of neighbor
+ *     lists.
+ *   - An approximate version based on the DataSketches library (Theta sketches), which trades off
+ *     accuracy for performance on large-scale graphs.
  *
- * **WARNING** This implementation is based on intersections of neighbor sets, which requires
- * collecting both SRC and DST neighbors per edge! This will blow up memory in case the graph
- * contains very high-degree nodes (power-law networks). Consider sampling strategies for that
- * case!
- *
- * The returned DataFrame contains all the original vertex information and one additional column:
- *   - count (`LongType`): the count of triangles
+ * The output DataFrame contains two columns:
+ *   - "id": the vertex id
+ *   - "count": the number of triangles passing through the vertex
  */
 class TriangleCount private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Serializable
-    with WithIntermediateStorageLevel {
+    with WithIntermediateStorageLevel
+    with WithLgNomEntries {
+
+  private var algorithm: String = "exact"
+  private val supportedAlgorithms: Set[String] = Set("exact", "approx")
+
+  private def supportedAlgorithmsRepr: String = supportedAlgorithms.mkString(", ")
+
+  /**
+   * Sets the triangle counting algorithm. Options are "exact" (default) or "approx".
+   */
+  def setAlgorithm(value: String): this.type = {
+    require(
+      supportedAlgorithms.contains(value),
+      s"supported algorithms: ${supportedAlgorithmsRepr}")
+    algorithm = value
+    this
+  }
 
   def run(): DataFrame = {
-    TriangleCount.run(graph, intermediateStorageLevel)
+    if (algorithm == "exact") {
+      TriangleCount.run(graph, intermediateStorageLevel)
+    } else {
+      TriangleCount.approximateRun(graph, intermediateStorageLevel, lgNomEntries)
+    }
   }
 }
 
@@ -65,6 +87,65 @@ private object TriangleCount extends Logging {
     GraphFrame(graph.vertices.select(ID), dedupedE).dropIsolatedVertices()
   }
 
+  private def approximateRun(
+      graph: GraphFrame,
+      intermediateStorageLevel: StorageLevel,
+      lgNomEntries: Int): DataFrame = {
+    val spark = graph.vertices.sparkSession
+    val sparkVersion = spark.version
+
+    if (sparkVersion.substring(0, 3) < "4.1") {
+      throw new GraphFramesSparkVersionException("4.1.0")
+    }
+
+    val thetaSketchAgg = (colName: String) => expr(s"theta_sketch_agg($colName, $lgNomEntries)")
+    val thetaSketchIntersect = (colLeft: String, colRight: String) =>
+      expr(s"theta_sketch_estimate(theta_intersection($colLeft, $colRight))")
+
+    val g2 = prepareGraph(graph)
+
+    val verticesWithNeighbors = g2.aggregateMessages
+      .setIntermediateStorageLevel(intermediateStorageLevel)
+      .sendToSrc(AggregateMessages.dst(ID))
+      .sendToDst(AggregateMessages.src(ID))
+      .agg(thetaSketchAgg(AggregateMessages.MSG_COL_NAME).alias("neighbors"))
+      .persist(intermediateStorageLevel)
+
+    val triangles = verticesWithNeighbors
+      .select(col(ID), col("neighbors").alias("src_set"))
+      .join(g2.edges, col(ID) === col(SRC))
+      .drop(ID)
+      .join(
+        verticesWithNeighbors.select(col(ID), col("neighbors").alias("dst_set")),
+        col(ID) === col(DST))
+      .drop(ID)
+      // Count of common neighbors of SRC and DST
+      .withColumn("triplets", thetaSketchIntersect("src_set", "dst_set"))
+      .filter(col("triplets") > lit(0))
+      .persist(intermediateStorageLevel)
+
+    val srcTriangles = triangles.groupBy(SRC).agg(sum(col("triplets")).alias("src_triplets"))
+    val dstTriangles = triangles.groupBy(DST).agg(sum(col("triplets")).alias("dst_triplets"))
+
+    val result = graph.vertices
+      .join(srcTriangles, col(ID) === col(SRC), "left_outer")
+      .join(dstTriangles, col(ID) === col(DST), "left_outer")
+      // Each triangle counted twice, so divide by 2.
+      .withColumn(
+        COUNT_ID,
+        floor(
+          (coalesce(col("src_triplets"), lit(0)) + coalesce(col("dst_triplets"), lit(0))) / lit(
+            2)))
+      .select(col(ID), col(COUNT_ID))
+
+    result.persist(intermediateStorageLevel)
+    result.count()
+    verticesWithNeighbors.unpersist()
+    triangles.unpersist()
+    resultIsPersistent()
+    result
+  }
+
   private def run(graph: GraphFrame, intermediateStorageLevel: StorageLevel): DataFrame = {
     val g2 = prepareGraph(graph)
 
@@ -73,6 +154,7 @@ private object TriangleCount extends Logging {
       .sendToSrc(AggregateMessages.dst(ID))
       .sendToDst(AggregateMessages.src(ID))
       .agg(collect_set(AggregateMessages.msg).alias("neighbors"))
+      .persist(intermediateStorageLevel)
 
     val triangles = verticesWithNeighbors
       .select(col(ID), col("neighbors").alias("src_set"))
@@ -97,10 +179,8 @@ private object TriangleCount extends Logging {
       .withColumn(
         COUNT_ID,
         floor(
-          when(col("src_triplets").isNull && col("dst_triplets").isNull, lit(0))
-            .when(col("src_triplets").isNull, col("dst_triplets"))
-            .when(col("dst_triplets").isNull, col("src_triplets"))
-            .otherwise(col("src_triplets") + col("dst_triplets")) / lit(2)))
+          (coalesce(col("src_triplets"), lit(0)) + coalesce(col("dst_triplets"), lit(0))) / lit(
+            2)))
 
     result.persist(intermediateStorageLevel)
     result.count()

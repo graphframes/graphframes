@@ -14,9 +14,17 @@ import org.openjdk.jmh.infra.Blackhole
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
+/**
+ * @deprecated
+ *   Use ShortestPathsBenchmark, ConnectedComponentsBenchmark, or LabelPropagationBenchmark
+ *   instead. These new benchmarks support CLI parameters for algorithm selection and graph
+ *   choice. See benchmarks/README.md for usage instructions.
+ */
+@deprecated("use the new benchmarks set", since = "0.11")
 @State(Scope.Benchmark)
 @Warmup(iterations = 1)
 @Measurement(iterations = 3)
@@ -78,7 +86,7 @@ class LDBCBenchmarkSuite {
 
   private def caseRoot: Path = resourcesPath.resolve(benchmarkGraphName)
 
-  private def resourcesPath = Path.of(new File("target").toURI)
+  private def resourcesPath = Paths.get(new File("target").toURI)
 
   @Benchmark
   def benchmarkSP(blackhole: Blackhole): Unit = {

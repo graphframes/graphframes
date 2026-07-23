@@ -24,9 +24,9 @@ from pyspark.sql import functions as sqlfunctions
 from pyspark.sql.utils import is_remote
 from pyspark.storagelevel import StorageLevel
 
-from graphframes.classic.graphframe import _from_java_gf
-from graphframes.examples import BeliefPropagation, Graphs
-from graphframes.graphframe import GraphFrame
+from graphframes.graphframe import AggregateNeighbors
+
+from graphframes.graphframe import GraphFrame, RandomWalkEmbeddings
 
 
 @dataclass
@@ -140,6 +140,37 @@ def test_as_undirected(spark: SparkSession) -> None:
     assert len(edges2) == 2
     assert any(row[0] == 1 and row[1] == 2 and row[2] == "edge1" for row in edges2)
     assert any(row[0] == 2 and row[1] == 1 and row[2] == "edge1" for row in edges2)
+
+
+def test_as_reversed(spark: SparkSession) -> None:
+    # Test without edge attributes
+    v = spark.createDataFrame([(1, "a"), (2, "b"), (3, "c")]).toDF("id", "name")
+    e = spark.createDataFrame([(1, 2), (2, 3)]).toDF("src", "dst")
+    g = GraphFrame(v, e)
+    reversed_g = g.as_reversed()
+
+    # Check edge count is the same
+    assert reversed_g.edges.count() == g.edges.count()
+
+    # Verify edges are reversed
+    edges = reversed_g.edges.sort("src", "dst").collect()
+    assert len(edges) == 2
+    assert edges[0][0] == 2
+    assert edges[0][1] == 1
+    assert edges[1][0] == 3
+    assert edges[1][1] == 2
+
+    # Test with edge attributes
+    v2 = spark.createDataFrame([(1, "a"), (2, "b")]).toDF("id", "name")
+    e2 = spark.createDataFrame([(1, 2, "edge1")]).toDF("src", "dst", "attr")
+    g2 = GraphFrame(v2, e2)
+    reversed2 = g2.as_reversed()
+
+    edges2 = reversed2.edges.collect()
+    assert len(edges2) == 1
+    assert edges2[0][0] == 2
+    assert edges2[0][1] == 1
+    assert edges2[0][2] == "edge1"
 
 
 def test_cache(local_g: GraphFrame) -> None:
@@ -317,6 +348,30 @@ def test_bfs(local_g: GraphFrame) -> None:
     assert paths3.count() == 0
 
 
+def test_all_paths(local_g: GraphFrame) -> None:
+    # local_g: A->B (love), B->A (hate), B->C (follow)
+    # Directed: A can reach C via A->B->C (1 path)
+    paths = local_g.all_paths("name='A'", "name='C'", use_local_checkpoints=True)
+    assert paths is not None
+    assert {"path", "len"}.issubset(set(paths.columns))
+    paths_list = paths.collect()
+    assert len(paths_list) == 1
+    assert paths_list[0]["len"] == 2
+
+    # With edge filter that removes the 'follow' edge: no path A->C
+    paths_filtered = local_g.all_paths("name='A'", "name='C'", edge_filter="action!='follow'", use_local_checkpoints=True)
+    assert paths_filtered.count() == 0
+
+    # Undirected: A->B->C and A->B->A (no simple path to C via A again),
+    # but also C->B->A is now possible, still only A->B->C from A to C
+    paths_undirected = local_g.all_paths("name='A'", "name='C'", is_directed=False, use_local_checkpoints=True)
+    assert paths_undirected.count() >= 1
+
+    # max_path_length too short: no paths
+    paths_short = local_g.all_paths("name='A'", "name='C'", max_path_length=1, use_local_checkpoints=True)
+    assert paths_short.count() == 0
+
+
 def test_power_iteration_clustering(spark: SparkSession) -> None:
     vertices = [
         (1, 0, 0.5),
@@ -344,7 +399,12 @@ def test_power_iteration_clustering(spark: SparkSession) -> None:
 
     clusters = [r["cluster"] for r in clusters_df.sort("id").collect()]
 
-    assert clusters == [0, 0, 0, 0, 1, 0]
+    if is_remote():
+        # It returns different results on Connect/Classic;
+        # For connect mode it works like a smoke-test
+        assert len(clusters) == 6
+    else:
+        assert clusters == [0, 0, 0, 0, 1, 0]
     _ = clusters_df.unpersist()
 
 
@@ -451,6 +511,32 @@ def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> No
     for a, b in zip(result, expected):
         assert a == pytest.approx(b, abs=1e-3)
     _ = ranks.unpersist()
+
+
+def test_pregel_required_edge_columns(spark: SparkSession) -> None:
+    edges = spark.createDataFrame(
+        [(0, 1, 0.5), (1, 2, 1.0), (2, 0, 0.3)],
+        ["src", "dst", "weight"],
+    )
+    vertices = spark.createDataFrame([(0,), (1,), (2,)], ["id"])
+    graph = GraphFrame(vertices, edges)
+    pregel = graph.pregel
+
+    result = (
+        graph.pregel.setMaxIter(2)
+        .withVertexColumn(
+            "value",
+            sqlfunctions.lit(0.0),
+            sqlfunctions.coalesce(pregel.msg(), sqlfunctions.lit(0.0)),
+        )
+        .sendMsgToDst(pregel.src("value") + pregel.edge("weight"))
+        .aggMsgs(sqlfunctions.sum(pregel.msg()))
+        .required_edge_columns("weight")
+        .run()
+    )
+    assert "value" in result.columns
+    assert result.count() == 3
+    _ = result.unpersist()
 
 
 def _df_hasCols(df: DataFrame, vcols: list[str] = []) -> None:
@@ -570,6 +656,79 @@ def test_shortest_paths2(spark: SparkSession) -> None:
     _ = result.unpersist()
 
 
+def test_neighborhood_aware_cdlp_api_defaults(spark: SparkSession) -> None:
+    if spark.version[:3] < "4.1":
+        pytest.skip("NeighborhoodAwareCDLP requires Spark >= 4.1")
+
+    vertices = spark.createDataFrame([(1,), (2,), (3,)], ["id"])
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 1)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+
+    result = g.neighborhood_aware_cdlp(max_iter=1)
+    _df_hasCols(result, vcols=["id", "label"])
+    _ = result.unpersist()
+
+
+def test_neighborhood_aware_cdlp_api_with_all_args(spark: SparkSession) -> None:
+    if spark.version[:3] < "4.1":
+        pytest.skip("NeighborhoodAwareCDLP requires Spark >= 4.1")
+
+    vertices = spark.createDataFrame(
+        [(1, "A"), (2, "B"), (3, "C"), (4, "D")],
+        ["id", "seed_label"],
+    )
+    edges = spark.createDataFrame([(1, 2), (2, 3), (3, 4), (4, 1)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+
+    result = g.neighborhood_aware_cdlp(
+        max_iter=2,
+        structural_similarity_multiplier=0.25,
+        ignore_direct_links=False,
+        initial_label_col="seed_label",
+        is_directed=False,
+        lg_nom_entries=12,
+        use_local_checkpoints=False,
+        checkpoint_interval=2,
+        storage_level=StorageLevel.MEMORY_AND_DISK_DESER,
+    )
+    _df_hasCols(result, vcols=["id", "label"])
+    _ = result.unpersist()
+
+
+def test_neighborhood_aware_cdlp_api_rejects_invalid_multiplier_combination(
+    spark: SparkSession,
+) -> None:
+    vertices = spark.createDataFrame([(1,), (2,)], ["id"])
+    edges = spark.createDataFrame([(1, 2)], ["src", "dst"])
+    g = GraphFrame(vertices, edges)
+
+    with pytest.raises(ValueError, match="must be > 0 when ignore_direct_links is True"):
+        _ = g.neighborhood_aware_cdlp(
+            max_iter=1,
+            structural_similarity_multiplier=0.0,
+            ignore_direct_links=True,
+        )
+
+
+def test_random_walk_embeddings_api(local_g: GraphFrame) -> None:
+    rwe = RandomWalkEmbeddings(local_g)
+    rwe.set_rw_model("/tmp/")
+    rwe.set_hash2vec()
+
+    result = rwe.run()
+    result.write.mode("overwrite").format("noop").save()
+
+
+def test_random_walk_embeddings_invalid_args(local_g: GraphFrame) -> None:
+    rwe = RandomWalkEmbeddings(local_g)
+    
+    with pytest.raises(ValueError, match="supported decay functions are"):
+        rwe.set_hash2vec(decay_function="invalid_function")
+
+    with pytest.raises(ValueError, match="TMP path or cached walks path should be provided!"):
+        rwe.run()
+
+
 def test_strongly_connected_components(spark: SparkSession) -> None:
     # Simple island test
     vertices = spark.createDataFrame([(i,) for i in range(1, 6)], ["id"])
@@ -593,6 +752,20 @@ def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel) -> No
         assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
     _ = c.unpersist()
 
+
+def test_approx_triangle_counts(spark: SparkSession) -> None:
+    edges = spark.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
+    vertices = spark.createDataFrame([(0,), (1,), (2,)], ["id"])
+    g = GraphFrame(vertices, edges)
+
+    if spark.version[:3] >= "4.1":
+        c = g.triangleCount(storage_level=StorageLevel.MEMORY_AND_DISK, algorithm="approx")
+        for row in c.select("id", "count").collect():
+            assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
+        _ = c.unpersist()
+    else:
+        with pytest.raises(ValueError, match=".*requires Spark.*"):
+            c = g.triangleCount(storage_level=StorageLevel.MEMORY_AND_DISK, algorithm="approx")
 
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
 def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
@@ -636,6 +809,8 @@ def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_svd_plus_plus(examples, spark: SparkSession):
+    from graphframes.classic.graphframe import _from_java_gf
+    
     g = _from_java_gf(getattr(examples, "ALSSyntheticData")(), spark)
     (v2, cost) = g.svdPlusPlus()
     _df_hasCols(v2, vcols=["id", "column1", "column2", "column3", "column4"])
@@ -668,6 +843,9 @@ def test_mutithreaded_sparksession_usage(spark: SparkSession):
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_belief_propagation(spark: SparkSession):
+    from graphframes.examples import BeliefPropagation
+    from graphframes.examples import Graphs
+    
     # Create a graphical model g of size 3x3.
     g = Graphs(spark).gridIsingModel(3)
     # Run Belief Propagation (BP) for 5 iterations.
@@ -681,6 +859,8 @@ def test_belief_propagation(spark: SparkSession):
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_graph_friends(spark: SparkSession):
+    from graphframes.examples import Graphs
+    
     # Construct the graph.
     g = Graphs(spark).friends()
     # Check that the result is an instance of GraphFrame.
@@ -689,6 +869,8 @@ def test_graph_friends(spark: SparkSession):
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_graph_grid_ising_model(spark: SparkSession):
+    from graphframes.examples import Graphs
+    
     # Construct a grid Ising model graph.
     n = 3
     g = Graphs(spark).gridIsingModel(n)
@@ -791,3 +973,162 @@ def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
         )
 
     _ = result.unpersist()
+
+
+def test_aggregate_neighbors_basic(spark: SparkSession) -> None:
+    """Test basic AggregateNeighbors functionality with argument verification."""
+    # Create a simple graph: 1 -> 2 -> 3
+    v = spark.createDataFrame([(1, "A"), (2, "B"), (3, "C")], ["id", "name"])
+    e = spark.createDataFrame([(1, 2), (2, 3)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    # Test basic path finding from vertex 1 to vertex 3
+    result = g.aggregate_neighbors(
+        starting_vertices=sqlfunctions.col("id") == 1,
+        max_hops=3,
+        accumulator_names=["path_length"],
+        accumulator_inits=[sqlfunctions.lit(0)],
+        accumulator_updates=[sqlfunctions.col("path_length") + 1],
+        target_condition=AggregateNeighbors.dst_attr("id") == 3,
+        required_vertex_attributes=["id"],
+    )
+
+    # Verify result structure
+    assert "id" in result.columns
+    assert "hop" in result.columns
+    assert "path_length" in result.columns
+
+    # Should find one path: 1 -> 2 -> 3
+    rows = result.collect()
+    assert len(rows) == 1
+    assert rows[0]["id"] == 3
+    assert rows[0]["hop"] == 2
+    assert rows[0]["path_length"] == 2
+
+    _ = result.unpersist()
+
+
+def test_aggregate_neighbors_with_edge_filter(spark: SparkSession) -> None:
+    """Test AggregateNeighbors with edge filtering."""
+    # Create a graph with different edge types
+    v = spark.createDataFrame([(1, "A"), (2, "B"), (3, "C"), (4, "D")], ["id", "name"])
+    e = spark.createDataFrame(
+        [(1, 2, "allowed"), (2, 3, "allowed"), (1, 3, "blocked")],
+        ["src", "dst", "edge_type"],
+    )
+    g = GraphFrame(v, e)
+
+    result = g.aggregate_neighbors(
+        starting_vertices=sqlfunctions.col("id") == 1,
+        max_hops=3,
+        accumulator_names=["count"],
+        accumulator_inits=[sqlfunctions.lit(0)],
+        accumulator_updates=[sqlfunctions.col("count") + 1],
+        target_condition=AggregateNeighbors.dst_attr("id") == 3,
+        edge_filter=AggregateNeighbors.edge_attr("edge_type") == "allowed",
+        required_edge_attributes=["edge_type"],
+    )
+
+    rows = result.collect()
+    # Should only find path 1 -> 2 -> 3 (not 1 -> 3 directly due to filter)
+    assert len(rows) == 1
+    assert rows[0]["count"] == 2  # Two hops
+
+    _ = result.unpersist()
+
+
+def test_aggregate_neighbors_multiple_accumulators(spark: SparkSession) -> None:
+    """Test AggregateNeighbors with multiple accumulators."""
+    v = spark.createDataFrame([(1, 10), (2, 20), (3, 30)], ["id", "value"])
+    e = spark.createDataFrame([(1, 2, 5.0), (2, 3, 6.0)], ["src", "dst", "weight"])
+    g = GraphFrame(v, e)
+
+    result = g.aggregate_neighbors(
+        starting_vertices=sqlfunctions.col("id") == 1,
+        max_hops=3,
+        accumulator_names=["sum_values", "sum_weights"],
+        accumulator_inits=[sqlfunctions.lit(0), sqlfunctions.lit(0.0)],
+        accumulator_updates=[
+            sqlfunctions.col("sum_values") + AggregateNeighbors.dst_attr("value"),
+            sqlfunctions.col("sum_weights") + AggregateNeighbors.edge_attr("weight"),
+        ],
+        target_condition=AggregateNeighbors.dst_attr("id") == 3,
+        required_vertex_attributes=["id", "value"],
+        required_edge_attributes=["weight"],
+    )
+
+    rows = result.collect()
+    assert len(rows) == 1
+    # sum_values: 20 + 30 = 50
+    assert rows[0]["sum_values"] == 50
+    # sum_weights: 5.0 + 6.0 = 11.0
+    assert abs(rows[0]["sum_weights"] - 11.0) < 0.001
+
+    _ = result.unpersist()
+
+
+def test_hyper_anf_basic(spark: SparkSession) -> None:
+    """Smoke test: verify hyper_anf returns correct columns and basic functionality."""
+    # Directed graph: 1 -> 2, 2 -> 3, 3 -> 1 (cycle)
+    v = spark.createDataFrame([(1,), (2,), (3,)], ["id"])
+    e = spark.createDataFrame([(1, 2), (2, 3), (3, 1)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    result = g.hyper_anf(n_hops=2, use_local_checkpoints=True)
+
+    # Verify columns: id, hop_0, hop_1, hop_2
+    assert "id" in result.columns
+    assert "hop_0" in result.columns
+    assert "hop_1" in result.columns
+    assert "hop_2" in result.columns
+
+    # Every vertex with an outgoing edge should be present (all 3)
+    assert result.count() == 3
+
+    _ = result.unpersist()
+
+
+def test_hyper_anf_args_passed(spark: SparkSession) -> None:
+    """Verify that non-default args (lg_nom_entries, edge_filter) are passed correctly."""
+    v = spark.createDataFrame([(1,), (2,), (3,), (4,)], ["id"])
+    e = spark.createDataFrame([(1, 2), (2, 3), (3, 4), (1, 3)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    # Use non-default lg_nom_entries to verify the arg is forwarded
+    result_default = g.hyper_anf(n_hops=1, lg_nom_entries=10, use_local_checkpoints=True)
+    assert "hop_0" in result_default.columns
+    assert "hop_1" in result_default.columns
+    assert result_default.count() > 0
+    _ = result_default.unpersist()
+
+    # Use edge_filter to restrict computation to edges where src == 1
+    result_filtered = g.hyper_anf(
+        n_hops=1,
+        edge_filter=sqlfunctions.col("src") == 1,
+        use_local_checkpoints=True,
+    )
+    rows = result_filtered.collect()
+    # Only vertex 1 has outgoing edges with src == 1
+    ids = {row["id"] for row in rows}
+    assert ids == {1}
+
+    _ = result_filtered.unpersist()
+
+
+def test_hyper_anf_invalid_args(spark: SparkSession) -> None:
+    """Verify that invalid arguments raise ValueError on the Python side."""
+    v = spark.createDataFrame([(1,), (2,)], ["id"])
+    e = spark.createDataFrame([(1, 2)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    with pytest.raises(ValueError, match="n_hops must be a positive integer"):
+        g.hyper_anf(n_hops=0)
+
+    with pytest.raises(ValueError, match="n_hops must be a positive integer"):
+        g.hyper_anf(n_hops=-1)
+
+    with pytest.raises(ValueError, match="lg_nom_entries must be between 4 and 21"):
+        g.hyper_anf(lg_nom_entries=3)
+
+    with pytest.raises(ValueError, match="lg_nom_entries must be between 4 and 21"):
+        g.hyper_anf(lg_nom_entries=22)

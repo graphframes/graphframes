@@ -14,12 +14,12 @@ Ensure the following tools are installed before cloning the repository:
 | --- | --- | --- |
 | Git | Latest stable | Required for version control and contribution workflows. |
 | Java Development Kit (JDK) | 11 or 17 | Spark 3.x supports Java 8/11/17; GraphFrames CI runs on JDK 17. |
-| Python | 3.10 – 3.12 | Required for the Python APIs and tests. |
-| Apache Spark (binary distribution) | 3.5.x (default) or 4.0.x | Needed for the Python test suite. |
+| Python | 3.10 – 3.13 | Required for the Python APIs and tests. |
+| Apache Spark (binary distribution) | 3.5.x (default), 4.0.x, or 4.1.x | Needed for the Python test suite. |
 | Poetry | ≥ 1.8 | Dependency manager used by the Python package. Install via [`pipx`](https://pypa.github.io/pipx/) or `pip`. |
 | Protocol Buffers compiler (`protoc`) | ≥ 3.21 | Required for the GraphFrames Connect protobuf build. |
 | Buf CLI | Latest stable | Used to lint and generate protobuf sources. |
-| Apache Spark (optional) | 3.5.x (default) or 4.0.x | Only required if you want the standalone Spark shell outside PySpark. |
+| Apache Spark (optional) | 3.5.x (default), 4.0.x, or 4.1.x | Only required if you want the standalone Spark shell outside PySpark. |
 | Docker (optional) | Latest stable | Useful for isolated environments but not mandatory. |
 
 ### 1.1 Install required tooling
@@ -55,12 +55,12 @@ export PATH="$JAVA_HOME/bin:$PATH"
 #### Optional: Standalone Apache Spark distribution
 `poetry install` (described later) already brings in the matching version of PySpark and Spark
 Connect. If you also want the standalone Spark shell or `spark-submit`, download the distribution
-that matches the build’s `spark.version` (currently 3.5.6) and expose it via `SPARK_HOME`:
+that matches the build’s `spark.version` (currently 3.5.7) and expose it via `SPARK_HOME`:
 ```bash
-curl -O https://downloads.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.tgz
+curl -O https://downloads.apache.org/spark/spark-3.5.7/spark-3.5.7-bin-hadoop3.tgz
 mkdir -p "$HOME/.local/spark"
-tar -xzf spark-3.5.6-bin-hadoop3.tgz -C "$HOME/.local/spark"
-export SPARK_HOME="$HOME/.local/spark/spark-3.5.6-bin-hadoop3"
+tar -xzf spark-3.5.7-bin-hadoop3.tgz -C "$HOME/.local/spark"
+export SPARK_HOME="$HOME/.local/spark/spark-3.5.7-bin-hadoop3"
 export PATH="$SPARK_HOME/bin:$PATH"
 ```
 
@@ -131,6 +131,16 @@ Focus on a specific suite while iterating:
 | `./build/sbt docs/laikaPreview` | Serves the documentation site locally at <http://localhost:4242>. |
 | `./build/sbt -Dspark.version=4.0.1 compile` | Compiles against Spark 4.x APIs. |
 | `./build/sbt package -Dvendor.name=dbx` | Produces Databricks-compatible Spark Connect jars. |
+
+### 3.5 Note about mixed Java/Scala project
+
+GraphFrames is a mixed Java/Scala project that is built with `sbt`. At the moment the only IDE that natively supports using `sbt` to build Java projects is Intellij IDEA. At the same time, GraphFrames provides a workaround for users of VSCode, Emacs, Neovim and other IDEs/editors that rely on the Eclipse JDTLS Language Server. Users can run:
+
+```bash
+./build/sbt eclipse
+```
+
+This will generate Eclipse project files for all the GraphFrames subprojects and after that users can get the full support of the Java features in their IDE/editor.
 
 ---
 
@@ -214,7 +224,7 @@ PySpark session.
 
 ### 4.2 PySpark Connect update
 
-PySpark Connect Plugin messages are located in `connect/src/main/protobuf`. After making any changes to messages, for exampple, after adding a new API the following is required:
+PySpark Connect Plugin messages are located in `connect/src/main/protobuf`. After making any changes to messages, for example, after adding a new API the following is required:
 
 - re-compile the connect project that will trigger generation of new Java classes: `./build/sbt connect/compile`
 - re-generate Python classes from protobuf via `buf`: `buf generate`
@@ -286,7 +296,7 @@ An example is:
 
 A full list of built-in directives may be found in [Laika Documentation](https://typelevel.org/Laika/latest/07-reference/01-standard-directives.html).
 
-### 7.2 Build and preivew
+### 7.2 Build and preview
 
 To build documentation and run a preview server run `./build/sbt docs/laikaPreview`.
 
@@ -302,7 +312,7 @@ To build documentation and run a preview server run `./build/sbt docs/laikaPrevi
 | Run a specific Scala suite | `./build/sbt "core/testOnly <SuiteName>"` |
 | Build assembly jar | `./build/sbt core/assembly` |
 | Install Python dependencies | `cd python && poetry install --with dev` |
-| Run Python tests | `cd python && ./run-tests.sh` |
+| Run Python tests | `cd python && poetry run pytest -vvv` |
 | Run Python formatters | `poetry run black graphframes tests` |
 | Install pre-commit hooks | `pre-commit install` |
 

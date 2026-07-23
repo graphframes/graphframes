@@ -23,6 +23,13 @@ from pyspark.sql.functions import col
 from pyspark.storagelevel import StorageLevel
 from typing_extensions import Self
 
+try:
+    # Spark 4
+    from pyspark.sql.classic.column import _to_seq
+except ImportError:
+    # Spark 3
+    from pyspark.sql.column import _to_seq
+
 from graphframes.classic.utils import storage_level_to_jvm
 
 
@@ -40,11 +47,10 @@ class Pregel(JavaWrapper):
     When a run starts, it expands the vertices DataFrame using column expressions defined by :func:`withVertexColumn`.
     Those additional vertex properties can be changed during Pregel iterations.
     In each Pregel iteration, there are three phases:
-      - Given each edge triplet, generate messages and specify target vertices to send,
-        described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
-      - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
-      - Update additional vertex properties based on aggregated messages and states from previous iteration,
-        described by :func:`withVertexColumn`.
+
+    - Given each edge triplet, generate messages and specify target vertices to send, described by :func:`sendMsgToDst` and :func:`sendMsgToSrc`.
+    - Aggregate messages by target vertex IDs, described by :func:`aggMsgs`.
+    - Update additional vertex properties based on aggregated messages and states from previous iteration, described by :func:`withVertexColumn`.
 
     Please find what columns you can reference at each phase in the method API docs.
 
@@ -226,6 +232,63 @@ class Pregel(JavaWrapper):
         """  # noqa: E501
         self._java_obj.setIntermediateStorageLevel(
             storage_level_to_jvm(storage_level, self.graph._spark)
+        )
+        return self
+
+    def required_src_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which source vertex columns are required when constructing triplets.
+
+        By default, all source vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state (e.g., cycle detection,
+        random walks). Use this method to reduce memory usage by specifying only the columns
+        that are actually needed by the sendMsgToSrc and sendMsgToDst expressions.
+
+        The ID column and the active flag column (if used) are always included automatically.
+
+        :param col_name: the first required source vertex column name
+        :param col_names: additional required source vertex column names
+
+        See also :func:`required_dst_columns`
+        """
+        self._java_obj.requiredSrcColumns(
+            col_name, _to_seq(self.graph._spark.sparkContext, col_names)
+        )
+        return self
+
+    def required_dst_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which destination vertex columns are required when constructing triplets.
+
+        By default, all destination vertex columns are included in triplets, which can create large
+        intermediate datasets for algorithms with significant state (e.g., cycle detection,
+        random walks). Use this method to reduce memory usage by specifying only the columns
+        that are actually needed by the sendMsgToSrc and sendMsgToDst expressions.
+
+        The ID column and the active flag column (if used) are always included automatically.
+
+        :param col_name: the first required destination vertex column name
+        :param col_names: additional required destination vertex column names
+
+        See also :func:`required_src_columns`
+        """
+        self._java_obj.requiredDstColumns(
+            col_name, _to_seq(self.graph._spark.sparkContext, col_names)
+        )
+        return self
+
+    def required_edge_columns(self, col_name: str, *col_names: str) -> Self:
+        """Specifies which edge columns are required when constructing triplets.
+
+        By default, only src and dst columns are included from edges. Use this method to
+        specify additional edge columns that are needed by the sendMsgToSrc and sendMsgToDst
+        expressions.
+
+        :param col_name: the first required edge column name
+        :param col_names: additional required edge column names
+
+        See also :func:`required_src_columns` and :func:`required_dst_columns`
+        """
+        self._java_obj.requiredEdgeColumns(
+            col_name, _to_seq(self.graph._spark.sparkContext, col_names)
         )
         return self
 

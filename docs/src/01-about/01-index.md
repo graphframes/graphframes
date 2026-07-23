@@ -91,7 +91,7 @@ GraphFrames should be compatible with any platform that runs the open-source Spa
 
 GraphFrames is compatible with Spark 3.4+. However, later versions of Spark include major improvements to DataFrames, so GraphFrames may be more efficient when running on more recent Spark versions.
 
-GraphFrames is tested with Java 8, 11 and 17, Python 3, Spark 3.5 and Spark 4.0 (Scala 2.12 / Scala 2.13).
+GraphFrames is tested with Java 8, 11 and 17, Python 3.10-3.13, Spark 3.5, Spark 4.0, and Spark 4.1 (Scala 2.12 / Scala 2.13).
 
 # Applications, the Apache Spark shell, and clusters
 

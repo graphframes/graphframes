@@ -1,0 +1,17 @@
+name: Spell Check
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  codespell:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+    - name: Install codespell
+      run: pip install codespell==2.4.2
+    - name: Run codespell
+      # Configuration (skips and ignore list) lives in .codespellrc.
+      run: codespell .

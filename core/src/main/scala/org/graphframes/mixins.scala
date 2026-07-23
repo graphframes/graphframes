@@ -120,6 +120,24 @@ private[graphframes] trait WithIntermediateStorageLevel extends Logging {
 
 }
 
+private[graphframes] trait WithLgNomEntries {
+  protected var lgNomEntries: Int = 12
+
+  /**
+   * Sets the log2 of nominal entries used by Theta sketch aggregations.
+   */
+  def setLgNomEntries(value: Int): this.type = {
+    require((value >= 4) && (value <= 26), "lgNomEntries must be between 4 and 26")
+    lgNomEntries = value
+    this
+  }
+
+  /**
+   * Gets log2 of nominal entries used by Theta sketch aggregations.
+   */
+  def getLgNomEntries: Int = lgNomEntries
+}
+
 private[graphframes] trait WithMaxIter {
   protected var maxIter: Option[Int] = None
 
@@ -204,7 +222,7 @@ private[graphframes] trait WithDirection {
   }
 
   /**
-   * Gets should graph be considred as directed.
+   * Gets should graph be considered as directed.
    *
    * @return
    *   true if directed

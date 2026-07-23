@@ -33,6 +33,7 @@ import org.apache.spark.sql.functions.monotonically_increasing_id
 import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.types.*
 import org.apache.spark.storage.StorageLevel
+import org.graphframes.embeddings.RandomWalkEmbeddings
 import org.graphframes.lib.*
 import org.graphframes.pattern.*
 
@@ -48,6 +49,8 @@ import scala.reflect.runtime.universe.TypeTag
  * @groupname subgraph Subgraph selection
  * @groupname degree Graph topology
  * @groupname motif Motif finding
+ * @groupname gml Graph Machine Learning
+ * @groupname utils Utility Methods
  */
 class GraphFrame private (
     @transient private val _vertices: DataFrame,
@@ -60,6 +63,11 @@ class GraphFrame private (
   /** Default constructor is provided to support serialization */
   protected def this() = this(null, null)
 
+  /**
+   * Return a string representation of the GraphFrame
+   *
+   * @group utils
+   */
   override def toString: String = {
     // We call select on the vertices and edges to ensure that ID, SRC, DST always come first
     // in the printed schema.
@@ -75,6 +83,8 @@ class GraphFrame private (
 
   /**
    * Persist the dataframe representation of vertices and edges of the graph with the default
+   *
+   * @group utils
    * storage level.
    */
   def cache(): this.type = {
@@ -83,6 +93,8 @@ class GraphFrame private (
 
   /**
    * Persist the dataframe representation of vertices and edges of the graph with the default
+   *
+   * @group utils
    * storage level.
    */
   def persist(): this.type = {
@@ -96,7 +108,9 @@ class GraphFrame private (
    * storage level.
    * @param newLevel
    *   One of: `MEMORY_ONLY`, `MEMORY_AND_DISK`, `MEMORY_ONLY_SER`, `MEMORY_AND_DISK_SER`,
-   *   `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc..
+   *
+   * @group utils
+   * `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc..
    */
   def persist(newLevel: StorageLevel): this.type = {
     vertices.persist(newLevel)
@@ -107,6 +121,8 @@ class GraphFrame private (
   /**
    * Mark the dataframe representation of vertices and edges of the graph as non-persistent, and
    * remove all blocks for it from memory and disk.
+   *
+   * @group utils
    */
   def unpersist(): this.type = {
     vertices.unpersist()
@@ -119,11 +135,125 @@ class GraphFrame private (
    * remove all blocks for it from memory and disk.
    * @param blocking
    *   Whether to block until all blocks are deleted.
+   *
+   * @group utils
    */
   def unpersist(blocking: Boolean): this.type = {
     vertices.unpersist(blocking)
     edges.unpersist(blocking)
     this
+  }
+
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   *
+   * @group utils
+   */
+  def validate(): Unit =
+    validate(checkVertices = true, intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK)
+
+  /**
+   * Validates the consistency and integrity of a graph by performing checks on the vertices and
+   * edges.
+   *
+   * @param checkVertices
+   *   a flag to indicate whether additional vertex consistency checks should be performed. If
+   *   true, the method will verify that all vertices in the vertex DataFrame are represented in
+   *   the edge DataFrame and vice versa. It is slow on big graphs.
+   * @param intermediateStorageLevel
+   *   the storage level to be used when persisting intermediate DataFrame computations during the
+   *   validation process.
+   * @return
+   *   Unit, as the method, performs validation checks and throws an exception if validation
+   *   fails.
+   * @throws InvalidGraphException
+   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
+   *   vertices between edges and vertex DataFrames or missing connections.
+   *
+   * @group utils
+   */
+  def validate(checkVertices: Boolean, intermediateStorageLevel: StorageLevel): Unit = {
+    val persistedVertices = vertices.persist(intermediateStorageLevel)
+    val countDistinctVertices = persistedVertices.select(countDistinct(ID)).first().getLong(0)
+    val verticesCount = persistedVertices.count()
+    if (countDistinctVertices != verticesCount) {
+      throw new InvalidGraphException(
+        s"Graph contains (${verticesCount - countDistinctVertices}) duplicate vertices.")
+    }
+    if (checkVertices) {
+      val verticesSetFromEdges = edges
+        .select(col(SRC).alias(ID))
+        .union(edges.select(col(DST).alias(ID)))
+        .distinct()
+        .persist(intermediateStorageLevel)
+      val countVerticesFromEdges = verticesSetFromEdges.count()
+      if (countVerticesFromEdges > countDistinctVertices) {
+        throw new InvalidGraphException(
+          s"Graph is inconsistent: edges has ${countVerticesFromEdges} " +
+            s"vertices, but vertices has ${countDistinctVertices} vertices.")
+      }
+
+      val combined = verticesSetFromEdges.join(vertices, ID, "left_anti")
+      val countOfBadVertices = combined.count()
+      if (countOfBadVertices > 0) {
+        throw new InvalidGraphException(
+          "Vertices DataFrame does not contain all edges src/dst. " +
+            s"Found ${countOfBadVertices} edges src/dst that are not in the vertices DataFrame.")
+      }
+      persistedVertices.unpersist()
+      verticesSetFromEdges.unpersist()
+      ()
+    }
+  }
+
+  /**
+   * Converts the directed graph into an undirected graph by ensuring that all directed edges are
+   * bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
+   *
+   * @return
+   *   a new GraphFrame representing the undirected graph.
+   *
+   * @group utils
+   */
+  def asUndirected(): GraphFrame = {
+    val newEdges = edges
+      .select(col(SRC), col(DST), nestAsCol(edges, ATTR))
+      .union(edges
+        .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR)))
+      .select(SRC, DST, ATTR)
+    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
+      .filter(c => (c != SRC) && (c != DST))
+      .map(c => col(ATTR).getField(c).alias(c))
+      .toSeq
+    GraphFrame(vertices, newEdges.select(newColumns: _*))
+  }
+
+  /**
+   * Reverses the direction of all edges in the graph. For every directed edge (src, dst), the
+   * resulting graph will contain an edge (dst, src) with the same attributes.
+   *
+   * @return
+   *   a new GraphFrame with all edge directions reversed.
+   *
+   * @group utils
+   */
+  def asReversed(): GraphFrame = {
+    val newEdges = edges
+      .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR))
+      .select(SRC, DST, ATTR)
+    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
+      .filter(c => (c != SRC) && (c != DST))
+      .map(c => col(ATTR).getField(c).alias(c))
+      .toSeq
+    GraphFrame(vertices, newEdges.select(newColumns: _*))
   }
 
   // ============== Basic structural methods ============
@@ -209,6 +339,9 @@ class GraphFrame private (
     if (hasIntegralIdType) {
       val vv = vertices.select(col(ID).cast(LongType), nestAsCol(vertices, ATTR)).rdd.map {
         case Row(id: Long, attr: Row) => (id, attr)
+        case Row(null, _) =>
+          throw new IllegalArgumentException(
+            s"Vertex ID cannot be null. Found null in column '$ID'.")
         case _ => throw new GraphFramesUnreachableException()
       }
       val ee = edges
@@ -216,6 +349,8 @@ class GraphFrame private (
         .rdd
         .map {
           case Row(srcId: Long, dstId: Long, attr: Row) => Edge(srcId, dstId, attr)
+          case Row(null, _, _) | Row(_, null, _) =>
+            throw new IllegalArgumentException(s"Edge '$SRC' and '$DST' cannot be null.")
           case _ => throw new GraphFramesUnreachableException()
         }
       Graph[Row, Row](vv, ee)
@@ -457,6 +592,23 @@ class GraphFrame private (
    * This can return duplicate rows. E.g., a query `"(u)-[]->()"` will return a result for each
    * matching edge, even if those edges share the same vertex `u`.
    *
+   * ==Performance==
+   * Motif finding translates patterns into a series of joins. Enabling Spark's Cost-Based
+   * Optimizer (CBO) and join reordering can significantly improve performance by letting Spark
+   * choose more efficient join orderings based on table statistics:
+   * {{{
+   * spark.conf.set("spark.sql.cbo.enabled", "true")
+   * spark.conf.set("spark.sql.cbo.joinReorder.enabled", "true")
+   * }}}
+   * The join reorder algorithm is bounded by `spark.sql.cbo.joinReorder.dp.threshold` (default:
+   * `12`). If the estimated number of joins in your motif exceeds this threshold, increase it
+   * accordingly:
+   * {{{
+   * spark.conf.set("spark.sql.cbo.joinReorder.dp.threshold", "20")
+   * }}}
+   * CBO relies on table statistics, so run `ANALYZE TABLE <tableName> COMPUTE STATISTICS` on the
+   * vertices and edges tables to ensure accurate statistics are available.
+   *
    * @param pattern
    *   Pattern specifying a motif to search for.
    * @return
@@ -464,56 +616,61 @@ class GraphFrame private (
    * @group motif
    */
   def find(pattern: String): DataFrame = {
-    val VarLengthPattern = """\((\w+)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w+)\)""".r
-    val UndirectedPattern = """\((\w+)\)-\[(\w*)\]-\((\w+)\)""".r
+    val VarLengthPattern = """\((\w*)\)-\[(\w*)\*(\d*)\.\.(\d*)\]-(>?)\((\w*)\)""".r
+    val FixedLengthUndirectedPattern = """\((\w*)\)-\[(\w*)\*(\d*)\]-\((\w*)\)""".r
 
     pattern match {
       case VarLengthPattern(src, name, min, max, direction, dst) =>
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
-            s"Unbounded length patten ${pattern} is not supported! " +
+            s"Unbounded length pattern ${pattern} is not supported! " +
               "Please a pattern of defined length.")
         }
-        val strToSeq: Seq[(Int, String)] = (min.toInt to max.toInt).reverse.map { hop =>
-          (hop, s"($src)-[$name*$hop]->($dst)")
+        findVarLengthPattern(src, name, min.toInt, max.toInt, direction, dst)
+
+      case FixedLengthUndirectedPattern(src, name, hop, dst) =>
+        if (hop.isEmpty) {
+          throw new InvalidParseException("Missing hop!")
         }
-        val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
-          (min.toInt to max.toInt).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
-        } else {
-          Seq.empty[(Int, String)]
-        }
-
-        val out: Seq[DataFrame] = strToSeq.map { case (hop, patternStr) =>
-          findAugmentedPatterns(patternStr)
-            .withColumn("_hop", lit(hop))
-            .withColumn("_pattern", lit(patternStr))
-            .withColumn("_direction", lit("out"))
-        }
-
-        val in: Seq[DataFrame] = strToSeqReverse.map { case (hop, patternStr) =>
-          findAugmentedPatterns(patternStr)
-            .withColumn("_hop", lit(hop))
-            .withColumn("_pattern", lit(patternStr))
-            .withColumn("_direction", lit("in"))
-        }
-
-        val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
-        ret.orderBy("_hop", "_direction")
-
-      case UndirectedPattern(src, name, dst) =>
-        val out: DataFrame = findAugmentedPatterns(s"($src)-[$name]->($dst)")
-          .withColumn("_pattern", lit(s"($src)-[$name]->($dst)"))
-          .withColumn("_direction", lit("out"))
-        val in: DataFrame = findAugmentedPatterns(s"($src)<-[$name]-($dst)")
-          .withColumn("_pattern", lit(s"($src)<-[$name]-($dst)"))
-          .withColumn("_direction", lit("in"))
-
-        val ret = out.unionByName(in)
-        ret.orderBy("_direction")
+        findVarLengthPattern(src, name, hop.toInt, hop.toInt, "", dst)
 
       case _ =>
         findAugmentedPatterns(pattern)
     }
+  }
+
+  def findVarLengthPattern(
+      src: String,
+      name: String,
+      min: Int,
+      max: Int,
+      direction: String,
+      dst: String): DataFrame = {
+    val strToSeq: Seq[(Int, String)] = (min to max).reverse.map { hop =>
+      (hop, s"($src)-[$name*$hop]->($dst)")
+    }
+    val strToSeqReverse: Seq[(Int, String)] = if (direction.isEmpty) {
+      (min to max).reverse.map(hop => (hop, s"($src)<-[$name*$hop]-($dst)"))
+    } else {
+      Seq.empty[(Int, String)]
+    }
+
+    val out: Seq[DataFrame] = strToSeq.map { case (hop, patternStr) =>
+      findAugmentedPatterns(patternStr)
+        .withColumn("_hop", lit(hop))
+        .withColumn("_pattern", lit(patternStr))
+        .withColumn("_direction", lit("out"))
+    }
+
+    val in: Seq[DataFrame] = strToSeqReverse.map { case (hop, patternStr) =>
+      findAugmentedPatterns(patternStr)
+        .withColumn("_hop", lit(hop))
+        .withColumn("_pattern", lit(patternStr))
+        .withColumn("_direction", lit("in"))
+    }
+
+    val ret = (out ++ in).reduce((a, b) => a.unionByName(b, allowMissingColumns = true))
+    ret.orderBy("_hop", "_direction")
   }
 
   def findAugmentedPatterns(pattern: String): DataFrame = {
@@ -527,7 +684,9 @@ class GraphFrame private (
     val augmentedPatterns = extraPositivePatterns ++ patterns
     val df = findSimple(augmentedPatterns)
 
-    val names = Pattern.findNamedElementsInOrder(patterns, includeEdges = true)
+    val names = Pattern
+      .findNamedElementsInOrder(patterns, includeEdges = true)
+      .filter(x => !x.startsWith("__tmpv"))
     if (names.isEmpty) df else df.select(quote(names.head), names.tail.map(quote): _*)
   }
 
@@ -543,9 +702,71 @@ class GraphFrame private (
   def bfs: BFS = new BFS(this)
 
   /**
+   * Enumerate all paths between source and destination vertices.
+   *
+   * See [[org.graphframes.lib.AllPaths]] for details.
+   *
+   * @group stdlib
+   */
+  def allPaths: AllPaths = new AllPaths(this)
+
+  /**
+   * Aggregate information from neighboring vertices and edges through a controlled traversal.
+   *
+   * This method provides a flexible way to perform graph traversals while accumulating state at
+   * each vertex. It can be used to implement various graph algorithms that require propagating
+   * information through the graph, such as influence propagation, belief propagation, or custom
+   * message-passing algorithms.
+   *
+   * The traversal starts from a set of starting vertices (by default all vertices) and proceeds
+   * for up to a specified number of hops. At each step, accumulators are updated based on
+   * neighboring vertices and edges. The traversal can be stopped early based on conditions, and
+   * results can be collected when target conditions are met.
+   *
+   * Key features:
+   *   - Configurable starting vertices via `setStartingVertices()`
+   *   - Maximum number of hops via `setMaxHops()`
+   *   - Accumulators to maintain state during traversal via `setAccumulators()` or
+   *     `addAccumulator()`
+   *   - Stopping conditions to terminate traversal early via `setStoppingCondition()`
+   *   - Target conditions to collect results when specific conditions are met via
+   *     `setTargetCondition()`
+   *   - Edge filtering via `setEdgeFilter()`
+   *   - Control over intermediate storage and checkpointing
+   *
+   * The algorithm works as follows:
+   *   1. Initialize accumulators for starting vertices
+   *   2. For each iteration up to maxHops:
+   *      - Join current frontier with edges to get neighbors
+   *      - Update accumulators using the provided update expressions
+   *      - Apply stopping conditions to determine which vertices should stop
+   *      - Apply target conditions to determine which stopped vertices should be collected
+   *      - Continue with vertices that haven't stopped
+   *   3. Return collected results as a DataFrame
+   *
+   * The result DataFrame contains:
+   *   - The accumulators' final values for collected vertices
+   *   - The vertex ID (in column "id")
+   *   - The number of hops taken (in column "hop")
+   *
+   * Note: This is a stateful iterative algorithm that may be performance-intensive for large
+   * graphs or large maxHops values. Consider using appropriate storage levels and checkpoint
+   * intervals for stability.
+   *
+   * @see
+   *   [[org.graphframes.lib.AggregateNeighbors]] for implementation details
+   * @return
+   *   an [[org.graphframes.lib.AggregateNeighbors]] instance for configuration
+   * @group stdlib
+   */
+  def aggregateNeighbors: AggregateNeighbors = new AggregateNeighbors(this)
+
+  /**
    * This is a primitive for implementing graph algorithms. This method aggregates values from the
    * neighboring edges and vertices of each vertex. See
    * [[org.graphframes.lib.AggregateMessages AggregateMessages]] for detailed documentation.
+   *
+   * @group stdlib
    */
   def aggregateMessages: AggregateMessages = new AggregateMessages(this)
 
@@ -615,6 +836,16 @@ class GraphFrame private (
    * @group stdlib
    */
   def labelPropagation: LabelPropagation = new LabelPropagation(this)
+
+  /**
+   * Mix of label- and structure propagation.
+   *
+   * See [[org.graphframes.lib.StructureAwareLabelPropagation]] for more details.
+   *
+   * @group stdlib
+   */
+  def structureAwareLabelPropagation: StructureAwareLabelPropagation =
+    new StructureAwareLabelPropagation(this)
 
   /**
    * PageRank algorithm.
@@ -693,17 +924,44 @@ class GraphFrame private (
    *   Param for maximum number of iterations (>= 0).
    * @param weightCol
    *   Param for weight column name.
-   * @return
+   *
+   * @group stdlib
    */
   def powerIterationClustering(k: Int, maxIter: Int, weightCol: Option[String]): DataFrame = {
+    val integralTypeEdges = if (hasIntegralIdType) {
+      edges
+    } else {
+      val pureIds =
+        indexedEdges.drop(SRC, DST).withColumnsRenamed(Map(LONG_SRC -> SRC, LONG_DST -> DST))
+      if (weightCol.isDefined) {
+        pureIds.select(
+          col(SRC),
+          col(DST),
+          col("attr").getField(weightCol.get).alias(weightCol.get))
+      } else {
+        pureIds
+      }
+    }
     val powerIterationClustering =
       new PowerIterationClustering().setK(k).setMaxIter(maxIter).setDstCol(DST).setSrcCol(SRC)
-    weightCol match {
-      case Some(col) => powerIterationClustering.setWeightCol(col).assignClusters(edges)
+    val result = weightCol match {
+      case Some(col) =>
+        powerIterationClustering.setWeightCol(col).assignClusters(integralTypeEdges)
       case None =>
         powerIterationClustering
           .setWeightCol("_weight")
-          .assignClusters(edges.withColumn("_weight", lit(1.0)))
+          .assignClusters(integralTypeEdges.withColumn("_weight", lit(1.0)))
+    }
+
+    if (hasIntegralIdType) {
+      result
+    } else {
+      result
+        .join(
+          indexedVertices.select(col(LONG_ID).alias(ID), col(ID).alias("_ID")),
+          Seq(ID),
+          "inner")
+        .select(col("_ID").alias(ID), col("cluster"))
     }
   }
 
@@ -717,72 +975,6 @@ class GraphFrame private (
   def kCore: KCore = new KCore(this)
 
   /**
-   * Validates the consistency and integrity of a graph by performing checks on the vertices and
-   * edges.
-   *
-   * @return
-   *   Unit, as the method, performs validation checks and throws an exception if validation
-   *   fails.
-   * @throws InvalidGraphException
-   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
-   *   vertices between edges and vertex DataFrames or missing connections.
-   */
-  def validate(): Unit =
-    validate(checkVertices = true, intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK)
-
-  /**
-   * Validates the consistency and integrity of a graph by performing checks on the vertices and
-   * edges.
-   *
-   * @param checkVertices
-   *   a flag to indicate whether additional vertex consistency checks should be performed. If
-   *   true, the method will verify that all vertices in the vertex DataFrame are represented in
-   *   the edge DataFrame and vice versa. It is slow on big graphs.
-   * @param intermediateStorageLevel
-   *   the storage level to be used when persisting intermediate DataFrame computations during the
-   *   validation process.
-   * @return
-   *   Unit, as the method, performs validation checks and throws an exception if validation
-   *   fails.
-   * @throws InvalidGraphException
-   *   if there are any inconsistencies in the graph, such as duplicate vertices, mismatched
-   *   vertices between edges and vertex DataFrames or missing connections.
-   */
-  def validate(checkVertices: Boolean, intermediateStorageLevel: StorageLevel): Unit = {
-    val persistedVertices = vertices.persist(intermediateStorageLevel)
-    val countDistinctVertices = persistedVertices.select(countDistinct(ID)).first().getLong(0)
-    val verticesCount = persistedVertices.count()
-    if (countDistinctVertices != verticesCount) {
-      throw new InvalidGraphException(
-        s"Graph contains (${verticesCount - countDistinctVertices}) duplicate vertices.")
-    }
-    if (checkVertices) {
-      val verticesSetFromEdges = edges
-        .select(col(SRC).alias(ID))
-        .union(edges.select(col(DST).alias(ID)))
-        .distinct()
-        .persist(intermediateStorageLevel)
-      val countVerticesFromEdges = verticesSetFromEdges.count()
-      if (countVerticesFromEdges > countDistinctVertices) {
-        throw new InvalidGraphException(
-          s"Graph is inconsistent: edges has ${countVerticesFromEdges} " +
-            s"vertices, but vertices has ${countDistinctVertices} vertices.")
-      }
-
-      val combined = verticesSetFromEdges.join(vertices, ID, "left_anti")
-      val countOfBadVertices = combined.count()
-      if (countOfBadVertices > 0) {
-        throw new InvalidGraphException(
-          "Vertices DataFrame does not contain all edges src/dst. " +
-            s"Found ${countOfBadVertices} edges src/dst that are not in the vertices DataFrame.")
-      }
-      persistedVertices.unpersist()
-      verticesSetFromEdges.unpersist()
-      ()
-    }
-  }
-
-  /**
    * Find all cycles in the graph. An implementation of the Rocha–Thatte cycle detection
    * algorithm.
    *
@@ -790,10 +982,12 @@ class GraphFrame private (
    * large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
    * (SBPO’15) (2015): 1-11.
    *
-   * Returns a DataFrame with unque cycles.
+   * Returns a DataFrame with unique cycles.
    *
    * @return
    *   an instance of DetectingCycles initialized with the current context
+   *
+   * @group stdlib
    */
   def detectingCycles: DetectingCycles = new DetectingCycles(this)
 
@@ -807,24 +1001,24 @@ class GraphFrame private (
   def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
 
   /**
-   * Converts the directed graph into an undirected graph by ensuring that all directed edges are
-   * bidirectional. For every directed edge (src, dst), a corresponding edge (dst, src) is added.
+   * Run an approximate neighbor function backed by the HLL-sketches.
    *
-   * @return
-   *   a new GraphFrame representing the undirected graph.
+   * See [[org.graphframes.lib.HyperANF]] for more details.
+   *
+   * @group stdlib
    */
-  def asUndirected(): GraphFrame = {
-    val newEdges = edges
-      .select(col(SRC), col(DST), nestAsCol(edges, ATTR))
-      .union(edges
-        .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR)))
-      .select(SRC, DST, ATTR)
-    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
-      .filter(c => (c != SRC) && (c != DST))
-      .map(c => col(ATTR).getField(c).alias(c))
-      .toSeq
-    GraphFrame(vertices, newEdges.select(newColumns: _*))
-  }
+  def hyperANF: HyperANF = new HyperANF(this)
+
+  // ========= Graph Machine Learning ==========
+
+  /**
+   * Random Walks Based node embeddings.
+   *
+   * See [[org.graphframes.embeddings.RandomWalkEmbeddings]] for more details.
+   *
+   * @group gml
+   */
+  def randomWalksBasedEmbedding: RandomWalkEmbeddings = new RandomWalkEmbeddings(this)
 
   // ========= Motif finding (private) =========
 
@@ -1062,10 +1256,31 @@ object GraphFrame extends Serializable with Logging {
    * @group conversions
    */
   def fromEdges(e: DataFrame): GraphFrame = {
+    fromEdges(e, StorageLevel.MEMORY_AND_DISK)
+  }
+
+  /**
+   * Create a new [[GraphFrame]] from an edge `DataFrame`. The resulting [[GraphFrame]] will have
+   * [[GraphFrame.vertices]] with a single "id" column.
+   *
+   * Note: The [[GraphFrame.vertices]] DataFrame will be persisted at level
+   * `StorageLevel.MEMORY_AND_DISK`.
+   * @param e
+   *   Edge DataFrame. This must include columns "src" and "dst" containing source and destination
+   *   vertex IDs. All other columns are treated as edge attributes.
+   * @param storageLevel
+   *   StorageLevel to persist the graph vertices
+   * @return
+   *   New [[GraphFrame]] instance
+   *
+   * @group conversions
+   */
+  def fromEdges(e: DataFrame, storageLevel: StorageLevel): GraphFrame = {
+    logWarn(
+      s"this method persists graph vertices with storage level ${storageLevel.toString()}, users should manually unpersist it when the graph is not needed!")
     val srcs = e.select(e("src").as("id"))
     val dsts = e.select(e("dst").as("id"))
-    val v = srcs.unionAll(dsts).distinct()
-    v.persist(StorageLevel.MEMORY_AND_DISK)
+    val v = srcs.unionAll(dsts).distinct().persist(storageLevel)
     apply(v, e)
   }
 
@@ -1203,6 +1418,16 @@ object GraphFrame extends Serializable with Logging {
   private def eSrcId(name: String): String = prefixWithName(name, SRC)
   private def eDstId(name: String): String = prefixWithName(name, DST)
 
+  private def maybeUnion(aOpt: Option[DataFrame], bOpt: Option[DataFrame]): Option[DataFrame] = {
+    (aOpt, bOpt) match {
+      case (Some(a), Some(b)) =>
+        Some(a.unionByName(b, allowMissingColumns = true).orderBy("_direction"))
+      case (Some(a), None) => Some(a)
+      case (None, Some(b)) => Some(b)
+      case (None, None) => None
+    }
+  }
+
   private def maybeCrossJoin(aOpt: Option[DataFrame], b: DataFrame): DataFrame = {
     aOpt match {
       case Some(a) => a.crossJoin(b)
@@ -1226,6 +1451,8 @@ object GraphFrame extends Serializable with Logging {
   /** Indicate whether a named vertex has been seen in the given pattern */
   private def seen1(v: NamedVertex, pattern: Pattern): Boolean = pattern match {
     case Negation(edge) =>
+      seen1(v, edge)
+    case UndirectedEdge(edge) =>
       seen1(v, edge)
     case AnonymousEdge(src, dst) =>
       seen1(v, src) || seen1(v, dst)
@@ -1270,6 +1497,57 @@ object GraphFrame extends Serializable with Logging {
         } else {
           (Some(maybeCrossJoin(prev, nestV(name))), prevNames :+ name)
         }
+
+      case UndirectedEdge(edge) =>
+        val srcName: String = edge match {
+          case NamedEdge(_, NamedVertex(n), _) => n
+          case AnonymousEdge(NamedVertex(n), _) => n
+          case _ => ""
+        }
+        val dstName: String = edge match {
+          case NamedEdge(_, _, NamedVertex(n)) => n
+          case AnonymousEdge(_, NamedVertex(n)) => n
+          case _ => ""
+        }
+        val edgeName: String = edge match {
+          case NamedEdge(n, _, _) => n
+          case _ => ""
+        }
+
+        val patternStr: String = s"($srcName)-[$edgeName]->($dstName)"
+        val reversedPatternStr: String = s"($srcName)<-[$edgeName]-($dstName)"
+
+        val reversedEdge: Pattern = {
+          edge match {
+            case e: NamedEdge =>
+              e.copy(src = e.dst, dst = e.src)
+            case e: AnonymousEdge =>
+              e.copy(src = e.dst, dst = e.src)
+            case _ => edge
+          }
+        }
+
+        val (dfIn, _) = findIncremental(gf, prevPatterns, prev, prevNames, reversedEdge)
+        val (dfOut, names) = findIncremental(gf, prevPatterns, prev, prevNames, edge)
+
+        val df1 = dfIn match {
+          case Some(d) =>
+            Some(
+              d.withColumn("_pattern", lit(reversedPatternStr))
+                .withColumn("_direction", lit("in")))
+          case None => None
+        }
+
+        val df2 = dfOut match {
+          case Some(d) =>
+            Some(
+              d.withColumn("_pattern", lit(patternStr))
+                .withColumn("_direction", lit("out")))
+          case None => None
+        }
+
+        val df = maybeUnion(df1, df2)
+        (df, names :+ "_pattern" :+ "_direction")
 
       case NamedEdge(name, AnonymousVertex, AnonymousVertex) =>
         val eRen = nestE(name)
@@ -1376,6 +1654,7 @@ object GraphFrame extends Serializable with Logging {
         prev match {
           case Some(p) =>
             val (df, names) = findIncremental(gf, prevPatterns, Some(p), prevNames, edge)
+            // TODO: _pattern. _direction columns should be ignored if it is impacting
             (df.map(result => p.except(result)), names)
           case None =>
             throw new InvalidPatternException

@@ -8,18 +8,20 @@
 
 # GraphFrames: graph algorithms at scale
 
-This is a package for graphs processing and analytics on scale. It is built on top of Apache Spark and relies on DataFrame abstraction. It provides built-in and easy to use distributed graph algorithms as well as a flexible APIs like `Pregel` or `AggregateMessages` to make custom graph processing. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
+This is a package for graphs processing and analytics at scale. It is built on top of Apache Spark and relies on DataFrame abstraction. It provides built-in and easy to use distributed graph algorithms as well as flexible APIs like `Pregel`, `AggregateMessages` or `AggregateNeighbors` to make custom graph processing. Users can write highly expressive queries by leveraging the DataFrame API, combined with a new API for network motif finding. The user also benefits from DataFrame performance optimizations within the Spark SQL engine. GraphFrames works in Java, Scala, and Python.
 
 ## GraphFrames usecases
 
 There are some popular use cases when GraphFrames is almost irreplaceable, including, but not limited to:
 
 - Compliance analytics with a scalable shortest paths algorithm and motif analysis;
-- Anti-fraud with scalable cycles detection in large networks;
-- Identity resolution on the scale of billions with highly efficient connected components;
-- Search result ranking with a distributed, Pregel-based PageRank;
-- Clustering huge graphs with Label Propagation and Power Iteration Clustering;
-- Building a knowledge graph systems with Property Graph Model.
+- Anti-fraud with scalable cycles detection in large networks and by using K-Core algorithm;
+- Identity resolution at the scale of billions with highly efficient connected components;
+- Plan marketing campaigns in social networks using Maximal Independent Set algorithm;
+- Rank search result with a distributed, Pregel-based PageRank;
+- Cluster huge graphs with Label Propagation and Power Iteration Clustering;
+- Compute node embeddings at billion scale using Random-Walks and Hash2Vec model;
+- Build a knowledge graph systems with Property Graph Model.
 
 ## Documentation
 
@@ -27,9 +29,15 @@ There are some popular use cases when GraphFrames is almost irreplaceable, inclu
 - [Creating Graphs](https://graphframes.io/04-user-guide/01-creating-graphframes.html)
 - [Basic Graph Manipulations](https://graphframes.io/04-user-guide/02-basic-operations.html)
 - [Centrality Metrics](https://graphframes.io/04-user-guide/03-centralities.html)
-- [Motif finding](https://graphframes.io/04-user-guide/04-motif-finding.html)
+- [Motif Finding](https://graphframes.io/04-user-guide/04-motif-finding.html)
 - [Traversals and Connectivity](https://graphframes.io/04-user-guide/05-traversals.html)
 - [Community Detection](https://graphframes.io/04-user-guide/06-graph-clustering.html)
+- [Subgraphs](https://graphframes.io/04-user-guide/07-subgraphs.html)
+- [Graph Machine Learning](https://graphframes.io/04-user-guide/15-graph-ml.html)
+- [Saving and Loading](https://graphframes.io/04-user-guide/08-saving-and-loading.html)
+- [Message Passing](https://graphframes.io/04-user-guide/09-aggregate-messages.html)
+- [Pregel](https://graphframes.io/04-user-guide/10-pregel.html)
+- [Labeled Property Graphs](https://graphframes.io/04-user-guide/11-property-graphs.html)
 - [Scala API](https://graphframes.io/api/scaladoc/)
 - [Python API](https://graphframes.io/api/python/)
 - [Apache Spark compatibility](https://graphframes.io/02-quick-start/01-installation.html#spark-versions-compatibility)
@@ -98,13 +106,13 @@ g.degrees.show()
 g2 = g.pageRank(resetProbability=0.15, tol=0.01)
 g2.vertices.show()
 
-# +---+-----+---+------------------+
-# | id| name|age|          pagerank|
-# +---+-----+---+------------------+
-# |  1| John| 30|0.7758750474847483|
-# |  2|Alice| 25|1.4482499050305027|
-# |  3|  Bob| 35|0.7758750474847483|
-# +---+-----+---+------------------+
+# +---+-------+---+------------------+
+# | id|   name|age|          pagerank|
+# +---+-------+---+------------------+
+# |  1|  Alice| 30|0.7758750474847483|
+# |  2|    Bob| 25|1.4482499050305027|
+# |  3|Charlie| 35|0.7758750474847483|
+# +---+-------+---+------------------+
 
 # GraphFrames' most used feature...
 # Connected components can do big data entity resolution on billions or even trillions of records!
@@ -113,13 +121,13 @@ g2.vertices.show()
 sc.setCheckpointDir("/tmp/graphframes-example-connected-components")  # required by GraphFrames.connectedComponents
 g.connectedComponents().show()
 
-# +---+-----+---+---------+
-# | id| name|age|component|
-# +---+-----+---+---------+
-# |  1| John| 30|        1|
-# |  2|Alice| 25|        1|
-# |  3|  Bob| 35|        1|
-# +---+-----+---+---------+
+# +---+-------+---+---------+
+# | id|   name|age|component|
+# +---+-------+---+---------+
+# |  1|  Alice| 30|        1|
+# |  2|    Bob| 25|        1|
+# |  3|Charlie| 35|        1|
+# +---+-------+---+---------+
 
 # Find frenemies with network motif finding! See how graph and relational queries are combined?
 (
@@ -142,11 +150,11 @@ To learn more about GraphFrames, check out these resources:
 
 ### GraphFrames tutorials
 
-- [GraphFrames Network Motif Finding Tutorial](https://graphframes.github.io/graphframes/docs/_site/motif-tutorial.html)
+- [GraphFrames Network Motif Finding Tutorial](https://graphframes.io/03-tutorials/02-motif-tutorial.html)
 
 ### Community Resources
 
-This resources are provided by the community:
+These resources are provided by the community:
 
 - [Introducing GraphFrames](https://databricks.com/blog/2016/03/03/introducing-graphframes.html)
 - [GraphFrames Google Group](https://groups.google.com/forum/#!forum/graphframes)
@@ -159,11 +167,12 @@ This resources are provided by the community:
 ## GraphFrames Internals
 
 - [A top level overview of GraphFrames internals](https://graphframes.io/01-about/02-architecture.html)
-- [GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
+- [GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf)
+- [Detailed overview of the GraphFrames Random-Walks and Hash2Vec implementations](https://semyonsinchenko.github.io/ssinchenko/post/graphframes-embeddings/)
 
 ## Contributing
 
-GraphFrames was made as collaborative effort among UC Berkeley, MIT, Databricks and the open source community. At the moment GraphFrames is maintained by the group of individual contributors.
+GraphFrames was made as a collaborative effort among UC Berkeley, MIT, Databricks and the open source community. At the moment GraphFrames is maintained by a group of individual contributors.
 
 See [contribution guide](./CONTRIBUTING.md) and the [local development setup walkthrough](https://graphframes.io/06-contributing/01-contributing-guide.html) for step-by-step instructions on preparing your environment, running tests, and submitting changes.
 
