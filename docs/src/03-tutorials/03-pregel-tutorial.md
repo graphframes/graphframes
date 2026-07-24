@@ -388,7 +388,7 @@ PageRank was defined by Google cofounders Larry Page and Sergey Brin in their la
 ```python
 # PageRank parameters
 damping_factor = 0.85
-max_iterations = 3
+max_iterations = 10
 
 # First, compute out-degrees for each node (needed for PageRank)
 out_degrees = g.outDegrees.withColumnRenamed("outDegree", "out_degree")
@@ -445,7 +445,7 @@ from graphframes.lib import Pregel
 
 # PageRank parameters
 damping_factor = 0.85
-max_iterations = 3
+max_iterations = 10
 
 # Create simple graph
 vertices_pr = spark.createDataFrame([
@@ -585,7 +585,13 @@ There is no difference!
 
 ## Label Propagation with Pregel
 
-Label Propagation is a semi-supervised learning algorithm that assigns labels to unlabeled nodes in a graph based on their neighbors. Here's how to implement it using Pregel:
+Label Propagation is a simple, fast community detection algorithm. Every node starts with a unique label (its own id). At each iteration, every node adopts the most frequent label among its neighbors. After a few iterations, labels pool inside densely connected regions of the graph — each surviving label marks a community.
+
+Because each node needs to hear from **all** of its neighbors regardless of edge direction, we send messages both ways: `sendMsgToDst` carries the source's label forward along each edge, and `sendMsgToSrc` carries the destination's label backward.
+
+### A First Attempt
+
+Here is a natural first attempt at the algorithm. It contains two mistakes that nearly everyone makes when learning the Pregel API — see if you can spot them before reading on:
 
 ```python
 # Initialize each node with its own ID as the initial label
@@ -600,6 +606,62 @@ label_prop_results = g_labels.pregel.setMaxIter(5) \
     .sendMsgToSrc(Pregel.dst("label")) \
     .aggMsgs(F.expr("mode(collect_list(msg))")) \
     .run()
+```
+
+Run it and Spark rejects the plan immediately:
+
+```
+AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column, variable, or function parameter with name `src`.`id` cannot be resolved. Did you mean one of the following? [`id`, `label`]. SQLSTATE: 42703
+```
+
+### Lesson 1: Each Pregel Expression Runs in a Different Context
+
+The error comes from `Pregel.src("id")` in `withVertexColumn`. `Pregel.src()` generates a reference to `src.id` — a column that only exists inside an edge **triplet** (src vertex, edge, dst vertex). But the Pregel builder evaluates each expression you give it against a different DataFrame:
+
+| Expression | Evaluated against | What's in scope |
+|------------|-------------------|-----------------|
+| `withVertexColumn` initial value | The vertex DataFrame alone | Plain vertex columns: `F.col("id")` |
+| `withVertexColumn` update | Vertices joined with aggregated messages | `Pregel.msg()` + plain vertex columns: `F.col("label")` |
+| `sendMsgToDst` / `sendMsgToSrc` | The edge triplet | `Pregel.src(...)`, `Pregel.dst(...)`, `Pregel.edge(...)` |
+| `aggMsgs` | The messages grouped by recipient | `Pregel.msg()` inside one aggregate function |
+
+So `Pregel.src()` and `Pregel.dst()` belong **only** in the message expressions. In the initial and update expressions, refer to vertex columns directly: the initial label is `F.col("id")`, and "keep my old label" in the update is `F.col("label")`.
+
+A related subtlety: `withVertexColumn("label", ...)` **creates** the `label` column — that is its job. Pre-building a `label` column on the vertices, as the first attempt does, would collide with the one Pregel creates. Start from bare ids and let Pregel manage the state column.
+
+### Lesson 2: `aggMsgs` Takes One Aggregate — Don't Nest Them
+
+The second mistake is `F.expr("mode(collect_list(msg))")`. Both `mode` and `collect_list` are aggregate functions, and SQL does not allow aggregates inside aggregates — this line would have failed next with a nested-aggregate error. No intermediate list is needed: `mode` already computes the most frequent value of a column, so the whole reduction is simply:
+
+```python
+.aggMsgs(F.mode(Pregel.msg()))
+```
+
+This is worth internalizing: `aggMsgs` receives the bag of messages arriving at each vertex and wants **one** aggregate expression over `Pregel.msg()` — `F.sum()` for PageRank, `F.min()` for shortest paths, `F.mode()` for label propagation.
+
+### The Corrected Implementation
+
+Applying both lessons:
+
+```python
+# Start from bare vertex ids; withVertexColumn adds the "label" column itself
+g_labels = GraphFrame(g.vertices.select("id"), g.edges)
+
+# Run Label Propagation using Pregel. Each node adopts the most
+# frequent label among its neighbors
+label_prop_results = (
+    g_labels.pregel
+    .setMaxIter(5)
+    .withVertexColumn(
+        "label",
+        F.col("id"),                               # initial value: the vertex's own id
+        F.coalesce(Pregel.msg(), F.col("label")),  # update: keep old label if no messages
+    )
+    .sendMsgToDst(Pregel.src("label"))
+    .sendMsgToSrc(Pregel.dst("label"))
+    .aggMsgs(F.mode(Pregel.msg()))                 # most frequent neighbor label
+    .run()
+)
 
 # Count communities (unique labels)
 communities = label_prop_results.select("label").distinct().count()
@@ -609,6 +671,74 @@ print(f"Number of communities detected: {communities}")
 label_prop_results.groupBy("label").count() \
     .orderBy(F.desc("count")).show(10)
 ```
+
+On the Stack Exchange graph this produces:
+
+```
+Number of communities detected: 65086
+
++--------------------+-----+
+|               label|count|
++--------------------+-----+
+|fab83b0f-fa28-402...|  251|
+|67fccfd2-74b5-43d...|  233|
+|d1959c11-6672-417...|  217|
+|2ba43c90-5f1f-4db...|  153|
+|577a22ba-e830-41b...|  147|
+|c34449b8-8c40-4fa...|  147|
+|3f106fd2-721f-4eb...|  127|
+|1ef25c75-c350-4ca...|  124|
+|d24d5ed6-50da-4c9...|  122|
+|358cb9ee-a974-454...|  118|
++--------------------+-----+
+```
+
+Don't be alarmed by the 65,086 "communities" — most of them are singletons. A node with no edges (or one whose messages never arrived within 5 iterations) keeps its own id as its label, so every isolated vertex counts as a community of one. The real community structure is in the larger groups at the top of the table. If you want to focus on connected nodes only, filter the graph to vertices with degree ≥ 1 before running the algorithm.
+
+### Visualizing the Community Size Distribution
+
+A top-10 table shows the biggest communities, but the overall *shape* of the distribution is just as informative. Community sizes in real networks typically follow a power law — many tiny communities, a few large ones — which spans several orders of magnitude. That makes it a poor fit for a linear histogram, so we bucket sizes into powers of two (1, 2–3, 4–7, 8–15, ...) and draw the bars on a log scale:
+
+```python
+import math
+
+# Community sizes: one row per label with its member count
+community_sizes = label_prop_results.groupBy("label").count() \
+    .withColumnRenamed("count", "size")
+
+# Bucket the sizes into powers of two: 1, 2-3, 4-7, 8-15, ...
+histogram = (
+    community_sizes
+    .withColumn("bucket", F.floor(F.log2("size")))
+    .groupBy("bucket")
+    .agg(F.count("*").alias("num_communities"))
+    .orderBy("bucket")
+    .collect()   # tiny result set - safe to bring to the driver
+)
+
+# Print a text histogram, with bar length on a log scale
+print(f"{'size':>9}  {'communities':>11}")
+for row in histogram:
+    low = 2 ** row["bucket"]
+    high = 2 ** (row["bucket"] + 1) - 1
+    label = str(low) if low == high else f"{low}-{high}"
+    bar = "#" * max(1, round(10 * math.log10(row["num_communities"])))
+    print(f"{label:>9}  {row['num_communities']:>11}  {bar}")
+```
+
+```
+     size  communities
+        1        53876  ###############################################
+      2-3         4613  #####################################
+      4-7         3191  ###################################
+     8-15         2604  ##################################
+    16-31          683  ############################
+    32-63           96  ####################
+   64-127           17  ############
+  128-255            6  ########
+```
+
+The distribution tells the story at a glance: 53,876 of the 65,086 labels are singletons — isolated vertices, not communities — while the genuine community structure lives in the long tail: thousands of small clusters, dwindling to just 6 communities of more than 128 members. Note the pattern in the code: the heavy aggregation (`groupBy` twice) happens in Spark, and only the handful of bucket rows are `collect()`ed to the driver for formatting — a good habit for any summary visualization of large data.
 
 ## Combining Node Types
 
