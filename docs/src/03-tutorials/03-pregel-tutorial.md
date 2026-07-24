@@ -51,7 +51,7 @@ Use the GraphFrames CLI to download and prepare the stats.meta Stack Exchange da
 graphframes stackexchange stats.meta
 
 # Process the XML data into Parquet files
-spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 \
+spark-submit --packages io.graphframes:graphframes-spark3_2.13:0.12.1 \
   --driver-memory 4g --executor-memory 4g \
   python/graphframes/tutorials/stackexchange.py
 ```
@@ -61,6 +61,12 @@ This creates `Nodes.parquet` and `Edges.parquet` files in `python/graphframes/tu
 ### Quick Start: Creating a Simple Test Graph
 
 **Skip the data download?** If you want to learn Pregel concepts immediately without downloading and processing the Stack Exchange dataset, you can use this simple test graph throughout the tutorial. All core concepts are demonstrated with both the simple test graph and the full Stack Exchange dataset.
+
+```bash
+pyspark --packages io.graphframes:graphframes-spark3_2.13:0.12.1
+```
+
+Now create a simple GraphFrame:
 
 ```python
 import pyspark.sql.functions as F
@@ -142,6 +148,9 @@ nodes_df = nodes_df.repartition(50).checkpoint().cache()
 EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
 edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
 edges_df = edges_df.repartition(50).checkpoint().cache()
+
+# Create a GraphFrame to get access to AggregateMessages API
+g: GraphFrame = GraphFrame(nodes_df, edges_df)
 ```
 
 This Stack Exchange graph contains several node types (Badge, Vote, User, Answer, Question, PostLinks, Tag) and relationship types (Earns, CastFor, Tags, Answers, Posts, Asks, Links, Duplicates). The [Network Motif Tutorial](02-motif-tutorial.md) explores these in detail.
@@ -152,7 +161,7 @@ Now let's walk through in-degree in AggregateMessages. The in-degree of a node i
 # Initialize a column with 1 to transmit to other nodes
 nodes_df = nodes_df.withColumn("start_degree", F.lit(1))
 
-# Create a GraphFrame to get access to AggregateMessages API
+# Recreate a GraphFrame with start_degree node property to get access to AggregateMessages API
 g: GraphFrame = GraphFrame(nodes_df, edges_df)
 
 msgToDst = AM.src["start_degree"]
@@ -166,7 +175,9 @@ There's a problem, however - isolated or dangling nodes (those with no in-links)
 
 ```python
 agg.groupBy("in_degree").count().orderBy("in_degree").show(10)
+```
 
+```
 +---------+-----+
 |in_degree|count|
 +---------+-----+
@@ -199,7 +210,9 @@ Now a histogram of degrees verifies the zeros have been added:
 
 ```python
 completeInDeg.groupBy("in_degree").count().orderBy("in_degree").show(10)
+```
 
+```
 +---------+-----+
 |in_degree|count|
 +---------+-----+
@@ -257,19 +270,23 @@ complete_degrees = (
 )
 
 complete_degrees.orderBy("id").show()
+```
 
-# Expected output:
-# +---+-------+---------+
-# | id|   name|in_degree|
-# +---+-------+---------+
-# |  A|  Alice|        0|  (no incoming edges)
-# |  B|    Bob|        1|  (A->B)
-# |  C|Charlie|        2|  (A->C, B->C)
-# |  D|  David|        1|  (C->D)
-# +---+-------+---------+
+Expected output:
+
+```
++---+-------+---------+
+| id|   name|in_degree|
++---+-------+---------+
+|  A|  Alice|        0|  (no incoming edges)
+|  B|    Bob|        1|  (A->B)
+|  C|Charlie|        2|  (A->C, B->C)
+|  D|  David|        1|  (C->D)
++---+-------+---------+
 ```
 
 This simple example clearly shows how AggregateMessages works:
+
 - Node A has 0 in-degree (no one follows Alice)
 - Node B has 1 in-degree (Alice follows Bob)
 - Node C has 2 in-degree (Alice and Bob follow Charlie)
@@ -369,6 +386,10 @@ PageRank was defined by Google cofounders Larry Page and Sergey Brin in their la
 </center>
 
 ```python
+# PageRank parameters
+damping_factor = 0.85
+max_iterations = 3
+
 # First, compute out-degrees for each node (needed for PageRank)
 out_degrees = g.outDegrees.withColumnRenamed("outDegree", "out_degree")
 nodes_with_outdegree = nodes_df.join(out_degrees, on="id", how="left").na.fill(1, ["out_degree"])
@@ -378,10 +399,6 @@ g: GraphFrame = GraphFrame(nodes_with_outdegree, edges_df)
 
 # Get total number of nodes for PageRank initialization
 num_vertices = g.vertices.count()
-
-# PageRank parameters
-damping_factor = 0.85
-max_iterations = 10
 
 # Import Pregel for the PageRank implementation
 from graphframes.lib import Pregel
@@ -426,6 +443,10 @@ Let's see PageRank in action on our simple test graph to understand how it works
 ```python
 from graphframes.lib import Pregel
 
+# PageRank parameters
+damping_factor = 0.85
+max_iterations = 3
+
 # Create simple graph
 vertices_pr = spark.createDataFrame([
     ("A", "Alice"),
@@ -443,16 +464,15 @@ edges_pr = spark.createDataFrame([
 
 # Calculate out-degrees
 g_pr = GraphFrame(vertices_pr, edges_pr)
+
+# Get the final PageRank parameter
+num_vertices = g_pr.vertices.count()
+
 out_degrees = g_pr.outDegrees.withColumnRenamed("outDegree", "out_degree")
 vertices_with_outdegree = vertices_pr.join(out_degrees, on="id", how="left").na.fill(1, ["out_degree"])
 
 # Create GraphFrame with out-degree info
 g_pr = GraphFrame(vertices_with_outdegree, edges_pr)
-
-# PageRank parameters
-num_vertices = g_pr.vertices.count()
-damping_factor = 0.85
-max_iterations = 10
 
 # Run PageRank using Pregel
 results = g_pr.pregel.setMaxIter(max_iterations) \
@@ -464,19 +484,23 @@ results = g_pr.pregel.setMaxIter(max_iterations) \
 
 # Show results
 results.select("id", "name", "pagerank").orderBy(F.desc("pagerank")).show()
+```
 
-# Expected output (approximate values after 10 iterations):
-# +---+-------+------------------+
-# | id|   name|          pagerank|
-# +---+-------+------------------+
-# |  C|Charlie|0.3427...         |  (most influential - receives from A and B)
-# |  D|  David|0.2799...         |  (receives from C)
-# |  B|    Bob|0.2387...         |  (receives from A)
-# |  A|  Alice|0.1387...         |  (least influential - no incoming edges)
-# +---+-------+------------------+
+Expected output (approximate values after 10 iterations):
+
+```
++---+-------+------------------+
+| id|   name|          pagerank|
++---+-------+------------------+
+|  C|Charlie|0.3427...         |  (most influential - receives from A and B)
+|  D|  David|0.2799...         |  (receives from C)
+|  B|    Bob|0.2387...         |  (receives from A)
+|  A|  Alice|0.1387...         |  (least influential - no incoming edges)
++---+-------+------------------+
 ```
 
 **How PageRank works in this example:**
+
 1. Each node starts with PageRank = 1/4 = 0.25
 2. At each iteration:
    - A splits its PageRank equally to B and C (A has out-degree=2)
@@ -486,21 +510,77 @@ results.select("id", "name", "pagerank").orderBy(F.desc("pagerank")).show()
 3. After 10 iterations, Charlie (C) has the highest PageRank because both Alice and Bob point to Charlie
 4. Alice (A) has the lowest PageRank because no one points to Alice
 
-### Comparing with GraphFrames' Built-in PageRank
-
-Let's verify our Pregel implementation matches the built-in PageRank:
+Note that there's a problem: pageranks don't sum to 1. This is because of a dangling node problem - nodes without connections pass no messages. To fix, we nee to normalize by the total at the end. This is a legitimate operation, not a hack.
 
 ```python
-# Run built-in PageRank for comparison
-builtin_pr = g.pageRank(resetProbability=1-damping_factor, maxIter=max_iterations)
+total = results.agg(F.sum("pagerank")).first()[0]
+results = results.withColumn("pagerank", F.col("pagerank") / F.lit(total))
 
-# Compare results
-comparison = results.select("id", F.col("pagerank").alias("pregel_pr")) \
-    .join(builtin_pr.vertices.select("id", F.col("pagerank").alias("builtin_pr")), on="id") \
-    .select("id", "pregel_pr", "builtin_pr",
-            F.abs(F.col("pregel_pr") - F.col("builtin_pr")).alias("difference"))
+results.select("id", "name", "pagerank").orderBy(F.desc("pagerank")).show()
+results.agg(F.sum("pagerank")).show()   # → 1.0
+```
 
-comparison.orderBy(F.desc("pregel_pr")).show(5)
+```
++---+-------+-------------------+
+| id|   name|           pagerank|
++---+-------+-------------------+
+|  D|  David|0.49599601676278976|
+|  C|Charlie| 0.2625202273764574|
+|  B|    Bob| 0.1419028256088959|
+|  A|  Alice|0.09958093025185676|
++---+-------+-------------------+
+
++------------------+
+|     sum(pagerank)|
++------------------+
+|0.9999999999999998|
++------------------+
+```
+
+### Comparing with GraphFrames' Built-in PageRank
+
+Now lets compute against the built-in PageRank:
+
+```python
+# Run the builtin PageRank on the SAME small graph (g_pr, not g!)
+builtin_pr = g_pr.pageRank(resetProbability=1 - damping_factor, maxIter=max_iterations)
+
+# The builtin (GraphX) normalizes scores to sum to N (mean = 1),
+# so divide by their sum to get a probability distribution too
+builtin_total = builtin_pr.vertices.agg(F.sum("pagerank")).first()[0]
+builtin_vertices = builtin_pr.vertices.withColumn(
+    "pagerank", F.col("pagerank") / F.lit(builtin_total)
+)
+
+# Compare side by side
+comparison = (
+    results.select("id", F.col("pagerank").alias("pregel_pr"))
+    .join(
+        builtin_vertices.select("id", F.col("pagerank").alias("builtin_pr")),
+        on="id",
+    )
+    .select(
+        "id",
+        "pregel_pr",
+        "builtin_pr",
+        F.abs(F.col("pregel_pr") - F.col("builtin_pr")).alias("difference"),
+    )
+)
+
+comparison.orderBy(F.desc("pregel_pr")).show()
+```
+
+There is no difference!
+
+```
++---+-------------------+-------------------+----------+
+| id|          pregel_pr|         builtin_pr|difference|
++---+-------------------+-------------------+----------+
+|  D|0.49599601676278987|0.49599601676278987|       0.0|
+|  C|0.26252022737645747|0.26252022737645747|       0.0|
+|  B|0.14190282560889592|0.14190282560889592|       0.0|
+|  A|0.09958093025185678|0.09958093025185678|       0.0|
++---+-------------------+-------------------+----------+
 ```
 
 ## Label Propagation with Pregel
