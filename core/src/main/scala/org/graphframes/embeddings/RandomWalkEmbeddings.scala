@@ -230,7 +230,7 @@ class RandomWalkEmbeddings private[graphframes] (private val graph: GraphFrame)
         .run()
     } else {
       // we need to create a new DataFrame, so unpersisting peristedEmbeddings
-      // does not accidently unpersist the result;
+      // does not accidentally unpersist the result;
       // dummy operations are cheap, but will create a different plan.
       persistedEmbeddings
         .withColumnRenamed(RandomWalkEmbeddings.embeddingColName, "x")
@@ -269,7 +269,7 @@ object RandomWalkEmbeddings extends Serializable {
    * provide a smooth way to initialize the whole embeddings pipeline with a single method call
    * that is usable for Python API (py4j and Spark Connect).
    *
-   * Instead of this API it is recommended to use new + settters of the class!
+   * Instead of this API it is recommended to use new + setters of the class!
    */
   def pythonAPI(
       graph: GraphFrame,

@@ -61,7 +61,7 @@ numpy = [
 enable = true
 
 [tool.poetry.urls]
-"Project Homepage" = "https://graphframes.github.io/graphframes"
+"Project Homepage" = "https://graphframes.io"
 "PyPi Homepage" = "https://pypi.org/project/graphframes-py"
 "Code Repository" = "https://github.com/graphframes/graphframes"
 "Bug Tracker" = "https://github.com/graphframes/graphframes/issues"
@@ -70,14 +70,13 @@ enable = true
 black = "^23.12.1"
 flake8 = "^7.1.1"
 isort = "^6.0.0"
-
 pre-commit = "^3.0.0"
 pyspark = { version = ">=3.5, <4.2", extras = ["connect"] }
 pytest = "^9.0.3"
 
 [tool.poetry.group.connect.dependencies]
 pytest = "^9.0.3"
-pyspark-client = ">=3.5,<4.2"
+pyspark-client = ">=4.0,<4.2"
 
 [tool.poetry.group.tutorials.dependencies]
 py7zr = "^0.22.0"

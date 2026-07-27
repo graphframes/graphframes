@@ -202,6 +202,17 @@ object GraphFramesConnectUtils {
           .maxPathLength(bfsProto.getMaxPathLength)
           .run()
       }
+      case proto.GraphFramesAPI.MethodCase.ALL_PATHS => {
+        val allPathsProto = apiMessage.getAllPaths
+        graphFrame.allPaths
+          .toExpr(parseColumnOrExpression(allPathsProto.getToExpr, planner))
+          .fromExpr(parseColumnOrExpression(allPathsProto.getFromExpr, planner))
+          .edgeFilter(parseColumnOrExpression(allPathsProto.getEdgeFilter, planner))
+          .maxPathLength(allPathsProto.getMaxPathLength)
+          .setIsDirected(allPathsProto.getIsDirected)
+          .setUseLocalCheckpoints(allPathsProto.getUseLocalCheckpoints)
+          .run()
+      }
       case proto.GraphFramesAPI.MethodCase.CONNECTED_COMPONENTS => {
         val cc = apiMessage.getConnectedComponents
         val ccBuilder = graphFrame.connectedComponents
@@ -258,6 +269,27 @@ object GraphFramesConnectUtils {
           lpBuilder.setIntermediateStorageLevel(parseStorageLevel(lp.getStorageLevel)).run()
         } else {
           lpBuilder.run()
+        }
+      }
+      case proto.GraphFramesAPI.MethodCase.NEIGHBORHOOD_AWARE_CDLP => {
+        val nc = apiMessage.getNeighborhoodAwareCdlp
+        val ncBuilder = graphFrame.structureAwareLabelPropagation
+          .maxIter(nc.getMaxIter)
+          .setIgnoreDirectLinks(nc.getIgnoreDirectLinks)
+          .setStructuralSimilarityMultiplier(nc.getStructuralSimilarityMultiplier)
+          .setUseLocalCheckpoints(nc.getUseLocalCheckpoints)
+          .setCheckpointInterval(nc.getCheckpointInterval)
+          .setIsDirected(nc.getIsDirected)
+          .setLgNomEntries(nc.getLgNomEntries)
+
+        if (nc.hasInitialLabelCol) {
+          ncBuilder.setInitialLabelCol(nc.getInitialLabelCol)
+        }
+
+        if (nc.hasStorageLevel) {
+          ncBuilder.setIntermediateStorageLevel(parseStorageLevel(nc.getStorageLevel)).run()
+        } else {
+          ncBuilder.run()
         }
       }
       case proto.GraphFramesAPI.MethodCase.PAGE_RANK => {
@@ -358,6 +390,12 @@ object GraphFramesConnectUtils {
           val cols =
             pregelProto.getRequiredDstColumns.split(",").map(_.trim).filter(_.nonEmpty).toSeq
           if (cols.nonEmpty) pregel = pregel.requiredDstColumns(cols.head, cols.tail: _*)
+        }
+
+        if (pregelProto.hasRequiredEdgeColumns) {
+          val cols =
+            pregelProto.getRequiredEdgeColumns.split(",").map(_.trim).filter(_.nonEmpty).toSeq
+          if (cols.nonEmpty) pregel = pregel.requiredEdgeColumns(cols.head, cols.tail: _*)
         }
 
         pregel.run()
@@ -553,6 +591,25 @@ object GraphFramesConnectUtils {
           aggregateNeighborsMaxNbrs = message.getAggregateNeighborsMaxNbrs(),
           aggregateNeighborsSeed = message.getAggregateNeighborsSeed(),
           cleanUpAfterRun = message.getCleanUpAfterRun())
+      }
+      case proto.GraphFramesAPI.MethodCase.HYPER_ANF => {
+        val haProto = apiMessage.getHyperAnf
+        val haBuilder = graphFrame.hyperANF
+          .setNHops(haProto.getNHops)
+          .setLgNomEntries(haProto.getLgNomEntries)
+          .setCheckpointInterval(haProto.getCheckpointInterval)
+          .setUseLocalCheckpoints(haProto.getUseLocalCheckpoints)
+
+        if (haProto.hasEdgesFilterExpression) {
+          haBuilder.setEdgesFilterExpression(
+            parseColumnOrExpression(haProto.getEdgesFilterExpression, planner))
+        }
+
+        if (haProto.hasStorageLevel) {
+          haBuilder.setIntermediateStorageLevel(parseStorageLevel(haProto.getStorageLevel)).run()
+        } else {
+          haBuilder.run()
+        }
       }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }

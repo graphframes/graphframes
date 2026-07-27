@@ -6,12 +6,11 @@ import tempfile
 import warnings
 
 import pytest
-from py4j.java_gateway import JavaObject
+
 from pyspark.sql import SparkSession
 from pyspark.version import __version__
 
 from graphframes import GraphFrame
-from graphframes.classic.graphframe import _java_api
 
 if __version__[:3] >= "3.4":
     from pyspark.sql.utils import is_remote
@@ -23,6 +22,7 @@ else:
 
 spark_major_version = __version__[:1]
 scala_version = os.environ.get("SCALA_VERSION", "2.12" if __version__ < "4" else "2.13")
+is_thin_client = os.environ.get("SPARK_CLIENT_MODE_ENABLED", None) is not None
 
 
 def get_gf_jar_locations() -> tuple[str, str, str]:
@@ -32,6 +32,9 @@ def get_gf_jar_locations() -> tuple[str, str, str]:
     In the case your version of PySpark is not compatible with the version of GraphFrames,
     this function will raise an exception!
     """
+    if is_thin_client:
+        return "", "", ""
+    
     project_root = pathlib.Path(__file__).parent.parent.parent
     graphx_dir = project_root / "graphx" / "target" / f"scala-{scala_version}"
     core_dir = project_root / "core" / "target" / f"scala-{scala_version}"
@@ -79,34 +82,44 @@ def spark():
     (core_jar, connect_jar, graphx_jar) = get_gf_jar_locations()
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        builder = (
-            SparkSession.Builder()
-            .appName("GraphFramesTest")
-            .config("spark.sql.shuffle.partitions", 4)
-            .config("spark.checkpoint.dir", tmp_dir)
-            .config("spark.jars", f"{core_jar},{connect_jar},{graphx_jar}")
-            .config("spark.driver.memory", "6g")
-        )
-
-        if spark_major_version == "3":
-            # Spark 3 does not include connect by default
-            builder = builder.config(
-                "spark.jars.packages",
-                f"org.apache.spark:spark-connect_{scala_version}:{__version__}",
+        if is_thin_client:
+            spark = (
+                SparkSession.Builder()
+                .appName("GraphFramesTest")
+                .config("spark.sql.shuffle.partitions", 4)
+                .remote("sc://localhost:15002")
+                .getOrCreate()
             )
+            yield spark
 
-        if is_remote():
-            builder = builder.remote("local[4]").config(
-                "spark.connect.extensions.relation.classes",
-                "org.apache.spark.sql.graphframes.GraphFramesConnect",
-            )
         else:
-            builder = builder.master("local[4]")
+            builder = (
+                SparkSession.Builder()
+                .appName("GraphFramesTest")
+                .config("spark.sql.shuffle.partitions", 4)
+                .config("spark.checkpoint.dir", tmp_dir)
+                .config("spark.jars", f"{core_jar},{connect_jar},{graphx_jar}")
+                .config("spark.driver.memory", "6g")
+            )
 
-        spark = builder.getOrCreate()
-        yield spark
-        spark.stop()
+            if spark_major_version == "3":
+                # Spark 3 does not include connect by default
+                builder = builder.config(
+                    "spark.jars.packages",
+                    f"org.apache.spark:spark-connect_{scala_version}:{__version__}",
+                )
 
+            if is_remote():
+                builder = builder.remote("local[4]").config(
+                    "spark.connect.extensions.relation.classes",
+                    "org.apache.spark.sql.graphframes.GraphFramesConnect",
+                )
+            else:
+                builder = builder.master("local[4]")
+
+            spark = builder.getOrCreate()
+            yield spark
+            spark.stop()
 
 @pytest.fixture(scope="module")
 def local_g(spark: SparkSession):
@@ -124,9 +137,11 @@ def examples(spark: SparkSession):
         # At the moment the problem is that examples API is py4j based.
         yield None
     else:
+        from graphframes.classic.graphframe import _java_api
         japi = _java_api(spark._sc)
         assert japi is not None
         examples = japi.examples()
         assert examples is not None
+        from py4j.java_gateway import JavaObject
         assert isinstance(examples, JavaObject)
         yield examples

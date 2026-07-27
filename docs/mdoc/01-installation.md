@@ -4,7 +4,7 @@ If you are new to using Apache Spark, refer to the [Apache Spark Documentation](
 
 ## Maven Central Coordinates
 
-GraphFrames core is [published](https://central.sonatype.com/namespace/io.graphframes) in the Maven Central under namespace `io.graphframes`. All the artifacts are groupped using the following logic.
+GraphFrames core is [published](https://central.sonatype.com/namespace/io.graphframes) in the Maven Central under namespace `io.graphframes`. All the artifacts are grouped using the following logic.
 
 ```
 graphframes-{component-name}-{spark-major-version}_{scala-version}
@@ -81,7 +81,7 @@ For Spark 4.x:
 ./sbin/start-connect-server.sh \
   --conf spark.connect.extensions.relation.classes=\
   org.apache.spark.sql.graphframes.GraphFramesConnect \
-  --packages io.graphframes.graphframes-connect-spark4_2.13:@VERSION@
+  --packages io.graphframes:graphframes-connect-spark4_2.13:@VERSION@
 ```
 
 For Spark 3.x:
@@ -90,7 +90,7 @@ For Spark 3.x:
 ./sbin/start-connect-server.sh \
   --conf spark.connect.extensions.relation.classes=\
   org.apache.spark.sql.graphframes.GraphFramesConnect \
-  --packages io.graphframes.graphframes-connect-spark3_2.12:@VERSION@
+  --packages io.graphframes:graphframes-connect-spark3_2.12:@VERSION@
 ```
 
 **WARNING**: The GraphFrames Connect Server Extension is not compatible with managed SparkConnect from Databricks. To make it work, you need to use build GraphFrames Connect Server Extension from source with a flag:
@@ -116,22 +116,35 @@ message GraphFramesAPI {
     BFS bfs = 4;
     ConnectedComponents connected_components = 5;
     DropIsolatedVertices drop_isolated_vertices = 6;
-    FilterEdges filter_edges = 7;
-    FilterVertices filter_vertices = 8;
-    Find find = 9;
-    LabelPropagation label_propagation = 10;
-    PageRank page_rank = 11;
-    ParallelPersonalizedPageRank parallel_personalized_page_rank = 12;
-    PowerIterationClustering power_iteration_clustering = 13;
-    Pregel pregel = 14;
-    ShortestPaths shortest_paths = 15;
-    StronglyConnectedComponents strongly_connected_components = 16;
-    SVDPlusPlus svd_plus_plus = 17;
-    TriangleCount triangle_count = 18;
-    Triplets triplets = 19;
+    DetectingCycles detecting_cycles = 7;
+    FilterEdges filter_edges = 8;
+    FilterVertices filter_vertices = 9;
+    Find find = 10;
+    LabelPropagation label_propagation = 11;
+    PageRank page_rank = 12;
+    ParallelPersonalizedPageRank parallel_personalized_page_rank = 13;
+    PowerIterationClustering power_iteration_clustering = 14;
+    Pregel pregel = 15;
+    ShortestPaths shortest_paths = 16;
+    StronglyConnectedComponents strongly_connected_components = 17;
+    SVDPlusPlus svd_plus_plus = 18;
+    TriangleCount triangle_count = 19;
+    Triplets triplets = 20;
+    KCore kcore = 21;
+    MaximalIndependentSet mis = 22;
+    RandomWalkEmbeddings rw_embeddings = 23;
+    AggregateNeighbors aggregate_neighbors = 24;
   }
 }
 ```
+
+## GraphFrames runtime dependencies
+
+The only runtime dependency of the GraphFrames core is `graphframes-graphx-*`. In most of the cases it is enough to specify only the core inside the `--package` or inside a dependency management configurations for managed Apache Spark.
+
+### Microsoft Fabric Note
+
+It was [reported](https://github.com/graphframes/graphframes/issues/748) that Microsoft Fabric cannot resolve runtime dependencies of JVM packages automatically. MS Fabric users should specify both core and `graphframes-graphx-*` (depends on the Apache Spark version).
 
 ## Building GraphFrames from Source
 

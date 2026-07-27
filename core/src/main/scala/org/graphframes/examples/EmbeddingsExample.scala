@@ -21,12 +21,12 @@ object EmbeddingsExample {
       throw new RuntimeException("expected three arg: input path, model type, output path")
     }
 
-    val filePath = Paths.get(args(0).strip())
-    val modelType = args(1).strip()
+    val filePath = Paths.get(args(0).trim())
+    val modelType = args(1).trim()
     if (!Seq("word2vec", "hash2vec").contains(modelType)) {
       throw new RuntimeException("supported models are word2vec and hash2vec")
     }
-    val outputPath = Paths.get(args(2).strip())
+    val outputPath = Paths.get(args(2).trim())
     val sparkConf = new SparkConf()
       .setMaster("local[*]")
       .setAppName("GraphFramesBenchmarks")

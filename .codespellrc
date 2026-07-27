@@ -1,0 +1,12 @@
+[codespell]
+# Skip generated, vendored, binary, and lock files.
+# graphx/ is ported from Apache Spark GraphX; keep it aligned with upstream.
+# graphframes-connect-databricks/ holds local sbt build output (gitignored).
+skip = .git,*.lock,poetry.lock,*.iml,target,build,dist,*_pb2*.py,*_pb2_grpc.py,graphx,graphframes-connect-databricks,*.svg,*.png,*.gif,*.parquet,*.csv,*.json,*.pom,*.semanticdb
+# Identifiers and domain terms that are not misspellings:
+#   mis/MIS  - Maximal Independent Set
+#   te/ser   - local variable names in Scala tests/algorithms
+#   fof/mye/protocall/alledges - local variable names (camelCase) in tests
+#   afterall - ScalaTest `afterAll` lifecycle override
+#   jurney   - maintainer surname (Russell Jurney)
+ignore-words-list = mis,te,ser,fof,mye,protocall,alledges,afterall,jurney

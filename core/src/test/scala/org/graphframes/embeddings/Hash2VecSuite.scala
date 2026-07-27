@@ -56,7 +56,7 @@ class Hash2VecSuite extends SparkFunSuite with GraphFrameTestSparkContext with B
     assert(collected.length === uniqueElementsCnt)
   }
 
-  test("hash2vec reproducable with seed") {
+  test("hash2vec reproducible with seed") {
     val hash2vecResults =
       new Hash2Vec().setSequenceCol("seq").setHashingSeed(42).run(longSequences)
     val hash2vecResults2 =

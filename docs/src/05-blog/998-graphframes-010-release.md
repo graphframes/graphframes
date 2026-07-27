@@ -30,13 +30,13 @@ The problem here is when we are folding the messages `RDD`, the computational co
 
 Because GraphX was deprecated in Apache Spark starting from the version `4.0` and does not accept patches anymore, GraphFrame maintainers made a decision to create an internal fork of GraphX. The fist change in the new fork was an improvement in the LabelPropagation. Instead of sending `Map[VertexID, Label]` the new implementation send `Vector[Label]`. In that case, the reduce step has a complexity *O(N)* because concatenations of `Vector` in Scala has a constant complexity. And the final reduction to compute the most common label is done on the step of label updating. While collecting the whole vector of labels may increase the average memory consumption, it reduce the peak memory consumption of algorithm. On the first iteration of LabelPropagation all the labels are unique, so old implementation will materialize the `Map[VertexID, Label]` with a size equal to amount of neighbors. At the same time, the new implementation will materialize only the `Vector[Label]` with the same size. Based on [benchmarking of Scala collections](https://www.lihaoyi.com/post/BenchmarkingScalaCollections.html#memory-use-of-immutable-collections), the memory consumption of the `Vector` is around 5 times less compared to the `Map`.
 
-The result of the new implementation is around 70x boost: on a LDBC' Wiki-talk test graph (2M vertices, 5M edges) Spark' implementation runs in ~3500 seconds wile the new one runs in ~50 seconds.
+The result of the new implementation is around 70x boost: on a LDBC' Wiki-talk test graph (2M vertices, 5M edges) Spark' implementation runs in ~3500 seconds while the new one runs in ~50 seconds.
 
 ### GraphX memory management
 
 Because main structures in GraphFrames are `DataFrame` objects but GraphX operates on `EdgeRDD` and `VertexRDD`, all the algorithm from GraphX are accessible from GraphFrames via conversion. Spark GraphX obviously was not designed to this way of usage. Under the hood GraphX do a lot of `RDD.persist` operations. For example, creating `Graph` from edges returns a persistent graph as well as result of all the graph algorithms are persistent. But on the GraphFrame side it is hard to unpersist all the intermediate RDDs. That tends to memory leaks. While it may be not a big problem in batch jobs, calling any GraphX algorithm in Spark Structured Streaming will lead to OOM errors after around 30-50 iterations.
 
-With a full control of the GraphX fork, the team of GraphFrame maintainers was able to resolve the problem by removing from the GraphX code overpersisting as well, as handling manual unpersisting of GraphX structures after conversion. The result is no more memory leaks without loosing in performance.
+With a full control of the GraphX fork, the team of GraphFrame maintainers was able to resolve the problem by removing from the GraphX code overpersisting as well, as handling manual unpersisting of GraphX structures after conversion. The result is no more memory leaks without losing in performance.
 
 ### Connected Components & AQE
 

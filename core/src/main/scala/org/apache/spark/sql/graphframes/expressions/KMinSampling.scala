@@ -146,7 +146,7 @@ object KMinSampling extends Serializable {
     // That is very stupid way actually. But it is the only way with public API
     spark
       .createDataFrame(
-        java.util.List.of[Row](),
+        java.util.Collections.emptyList[Row](),
         StructType(
           StructField(colNames(0), dataType) :: StructField(colNames(1), LongType) :: Nil))
       .encoder

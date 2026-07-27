@@ -103,7 +103,7 @@ private object LabelPropagation {
     // Overall:
     // - Initial labels - IDs
     // - Active vertex col (halt voting) - did the label changed?
-    // - Choosing a new label - top across neighbours (tie-braking is determenistic)
+    // - Choosing a new label - top across neighbours (tie-braking is deterministic)
 
     val preparedGraph = GraphFrame(
       graph.vertices.select(GraphFrame.ID),

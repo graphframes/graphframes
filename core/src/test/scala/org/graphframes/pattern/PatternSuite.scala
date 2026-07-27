@@ -116,7 +116,7 @@ class PatternSuite extends SparkFunSuite {
           UndirectedEdge(AnonymousEdge(NamedVertex("v"), NamedVertex("k")))))
   }
 
-  test("rewrite incomming edges") {
+  test("rewrite incoming edges") {
     assert(Pattern.rewriteIncomingEdges("(u)<-[e]-(v);") === "(v)-[e]->(u)")
     assert(Pattern.rewriteIncomingEdges("!(u)<-[e]-(v);") === "!(v)-[e]->(u)")
     assert(
@@ -130,7 +130,7 @@ class PatternSuite extends SparkFunSuite {
         "(v1)<-[e*1..2]->(v2)") === "(v1)-[e*1..2]->(v2);(v2)-[e*1..2]->(v1)")
   }
 
-  test("rewrite incomming edges and parse") {
+  test("rewrite incoming edges and parse") {
     Pattern.parse("(v)<-[e]-(u)") === Pattern.parse("(u)-[e]->(v)")
     Pattern.parse("(v)<-[]-(u)") === Pattern.parse("(u)-[]->(v)")
     Pattern.parse("!(v)<-[]-(u)") === Pattern.parse("!(u)-[]->(v)")
