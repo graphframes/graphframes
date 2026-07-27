@@ -742,38 +742,115 @@ The distribution tells the story at a glance: 53,876 of the 65,086 labels are si
 
 ## Combining Node Types
 
-In many real-world graphs, nodes have different types (e.g., users, posts, tags in Stack Exchange). Pregel can handle heterogeneous graphs by incorporating node type information:
+In many real-world graphs, nodes have different types. Our Stack Exchange knowledge graph is genuinely heterogeneous — its `Type` column distinguishes seven kinds of node:
+
+```
+Badge (43,029)  Vote (42,593)  User (37,709)  Answer (2,978)
+Question (2,025)  PostLinks (1,274)  Tag (143)
+```
+
+Pregel handles heterogeneous graphs naturally because vertex columns flow through every expression. Here we'll build a **type-weighted PageRank**: messages sent by Questions count double, messages from Answers count normally, and everything else contributes half. This lets you encode domain knowledge — "endorsements from questions matter more" — directly into the algorithm.
+
+Two things to get right, both applying Lesson 1 from the Label Propagation section:
+
+1. **Use the real `Type` column** — no need to simulate node types. While we're at it, we build a human-readable `name` for each node: Users have a `DisplayName`, Questions a `Title`, Tags a `TagName`, and Answers only have their `Body` text, so we coalesce down that list.
+2. **The type weight is evaluated inside `sendMsgToDst`** — that's the edge-triplet context, so the sender's type must be reached with `Pregel.src("Type")`. A plain `F.col("Type")` here would throw the same `UNRESOLVED_COLUMN` error we debugged earlier. Think of the weight as answering: *what type of node is sending this message?*
 
 ```python
-# Add node types to our graph (simulating different entity types)
-typed_vertices = g.vertices.withColumn("node_type",
-    F.when(F.col("Id") % 3 == 0, "question")
-     .when(F.col("Id") % 3 == 1, "answer")
-     .otherwise("user"))
+# The Stack Exchange graph already has real node types - use them,
+# and build a display name that works for every type
+typed_vertices = g.vertices.select(
+    "id",
+    "Type",
+    F.coalesce(
+        "DisplayName", "Title", "TagName", F.substring("Body", 1, 40)
+    ).alias("name"),
+)
 
-g_typed = GraphFrame(typed_vertices, g.edges)
+# Compute out-degrees (needed to split each node's rank among its links)
+out_degrees = g.outDegrees.withColumnRenamed("outDegree", "out_degree")
+typed_vertices = typed_vertices.join(out_degrees, on="id", how="left") \
+    .na.fill(1, ["out_degree"])
 
-# Weighted PageRank based on node type - questions contribute more to PageRank than answers
-type_weights = F.when(F.col("node_type") == "question", 2.0) \
-               .when(F.col("node_type") == "answer", 1.0) \
-               .otherwise(0.5)
+g_typed = GraphFrame(typed_vertices, edges_df)
+num_vertices = g_typed.vertices.count()
 
-# Run type-aware PageRank
-typed_pr = g_typed.pregel.setMaxIter(10) \
-    .withVertexColumn("pagerank", F.lit(1.0 / num_vertices),
-        F.coalesce(Pregel.msg(), F.lit(0.0)) *F.lit(damping_factor) + F.lit((1.0 - damping_factor) / num_vertices)) \
-    .sendMsgToDst((Pregel.src("pagerank")* type_weights) / Pregel.src("out_degree")) \
-    .aggMsgs(F.sum(Pregel.msg())) \
+# Weight by the SENDER's type: message expressions run on the edge triplet,
+# so the sender's columns are reached with Pregel.src(...)
+type_weight = (
+    F.when(Pregel.src("Type") == "Question", 2.0)
+    .when(Pregel.src("Type") == "Answer", 1.0)
+    .otherwise(0.5)
+)
+
+# Run type-weighted PageRank
+typed_pr = (
+    g_typed.pregel
+    .setMaxIter(10)
+    .withVertexColumn(
+        "pagerank",
+        F.lit(1.0 / num_vertices),
+        F.coalesce(Pregel.msg(), F.lit(0.0)) * F.lit(damping_factor)
+        + F.lit((1.0 - damping_factor) / num_vertices),
+    )
+    .sendMsgToDst(Pregel.src("pagerank") * type_weight / Pregel.src("out_degree"))
+    .aggMsgs(F.sum(Pregel.msg()))
     .run()
+)
 
 # Show top nodes by type
-for node_type in ["question", "answer", "user"]:
-    print(f"\nTop {node_type}s by PageRank:")
-    typed_pr.filter(F.col("node_type") == node_type) \
+for node_type in ["Question", "Answer", "User"]:
+    print(f"\nTop {node_type}s by type-weighted PageRank:")
+    typed_pr.filter(F.col("Type") == node_type) \
         .orderBy(F.desc("pagerank")) \
-        .select("id", "node_type", "pagerank") \
-        .show(5)
+        .select("name", "pagerank") \
+        .show(5, truncate=50)
 ```
+
+The results:
+
+```
+Top Questions by type-weighted PageRank:
++--------------------------------------------------+--------------------+
+|                                              name|            pagerank|
++--------------------------------------------------+--------------------+
+|                          TeX processing for Stats|  0.1450891970426848|
+|What typographic support is available to suppor...| 0.14112968883288293|
+|  Redundant tags: mixed effects and related models| 0.03784636373262421|
+|                                  CV journal club?|0.033490983579486565|
+|                First Cross Validated Journal Club| 0.03331016877730168|
++--------------------------------------------------+--------------------+
+
+Top Answers by type-weighted PageRank:
++-----------------------------------------+---------------------+
+|                                     name|             pagerank|
++-----------------------------------------+---------------------+
+| <p>I think there are numerous factors, b| 4.832443858443665E-5|
+|<blockquote>\n  <p>My question: is having|3.9013998066742446E-5|
+|<h1>R</h1>\n<p><a href="https://stat.ethz| 3.800880720181924E-5|
+| <p><strong>Good marketing is long-term.<| 3.505850427466681E-5|
+| <p>$\newcommand{\E}{\mathrm{E}}$ $\newco|2.9179172304755153E-5|
++-----------------------------------------+---------------------+
+
+Top Users by type-weighted PageRank:
++----------+--------------------+
+|      name|            pagerank|
++----------+--------------------+
+|DJAnderson|1.156060454254688E-6|
+|    Graham|1.156060454254688E-6|
+|  pmagunia|1.156060454254688E-6|
+|    Conros|1.156060454254688E-6|
+| sounix000|1.156060454254688E-6|
++----------+--------------------+
+```
+
+### Reading the Results: Edge Direction Matters
+
+The Questions table looks great — highly-linked meta discussions rise to the top. But look at the Users table: **every user has the identical score** `1.156e-6`, which is exactly `(1 - 0.85) / 129,751` — the teleport floor from the update expression. That's not a bug in our code; it's the graph telling us something.
+
+In this knowledge graph, edges point *from* users: a User `Posts` an Answer, `Asks` a Question, `Earns` a Badge. No edge points *to* a User, so users never receive a message and their rank never rises above the floor. PageRank importance flows **along** edge direction, and in a heterogeneous graph each node type participates differently — some types are pure sources (Users, Votes), others are sinks that accumulate rank (Questions, Badges).
+
+If you wanted to rank *users* by importance, you'd make the influence flow toward them — either reverse the relevant edges when building the graph, or send messages in both directions with `sendMsgToSrc` exactly as Label Propagation did above. Checking who actually *receives* messages is a good first diagnostic whenever a Pregel algorithm returns suspiciously uniform scores for a whole class of nodes.
 
 ## Conclusion
 
