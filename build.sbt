@@ -36,6 +36,26 @@ lazy val protocVersion = sparkMajorVer match {
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 
+// Keep direct references to Spark-provided transitive libraries explicit so they are not
+// accidentally bundled into GraphFrames artifacts. Spark 3.5 does not provide DataSketches,
+// which GraphFrames uses for HyperANF, so that dependency remains compile-scoped there.
+lazy val hadoopVersion = sparkMajorVer match {
+  case "4" if sparkVer.startsWith("4.0") => "3.4.1"
+  case "4" => "3.4.2"
+  case "3" => "3.3.4"
+  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
+}
+lazy val blasVersion = sparkMajorVer match {
+  case "4" if sparkVer.startsWith("4.1") => "3.0.4"
+  case "4" | "3" => "3.0.3"
+  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
+}
+lazy val dataSketchesVersion = sparkVer match {
+  case v if v.startsWith("4.0") => "6.1.1"
+  case _ => "6.2.0"
+}
+lazy val dataSketchesConfiguration = if (sparkMajorVer == "3") "compile" else "provided"
+
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "io.graphframes"
 ThisBuild / homepage := Some(url("https://graphframes.io/"))
@@ -75,7 +95,11 @@ lazy val commonSetting = Seq(
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.slf4j" % "slf4j-api" % "2.0.17" % "provided",
-    "org.apache.datasketches" % "datasketches-java" % "6.2.0", // transitive dependency from Spark
+    "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion % "provided", // used by filesystem APIs
+    "org.scalanlp" %% "breeze" % "2.1.0" % "provided", // used by GraphX compatibility code
+    "dev.ludovic.netlib" % "blas" % blasVersion % "provided", // used by Hash2Vec
+    "com.google.protobuf" % "protobuf-java" % protocVersion % "provided", // used by Connect APIs
+    "org.apache.datasketches" % "datasketches-java" % dataSketchesVersion % dataSketchesConfiguration,
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   Compile / doc / scalacOptions ++= Seq(
