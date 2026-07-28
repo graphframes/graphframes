@@ -27,7 +27,7 @@ computation of state for a given node depends only on the states of its neighbou
 Before starting this tutorial, ensure you have:
 
 - **GraphFrames installed**: `pip install graphframes-py`
-- **Apache Spark 3.x**: Compatible with your Python version
+- **Apache Spark 4.x**: Compatible with your Python version
 - **Basic PySpark knowledge**: Familiarity with DataFrames and SparkSession
 
 For this tutorial, you'll need GraphFrames version **0.8.4 or later**. Check your version:
