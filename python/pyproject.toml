@@ -72,7 +72,6 @@ flake8 = "^7.1.1"
 isort = "^6.0.0"
 pre-commit = "^3.0.0"
 pyspark = { version = ">=3.5, <4.2", extras = ["connect"] }
-grpcio = "^1.83.0"
 pytest = "^9.0.3"
 
 [tool.poetry.group.connect.dependencies]
