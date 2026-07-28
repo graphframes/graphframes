@@ -30,7 +30,7 @@ Before starting this tutorial, ensure you have:
 - **Apache Spark 4.x**: Compatible with your Python version
 - **Basic PySpark knowledge**: Familiarity with DataFrames and SparkSession
 
-For this tutorial, you'll need GraphFrames version **0.8.4 or later**. Check your version:
+For this tutorial, you'll need GraphFrames version **0.11.0 or later**. Check your version:
 ```python
 import graphframes
 print(graphframes.__version__)
