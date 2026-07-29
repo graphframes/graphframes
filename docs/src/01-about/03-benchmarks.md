@@ -3,8 +3,8 @@
 ## Graphalytics Benchmarks
 
 This benchmark is to test the performance of GraphFrames algorithms, not Apache Spark itself. So, all the graphs are
-read from the disk and persisted in memory in the serialized format. In the result, only the time of GraphFrames
-algorithms is measured and the time of reading of the CSV, serialization and persisting the data does not measure.
+read from Parquet files on disk and persisted in memory in the serialized format. As a result, only the time of GraphFrames
+algorithms is measured, and the time to read/parse source files, serialize, and persist the data is not measured.
 
 ### Configurations
 
@@ -19,13 +19,13 @@ algorithms is measured and the time of reading of the CSV, serialization and per
 - **Vertices:** 2M
 - **Edges:** 5M
 - **Size Category:** _XS_
-- **Source files format:** `CSV`-like
+- **Source files format:** `Parquet`
 
-| Algorithm                        | Measurements                                   | Time (s)                                 |
-| -------------------------------- | ---------------------------------------------- | ---------------------------------------- |
-| Shortest Paths Graphframes       | ${benchmarks.benchmarkSP.measurements}         | ${benchmarks.benchmarkSP.metric}         |
-| Shortest Paths GraphX            | ${benchmarks.benchmarkSPGraphX.measurements}   | ${benchmarks.benchmarkSPGraphX.metric}   |
-| Connected Components Graphframes | ${benchmarks.benchmarkCC.measurements}         | ${benchmarks.benchmarkCC.metric}         |
-| Connected Components GraphX      | ${benchmarks.benchmarkCCGraphX.measurements}   | ${benchmarks.benchmarkCCGraphX.metric}   |
-| Label Propagation GraphFrames    | ${benchmarks.benchmarkCDLP.measurements}       | ${benchmarks.benchmarkCDLP.metric}       |
-| Label Propagation GraphX         | ${benchmarks.benchmarkCDLPGraphX.measurements} | ${benchmarks.benchmarkCDLPGraphX.metric} |
+| Algorithm                        | Measurements                                                        | Time (s)                                                      |
+| -------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Shortest Paths Graphframes       | ${benchmarks.benchmarkShortestPaths.graphframes.measurements}       | ${benchmarks.benchmarkShortestPaths.graphframes.metric}       |
+| Shortest Paths GraphX            | ${benchmarks.benchmarkShortestPaths.graphx.measurements}            | ${benchmarks.benchmarkShortestPaths.graphx.metric}            |
+| Connected Components Graphframes | ${benchmarks.benchmarkConnectedComponents.graphframes.measurements} | ${benchmarks.benchmarkConnectedComponents.graphframes.metric} |
+| Connected Components GraphX      | ${benchmarks.benchmarkConnectedComponents.graphx.measurements}      | ${benchmarks.benchmarkConnectedComponents.graphx.metric}      |
+| Label Propagation GraphFrames    | ${benchmarks.benchmarkLabelPropagation.graphframes.measurements}    | ${benchmarks.benchmarkLabelPropagation.graphframes.metric}    |
+| Label Propagation GraphX         | ${benchmarks.benchmarkLabelPropagation.graphx.measurements}         | ${benchmarks.benchmarkLabelPropagation.graphx.metric}         |

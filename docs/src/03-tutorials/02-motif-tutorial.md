@@ -268,7 +268,7 @@ Edge count: 97,104 == Valid edge count: 97,104
 
 Let's look for a simple motif: a directed triangle. We will find all instances of a directed triangle in the graph. The @pydoc(graphframes.GraphFrame.find) method takes a string as an argument that specifies the structure of a motif one edge at a time, in the same syntax as Cypher, with a semi-colon between edges. For a triangle motif, that works out to: `(a)-[e]->(b); (b)-[e2]->(c); (c)-[e3]->(a)`. Edge labels are optional, this is valid graph query: `(a)-[]->(b)`.
 
-The `g.find()` method returns a `DataFrame` with fields fo each of the node and edge labels in the pattern. To further express the motif you're interested in, you can now use relational `DataFrame` operations to filter, group, and aggregate the results. This makes the network motif finding in GraphFrames very powerful, and this type of property graph motif was originally defined in the [graphframes paper](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
+The `g.find()` method returns a `DataFrame` with fields for each of the node and edge labels in the pattern. To further express the motif you're interested in, you can now use relational `DataFrame` operations to filter, group, and aggregate the results. This makes the network motif finding in GraphFrames very powerful, and this type of property graph motif was originally defined in the [graphframes paper](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf).
 
 A complete description of the graph query language is in the [GraphFrames User Guide](/04-user-guide/04-motif-finding.md). Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
 
@@ -399,9 +399,9 @@ The result is a count of the divergent triangles in the graph by type.
 
 ## Property Graph Motifs
 
-Simple motif finding can be used to explore a knowledge graph. It is also possibel to use domain knowledge to define and match known patterns and then explore new variant motifs. This can be used to apply and then expand domain knowledge about a knowledge graph. It is powerful stuff!
+Simple motif finding can be used to explore a knowledge graph. It is also possible to use domain knowledge to define and match known patterns and then explore new variant motifs. This can be used to apply and then expand domain knowledge about a knowledge graph. It is powerful stuff!
 
-We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form *property graph motifs*. Such complex motifs were first defined (without being formally named) in the paper describing this prject: [GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf). They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.
+We can do more with the properties of paths than just count them by node and edge type. We can use the properties of the nodes and edges in the paths to filter, group, and aggregate the results to form *property graph motifs*. Such complex motifs were first defined (without being formally named) in the paper describing this project: [GraphFrames: An Integrated API for Mixing Graph and Relational Queries, Dave et al. 2016](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf). They are a combination of graph and relational queries. We can use them to find complex patterns in the graph.
 
 The larger motifs get, the more interesting they are. Five nodes is often the limit with a Spark cluster, depending on how large your graph is. In this instance I will limit myself to a 4-path pattern as you may not have a Spark cluster on which to learn. Keep in mind that I am talking about paths - through aggregation a motif might cover thousands of nodes!
 

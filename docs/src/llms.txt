@@ -65,7 +65,7 @@ GraphFrames is a package for Apache Spark that provides DataFrame-based graphs. 
 5. **Graph Clustering**: Label propagation and power iteration clustering algorithms
 6. **Custom Algorithms**: Framework for implementing domain-specific graph algorithms
 7. **Network Stability**: K-Core algorithm for finding a critical cores
-8. **Marketing Compaigns**: Finding a set of vertices with big coverage via Maximal Independent Set
+8. **Marketing Campaigns**: Finding a set of vertices with big coverage via Maximal Independent Set
 
 ## Supported Algorithms
 

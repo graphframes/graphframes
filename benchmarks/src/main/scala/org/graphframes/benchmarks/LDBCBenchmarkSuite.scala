@@ -14,6 +14,7 @@ import org.openjdk.jmh.infra.Blackhole
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
@@ -85,7 +86,7 @@ class LDBCBenchmarkSuite {
 
   private def caseRoot: Path = resourcesPath.resolve(benchmarkGraphName)
 
-  private def resourcesPath = Path.of(new File("target").toURI)
+  private def resourcesPath = Paths.get(new File("target").toURI)
 
   @Benchmark
   def benchmarkSP(blackhole: Blackhole): Unit = {

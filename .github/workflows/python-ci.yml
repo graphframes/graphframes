@@ -1,20 +1,22 @@
 name: Python CI
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.7
+          - spark-version: 3.5.8
             scala-version: 2.12
             python-version: "3.10"
             java-version: 11
-          - spark-version: 4.0.1
+          - spark-version: 4.0.3
             scala-version: 2.13
             python-version: "3.12"
             java-version: 17
-          - spark-version: 4.1.0
+          - spark-version: 4.1.2
             scala-version: 2.13
             python-version: "3.13"
             java-version: 17
@@ -55,9 +57,9 @@ jobs:
     - name: Code style
       working-directory: ./python
       run: |
-        poetry run python -m black --check graphframes
-        poetry run python -m flake8 graphframes
-        poetry run python -m isort --check graphframes
+        poetry run python -m black --check --config pyproject.toml graphframes dev ../dev
+        poetry run python -m flake8 graphframes dev ../dev
+        poetry run python -m isort --check --settings-path pyproject.toml graphframes dev ../dev
     - name: Build jar
       working-directory: ./python
       run: |

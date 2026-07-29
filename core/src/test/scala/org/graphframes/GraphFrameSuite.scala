@@ -682,6 +682,37 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(edges(3).getLong(1) === 2L)
   }
 
+  test("reverse directed graph edges") {
+    val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"), (3L, "c"))).toDF("id", "name")
+    val e = spark.createDataFrame(Seq((1L, 2L), (2L, 3L))).toDF("src", "dst")
+    val g = GraphFrame(v, e)
+    val reversed = g.asReversed()
+
+    // Check edge count is the same
+    assert(reversed.edges.count() === g.edges.count())
+
+    // Verify edges are reversed
+    val edges = reversed.edges.sort("src", "dst").collect()
+    assert(edges.length === 2)
+    assert(edges(0).getLong(0) === 2L)
+    assert(edges(0).getLong(1) === 1L)
+    assert(edges(1).getLong(0) === 3L)
+    assert(edges(1).getLong(1) === 2L)
+  }
+
+  test("reverse directed graph edges with attributes") {
+    val v = spark.createDataFrame(Seq((1L, "a"), (2L, "b"))).toDF("id", "name")
+    val e = spark.createDataFrame(Seq((1L, 2L, "edge1"))).toDF("src", "dst", "attr")
+    val g = GraphFrame(v, e)
+    val reversed = g.asReversed()
+
+    val edges = reversed.edges.collect()
+    assert(edges.length === 1)
+    assert(edges(0).getLong(0) === 2L)
+    assert(edges(0).getLong(1) === 1L)
+    assert(edges(0).getString(2) === "edge1")
+  }
+
   test("toGraphX should throw IllegalArgumentException for null IDs") {
     val schema = StructType(
       Seq(

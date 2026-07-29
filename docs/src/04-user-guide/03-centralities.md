@@ -35,8 +35,8 @@ val degrees: DataFrame = g.degrees
 
 There are two implementations of PageRank.
 
-* The first one uses the `org.apache.spark.graphx.graph` interface with `aggregateMessages` and runs PageRank for a fixed number of iterations. This can be executed by setting `maxIter`.
-* The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank until convergence and this can be run by setting `tol`.
+- The first one uses the `org.apache.spark.graphx.graph` interface with `aggregateMessages` and runs PageRank for a fixed number of iterations. This can be executed by setting `maxIter`.
+- The second implementation uses the `org.apache.spark.graphx.Pregel` interface and runs PageRank until convergence and this can be run by setting `tol`.
 
 Both implementations support non-personalized and personalized PageRank, where setting a `sourceId` personalizes the results for that vertex.
 
@@ -116,8 +116,8 @@ GraphFrames also supports parallel personalized PageRank that allows users to co
 
 For the API details refer to:
 
-* Scala API: @:scaladoc(org.graphframes.lib.ParallelPersonalizedPageRank)
-* Python API: @:pydoc(graphframes.GraphFrame.parallelPersonalizedPageRank)
+- Scala API: @:scaladoc(org.graphframes.lib.ParallelPersonalizedPageRank)
+- Python API: @:pydoc(graphframes.GraphFrame.parallelPersonalizedPageRank)
 
 ## K-Core
 
@@ -127,7 +127,7 @@ The provided implementation of K-Core decomposition in GraphFrames is based on t
 
 For more information, see:
 
-> A. Farajollahi, S. G. Khaki, and L. Wang, "Efficient distributed k-core decomposition for large-scale graphs," *2017 IEEE International Conference on Big Data (Big Data)*, Boston, MA, USA, 2017, pp. 1430-1435.
+> A. Farajollahi, S. G. Khaki, and L. Wang, "Efficient distributed k-core decomposition for large-scale graphs," _2017 IEEE International Conference on Big Data (Big Data)_, Boston, MA, USA, 2017, pp. 1430-1435.
 
 ### Arguments
 
@@ -137,11 +137,11 @@ For `graphframes` only. To avoid exponential growing of the Spark' Logical Plan,
 
 - `use_local_checkpoints`
 
-For `graphframes` only. By default, GraphFrames uses persistent checkpoints. They are realiable and reduce the errors rate. The downside of the persistent checkpoints is that they are requiride to set up a `checkpointDir` in persistent storage like `S3` or `HDFS`. By providing `use_local_checkpoints=True`, user can say GraphFrames to use local disks of Spark' executurs for checkpointing. Local checkpoints are faster, but they are less reliable: if the executur lost, for example, is taking by the higher priority job, checkpoints will be lost and the whole job fails.
+For `graphframes` only. By default, GraphFrames uses persistent checkpoints. They are reliable and reduce the errors rate. The downside of the persistent checkpoints is that they are requiride to set up a `checkpointDir` in persistent storage like `S3` or `HDFS`. By providing `use_local_checkpoints=True`, user can say GraphFrames to use local disks of Spark' executurs for checkpointing. Local checkpoints are faster, but they are less reliable: if the executur lost, for example, is taking by the higher priority job, checkpoints will be lost and the whole job fails.
 
 - `storage_level`
 
-The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarious, using `DISK_ONLY` may be faster.
+The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarios, using `DISK_ONLY` may be faster.
 
 ### Python API
 
@@ -276,4 +276,113 @@ val allEdges = coreEdges ++ midLayerEdges ++ outerEdges
 val e = spark.createDataFrame(allEdges).toDF("src", "dst")
 val g = GraphFrame(v, e)
 val result = g.kCore.run()
+```
+
+## Approximate Neighbor Functions
+
+HyperANF (Hyper Approximated Neighbourhood Function) is an algorithm that uses HyperLogLog sketches to approximate the number of nodes reachable from each vertex within a given number of hops. It provides a scalable way to compute neighborhood functions on very large graphs without the exponential cost of exact enumeration.
+
+This implementation is inspired by the paper:
+
+> P. Boldi, M. Rosa, and S. Vigna, "HyperANF: Approximating the Neighbourhood Function of Very Large Graphs on a Budget," _Proceedings of the 20th International Conference on World Wide Web (WWW '11)_, ACM, 2011, pp. 587–596. arXiv preprint: [arXiv:1011.5599](https://arxiv.org/pdf/1011.5599).
+
+The input graph is treated as **directed**: for each vertex, reachability is computed by following outgoing edges from `src` to `dst`.
+
+### How It Works
+
+The algorithm builds HyperLogLog sketches iteratively. At each hop, it unions the sketches of all neighbors reached so far to produce the sketch for the next hop. The returned `DataFrame` contains one row per source vertex and one sketch column per hop:
+
+- `hop_0`: a HyperLogLog sketch containing only the source vertex itself.
+- `hop_k` (for `k >= 1`): a HyperLogLog sketch of the set of vertices reachable in **exactly** `k` directed hops.
+
+To obtain the **cumulative** approximate neighborhood size up to hop `k`, union `hop_0` through `hop_k` using `hll_union` and then apply `hll_sketch_estimate` to the merged sketch. This gives the total number of distinct vertices reachable within `k` hops.
+
+### Arguments
+
+- `n_hops`
+
+Maximum hop distance to compute (positive integer). The result will contain columns `hop_0` through `hop_N` where `N = n_hops`. Default is 3.
+
+- `lg_nom_entries`
+
+Log2 of nominal entries used by HLL sketch aggregations. Must be between 4 and 21 (inclusive). Higher values increase accuracy at the cost of memory. Default is 12.
+
+- `edge_filter`
+
+Optional column expression or SQL expression string applied to edges before computation. Only edges satisfying this predicate participate in the directed reachability expansion. A common use case is filtering on `src`, for example `src IN (1, 2, 3)`, to obtain sketches only for a selected set of starting vertices.
+
+- `checkpoint_interval`
+
+For `graphframes` only. To avoid exponential growing of the Spark' Logical Plan, DataFrame lineage and query optimization time, it is required to do checkpointing periodically. While checkpoint itself is not free, it is still recommended to set this value to something less than `5`.
+
+- `use_local_checkpoints`
+
+For `graphframes` only. By default, GraphFrames uses persistent checkpoints. They are reliable and reduce the errors rate. The downside of the persistent checkpoints is that they are required to set up a `checkpointDir` in persistent storage like `S3` or `HDFS`. By providing `use_local_checkpoints=True`, user can say GraphFrames to use local disks of Spark' executors for checkpointing. Local checkpoints are faster, but they are less reliable: if the executor is lost, for example is taken by a higher priority job, checkpoints will be lost and the whole job fails.
+
+- `storage_level`
+
+The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarios, using `DISK_ONLY` may be faster.
+
+### Python API
+
+```python
+from graphframes import GraphFrame
+from pyspark.sql import functions as F
+
+# Create a small directed graph
+vertices = spark.createDataFrame([(i, f"v{i}") for i in range(6)], ["id", "name"])
+edges = spark.createDataFrame([
+    (0, 1), (0, 2), (1, 3), (2, 3),
+    (3, 4), (4, 5), (1, 4)
+], ["src", "dst"])
+g = GraphFrame(vertices, edges)
+
+# Run HyperANF with 3 hops
+result = g.hyper_anf(n_hops=3)
+result.columns  # ['id', 'hop_0', 'hop_1', 'hop_2', 'hop_3']
+
+# Compute cumulative neighborhood sizes up to each hop
+# by unioning the per-hop HLL sketches and estimating cardinality
+cumulative = result
+for k in range(1, 4):
+    # Start with hop_0, then union hop_1, hop_2, ..., hop_k
+    union_expr = result["hop_0"]
+    for j in range(1, k + 1):
+        union_expr = F.hll_union(union_expr, result[f"hop_{j}"])
+    cumulative = cumulative.withColumn(
+        f"neighbors_within_{k}",
+        F.hll_sketch_estimate(union_expr),
+    )
+cumulative.select("id", "neighbors_within_1", "neighbors_within_2", "neighbors_within_3").show()
+```
+
+### Scala API
+
+```scala
+import org.graphframes.GraphFrame
+import org.apache.spark.sql.functions._
+
+// Create a small directed graph
+val vertices = spark.createDataFrame((0L until 6L).map(i => (i, s"v$i"))).toDF("id", "name")
+val edges = spark.createDataFrame(Seq(
+  (0L, 1L), (0L, 2L), (1L, 3L), (2L, 3L),
+  (3L, 4L), (4L, 5L), (1L, 4L)
+)).toDF("src", "dst")
+val g = GraphFrame(vertices, edges)
+
+// Run HyperANF with 3 hops
+val result = g.hyperANF.setNHops(3).run()
+result.columns // Seq("id", "hop_0", "hop_1", "hop_2", "hop_3")
+
+// Compute cumulative neighborhood sizes up to each hop
+// by unioning the per-hop HLL sketches and estimating cardinality
+var cumulative = result
+for (k <- 1 to 3) {
+  var unionExpr = result("hop_0")
+  for (j <- 1 to k) {
+    unionExpr = hll_union(unionExpr, result(s"hop_$j"))
+  }
+  cumulative = cumulative.withColumn(s"neighbors_within_$k", hll_sketch_estimate(unionExpr))
+}
+cumulative.select("id", "neighbors_within_1", "neighbors_within_2", "neighbors_within_3").show()
 ```

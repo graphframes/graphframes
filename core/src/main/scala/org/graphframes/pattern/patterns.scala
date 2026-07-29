@@ -67,7 +67,7 @@ private[graphframes] object Pattern {
   }
 
   /**
-   * Rewirte a motif string if there are incomming edges
+   * Rewrite a motif string if there are incoming edges
    */
   private[graphframes] def rewriteIncomingEdges(patterns: String): String = {
     val reversedEdge =

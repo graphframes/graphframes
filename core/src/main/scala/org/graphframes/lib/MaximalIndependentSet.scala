@@ -150,7 +150,7 @@ object MaximalIndependentSet extends Serializable with Logging {
         val joinedMIS =
           isJoinedMIS.filter((!col(notJoinedMISCol)) && col(isNominated)).select(GraphFrame.ID)
 
-        // update curent MIS
+        // update current MIS
         val updatedMIS = misDF
           .join(
             isolatedVertices.select(col(GraphFrame.ID), lit(true).alias("f")),

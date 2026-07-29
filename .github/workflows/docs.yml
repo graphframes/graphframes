@@ -55,14 +55,18 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          ./build/sbt -Dspark.version=4.0.0 "benchmarks/Jmh/run -rf json"
+          python ./dev/run_doc_benchmarks.py --spark-version 4.1.2
+
+      - name: Set mtime to git-time for doc files
+        run: |
+          python ./dev/restore_mtime.py
 
       - name: Build with Laika
         run: |
-          ./build/sbt -Dspark.version=4.0.0 -Ddocs.mode=production "docs/laikaHTML"
+          ./build/sbt -Dspark.version=4.1.2 -Ddocs.mode=production "docs/laikaHTML"
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v6
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./docs/target/docs/site
 

@@ -8,6 +8,7 @@ import org.openjdk.jmh.annotations.*
 
 import java.io.File
 import java.nio.file.Path
+import java.nio.file.Paths
 
 trait LDBCBenchmarkBase {
   @Param(Array("wiki-Talk"))
@@ -19,7 +20,7 @@ trait LDBCBenchmarkBase {
   var spark: SparkSession = _
   var graph: GraphFrame = _
 
-  protected def cacheDir: Path = Path.of(new File("target").toURI).resolve("ldbc-cache")
+  protected def cacheDir: Path = Paths.get(new File("target").toURI).resolve("ldbc-cache")
 
   @Setup(Level.Trial)
   def setup(): Unit = {

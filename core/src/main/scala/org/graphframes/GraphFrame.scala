@@ -236,6 +236,26 @@ class GraphFrame private (
     GraphFrame(vertices, newEdges.select(newColumns: _*))
   }
 
+  /**
+   * Reverses the direction of all edges in the graph. For every directed edge (src, dst), the
+   * resulting graph will contain an edge (dst, src) with the same attributes.
+   *
+   * @return
+   *   a new GraphFrame with all edge directions reversed.
+   *
+   * @group utils
+   */
+  def asReversed(): GraphFrame = {
+    val newEdges = edges
+      .select(col(DST).alias(SRC), col(SRC).alias(DST), nestAsCol(edges, ATTR))
+      .select(SRC, DST, ATTR)
+    val newColumns = Seq(col(SRC), col(DST)) ++ edges.columns
+      .filter(c => (c != SRC) && (c != DST))
+      .map(c => col(ATTR).getField(c).alias(c))
+      .toSeq
+    GraphFrame(vertices, newEdges.select(newColumns: _*))
+  }
+
   // ============== Basic structural methods ============
 
   /**
@@ -572,6 +592,23 @@ class GraphFrame private (
    * This can return duplicate rows. E.g., a query `"(u)-[]->()"` will return a result for each
    * matching edge, even if those edges share the same vertex `u`.
    *
+   * ==Performance==
+   * Motif finding translates patterns into a series of joins. Enabling Spark's Cost-Based
+   * Optimizer (CBO) and join reordering can significantly improve performance by letting Spark
+   * choose more efficient join orderings based on table statistics:
+   * {{{
+   * spark.conf.set("spark.sql.cbo.enabled", "true")
+   * spark.conf.set("spark.sql.cbo.joinReorder.enabled", "true")
+   * }}}
+   * The join reorder algorithm is bounded by `spark.sql.cbo.joinReorder.dp.threshold` (default:
+   * `12`). If the estimated number of joins in your motif exceeds this threshold, increase it
+   * accordingly:
+   * {{{
+   * spark.conf.set("spark.sql.cbo.joinReorder.dp.threshold", "20")
+   * }}}
+   * CBO relies on table statistics, so run `ANALYZE TABLE <tableName> COMPUTE STATISTICS` on the
+   * vertices and edges tables to ensure accurate statistics are available.
+   *
    * @param pattern
    *   Pattern specifying a motif to search for.
    * @return
@@ -586,7 +623,7 @@ class GraphFrame private (
       case VarLengthPattern(src, name, min, max, direction, dst) =>
         if (min.isEmpty || max.isEmpty) {
           throw new InvalidParseException(
-            s"Unbounded length patten ${pattern} is not supported! " +
+            s"Unbounded length pattern ${pattern} is not supported! " +
               "Please a pattern of defined length.")
         }
         findVarLengthPattern(src, name, min.toInt, max.toInt, direction, dst)
@@ -663,6 +700,15 @@ class GraphFrame private (
    * @group stdlib
    */
   def bfs: BFS = new BFS(this)
+
+  /**
+   * Enumerate all paths between source and destination vertices.
+   *
+   * See [[org.graphframes.lib.AllPaths]] for details.
+   *
+   * @group stdlib
+   */
+  def allPaths: AllPaths = new AllPaths(this)
 
   /**
    * Aggregate information from neighboring vertices and edges through a controlled traversal.
@@ -790,6 +836,16 @@ class GraphFrame private (
    * @group stdlib
    */
   def labelPropagation: LabelPropagation = new LabelPropagation(this)
+
+  /**
+   * Mix of label- and structure propagation.
+   *
+   * See [[org.graphframes.lib.StructureAwareLabelPropagation]] for more details.
+   *
+   * @group stdlib
+   */
+  def structureAwareLabelPropagation: StructureAwareLabelPropagation =
+    new StructureAwareLabelPropagation(this)
 
   /**
    * PageRank algorithm.
@@ -926,7 +982,7 @@ class GraphFrame private (
    * large-scale sparse graphs." Proceedings of Simpósio Brasileiro de Pesquisa Operacional
    * (SBPO’15) (2015): 1-11.
    *
-   * Returns a DataFrame with unque cycles.
+   * Returns a DataFrame with unique cycles.
    *
    * @return
    *   an instance of DetectingCycles initialized with the current context
@@ -943,6 +999,15 @@ class GraphFrame private (
    * @group stdlib
    */
   def maximalIndependentSet: MaximalIndependentSet = new MaximalIndependentSet(this)
+
+  /**
+   * Run an approximate neighbor function backed by the HLL-sketches.
+   *
+   * See [[org.graphframes.lib.HyperANF]] for more details.
+   *
+   * @group stdlib
+   */
+  def hyperANF: HyperANF = new HyperANF(this)
 
   // ========= Graph Machine Learning ==========
 
