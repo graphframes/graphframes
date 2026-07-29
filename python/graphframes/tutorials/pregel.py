@@ -14,6 +14,7 @@ Spark 3.5.x:
                      python/graphframes/tutorials/pregel.py
 """
 
+import math
 from pathlib import Path
 
 import click
@@ -25,6 +26,33 @@ from graphframes.lib import AggregateMessages as AM
 from graphframes.lib import Pregel
 
 DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
+
+
+def log_hist(df: DataFrame) -> None:
+    """Print a text histogram of in-degrees, with bar length on a log scale"""
+
+    # Bucket the in-degrees into powers of two: 0, 1, 2-3, 4-7, 8-15, ...
+    histogram = (
+        df.withColumn(
+            "bucket",
+            F.when(F.col("in_degree") == 0, F.lit(-1)).otherwise(F.floor(F.log2("in_degree"))),
+        )
+        .groupBy("bucket")
+        .agg(F.count("*").alias("num_vertices"))
+        .orderBy("bucket")
+        .collect()  # tiny result set - safe to bring to the driver
+    )
+
+    click.echo(f"{'in_degree':>9}  {'vertices':>9}")
+    for row in histogram:
+        if row["bucket"] == -1:
+            label = "0"
+        else:
+            low = 2 ** row["bucket"]
+            high = 2 ** (row["bucket"] + 1) - 1
+            label = str(low) if low == high else f"{low}-{high}"
+        bar = "#" * max(1, round(10 * math.log10(max(row["num_vertices"], 1))))
+        click.echo(f"{label:>9}  {row['num_vertices']:>9}  {bar}")
 
 
 @click.command()
@@ -94,7 +122,10 @@ def main(data_dir: str) -> None:
     click.echo("\nIn-degree distribution (AggregateMessages):")
     complete_in_deg.groupBy("in_degree").count().orderBy("in_degree").show(10)
 
-    click.echo("Top 10 nodes by in-degree:")
+    click.echo("In-degree histogram (log scale):")
+    log_hist(complete_in_deg)
+
+    click.echo("\nTop 10 nodes by in-degree:")
     complete_in_deg.orderBy(F.desc("in_degree")).show(10)
 
     # ======================================================================
@@ -120,7 +151,10 @@ def main(data_dir: str) -> None:
     click.echo("\nIn-degree distribution (Pregel):")
     pregel_in_degree.select("in_degree").groupBy("in_degree").count().orderBy("in_degree").show(10)
 
-    click.echo("Top 10 nodes by in-degree (Pregel):")
+    click.echo("In-degree histogram (log scale):")
+    log_hist(pregel_in_degree)
+
+    click.echo("\nTop 10 nodes by in-degree (Pregel):")
     pregel_in_degree.select("id", "Type", "in_degree").orderBy(F.desc("in_degree")).show(10)
 
     # ======================================================================

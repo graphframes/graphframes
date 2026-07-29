@@ -38,26 +38,28 @@ spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.11.0 python/gra
 Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/04-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
 
 ```python
+from pathlib import Path
+
 import pyspark.sql.functions as F
-from graphframes import GraphFrame
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 
-# Initialize a SparkSession
-spark: SparkSession = (
-    SparkSession.builder.appName("Stack Overflow Motif Analysis")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
-)
+import graphframes
+from graphframes import GraphFrame
+
+# In the pyspark shell a SparkSession named `spark` already exists, so set
+# configuration on the live session rather than through the builder
+spark: SparkSession = SparkSession.builder.appName("Stack Overflow Motif Analysis").getOrCreate()
+# Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+spark.conf.set("spark.sql.caseSensitive", True)
 sc: SparkContext = spark.sparkContext
 sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
 # Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-# Default: package data directory; override with --data-dir CLI option
-from pathlib import Path
-DATA_DIR = str(Path(__file__).parent / "data")  # or pass via --data-dir
+# Package data directory — the default download location for `graphframes stackexchange`.
+# If you downloaded with --data-dir, point DATA_DIR at that path instead.
+DATA_DIR = str(Path(graphframes.__file__).parent / "tutorials" / "data")
 BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
 ```
 

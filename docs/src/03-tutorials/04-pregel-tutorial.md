@@ -1,6 +1,6 @@
 # Pregel Tutorial
 
-This tutorial covers GraphFrames' @:pydoc(graphframes.lib.Pregel) API for developing scalable, iterative graph algorithms using **Apache Spark 4.0**. We will implement progressively complex algorithms — from simple degree counting to path-tracing algorithms — using the same Stack Exchange knowledge graph from the [Motif Finding Tutorial](02-motif-tutorial.md).
+This tutorial covers GraphFrames' @:pydoc(graphframes.lib.Pregel) API for developing scalable, iterative graph algorithms using **Apache Spark 4.x**. We will implement progressively complex algorithms — from simple degree counting to path-tracing algorithms — using the same Stack Exchange knowledge graph from the [Motif Finding Tutorial](02-motif-tutorial.md).
 
 A Jupyter Notebook version of this tutorial is available on GitHub: [Pregel Tutorial Notebook](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Pregel.ipynb).
 
@@ -144,21 +144,24 @@ The Stack Exchange graph — specifically the [`stats.meta.stackexchange.com`](h
 Let's load the data and create our `GraphFrame`:
 
 ```python
+from pathlib import Path
+
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame, SparkSession
+
+import graphframes
 from graphframes import GraphFrame
 
-spark: SparkSession = (
-    SparkSession.builder.appName("Pregel Tutorial")
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
-)
+# In the pyspark shell a SparkSession named `spark` already exists, so set
+# configuration on the live session rather than through the builder
+spark: SparkSession = SparkSession.builder.appName("Pregel Tutorial").getOrCreate()
+spark.conf.set("spark.sql.caseSensitive", True)
 spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/pregel")
 
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-# Default: package data directory; override with --data-dir CLI option
-from pathlib import Path
-DATA_DIR = str(Path(__file__).parent / "data")  # or pass via --data-dir
+# Package data directory — the default download location for `graphframes stackexchange`.
+# If you downloaded with --data-dir, point DATA_DIR at that path instead.
+DATA_DIR = str(Path(graphframes.__file__).parent / "tutorials" / "data")
 BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
 
 nodes_df: DataFrame = spark.read.parquet(f"{BASE_PATH}/Nodes.parquet")
@@ -222,6 +225,59 @@ complete_in_deg.groupBy("in_degree").count().orderBy("in_degree").show(10)
 
 Most nodes have zero in-degree (they are source-only nodes like Votes that cast votes but don't receive edges). The distribution follows a power law, which is typical for real-world networks. The power law means that a few nodes have very high in-degree (popular questions with hundreds of votes, prolific users with thousands of badges) while the vast majority have low in-degree.
 
+A degree-by-degree table only shows the first few rows of a distribution that spans several orders of magnitude — a poor fit for a linear histogram. Instead, we bucket in-degrees into powers of two (0, 1, 2–3, 4–7, 8–15, ...) and draw the bars on a log scale:
+
+```python
+import math
+
+
+def log_hist(df: DataFrame) -> None:
+    """Print a text histogram, with bar length on a log scale"""
+
+    # Bucket the in-degrees into powers of two: 0, 1, 2-3, 4-7, 8-15, ...
+    histogram = (
+        df
+        .withColumn(
+            "bucket",
+            F.when(F.col("in_degree") == 0, F.lit(-1))
+            .otherwise(F.floor(F.log2("in_degree")))
+        )
+        .groupBy("bucket")
+        .agg(F.count("*").alias("num_vertices"))
+        .orderBy("bucket")
+        .collect()
+    )
+
+    print(f"{'in_degree':>9}  {'vertices':>9}")
+    for row in histogram:
+        if row["bucket"] == -1:
+            label = "0"
+        else:
+            low = 2 ** row["bucket"]
+            high = 2 ** (row["bucket"] + 1) - 1
+            label = str(low) if low == high else f"{low}-{high}"
+        bar = "#" * max(1, round(10 * math.log10(max(row["num_vertices"], 1))))
+        print(f"{label:>9}  {row['num_vertices']:>9}  {bar}")
+
+
+log_hist(complete_in_deg)
+```
+
+```
+in_degree   vertices
+        0      81735  #################################################
+        1      43165  ##############################################
+      2-3        559  ###########################
+      4-7       1304  ###############################
+     8-15       2004  #################################
+    16-31        855  #############################
+    32-63        112  ####################
+   64-127         14  ###########
+  128-255          3  #####
+```
+
+The shape of the network is now visible at a glance: the vast majority of vertices receive zero or one edge, and each successive power-of-two bucket thins out until only 3 vertices have an in-degree above 128. Note the pattern in the code: the aggregation happens in Spark, and only the handful of bucket rows are `collect()`ed to the driver for formatting — a good habit for any summary visualization of large data.
+
 Let's look at who has the highest in-degree:
 
 ```python
@@ -255,6 +311,8 @@ pregel_in_degree = g.pregel \
     .sendMsgToDst(F.lit(1)) \
     .aggMsgs(F.sum(Pregel.msg())) \
     .run()
+
+log_hist(pregel_in_degree)
 ```
 
 Let's break down each part:
