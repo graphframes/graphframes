@@ -273,7 +273,7 @@ The `g.find()` method returns a `DataFrame` with fields for each of the node and
 A complete description of the graph query language is in the [GraphFrames User Guide](/04-user-guide/04-motif-finding.md). Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
 
 <figure>
-    <img src="../img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
+    <img src="../img/G4_and_G5_directed_network_motif.png" width="160px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
     <figcaption>
         <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
     </figcaption>
