@@ -17,7 +17,6 @@ keywords = [
     "pagerank",
     "pregel",
     "graph",
-    "motif",
 ]
 packages = [
     { include = "graphframes" },
@@ -37,19 +36,6 @@ classifiers = [
 ]
 dynamic = ["version"]
 requires-python = ">=3.10"
-dependencies = [
-    "click>=8.0",
-    "pyspark>=3.5,<4.1",
-    "typing_extensions>=4.0.0",
-]
-
-[project.optional-dependencies]
-tutorials = [
-    "py7zr",
-    "requests",
-    "click",
-    "mmdc>=0.4.0",
-]
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "setuptools", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
@@ -69,39 +55,41 @@ poetry-plugin-export = ">=1.8"
 enable = true
 
 [tool.poetry.urls]
-"Project Homepage" = "https://graphframes.github.io/graphframes"
+"Project Homepage" = "https://graphframes.io"
 "PyPi Homepage" = "https://pypi.org/project/graphframes-py"
 "Code Repository" = "https://github.com/graphframes/graphframes"
 "Bug Tracker" = "https://github.com/graphframes/graphframes/issues"
 
 [tool.poetry.group.dev.dependencies]
-black = "^25.12.0"
-flake8 = "^7.3.0"
-isort = "^7.0.0"
-pyspark = { version = ">=3.5, <4.1", extras = ["connect"] }
-grpcio = "<=1.67.1"
-pytest = "^9.0.2"
-pre-commit = "^4.5.1"
+black = "^23.12.1"
+flake8 = "^7.1.1"
+isort = "^6.0.0"
+pre-commit = "^4.6.1"
+pyspark = { version = ">=3.5, <4.2", extras = ["connect"] }
+pytest = "^9.0.3"
+
+[tool.poetry.group.connect.dependencies]
+pytest = "^9.0.3"
+pyspark-client = ">=4.0,<4.2"
 
 [tool.poetry.group.tutorials.dependencies]
-py7zr = "^1.1.0"
+py7zr = "^0.22.0"
 requests = "^2.33.0"
-click = "^8.3.1"
+click = "^8.1.8"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1"
 setuptools = "*"
-mmdc = "^0.4.0"
 
 [tool.poetry.scripts]
 graphframes = "graphframes.console:main"
 
 [tool.black]
 line-length = 100
-target-version = ["py310", "py311", "py312"]
-include = "^graphframes/.*\\.py$"
-extend-exclude = "\\.parquet$"
-required-version = "25.12.0"
+target-version = ["py39"]
+include = ["graphframes"]
+
+required-version = "23.12.1"
 
 [tool.isort]
 profile = "black"
