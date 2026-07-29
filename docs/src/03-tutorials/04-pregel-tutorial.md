@@ -10,6 +10,20 @@ By the end of this tutorial, you will understand how to think in Pregel — how 
 
 The complete source code for this tutorial is in @:srcLink(python/graphframes/tutorials/pregel.py).
 
+## Prerequisites
+
+Before starting this tutorial, ensure you have:
+
+- **GraphFrames installed**: `pip install graphframes-py  # NOT graphframes`
+- **Apache Spark 4.x**: Compatible with your Python version
+- **Basic PySpark knowledge**: Familiarity with DataFrames and SparkSession
+
+For this tutorial, you'll need GraphFrames version **0.11.0 or later**. Check your version:
+```python
+import graphframes
+print(graphframes.__version__)
+```
+
 # What is Pregel?
 
 Pregel is a [bulk synchronous parallel](https://en.wikipedia.org/wiki/Bulk_synchronous_parallel) (BSP) system for large-scale graph processing described in the landmark 2010 paper [Pregel: A System for Large-Scale Graph Processing](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) from Malewicz et al. at Google.
