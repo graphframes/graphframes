@@ -50,14 +50,14 @@ This barrier synchronization is what makes Pregel algorithms easy to reason abou
 
 <figure>
     <img src="../img/Pregel-Paper-Vertex-State-Machine.png" width="400px" alt="Pregel Vertex State Machine" />
-    <figcaption>Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices alternate between active and inactive states</figcaption>
+    <figcaption>Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices alternate between active and inactive states</figcaption>
 </figure>
 
 Vertices can **vote to halt** — marking themselves inactive. An inactive vertex is woken up when it receives a new message. When all vertices have voted to halt and there are no messages in transit, the algorithm terminates. This is how Pregel algorithms converge: vertices stop updating when their state stabilizes.
 
 <figure>
     <img src="../img/Pregel-Paper-Supersteps.png" width="450px" alt="Pregel supersteps from the original paper" />
-    <figcaption>Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel paper</a>: vertices send messages and receive them in the next superstep</figcaption>
+    <figcaption>Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices send messages and receive them in the next superstep</figcaption>
 </figure>
 
 ## The Power of Local Computation
