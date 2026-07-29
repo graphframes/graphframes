@@ -111,3 +111,31 @@ result.show()
 - **Storage Levels**: When setting the `spark.graphframes.connectedComponents.intermediatestoragelevel` configuration, use one of the following values: `MEMORY_ONLY`, `MEMORY_AND_DISK`, `MEMORY_ONLY_SER`, `MEMORY_AND_DISK_SER`, `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc.
 - **Algorithm Selection**: The choice of algorithm for connected components can significantly impact performance. The "graphframes" algorithm is generally more scalable for large graphs, while the "graphx" algorithm may be faster for smaller graphs.
 - **Local Checkpoints**: Local checkpoints are faster and less error prone, but can put strain on the local disk if insufficiently large. Because local checkpoints do not require to set `checkpointDir` it is a recommended option.
+
+## Checkpointing DataFrames Before Creating a GraphFrame
+
+GraphFrames keeps the vertex and edge DataFrames that are passed to `GraphFrame(vertices, edges)`. If those DataFrames were built by a long chain of transformations, the resulting Spark query plan can become very large. Planning and executing later graph operations may then take much longer than expected.
+
+For complex or repeatedly reused transformations, explicitly checkpoint the DataFrames before constructing the graph. Checkpointing truncates the transformation lineage and materializes a simpler starting point for GraphFrames. Set a checkpoint directory before calling `checkpoint`:
+
+### Python API
+
+```python
+spark.sparkContext.setCheckpointDir("/path/to/checkpoints")
+
+vertices = complex_vertices.checkpoint(eager=True)
+edges = complex_edges.checkpoint(eager=True)
+g = GraphFrame(vertices, edges)
+```
+
+### Scala API
+
+```scala
+spark.sparkContext.setCheckpointDir("/path/to/checkpoints")
+
+val vertices = complexVertices.checkpoint(eager = true)
+val edges = complexEdges.checkpoint(eager = true)
+val g = GraphFrame(vertices, edges)
+```
+
+`localCheckpoint` can be used instead when the checkpoint data does not need the reliability of a fault-tolerant checkpoint. Local checkpoints are stored on executor storage and may be lost if an executor is removed, so use them only when the computation can be recomputed safely.
