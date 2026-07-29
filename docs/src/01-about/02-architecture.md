@@ -16,6 +16,28 @@ GraphFrames gives users an API and abstractions for working with graphs, pattern
 
 The main abstraction is the @:scaladoc(org.graphframes.GraphFrame) class that contains two `DataFrame` objects: one for the graph vertices and one for the graph edges. Any operation on the graph is performed on these two `DataFrame`s by combining operations like `filter`, `join`, `select`, etc. The simplest example of such an operation is `inDegrees` which returns the in-degree of each vertex by simply grouping edges by the source vertex and counting the number of rows in each group.
 
+## Algorithm Optimization Patterns
+
+GraphFrames algorithms are relational programs, so their performance is largely determined by the size and lifetime of the DataFrames that make up each iteration. The implementations use a few recurring patterns to keep Spark plans and executor memory manageable:
+
+### Keep intermediate state narrow
+
+An algorithm usually needs only a small subset of the vertex and edge columns to compute its next state. Message-passing implementations join the edge DataFrame with the current state, select the columns needed by the message function, and aggregate messages by vertex. Avoiding unnecessary vertex properties in those intermediate DataFrames reduces serialization, shuffle, and join costs. This is also why `AggregateMessages` exposes separate `sendToSrc` and `sendToDst` operations rather than requiring callers to materialize every possible triplet field.
+
+### Persist reused DataFrames, then release them
+
+An iterative algorithm may read the same edges, frontier, or message DataFrame more than once in an iteration. GraphFrames persists these reusable intermediates at the configured storage level and unpersists older states as the iteration advances. Persisting prevents Spark from recomputing the full lineage for every consumer, while unpersisting prevents completed iterations from accumulating in executor memory. Results returned by some algorithms are also persistent; call `unpersist()` when the result is no longer needed.
+
+### Checkpoint long-running iterations
+
+Persistence caches data but does not shorten its logical plan. Repeated joins and projections can make the plan increasingly expensive for Spark to analyze. Iterative implementations therefore checkpoint state at a configurable interval. A regular checkpoint is fault-tolerant and requires `spark.sparkContext.setCheckpointDir(...)`; a local checkpoint is faster but can be lost with executor data. The tradeoff and configuration examples are described in the [configuration guide](../04-user-guide/13-configurations.html).
+
+### Tune the algorithm implementation for the workload
+
+Several algorithms offer more than one implementation because the best execution strategy depends on graph size and data distribution. For example, Connected Components can use the GraphFrames or GraphX implementation. The GraphFrames implementation also has a broadcast threshold for high-degree vertices: assignments below the threshold use joins, while larger assignments can be broadcast to avoid an oversized join. These options change how Spark moves data; they do not change the graph semantics.
+
+When diagnosing a slow run, inspect the operation's algorithm and storage-level options together with Spark's SQL plan and stage metrics. A wider input schema, a long uncheckpointed lineage, an unsuitable storage level, or a skewed high-degree vertex can each dominate runtime even when the graph itself is unchanged.
+
 ## Vertex-centric Algorithms
 
 Let’s look at a concrete example – PageRank. This algorithm became famous for powering Google Search (fun fact: “Page” is actually the last name of Google co-founder Larry Page, not just about web pages). PageRank helps find the most “important” nodes in a graph, like ranking web pages by relevance.
