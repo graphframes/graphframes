@@ -19,6 +19,7 @@ Before starting this tutorial, ensure you have:
 - **Basic PySpark knowledge**: Familiarity with DataFrames and SparkSession
 
 For this tutorial, you'll need GraphFrames version **0.11.0 or later**. Check your version:
+
 ```python
 import graphframes
 print(graphframes.__version__)
@@ -32,7 +33,7 @@ The core idea is deceptively simple: **think like a vertex**. Instead of writing
 
 <figure>
     <img src="../img/Pregel-Compute-Dataflow.png" width="650px" alt="Pregel BSP Compute Dataflow" />
-    <figcaption><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
+    <figcaption style="color: black"><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
 </figure>
 
 Computation proceeds in a series of **supersteps**. In each superstep:
@@ -43,21 +44,21 @@ Computation proceeds in a series of **supersteps**. In each superstep:
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-bsp-model.svg" width="800px" alt="Bulk Synchronous Parallel Model" />
-    <figcaption>The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
+    <figcaption style="color: black">The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
 </figure>
 
 This barrier synchronization is what makes Pregel algorithms easy to reason about. At any point during execution, you know that all vertices are in the same superstep. There are no race conditions, no stale reads, no distributed coordination headaches. You trade some potential parallelism for massive simplification of the programming model.
 
 <figure>
     <img src="../img/Pregel-Paper-Vertex-State-Machine.png" width="400px" alt="Pregel Vertex State Machine" />
-    <figcaption>Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices alternate between active and inactive states</figcaption>
+    <figcaption style="color: black">Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices alternate between active and inactive states</figcaption>
 </figure>
 
 Vertices can **vote to halt** — marking themselves inactive. An inactive vertex is woken up when it receives a new message. When all vertices have voted to halt and there are no messages in transit, the algorithm terminates. This is how Pregel algorithms converge: vertices stop updating when their state stabilizes.
 
 <figure>
     <img src="../img/Pregel-Paper-Supersteps.png" width="450px" alt="Pregel supersteps from the original paper" />
-    <figcaption>Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices send messages and receive them in the next superstep</figcaption>
+    <figcaption style="color: black">Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices send messages and receive them in the next superstep</figcaption>
 </figure>
 
 ## The Power of Local Computation
@@ -77,7 +78,7 @@ At its heart, Pregel is bulk synchronous parallel processing applied to graphs �
 
 ## Why Pregel?
 
-You might wonder: when do I need Pregel instead of GraphFrames' built-in algorithms like `pageRank()` or `connectedComponents()`?
+You might wonder: when do I need Pregel instead of GraphFrames' built-in algorithms like `pageRank()` or `connectedComponents()`? Well, in fact both of these are implemented using Pregel :)
 
 **Pregel is for when the built-in algorithms are not enough.** It is a general-purpose framework for writing *any* iterative graph algorithm. The built-in algorithms are themselves implemented using Pregel (or equivalent message-passing primitives) under the hood.
 
@@ -144,6 +145,7 @@ It helps to understand what happens when you call `.run()`. The implementation i
 **Automatic optimization**: GraphFrames analyzes your message expressions to determine if the destination vertex state is actually needed. If your messages only reference `Pregel.src()` and `Pregel.edge()` columns (not `Pregel.dst()`), the implementation skips the second join entirely — a significant performance optimization for algorithms like PageRank.
 
 Understanding this implementation helps you write better Pregel algorithms. For example:
+
 - **Avoid referencing `Pregel.dst()` unless necessary** — it triggers an extra join
 - **Keep vertex schemas narrow** — wide schemas mean larger triplets
 - **Use `required_src_columns` / `required_dst_columns`** to reduce shuffle data
@@ -196,7 +198,7 @@ The most basic graph metric is **in-degree**: how many edges point to each verte
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-in-degree-am.svg" width="700px" alt="In-degree computation with AggregateMessages" />
-    <figcaption>AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
+    <figcaption style="color: black">AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
 </figure>
 
 ```python
@@ -309,7 +311,7 @@ Let's compute the same in-degree metric using Pregel. This is intentionally over
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-in-degree-pregel.svg" width="700px" alt="In-degree computation with Pregel" />
-    <figcaption>Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
+    <figcaption style="color: black">Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
 </figure>
 
 ```python
@@ -362,7 +364,7 @@ PageRank is the algorithm that launched Google. Defined by Larry Page and Sergey
 
 <figure>
     <img src="../img/Simplified-PageRank-Calculation.png" width="550px" alt="Simplified PageRank Calculation" />
-    <figcaption>A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">PageRank paper</a></figcaption>
+    <figcaption style="color: black">A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Ranking: Bringing Order to the Web</a></figcaption>
 </figure>
 
 The PageRank formula for a vertex `v` is:
@@ -530,6 +532,28 @@ The convergence speed of connected components depends on the **diameter** of the
 The early stopping optimization is crucial here. Without it, Pregel would run all 20 iterations even after convergence. With it, the algorithm halts as soon as the minimum labels stop propagating — which often happens in 5-10 iterations for real-world social graphs.
 
 You can verify convergence speed by adding some logging. Run with a few different `maxIter` values and compare the results — you'll find the same component labels regardless of whether you set `maxIter` to 10, 20, or 100, as long as it's high enough.
+
+### Choosing a Termination Condition
+
+Connected components converges naturally, but "converged" and "stopped" are two different things — Pregel keeps running until you tell it to stop. The [Pregel API Reference](/04-user-guide/10-pregel.md) documents three termination conditions, and picking the wrong one either wastes supersteps or costs more than it saves:
+
+| Condition | How to set it | Stops when |
+|---|---|---|
+| Iteration count | `setMaxIter(n)` | `n` supersteps have run |
+| No new messages | `setEarlyStopping(True)` | Every message produced in a superstep is `null` |
+| Vertex voting | `setStopIfAllNonActiveVertices(True)` plus `setInitialActiveVertexExpression(expr)` and `setUpdateActiveVertexExpression(expr)` | Every vertex has marked itself inactive |
+
+**The two dynamic conditions are not free.** Both `setEarlyStopping` and `setStopIfAllNonActiveVertices` have to *look at the data* to decide whether to continue, and that means an extra Spark action on every superstep — a full pass over the messages or the vertices, on top of the work the superstep already did. `setMaxIter` costs nothing because it needs no information about the data.
+
+That trade-off is what makes the choice algorithm-specific:
+
+- **Use `setEarlyStopping(True)` when messages can genuinely dry up.** Connected components qualifies: once every vertex holds its component's minimum label, `F.least()` stops lowering anything and the messages go `null`. Single-source shortest paths qualifies for the same reason — the wavefront eventually runs out of unvisited vertices. Here the extra action per superstep buys you the ability to skip potentially dozens of no-op iterations, which is a clear win.
+
+- **Leave it `False` when messages are never `null`.** PageRank is the canonical example: every vertex with an out-edge sends `pagerank / out_degree` every single superstep, forever. The emptiness check can never fire, so you would pay for an extra Spark action on all ten supersteps and never once benefit. This is why Example 3 sets only `setMaxIter(10)`.
+
+- **Use vertex voting when messages keep flowing but the *values* stop changing.** Label propagation is the motivating case: neighbors keep exchanging labels indefinitely, so early stopping never triggers, yet the computation is finished the moment no vertex changes its label. Vertex voting also gives you tolerance-based convergence for PageRank — stop once every vertex's rank moves less than some epsilon. See [Convergence Strategies](#convergence-strategies) for a worked example of that expression.
+
+A practical default: start with `setMaxIter(n)` alone and a generous `n`, confirm your algorithm produces stable results, and only then add a dynamic condition — and only if you measured that it actually saves supersteps.
 
 ## A Note on the Built-in Algorithm
 
