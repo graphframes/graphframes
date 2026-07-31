@@ -1,48 +1,56 @@
 """Generate Mermaid diagrams for the Pregel and Motif Finding tutorials.
 
 Usage:
+    poetry install --with docs
     python python/graphframes/tutorials/generate_diagrams.py
 
-Renders Mermaid diagram source to SVG using the mmdc package (PhantomJS-based).
+Renders Mermaid diagram source to SVG using mermaidx, which bundles its own
+JavaScript engine (quickjs) -- no browser or Node install required.
 """
 
 import re
 from pathlib import Path
 
-from mmdc import MermaidConverter
+import mermaidx
 
 # Resolve repo root relative to this file so the script works regardless of cwd
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 _IMG_ROOT = _REPO_ROOT / "docs" / "src" / "img"
 
-converter = MermaidConverter(timeout=30)
+# Pixels to raise edge labels off the line they annotate (see save_diagram).
+EDGE_LABEL_LIFT = 16
 
 
-def save_diagram(name: str, mermaid_code: str, output_dir: Path, width: int = 900) -> None:
-    """Render a Mermaid diagram to SVG via mmdc, then thicken edges."""
+def save_diagram(
+    name: str, mermaid_code: str, output_dir: Path, config: dict | None = None
+) -> None:
+    """Render a Mermaid diagram to SVG via mermaidx and tidy up the output.
+
+    `config` is an optional Mermaid config dict (see DIAGRAM_CONFIG) for
+    diagrams that need tighter-than-default spacing.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     svg_path = output_dir / f"{name}.svg"
     try:
-        converter.convert(
-            mermaid_code.strip(),
-            output_file=svg_path,
-            theme="default",
-            background="white",
-            width=width,
-        )
+        kwargs: dict = {"theme": "default"}
+        if config:
+            kwargs["config"] = config
+        svg_text = mermaidx.render(mermaid_code.strip(), **kwargs).svg()
         # Post-process SVG:
         # 1. Add a white background rect so the diagram isn't transparent
-        # 2. Thicken edges (3x default ~1px)
-        # Use regex with negative lookahead to avoid mutating multi-digit values
-        # (e.g., stroke-width:10 should NOT become stroke-width:30)
-        svg_text = svg_path.read_text()
         svg_text = re.sub(
             r"(<svg[^>]*>)",
             r'\1<rect width="100%" height="100%" fill="white"/>',
             svg_text,
         )
-        svg_text = re.sub(r"stroke-width\s*:\s*2(?!\d)", "stroke-width:6", svg_text)
-        svg_text = re.sub(r"stroke-width\s*:\s*1(?!\d)", "stroke-width:3", svg_text)
+        # 2. Lift edge labels off the line they annotate. Mermaid centres each
+        #    label on the edge midpoint, so it sits on top of the line (and
+        #    sometimes on a subgraph border). Shifting the group up clears both.
+        svg_text = re.sub(
+            r'(<g class="edgeLabel" transform="translate\(\s*[-\d.]+\s*,\s*)([-\d.]+)(\s*\))',
+            lambda m: f"{m.group(1)}{float(m.group(2)) - EDGE_LABEL_LIFT}{m.group(3)}",
+            svg_text,
+        )
         svg_path.write_text(svg_text)
         print(f"Saved: {svg_path}")
     except Exception as e:
@@ -125,22 +133,30 @@ graph LR
 # ({1,2,3} and {4,5}).  Node labels use vertex:componentLabel notation.
 # Note: chained undirected edges (A --- B --- C) fail in some Mermaid
 # versions; use explicit two-node edge lines instead.
+# Panels are declared s2, s1, s0 because sibling subgraphs render in REVERSE
+# declaration order -- declaring s0 first put "Converged" on the left, reading
+# the algorithm backwards. Titles must be bracketed and quoted: with the bare
+# form (`subgraph s0 Superstep 0 ...`) the id leaks into the rendered title,
+# which is why the old figure read "s0 Superstep 0 each vertex...".
 connected_components = """
 graph TB
-    subgraph s0 Superstep 0 each vertex starts with its own label
-        a0((1:1)) --- b0((2:2))
-        b0 --- c0((3:3))
-        d0((4:4)) --- e0((5:5))
+    subgraph s2["Converged: all vertices share their component minimum"]
+        direction LR
+        a2((1:1)) --- b2((2:1))
+        b2 --- c2((3:1))
+        d2((4:4)) --- e2((5:4))
     end
-    subgraph s1 Superstep 1 minimum label advances one hop
+    subgraph s1["Superstep 1: minimum label advances one hop"]
+        direction LR
         a1((1:1)) --- b1((2:1))
         b1 --- c1((3:2))
         d1((4:4)) --- e1((5:4))
     end
-    subgraph s2 Converged all vertices share the minimum label of their component
-        a2((1:1)) --- b2((2:1))
-        b2 --- c2((3:1))
-        d2((4:4)) --- e2((5:4))
+    subgraph s0["Superstep 0: each vertex starts with its own label"]
+        direction LR
+        a0((1:1)) --- b0((2:2))
+        b0 --- c0((3:3))
+        d0((4:4)) --- e0((5:5))
     end
 """
 
@@ -222,67 +238,86 @@ PREGEL_DIAGRAMS = {
 # 1. Directed Graphlet Overview — 2-node and 3-node patterns
 #    Replaces 4-node-directed-graphlets.png
 # ──────────────────────────────────────────────────────────────────────
+# Laid out as 2 rows of 4. Three Mermaid behaviours are load-bearing:
+#   1. Under `graph TB`, sibling subgraphs lay out HORIZONTALLY (the opposite
+#      of what the direction reads); `graph LR` would stack them into one
+#      2500px-tall column.
+#   2. Siblings render in REVERSE declaration order, so each row is declared
+#      right-to-left and the second row is declared before the first.
+#   3. The invisible links (`~~~`) at the bottom drop G5-G8 onto a second rank.
+#      Wrapping each row in its own subgraph also works, but the wrapper
+#      reserves title space and leaves a large gap between the rows.
+# Rendered with the tighter spacing in DIAGRAM_CONFIG.
 directed_graphlets_overview = """
-graph LR
-    subgraph G1 single directed edge
-        g1a((A)) --> g1b((B))
-    end
-
-    subgraph G2 mutual edges
-        g2a((A)) --> g2b((B))
-        g2b --> g2a
-    end
-
-    subgraph G3 directed path
-        g3a((A)) --> g3b((B))
-        g3b --> g3c((C))
-    end
-
-    subgraph G4 directed 3-cycle
+graph TB
+    subgraph G4["G4 directed 3-cycle"]
+        direction LR
         g4a((A)) --> g4b((B))
         g4b --> g4c((C))
         g4c --> g4a
     end
-
-    subgraph G5 divergent triangle
-        g5a((A)) --> g5b((B))
-        g5a --> g5c((C))
-        g5c --> g5b
+    subgraph G3["G3 directed path"]
+        direction LR
+        g3a((A)) --> g3b((B))
+        g3b --> g3c((C))
     end
-
-    subgraph G6 convergent triangle
+    subgraph G2["G2 mutual edges"]
+        direction LR
+        g2a((A)) --> g2b((B))
+        g2b --> g2a
+    end
+    subgraph G1["G1 single directed edge"]
+        direction LR
+        g1a((A)) --> g1b((B))
+    end
+    subgraph G8["G8 convergent fork"]
+        direction LR
+        g8a((A)) --> g8c((C))
+        g8b((B)) --> g8c
+    end
+    subgraph G7["G7 divergent fork"]
+        direction LR
+        g7a((A)) --> g7b((B))
+        g7a --> g7c((C))
+    end
+    subgraph G6["G6 convergent triangle"]
+        direction LR
         g6a((A)) --> g6b((B))
         g6a --> g6c((C))
         g6b --> g6c
     end
-
-    subgraph G7 divergent fork
-        g7a((A)) --> g7b((B))
-        g7a --> g7c((C))
+    subgraph G5["G5 divergent triangle"]
+        direction LR
+        g5a((A)) --> g5b((B))
+        g5a --> g5c((C))
+        g5c --> g5b
     end
-
-    subgraph G8 convergent fork
-        g8a((A)) --> g8c((C))
-        g8b((B)) --> g8c
-    end
+    g1a ~~~ g5a
+    g2a ~~~ g6a
+    g3a ~~~ g7a
+    g4a ~~~ g8a
 """
 
 # ──────────────────────────────────────────────────────────────────────
 # 2. G4 and G5 Triangles — side by side
 #    Replaces G4_and_G5_directed_network_motif.png
 # ──────────────────────────────────────────────────────────────────────
+# `graph TB` puts the two panels side by side; declared in reverse so G4 lands
+# on the left. See directed_graphlets_overview above for the full explanation.
 g4_g5_triangles = """
-graph LR
-    subgraph G4 Continuous Triangle
-        g4a((a)) --> g4b((b))
-        g4b --> g4c((c))
-        g4c --> g4a
-    end
-
-    subgraph G5 Divergent Triangle
+graph TB
+    subgraph G5["G5 Divergent Triangle"]
+        direction LR
         g5a((a)) --> g5b((b))
         g5a --> g5c((c))
         g5c --> g5b
+    end
+
+    subgraph G4["G4 Continuous Triangle"]
+        direction LR
+        g4a((a)) --> g4b((b))
+        g4b --> g4c((c))
+        g4c --> g4a
     end
 """
 
@@ -311,19 +346,30 @@ graph LR
 # ──────────────────────────────────────────────────────────────────────
 # 5. G5 concrete Stack Exchange example
 #    Top result: Tag applied to two linked Questions
+# Three Mermaid gotchas are load-bearing here:
+#   1. Top-level `graph TB` is what makes the two unconnected subgraphs sit
+#      SIDE BY SIDE; `graph LR` stacks them into a ~400x1060 column instead.
+#      (Same trick as connected_components above.)
+#   2. `direction LR` inside each subgraph keeps the motif itself reading
+#      left-to-right within its panel.
+#   3. Subgraphs are laid out right-to-left, so the headline (1,775) case is
+#      declared SECOND in order to appear on the left, where it reads first.
+# Bracketed subgraph titles are used so the labels can contain punctuation.
 # ──────────────────────────────────────────────────────────────────────
 g5_stackexchange = """
-graph LR
-    subgraph top 1775 instances Tag-Question triangle
-        tag([Tag]) -->|"Tags"| qb((Question B))
-        tag -->|"Tags"| qc((Question C))
-        qc -->|"Links"| qb
-    end
-
-    subgraph self 274 instances User answers own question
+graph TB
+    subgraph self["274 instances: User answers their own Question"]
+        direction LR
         user[User] -->|"Asks"| ques((Question))
         user -->|"Posts"| ans((Answer))
         ans -->|"Answers"| ques
+    end
+
+    subgraph top["1,775 instances: Tag applied to two linked Questions"]
+        direction LR
+        tag([Tag]) -->|"Tags"| qb((Question B))
+        tag -->|"Tags"| qc((Question C))
+        qc -->|"Links"| qb
     end
 """
 
@@ -339,20 +385,46 @@ graph LR
 """
 
 MOTIF_DIAGRAMS = {
-    "motif-directed-graphlets-overview": (directed_graphlets_overview, 1100),
-    "motif-g4-g5-triangles": (g4_g5_triangles, 900),
-    "motif-g30-opposed-3path": (g30_opposed_3path, 500),
-    "motif-g4-stackexchange": (g4_stackexchange, 700),
-    "motif-g5-stackexchange": (g5_stackexchange, 900),
-    "motif-g30-stackexchange": (g30_stackexchange, 700),
+    "motif-directed-graphlets-overview": directed_graphlets_overview,
+    "motif-g4-g5-triangles": g4_g5_triangles,
+    "motif-g30-opposed-3path": g30_opposed_3path,
+    "motif-g4-stackexchange": g4_stackexchange,
+    "motif-g5-stackexchange": g5_stackexchange,
+    "motif-g30-stackexchange": g30_stackexchange,
+}
+
+
+# Per-diagram Mermaid config, for diagrams that need tighter-than-default
+# spacing. nodeSpacing drives BOTH the gap between rows and the separation of
+# nodes inside each panel, so it cannot go much below 14 without the fork
+# patterns collapsing and the subgraph titles colliding with the graph content.
+DIAGRAM_CONFIG = {
+    "motif-directed-graphlets-overview": {
+        "flowchart": {
+            "diagramPadding": 2,
+            "padding": 8,
+            "nodeSpacing": 14,
+            "rankSpacing": 14,
+            "subGraphTitleMargin": {"top": 0, "bottom": 4},
+        }
+    },
+    "pregel-connected-components": {
+        "flowchart": {
+            "diagramPadding": 2,
+            "padding": 8,
+            "nodeSpacing": 20,
+            "rankSpacing": 24,
+            "subGraphTitleMargin": {"top": 0, "bottom": 6},
+        }
+    },
 }
 
 
 if __name__ == "__main__":
     pregel_dir = _IMG_ROOT / "pregel-diagrams"
     for name, code in PREGEL_DIAGRAMS.items():
-        save_diagram(name, code, pregel_dir)
+        save_diagram(name, code, pregel_dir, config=DIAGRAM_CONFIG.get(name))
 
     motif_dir = _IMG_ROOT / "motif-diagrams"
-    for name, (code, width) in MOTIF_DIAGRAMS.items():
-        save_diagram(name, code, motif_dir, width=width)
+    for name, code in MOTIF_DIAGRAMS.items():
+        save_diagram(name, code, motif_dir, config=DIAGRAM_CONFIG.get(name))
