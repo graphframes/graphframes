@@ -114,6 +114,7 @@ A quick sanity check to make sure everything loaded correctly:
 
 ```python
 from pyspark.sql import SparkSession
+from graphframes import GraphFrame
 
 spark = SparkSession.builder.appName("Data Verification").getOrCreate()
 
@@ -131,6 +132,8 @@ nodes_df.groupBy("Type").count().orderBy("count", ascending=False).show()
 
 # Check edge types
 edges_df.groupBy("relationship").count().orderBy("count", ascending=False).show()
+
+graph = GraphFrame(nodes_df, edges_df)
 ```
 
 Expected output:
