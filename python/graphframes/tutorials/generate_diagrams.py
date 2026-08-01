@@ -244,14 +244,69 @@ graph LR
 """
 
 # ──────────────────────────────────────────────────────────────────────
-# 8. Debug Trace
+# 8. Debug Trace (Example 7)
 # ──────────────────────────────────────────────────────────────────────
+# Top-level graph LR stacks sibling subgraphs VERTICALLY (narrower than
+# side-by-side). Declare bottom→top so Superstep 0 is first. Node labels
+# show the accumulating trace column using a unicode arrow so Mermaid
+# does not treat "<-" as an edge operator.
 debug_trace = """
 graph LR
-    A1["A: path=A"] -->|"send path"| B1["B: path=A,B"]
-    A1 -->|"send path"| C1["C: path=A,C"]
-    B1 -->|"send path"| C2["C: path=A,B,C"]
-    C1 -->|"send path"| D2["D: path=A,C,D"]
+    subgraph s2["Superstep 2: paths lengthen toward D"]
+        direction LR
+        a2["A: A"] --> b2["B: A ← B"]
+        a2 --> c2["C: A | B ← C"]
+        b2 --> c2
+        c2 --> d2["D: A | B ← C ← D"]
+    end
+    subgraph s1["Superstep 1: neighbors of A receive its id"]
+        direction LR
+        a1["A: A"] --> b1["B: A ← B"]
+        a1 --> c1["C: A | B ← C"]
+        b1 --> c1
+        c1 --> d1["D: C ← D"]
+    end
+    subgraph s0["Superstep 0: each vertex starts with its own id"]
+        direction LR
+        a0["A: A"] --> b0["B: B"]
+        a0 --> c0["C: C"]
+        b0 --> c0
+        c0 --> d0["D: D"]
+    end
+"""
+
+# ──────────────────────────────────────────────────────────────────────
+# 9. Four-Question Framework (two figures — mapping + example)
+# ──────────────────────────────────────────────────────────────────────
+# Top-level graph LR stacks sibling subgraphs VERTICALLY (reverse of TB).
+# Declare rows bottom→top so question 1 appears at the top. Each row is a
+# left→right chain: design question → Pregel paper → GraphFrames API.
+four_question_mapping = """
+graph LR
+    subgraph s4[" "]
+        direction LR
+        Q4["4. How to update?"] --> P4["compute()"] --> G4["withVertexColumn<br/>update"]
+    end
+    subgraph s3[" "]
+        direction LR
+        Q3["3. How to combine?"] --> P3["combiner"] --> G3["aggMsgs"]
+    end
+    subgraph s2[" "]
+        direction LR
+        Q2["2. What messages?"] --> P2["message function"] --> G2["sendMsgToDst / sendMsgToSrc"]
+    end
+    subgraph s1[" "]
+        direction LR
+        Q1["1. What vertex state?"] --> P1["vertex value"] --> G1["withVertexColumn<br/>initial"]
+    end
+"""
+
+# Worked example from the Four-Question section: two-hop score/count flow.
+four_question_example = """
+graph LR
+    Ans((Answer)) -->|"score, count"| Ques((Question))
+    Ques -->|"sum score, sum count"| Tag((Tag))
+    Tag -->|"total / count"| Avg["avg_answer_score"]
 """
 
 PREGEL_DIAGRAMS = {
@@ -264,6 +319,8 @@ PREGEL_DIAGRAMS = {
     "pregel-wavefront": wavefront,
     "pregel-reputation-propagation": reputation_propagation,
     "pregel-debug-trace": debug_trace,
+    "pregel-four-question-mapping": four_question_mapping,
+    "pregel-four-question-example": four_question_example,
 }
 
 
@@ -460,6 +517,33 @@ DIAGRAM_CONFIG = {
             "padding": 8,
             "nodeSpacing": 18,
             "rankSpacing": 22,
+            "subGraphTitleMargin": {"top": 0, "bottom": 6},
+        }
+    },
+    "pregel-debug-trace": {
+        "flowchart": {
+            "diagramPadding": 2,
+            "padding": 8,
+            "nodeSpacing": 16,
+            "rankSpacing": 28,
+            "subGraphTitleMargin": {"top": 0, "bottom": 6},
+        }
+    },
+    "pregel-four-question-mapping": {
+        "flowchart": {
+            "diagramPadding": 4,
+            "padding": 10,
+            "nodeSpacing": 16,
+            "rankSpacing": 28,
+            "subGraphTitleMargin": {"top": 0, "bottom": 6},
+        }
+    },
+    "pregel-four-question-example": {
+        "flowchart": {
+            "diagramPadding": 4,
+            "padding": 10,
+            "nodeSpacing": 24,
+            "rankSpacing": 40,
             "subGraphTitleMargin": {"top": 0, "bottom": 6},
         }
     },

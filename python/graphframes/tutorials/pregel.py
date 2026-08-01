@@ -1,7 +1,8 @@
 """Demonstrate GraphFrames Pregel API capabilities. Code from the Pregel Tutorial.
 
-This script contains 7 progressive examples showing how to use GraphFrames'
-Pregel and AggregateMessages APIs for scalable graph algorithms.
+This script contains progressive examples showing how to use GraphFrames'
+Pregel and AggregateMessages APIs for scalable graph algorithms, including
+the Four-Question Framework worked example (average answer score per tag).
 
 Spark 4.0+ (recommended):
     Interactive: pyspark --packages io.graphframes:graphframes-spark4_2.13:0.11.0
@@ -448,6 +449,95 @@ def main(data_dir: str) -> None:
 
     # Unpersist
     rep_results.unpersist()
+
+    # ======================================================================
+    # Four-Question Framework: average answer score per Tag
+    # ======================================================================
+
+    click.echo("\n" + "=" * 70)
+    click.echo("FOUR-QUESTION FRAMEWORK: Average Answer Score per Tag")
+    click.echo("=" * 70)
+
+    # Subgraph: Tags, Questions, and Answers (Answers carry Score)
+    tag_nodes = nodes_df.filter(F.col("Type") == "Tag").select(
+        "id",
+        F.col("TagName").alias("name"),
+        F.lit("Tag").alias("Type"),
+    )
+    question_nodes = nodes_df.filter(F.col("Type") == "Question").select(
+        "id",
+        F.lit(None).cast("string").alias("name"),
+        F.lit("Question").alias("Type"),
+    )
+    answer_nodes = nodes_df.filter(F.col("Type") == "Answer").select(
+        "id",
+        F.lit(None).cast("string").alias("name"),
+        F.col("Score").cast("double").alias("score"),
+        F.lit("Answer").alias("Type"),
+    )
+
+    avg_vertices = (
+        tag_nodes.withColumn("score", F.lit(0.0))
+        .unionByName(question_nodes.withColumn("score", F.lit(0.0)))
+        .unionByName(answer_nodes)
+        .na.fill({"score": 0.0})
+    )
+
+    # Answers → Questions (as-is); reverse Tags so Questions → Tags
+    answers_edges = edges_df.filter(F.col("relationship") == "Answers").select("src", "dst")
+    questions_to_tags = edges_df.filter(F.col("relationship") == "Tags").select(
+        F.col("dst").alias("src"),
+        F.col("src").alias("dst"),
+    )
+    avg_edges = answers_edges.unionByName(questions_to_tags)
+    avg_graph = GraphFrame(avg_vertices, avg_edges)
+
+    click.echo(
+        f"Tag-average subgraph: {avg_vertices.count():,} vertices, {avg_edges.count():,} edges"
+    )
+
+    # Two-hop: Answer → Question → Tag via struct messages (score, count)
+    avg_results = (
+        avg_graph.pregel.setMaxIter(2)
+        .withVertexColumn(
+            "total_score",
+            F.when(F.col("Type") == "Answer", F.col("score")).otherwise(F.lit(0.0)),
+            F.col("total_score") + F.coalesce(Pregel.msg().getField("score"), F.lit(0.0)),
+        )
+        .withVertexColumn(
+            "answer_count",
+            F.when(F.col("Type") == "Answer", F.lit(1.0)).otherwise(F.lit(0.0)),
+            F.col("answer_count") + F.coalesce(Pregel.msg().getField("count"), F.lit(0.0)),
+        )
+        .sendMsgToDst(
+            F.when(
+                Pregel.src("answer_count") > F.lit(0),
+                F.struct(
+                    Pregel.src("total_score").alias("score"),
+                    Pregel.src("answer_count").alias("count"),
+                ),
+            )
+        )
+        .aggMsgs(
+            F.struct(
+                F.sum(Pregel.msg().getField("score")).alias("score"),
+                F.sum(Pregel.msg().getField("count")).alias("count"),
+            )
+        )
+        .run()
+    )
+
+    click.echo("\nTop tags by average answer score:")
+    (
+        avg_results.filter(F.col("Type") == "Tag")
+        .filter(F.col("answer_count") > 0)
+        .withColumn("avg_answer_score", F.col("total_score") / F.col("answer_count"))
+        .select("name", "total_score", "answer_count", "avg_answer_score")
+        .orderBy(F.desc("avg_answer_score"))
+        .show(10, truncate=40)
+    )
+
+    avg_results.unpersist()
 
     # ======================================================================
     # Example 7: Debug Trace - Message Path Tracking

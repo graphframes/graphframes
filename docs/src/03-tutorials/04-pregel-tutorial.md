@@ -33,7 +33,7 @@ The core idea is deceptively simple: **think like a vertex**. Instead of writing
 
 <figure>
     <img src="../img/Pregel-Compute-Dataflow.png" width="650px" alt="Pregel BSP Compute Dataflow" />
-    <figcaption style="color: black"><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
+    <figcaption style="color: white"><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
 </figure>
 
 Computation proceeds in a series of **supersteps**. In each superstep:
@@ -44,21 +44,21 @@ Computation proceeds in a series of **supersteps**. In each superstep:
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-bsp-model.svg" width="800px" alt="Bulk Synchronous Parallel Model" />
-    <figcaption style="color: black">The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
+    <figcaption style="color: white">The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
 </figure>
 
 This barrier synchronization is what makes Pregel algorithms easy to reason about. At any point during execution, you know that all vertices are in the same superstep. There are no race conditions, no stale reads, no distributed coordination headaches. You trade some potential parallelism for massive simplification of the programming model.
 
 <figure>
     <img src="../img/Pregel-Paper-Vertex-State-Machine.png" width="400px" alt="Pregel Vertex State Machine" />
-    <figcaption style="color: black">Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices alternate between active and inactive states</figcaption>
+    <figcaption style="color: white">Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices alternate between active and inactive states</figcaption>
 </figure>
 
 Vertices can **vote to halt** — marking themselves inactive. An inactive vertex is woken up when it receives a new message. When all vertices have voted to halt and there are no messages in transit, the algorithm terminates. This is how Pregel algorithms converge: vertices stop updating when their state stabilizes.
 
 <figure>
     <img src="../img/Pregel-Paper-Supersteps.png" width="450px" alt="Pregel supersteps from the original paper" />
-    <figcaption style="color: black">Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices send messages and receive them in the next superstep</figcaption>
+    <figcaption style="color: white">Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices send messages and receive them in the next superstep</figcaption>
 </figure>
 
 ## The Power of Local Computation
@@ -178,7 +178,7 @@ The most basic graph metric is **in-degree**: how many edges point to each verte
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-in-degree-am.svg" width="700px" alt="In-degree computation with AggregateMessages" />
-    <figcaption style="color: black">AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
+    <figcaption style="color: white">AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
 </figure>
 
 ```python
@@ -291,7 +291,7 @@ Let's compute the same in-degree metric using Pregel. This is intentionally over
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-in-degree-pregel.svg" width="700px" alt="In-degree computation with Pregel" />
-    <figcaption style="color: black">Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
+    <figcaption style="color: white">Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
 </figure>
 
 ```python
@@ -345,7 +345,7 @@ PageRank is the algorithm that launched Google. Defined by Larry Page and Sergey
 
 <figure>
     <img src="../img/Simplified-PageRank-Calculation.png" width="550px" alt="Simplified PageRank Calculation" />
-    <figcaption style="color: black">A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Ranking: Bringing Order to the Web</a></figcaption>
+    <figcaption style="color: white">A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Ranking: Bringing Order to the Web</a></figcaption>
 </figure>
 
 The PageRank formula for a vertex `v` is:
@@ -468,7 +468,7 @@ After convergence, all vertices in the same connected component will have the sa
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-connected-components.svg" width="800px" alt="Connected components label propagation across supersteps" />
-    <figcaption style="color: black">Minimum-label connected components: each vertex starts with its own ID; the component minimum advances one hop per superstep until every vertex in a component shares the same label</figcaption>
+    <figcaption style="color: white">Minimum-label connected components: each vertex starts with its own ID; the component minimum advances one hop per superstep until every vertex in a component shares the same label</figcaption>
 </figure>
 
 ```python
@@ -643,7 +643,7 @@ Shortest paths in Pregel is essentially BFS implemented as message passing. The 
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-wavefront.svg" width="800px" alt="BFS wavefront expanding one hop per superstep" />
-    <figcaption style="color: black">The shortest-path wavefront: only the source starts at distance 0; each superstep reaches the next ring of neighbors while unreached vertices remain INF</figcaption>
+    <figcaption style="color: white">The shortest-path wavefront: only the source starts at distance 0; each superstep reaches the next ring of neighbors while unreached vertices remain INF</figcaption>
 </figure>
 
 This wavefront property is why the distance distribution is so informative. Each row in the distribution corresponds to one superstep's work. If distance 3 has the most vertices, it means the third ring of neighbors from the source is the densest — which tells you something about the graph's local structure around your source vertex.
@@ -813,7 +813,17 @@ Now that we have five algorithms under our belt, let's step back and develop a s
 
 Every Pregel algorithm answers four questions. They are not arbitrary: each one corresponds to a component of the model in the [original Pregel paper](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) — the vertex value, the message function, the combiner, and `compute()` — which is why the GraphFrames API has the shape it does.
 
+<figure>
+    <img src="../img/pregel-diagrams/pregel-four-question-mapping.svg" width="700px" alt="Four design questions mapped to Pregel paper concepts and GraphFrames API" />
+    <figcaption style="color: white">Each design question maps to a Pregel paper concept and a GraphFrames API call</figcaption>
+</figure>
+
 Let's walk through how to answer them for a hypothetical new problem: **computing the average answer score for each tag in the Stack Exchange graph**. Tags connect to Questions, Questions connect to Answers, and Answers have scores. We want each Tag to know the average score of all Answers to its tagged Questions.
+
+<figure>
+    <img src="../img/pregel-diagrams/pregel-four-question-example.svg" width="700px" alt="Answer scores propagating through Questions to Tags" />
+    <figcaption style="color: white">Worked example: answer scores and counts propagate Answer → Question → Tag; the tag average is total / count</figcaption>
+</figure>
 
 **Question 1: What vertex state do I need?**
 
@@ -831,7 +841,135 @@ When a Question receives scores from multiple Answers, it sums both the scores a
 
 After receiving messages, each vertex adds the incoming total to its own total and the incoming count to its own count. The final average is `total_score / answer_count`, computed after Pregel completes.
 
-The implementation would use `setMaxIter(2)` with a struct message containing both fields, or equivalently, two separate `withVertexColumn` definitions — one for total and one for count. This decomposition process works for any graph problem that involves information propagation.
+Here is the full implementation. We reverse the `Tags` edges (`Tag → Question` becomes `Question → Tag`) so both hops travel with `sendMsgToDst`, then send a struct message carrying score and count together. Two `withVertexColumn` definitions unpack the aggregated struct into vertex state — note that `withVertexColumn` init/update use plain `F.col(...)` (vertex context), while `sendMsgToDst` uses `Pregel.src(...)` (triplet context).
+
+```python
+# Subgraph: Tags, Questions, and Answers (Answers carry Score)
+tag_nodes = nodes_df.filter(F.col("Type") == "Tag").select(
+    "id",
+    F.col("TagName").alias("name"),
+    F.lit("Tag").alias("Type"),
+)
+question_nodes = nodes_df.filter(F.col("Type") == "Question").select(
+    "id",
+    F.lit(None).cast("string").alias("name"),
+    F.lit("Question").alias("Type"),
+)
+answer_nodes = nodes_df.filter(F.col("Type") == "Answer").select(
+    "id",
+    F.lit(None).cast("string").alias("name"),
+    F.col("Score").cast("double").alias("score"),
+    F.lit("Answer").alias("Type"),
+)
+
+avg_vertices = (
+    tag_nodes.withColumn("score", F.lit(0.0))
+    .unionByName(question_nodes.withColumn("score", F.lit(0.0)))
+    .unionByName(answer_nodes)
+    .na.fill({"score": 0.0})
+)
+
+avg_vertices.sample(0.002).show()
+```
+
+Creating a single node type is helpful for implementing Pregel algorithms, but you can also use conditionals to implement vertex state updates.
+
+```
++--------------------+--------+--------+-----+
+|                  id|    name|    Type|score|
++--------------------+--------+--------+-----+
+|5803e875-3f19-496...|homework|     Tag|  0.0|
+|6bfb6d29-5bcf-491...|    NULL|Question|  0.0|
+|97914dc4-00c5-4d5...|    NULL|Question|  0.0|
+|b6f34e27-dbbf-48a...|    NULL|Question|  0.0|
+|3004092b-db46-414...|    NULL|  Answer|  8.0|
+|ecea740b-8341-466...|    NULL|  Answer|  7.0|
+|81cbf28a-014a-461...|    NULL|  Answer| 19.0|
+|c58a303e-8edb-423...|    NULL|  Answer|  7.0|
++--------------------+--------+--------+-----+
+```
+
+Note how often we have created new `GraphFrames` of a single type as a method  of problem solving in this tutorial.
+
+```python
+# Answers → Questions (as-is); reverse Tags so Questions → Tags
+answers_edges = edges_df.filter(F.col("relationship") == "Answers").select("src", "dst")
+questions_to_tags = (
+    edges_df.filter(F.col("relationship") == "Tags")
+    .select(F.col("dst").alias("src"), F.col("src").alias("dst"))
+)
+avg_edges = answers_edges.unionByName(questions_to_tags)
+avg_graph = GraphFrame(avg_vertices, avg_edges)
+
+# Two-hop propagation: Answer → Question → Tag
+avg_results = (
+    avg_graph.pregel
+    .setMaxIter(2)
+    # Q1 + Q4: vertex state columns (init / update use F.col, not Pregel.src)
+    .withVertexColumn(
+        "total_score",
+        F.when(F.col("Type") == "Answer", F.col("score")).otherwise(F.lit(0.0)),
+        F.col("total_score")
+        + F.coalesce(Pregel.msg().getField("score"), F.lit(0.0)),
+    )
+    .withVertexColumn(
+        "answer_count",
+        F.when(F.col("Type") == "Answer", F.lit(1.0)).otherwise(F.lit(0.0)),
+        F.col("answer_count")
+        + F.coalesce(Pregel.msg().getField("count"), F.lit(0.0)),
+    )
+    # Q2: messages — triplet context, so sender state is Pregel.src(...)
+    .sendMsgToDst(
+        F.when(
+            Pregel.src("answer_count") > F.lit(0),
+            F.struct(
+                Pregel.src("total_score").alias("score"),
+                Pregel.src("answer_count").alias("count"),
+            ),
+        )
+    )
+    # Q3: one aggMsgs expression — struct of sums, not nested aggregates
+    .aggMsgs(
+        F.struct(
+            F.sum(Pregel.msg().getField("score")).alias("score"),
+            F.sum(Pregel.msg().getField("count")).alias("count"),
+        )
+    )
+    .run()
+)
+
+tag_avg = (
+    avg_results.filter(F.col("Type") == "Tag")
+    .filter(F.col("answer_count") > 0)
+    .withColumn("avg_answer_score", F.col("total_score") / F.col("answer_count"))
+    .select("name", "total_score", "answer_count", "avg_answer_score")
+    .orderBy(F.desc("avg_answer_score"))
+)
+tag_avg.show(10, truncate=40)
+```
+
+```
++-------------------------+-----------+------------+------------------+
+|                     name|total_score|answer_count|  avg_answer_score|
++-------------------------+-----------+------------+------------------+
+|            stackexchange|       35.0|         1.0|              35.0|
+|       math-stackexchange|       28.0|         1.0|              28.0|
+|               winterbash|      162.0|         8.0|             20.25|
+|                      faq|     1105.0|        66.0|16.742424242424242|
+|            participation|     1090.0|        85.0|12.823529411764707|
+|datascience-stackexchange|      375.0|        30.0|              12.5|
+|            display-names|       25.0|         2.0|              12.5|
+|          site-statistics|      576.0|        47.0| 12.25531914893617|
+|           community-user|       12.0|         1.0|              12.0|
+|                  careers|      192.0|        16.0|              12.0|
++-------------------------+-----------+------------+------------------+
+```
+
+**Iteration 1**: Answers send `(score, 1)` to their Questions. Each Question accumulates the total score and answer count for its answers.
+
+**Iteration 2**: Questions forward those accumulated `(total_score, answer_count)` structs to their Tags. Each Tag ends up with the aggregate score and count of all answers to questions carrying that tag.
+
+The post-Pregel division `total_score / answer_count` is the average answer score per tag — a two-hop, stateful aggregation that maps directly from the four questions above. The same decomposition works for any graph problem that involves information propagation.
 
 ## Common Algorithm Templates
 
@@ -853,8 +991,8 @@ Recognizing which template fits your problem is half the battle. The other half 
 When developing a new Pregel algorithm, it is invaluable to see exactly what messages flow where and how vertex state evolves. This example is purely educational: we track the path of messages through a small test graph to make the message-passing mechanics visible.
 
 <figure>
-    <img src="../img/pregel-diagrams/pregel-debug-trace.svg" width="700px" alt="Debug trace showing message paths" />
-    <figcaption>Message path tracing: each vertex records where its information came from</figcaption>
+    <img src="../img/pregel-diagrams/pregel-debug-trace.svg" width="700px" alt="Debug trace path accumulation across Pregel supersteps" />
+    <figcaption style="color: black">Message path tracing on A→B, A→C, B→C, C→D: each vertex prepends incoming traces and appends its own id; <code>|</code> joins multiple incoming paths</figcaption>
 </figure>
 
 ```python
@@ -892,14 +1030,14 @@ trace_results.select("id", "name", "trace").orderBy("id").show(truncate=False)
 The output shows the accumulated message paths at each vertex:
 
 ```
-+---+-------+------------------------------------------+
-|id |name   |trace                                     |
-+---+-------+------------------------------------------+
-|A  |Alice  |A                                         |
-|B  |Bob    |A <- A | A <- B <- B                      |
-|C  |Charlie|A <- A | A <- B <- B | A <- B <- C <- C   |
-|D  |David  |A <- A | A <- B <- C <- C <- D            |
-+---+-------+------------------------------------------+
++---+-------+------------------------+
+|id |name   |trace                   |
++---+-------+------------------------+
+|A  |Alice  | <- A                   |
+|B  |Bob    | <- A <- B              |
+|C  |Charlie| <- A |  <- A <- B <- C |
+|D  |David  |A <- B |  <- A <- C <- D|
++---+-------+------------------------+
 ```
 
 Each vertex's `trace` column shows who influenced it. Reading right-to-left: `X <- Y <- Z` means Z's state flowed through Y to reach X. The `|` separator shows independent paths arriving at the same vertex. Notice how vertex D's trace shows the full chain: A's state propagated through B to C and then to D over three supersteps.
@@ -928,6 +1066,8 @@ These debugging patterns apply to every Pregel algorithm. Internalizing them wil
 
 
 # Advanced Topics
+
+Advanced topics include convergence strategies, performance best practicaes and when not to use Pregel.
 
 ## Convergence Strategies
 
@@ -979,7 +1119,6 @@ results = graph.pregel.setMaxIter(10)...run()
 # ... use results ...
 results.unpersist()
 ```
-
 
 ## When NOT to Use Pregel
 
@@ -1052,7 +1191,10 @@ Here is a summary of the algorithm patterns we implemented, along with their key
 ## Further Reading
 
 - [Pregel: A System for Large-Scale Graph Processing](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) — Malewicz et al., SIGMOD 2010. The original paper.
+- [Pregel: A System for Large-Scale Graph Processing](https://blog.acolyer.org/2015/05/26/pregel-a-system-for-large-scale-graph-processing/) — Adrian Colyer's walkthrough of the paper above, a gentler introduction to the vertex value, combiner, and `compute()` components behind the Four-Question Framework.
 - [GraphFrames: An Integrated API for Mixing Graph and Relational Queries](https://people.eecs.berkeley.edu/~matei/papers/2016/grades_graphframes.pdf) — Dave et al., GRADES 2016. The paper describing GraphFrames, including its Pregel implementation.
+- [Thinking Like a Vertex: a Survey of Vertex-Centric Frameworks for Distributed Graph Processing](https://arxiv.org/pdf/1507.04405) — McCune et al., ACM Computing Surveys 2015. Surveys the vertex-centric model and the systems built on it.
+- [From "Think Like a Vertex" to "Think Like a Graph"](http://www.vldb.org/pvldb/vol7/p193-tian.pdf) — Tian et al., VLDB 2014. Where the "think like a vertex" framing is examined and contrasted with subgraph-centric processing.
 - [The PageRank Citation Ranking](https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf) — Page and Brin, 1998. The original PageRank paper.
 - [The EigenTrust Algorithm for Reputation Management](https://nlp.stanford.edu/pubs/eigentrust.pdf) — Kamvar et al., 2003. Trust propagation in P2P networks, related to our reputation propagation example.
 - [Pregel API Reference](/04-user-guide/10-pregel.md) — GraphFrames Pregel API documentation.
