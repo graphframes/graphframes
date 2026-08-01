@@ -772,11 +772,35 @@ top_questions = (
         .select("id", "Title", "ViewCount"),
         on="id"
     )
+    .select("authority", "Title", "ViewCount")
     .orderBy(F.desc("authority"))
 )
 top_questions.show(10, truncate=80)
+```
 
+```
++---------+----------------------------------------------------------------+---------+
+|authority|                                                           Title|ViewCount|
++---------+----------------------------------------------------------------+---------+
+|3024522.0|         Top $k$ List of Reasons to Close a Question Immediately|     3306|
+|1818772.0|                                          Help spread the wealth|     1725|
+|1728975.0|                        Internet Support for Statistics Software|    14545|
+|1129557.0|                                    Library of helpful responses|      195|
+| 992347.0|        Project Reduplication of Deduplication - Cross Validated|      378|
+| 960856.0|                                  Community Promotion Ads - 2015|      611|
+| 874877.0|Why is a comment that maligns my field not inappropriate for CV?|      719|
+| 851696.0|               2017 moderator election Q&A - question collection|      345|
+| 777214.0|                                Rich get richer phenomenon on CV|     1145|
+| 757480.0|                         Putting Cross Validated stats on resume|     1008|
++---------+----------------------------------------------------------------+---------+
+```
+
+```python
 top_questions.stat.corr("authority", "ViewCount")
+```
+
+```
+0.070385635536485
 ```
 
 The highest-authority questions are those answered by the most reputable community members — which often (but not always - only a 0.07 Pearson's correlation) corresponds with a significant view count. Divergences between view count and authority reveal questions that are popular but underserved by experts, or niche questions that attracted top-tier answers.
@@ -787,7 +811,9 @@ Now that we have five algorithms under our belt, let's step back and develop a s
 
 ## The Four-Question Framework
 
-Every Pregel algorithm answers four questions. Let's walk through how to answer them for a hypothetical new problem: **computing the average answer score for each tag in the Stack Exchange graph**. Tags connect to Questions, Questions connect to Answers, and Answers have scores. We want each Tag to know the average score of all Answers to its tagged Questions.
+Every Pregel algorithm answers four questions. They are not arbitrary: each one corresponds to a component of the model in the [original Pregel paper](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) — the vertex value, the message function, the combiner, and `compute()` — which is why the GraphFrames API has the shape it does.
+
+Let's walk through how to answer them for a hypothetical new problem: **computing the average answer score for each tag in the Stack Exchange graph**. Tags connect to Questions, Questions connect to Answers, and Answers have scores. We want each Tag to know the average score of all Answers to its tagged Questions.
 
 **Question 1: What vertex state do I need?**
 
