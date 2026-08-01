@@ -757,7 +757,7 @@ rep_results = rep_graph.pregel \
 
 The result is an "authority" score for each Question that reflects the collective expertise of its answer pool. This is a metric you cannot compute with a simple SQL join — it requires understanding the graph topology and propagating values through it.
 
-To understand the subtlety here, consider what happens if you try to compute this *without* Pregel. You could join Users with Answers (via the "Posts" relationship) and then join Answers with Questions (via the "Answers" relationship), summing reputation along the way. That's a two-hop join, which is possible in SQL. But what if you wanted reputation to flow *three* hops — through answers to linked questions? Or four hops? Each additional hop requires another join, and the query plan grows quadratically in complexity. Pregel handles arbitrary hop counts by simply increasing `setMaxIter`.
+To understand the subtlety here, consider what happens if you try to compute this *without* Pregel. You could join Users with Answers (via the "Posts" relationship) and then join Answers with Questions (via the "Answers" relationship), summing reputation along the way. That's a two-hop join, which is possible in SQL. But what if you wanted reputation to flow *three* hops — through answers to linked questions? Or four hops? **Each additional hop requires another join, and the query plan grows quadratically in complexity. Pregel handles arbitrary hop counts by simply increasing `setMaxIter`.**
 
 More importantly, Pregel allows the propagation to be *stateful*. In our example, each Answer accumulates its author's reputation before forwarding it. With joins, you'd need to pre-compute intermediate results and manage them manually. Pregel's vertex state makes this natural.
 
@@ -774,11 +774,12 @@ top_questions = (
     )
     .orderBy(F.desc("authority"))
 )
-top_questions.show(10, truncate=60)
+top_questions.show(10, truncate=80)
+
+top_questions.stat.corr("authority", "ViewCount")
 ```
 
-The highest-authority questions are those answered by the most reputable community members — which often (but not always!) correlates with view count. Divergences between view count and authority reveal questions that are popular but underserved by experts, or niche questions that attracted top-tier answers.
-
+The highest-authority questions are those answered by the most reputable community members — which often (but not always - only a 0.07 Pearson's correlation) corresponds with a significant view count. Divergences between view count and authority reveal questions that are popular but underserved by experts, or niche questions that attracted top-tier answers.
 
 # Designing Your Own Pregel Algorithm
 
