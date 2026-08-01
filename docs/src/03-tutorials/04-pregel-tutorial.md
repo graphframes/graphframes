@@ -219,7 +219,7 @@ complete_in_deg.groupBy("in_degree").count().orderBy("in_degree").show(10)
 +---------+-----+
 ```
 
-Most nodes have zero in-degree (they are source-only nodes like Votes that cast votes but don't receive edges). The distribution follows a power law, which is typical for real-world networks. The power law means that a few nodes have very high in-degree (popular questions with hundreds of votes, prolific users with thousands of badges) while the vast majority have low in-degree.
+Most nodes have zero in-degree (they are source-only nodes like Votes that cast votes but don't receive edges). The distribution follows a power law, which is typical for real-world networks. The power law means that a few nodes have very high in-degree (popular questions with hundreds of votes, prolific users with thousands of badges) while the vast majority have low in-degree. Note that a power law distribution with supernodes can kill Pregel performance since each degree is a new message.
 
 A degree-by-degree table only shows the first few rows of a distribution that spans several orders of magnitude — a poor fit for a linear histogram. Instead, we bucket in-degrees into powers of two (0, 1, 2–3, 4–7, 8–15, ...) and draw the bars on a log scale:
 
