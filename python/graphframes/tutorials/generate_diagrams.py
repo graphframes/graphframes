@@ -173,6 +173,42 @@ graph LR
 """
 
 # ──────────────────────────────────────────────────────────────────────
+# 6b. Shortest-path wavefront (BFS expansion by superstep)
+# ──────────────────────────────────────────────────────────────────────
+# Same topology as shortest_paths, shown as three side-by-side panels so the
+# expanding frontier is visible: only the source is reached at superstep 0,
+# distance-1 neighbors light up at superstep 1, then distance-2 at superstep 2.
+# Uses the connected_components layout tricks: graph TB + reverse subgraph
+# declaration order + bracketed titles. Unreached vertices are labeled INF.
+wavefront = """
+graph TB
+    subgraph s2["Superstep 2: wavefront reaches distance 2"]
+        direction LR
+        a2((A:0)) --> b2((B:1))
+        a2 --> c2((C:1))
+        b2 --> d2((D:2))
+        c2 --> d2
+        d2 --> e2((E:INF))
+    end
+    subgraph s1["Superstep 1: neighbors of A get distance 1"]
+        direction LR
+        a1((A:0)) --> b1((B:1))
+        a1 --> c1((C:1))
+        b1 --> d1((D:INF))
+        c1 --> d1
+        d1 --> e1((E:INF))
+    end
+    subgraph s0["Superstep 0: only the source has distance 0"]
+        direction LR
+        a0((A:0)) --> b0((B:INF))
+        a0 --> c0((C:INF))
+        b0 --> d0((D:INF))
+        c0 --> d0
+        d0 --> e0((E:INF))
+    end
+"""
+
+# ──────────────────────────────────────────────────────────────────────
 # 7. Reputation Propagation
 # ──────────────────────────────────────────────────────────────────────
 reputation_propagation = """
@@ -225,6 +261,7 @@ PREGEL_DIAGRAMS = {
     "pregel-pagerank-iterations": pagerank_iterations,
     "pregel-connected-components": connected_components,
     "pregel-shortest-paths": shortest_paths,
+    "pregel-wavefront": wavefront,
     "pregel-reputation-propagation": reputation_propagation,
     "pregel-debug-trace": debug_trace,
 }
@@ -414,6 +451,15 @@ DIAGRAM_CONFIG = {
             "padding": 8,
             "nodeSpacing": 20,
             "rankSpacing": 24,
+            "subGraphTitleMargin": {"top": 0, "bottom": 6},
+        }
+    },
+    "pregel-wavefront": {
+        "flowchart": {
+            "diagramPadding": 2,
+            "padding": 8,
+            "nodeSpacing": 18,
+            "rankSpacing": 22,
             "subGraphTitleMargin": {"top": 0, "bottom": 6},
         }
     },

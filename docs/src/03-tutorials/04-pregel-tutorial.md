@@ -618,11 +618,33 @@ sp_results.filter(F.col("distance") < INF) \
     .orderBy("distance").show(20)
 ```
 
+You can see the messages spread in the distance distribution:
+
+```
++--------+-----+
+|distance|count|
++--------+-----+
+|       0|    1|
+|       1|   69|
+|       2|  468|
+|       3| 4375|
+|       4|24217|
+|       5|25126|
+|       6| 2160|
+|       7|   26|
++--------+-----+
+```
+
 The distance distribution reveals the [small-world property](https://en.wikipedia.org/wiki/Small-world_network) of the Stack Exchange graph. Most vertices are reachable within a handful of hops.
 
 ## Understanding the Wavefront
 
 Shortest paths in Pregel is essentially BFS implemented as message passing. The algorithm creates an expanding **wavefront**: at superstep 1, all direct neighbors of the source get distance 1. At superstep 2, their neighbors get distance 2. And so on, one hop per superstep.
+
+<figure>
+    <img src="../img/pregel-diagrams/pregel-wavefront.svg" width="800px" alt="BFS wavefront expanding one hop per superstep" />
+    <figcaption style="color: black">The shortest-path wavefront: only the source starts at distance 0; each superstep reaches the next ring of neighbors while unreached vertices remain INF</figcaption>
+</figure>
 
 This wavefront property is why the distance distribution is so informative. Each row in the distribution corresponds to one superstep's work. If distance 3 has the most vertices, it means the third ring of neighbors from the source is the densest — which tells you something about the graph's local structure around your source vertex.
 
