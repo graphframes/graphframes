@@ -25,13 +25,13 @@ We are going to mine motifs using Stack Exchange data. The Stack Exchange networ
 
 # Data Setup
 
-**⚠️ Before continuing**: If you haven't already, complete the [Data Setup Tutorial](03-data-setup.md) to download the Stack Exchange dataset and convert it to Parquet files. That tutorial covers installing `graphframes-py`, downloading the `stats.meta` archive, and running the XML-to-Parquet conversion. Come back here once your `Nodes.parquet` and `Edges.parquet` files are ready.
+**⚠️ Before continuing**: Complete the [Data Setup Tutorial](03-data-setup.md) first. That tutorial covers installing `graphframes-py`, downloading the `stats.meta` archive, converting XML to Parquet, and loading the graph into `nodes_df`, `edges_df`, and `g`. Come back here once those steps are done.
 
-The data setup creates a property graph from the [`stats.meta.stackexchange.com`](https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z) dataset (part of the [Stack Exchange Data Dump](https://archive.org/details/stackexchange)) with ~130K nodes (Users, Questions, Answers, Votes, Badges, Tags, PostLinks) and ~97K edges across 8 relationship types. The @:srcLink(python/graphframes/tutorials/stackexchange.py) script handles the XML parsing and graph construction.
+The dataset is [`stats.meta.stackexchange.com`](https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z) (part of the [Stack Exchange Data Dump](https://archive.org/details/stackexchange)): ~130K nodes and ~97K edges across 8 relationship types. The @:srcLink(python/graphframes/tutorials/stackexchange.py) script handles XML parsing and graph construction.
 
 # Motif Finding
 
-We will use GraphFrames to find motifs in the Stack Exchange property graph. The script @:srcLink(python/graphframes/tutorials/motif.py) demonstrates how to load the graph, define various motifs and find all instances of the motif in the graph.
+We will use GraphFrames to find motifs in the Stack Exchange property graph. The script @:srcLink(python/graphframes/tutorials/motif.py) demonstrates how to load the graph (same steps as [Data Setup](03-data-setup.md)), define motifs, and find all instances of each motif.
 
 NOTE: I use the terms `node` as interchangeable with `vertex` and `edge` with `link` or `relationship`. The API is @:pydoc(graphframes.GraphFrame.vertices) and @:pydoc(graphframes.GraphFrame.edges) but some documentation says `relationships`. We need to add an alias from `g.vertices` to `g.nodes` and `g.edges` to both `g.relationships` and `g.links`.
 
@@ -41,120 +41,16 @@ For a quick run-through of the script, use the following command:
 spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.11.0 python/graphframes/tutorials/motif.py
 ```
 
-Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/04-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
+The examples below assume you already have `nodes_df`, `edges_df`, and `g` from the [Data Setup Tutorial](03-data-setup.md). You will also need:
 
 ```python
-from pathlib import Path
-
 import pyspark.sql.functions as F
-from pyspark import SparkContext
-from pyspark.sql import DataFrame, SparkSession
-
-import graphframes
 from graphframes import GraphFrame
-
-# In the pyspark shell a SparkSession named `spark` already exists, so set
-# configuration on the live session rather than through the builder
-spark: SparkSession = SparkSession.builder.appName("Stack Overflow Motif Analysis").getOrCreate()
-# Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-spark.conf.set("spark.sql.caseSensitive", True)
-sc: SparkContext = spark.sparkContext
-sc.setCheckpointDir("/tmp/graphframes-checkpoints")
-
-# Change me if you download a different stackexchange site
-STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-# Package data directory — the default download location for `graphframes stackexchange`.
-# If you downloaded with --data-dir, point DATA_DIR at that path instead.
-DATA_DIR = str(Path(graphframes.__file__).parent / "tutorials" / "data")
-BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
-```
-
-Load the nodes and edges of the graph from the `data` folder and count the types of node and edge. We repartition the nodes and edges to give our motif searches parallelism. GraphFrames likes nodes/vertices and edges/relatonships to be cached.
-
-```python
-#
-# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache.
-#
-
-# We created these in stackexchange.py from Stack Exchange data dump XML files
-NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
-nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
-
-# Repartition the nodes to give our motif searches parallelism
-nodes_df = nodes_df.repartition(50).checkpoint().cache()
-
-# We created these in stackexchange.py from Stack Exchange data dump XML files
-EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
-edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
-
-# Repartition the edges to give our motif searches parallelism
-edges_df = edges_df.repartition(50).checkpoint().cache()
-```
-
-Check out the node types we have to work with:
-
-```python
-# What kind of nodes we do we have to work with?
-node_counts = (
-    nodes_df
-    .select("id", F.col("Type").alias("Node Type"))
-    .groupBy("Node Type")
-    .count()
-    .orderBy(F.col("count").desc())
-    # Add a comma formatted column for display
-    .withColumn("count", F.format_number(F.col("count"), 0))
-)
-node_counts.show()
-```
-
-```
-+---------+------+
-|Node Type| count|
-+---------+------+
-|    Badge|43,029|
-|     Vote|42,593|
-|     User|37,709|
-|   Answer| 2,978|
-| Question| 2,025|
-|PostLinks| 1,274|
-|      Tag|   143|
-+---------+------+
-```
-
-Check out the edge types we have to work with:
-
-```python
-# What kind of edges do we have to work with?
-edge_counts = (
-    edges_df
-    .select("src", "dst", F.col("relationship").alias("Edge Type"))
-    .groupBy("Edge Type")
-    .count()
-    .orderBy(F.col("count").desc())
-    # Add a comma formatted column for display
-    .withColumn("count", F.format_number(F.col("count"), 0))
-)
-edge_counts.show()
-```
-
-```
-+----------+------+
-| Edge Type| count|
-+----------+------+
-|     Earns|43,029|
-|   CastFor|40,701|
-|      Tags| 4,427|
-|   Answers| 2,978|
-|     Posts| 2,767|
-|      Asks| 1,934|
-|     Links| 1,180|
-|Duplicates|    88|
-+----------+------+
 ```
 
 ## Combining Node Types
 
-**Note: you don't need to run the code in this section, it is just for reference. The data we loaded above is already prepared for use.** Jump ahead to <a href="#creating-graphframes">Creating GraphFrames</a> and run that next :)
+**Note: you don't need to run the code in this section, it is just for reference. The Parquet files from data setup are already prepared for use.** Jump ahead to <a href="#creating-graphframes">Creating GraphFrames</a> and run that next :)
 
 At the moment, GraphFrames has a limitation: *there is only one node and edge type (for now).* There are many fields in the nodes of our `GraphFrame` because there only one node type is available. I have combined different types of node into a single type by including all properties of all types in one class of node. I created a `Type` field for each type of node, then merged all fields into a single, global `nodes_df` `DataFrame`. This `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes.
 
@@ -207,12 +103,10 @@ assert (
 
 ## Creating GraphFrames
 
-Now we create a @pydoc(graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
-
-Back to our motifs :) It is time to create our @:pydoc(graphframes.GraphFrame) object. It has a number of powerful APIs, including the @:srcLink(python/graphframes.html#graphframes.GraphFrame.find) method for finding motifs in the graph.
+If you followed [Data Setup](03-data-setup.md), you already have a @:pydoc(graphframes.GraphFrame) named `g`. Recreate it here if needed — we will use it for motif finding via @:srcLink(python/graphframes.html#graphframes.GraphFrame.find).
 
 ```python
-g = GraphFrame(nodes_df, edges_df)  
+g = GraphFrame(nodes_df, edges_df)
 
 g.vertices.show(10)
 print(f"Node columns: {g.vertices.columns}")

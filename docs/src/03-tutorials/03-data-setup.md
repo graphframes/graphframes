@@ -9,8 +9,8 @@ We will download the [Stack Exchange Data Dump](https://archive.org/details/stac
 ## Prerequisites
 
 - **Python 3.11+** (3.14 recommended)
-- **Java 17** (OpenJDK)
-- **Apache Spark 4.x** (installed via PySpark) — all tutorials in this series were written in Spark 4.2
+- **Java 21** (OpenJDK)
+- **Apache Spark 4.x** (installed via PySpark) — all tutorials in this series were written in Spark 4.1.3
 
 ## Installing GraphFrames
 
@@ -108,71 +108,125 @@ python/graphframes/tutorials/data/stats.meta.stackexchange.com/
 └── (original XML files)
 ```
 
-## Verify the Data
+## Load the Graph
 
-A quick sanity check to make sure everything loaded correctly:
+The Motif Finding and Pregel tutorials both start from the same loaded graph. Use this block once you have `Nodes.parquet` and `Edges.parquet`. If you gave `graphframes stackexchange` a different subdomain, change `STACKEXCHANGE_SITE` to match.
 
 ```python
-from pyspark.sql import SparkSession
+from pathlib import Path
+
+import pyspark.sql.functions as F
+from pyspark import SparkContext
+from pyspark.sql import DataFrame, SparkSession
+
+import graphframes
 from graphframes import GraphFrame
 
-spark = SparkSession.builder.appName("Data Verification").getOrCreate()
+# In the pyspark shell a SparkSession named `spark` already exists, so set
+# configuration on the live session rather than through the builder
+spark: SparkSession = SparkSession.builder.appName("Stack Exchange Graph").getOrCreate()
+# Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
+spark.conf.set("spark.sql.caseSensitive", True)
+sc: SparkContext = spark.sparkContext
+sc.setCheckpointDir("/tmp/graphframes-checkpoints")
 
+# Change me if you download a different stackexchange site
 STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
+# Package data directory — the default download location for `graphframes stackexchange`.
+# If you downloaded with --data-dir, point DATA_DIR at that path instead.
+DATA_DIR = str(Path(graphframes.__file__).parent / "tutorials" / "data")
+BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
+```
 
-nodes_df = spark.read.parquet(f"{BASE_PATH}/Nodes.parquet")
-edges_df = spark.read.parquet(f"{BASE_PATH}/Edges.parquet")
+Load the nodes and edges, then repartition, checkpoint, and cache them. GraphFrames motif and Pregel workloads benefit from cached vertices and edges, and repartitioning gives later searches parallelism.
+
+```python
+#
+# Load the nodes and edges from disk, repartition, checkpoint, and cache.
+#
+
+NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
+nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
+nodes_df = nodes_df.repartition(50).checkpoint().cache()
+
+EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
+edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
+edges_df = edges_df.repartition(50).checkpoint().cache()
 
 print(f"Nodes: {nodes_df.count():,}")
 print(f"Edges: {edges_df.count():,}")
-
-# Check node types
-nodes_df.groupBy("Type").count().orderBy("count", ascending=False).show()
-
-# Check edge types
-edges_df.groupBy("relationship").count().orderBy("count", ascending=False).show()
-
-graph = GraphFrame(nodes_df, edges_df)
 ```
 
-Expected output:
+Check the node types you have to work with:
+
+```python
+node_counts = (
+    nodes_df
+    .select("id", F.col("Type").alias("Node Type"))
+    .groupBy("Node Type")
+    .count()
+    .orderBy(F.col("count").desc())
+    .withColumn("count", F.format_number(F.col("count"), 0))
+)
+node_counts.show()
+```
 
 ```
-Nodes: 129,751
-Edges: 97,104
-
-+---------+-----+
-|     Type|count|
-+---------+-----+
-|    Badge|43029|
-|     Vote|42593|
-|     User|37709|
-|   Answer| 2978|
-| Question| 2025|
-|PostLinks| 1274|
-|      Tag|  143|
-+---------+-----+
-
-+------------+-----+
-|relationship|count|
-+------------+-----+
-|       Earns|43029|
-|     CastFor|40701|
-|        Tags| 4427|
-|     Answers| 2978|
-|       Posts| 2767|
-|        Asks| 1934|
-|       Links| 1180|
-|  Duplicates|   88|
-+------------+-----+
++---------+------+
+|Node Type| count|
++---------+------+
+|    Badge|43,029|
+|     Vote|42,593|
+|     User|37,709|
+|   Answer| 2,978|
+| Question| 2,025|
+|PostLinks| 1,274|
+|      Tag|   143|
++---------+------+
 ```
+
+Check the edge types:
+
+```python
+edge_counts = (
+    edges_df
+    .select("src", "dst", F.col("relationship").alias("Edge Type"))
+    .groupBy("Edge Type")
+    .count()
+    .orderBy(F.col("count").desc())
+    .withColumn("count", F.format_number(F.col("count"), 0))
+)
+edge_counts.show()
+```
+
+```
++----------+------+
+| Edge Type| count|
++----------+------+
+|     Earns|43,029|
+|   CastFor|40,701|
+|      Tags| 4,427|
+|   Answers| 2,978|
+|     Posts| 2,767|
+|      Asks| 1,934|
+|     Links| 1,180|
+|Duplicates|    88|
++----------+------+
+```
+
+Create a @:pydoc(graphframes.GraphFrame) from the loaded DataFrames. Both follow-on tutorials continue from this `g` object (or recreate it the same way).
+
+```python
+g = GraphFrame(nodes_df, edges_df)
+```
+
+You should see about **129,751** nodes and **97,104** edges.
 
 ## Next Steps
 
-With the data prepared, you are ready to proceed to:
+With the data loaded into `nodes_df`, `edges_df`, and `g`, you are ready to proceed to:
 
 - **[Motif Finding Tutorial](02-motif-tutorial.md)**: Pattern matching and network motif discovery
 - **[Pregel Tutorial](04-pregel-tutorial.md)**: Iterative graph algorithms with the Pregel API
 
-Return to the tutorial you came from and continue from where you left off.
+Return to the tutorial you came from and continue from where you left off — skip any duplicate load steps and start from motif finding or Pregel examples.

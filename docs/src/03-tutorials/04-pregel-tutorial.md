@@ -153,40 +153,20 @@ Understanding this implementation helps you write better Pregel algorithms. For 
 
 # Data Setup
 
-**⚠️ Before continuing**: If you haven't already, complete the [Data Setup Tutorial](03-data-setup.md) to download the Stack Exchange dataset and convert it to Parquet files. The examples in this tutorial require the `Nodes.parquet` and `Edges.parquet` files to be ready.
+**⚠️ Before continuing**: Complete the [Data Setup Tutorial](03-data-setup.md) first. That tutorial covers downloading the Stack Exchange dataset, converting it to Parquet, and loading `nodes_df`, `edges_df`, and `g`. The examples below assume those objects already exist.
 
 The Stack Exchange graph — specifically the [`stats.meta.stackexchange.com`](https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z) dataset — contains ~130K nodes (Users, Questions, Answers, Votes, Badges, Tags, PostLinks) and ~97K edges across 8 relationship types. It is small enough to run on a laptop but complex enough to demonstrate real graph algorithms.
 
-Let's load the data and create our `GraphFrame`:
+You will also need these imports for the Pregel examples:
 
 ```python
-from pathlib import Path
-
 import pyspark.sql.functions as F
-from pyspark.sql import DataFrame, SparkSession
-
-import graphframes
 from graphframes import GraphFrame
+from graphframes.lib import Pregel
 
-# In the pyspark shell a SparkSession named `spark` already exists, so set
-# configuration on the live session rather than through the builder
-spark: SparkSession = SparkSession.builder.appName("Pregel Tutorial").getOrCreate()
-spark.conf.set("spark.sql.caseSensitive", True)
-spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/pregel")
 
-STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-# Package data directory — the default download location for `graphframes stackexchange`.
-# If you downloaded with --data-dir, point DATA_DIR at that path instead.
-DATA_DIR = str(Path(graphframes.__file__).parent / "tutorials" / "data")
-BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
-
-nodes_df: DataFrame = spark.read.parquet(f"{BASE_PATH}/Nodes.parquet")
-nodes_df = nodes_df.repartition(50).checkpoint().cache()
-
-edges_df: DataFrame = spark.read.parquet(f"{BASE_PATH}/Edges.parquet")
-edges_df = edges_df.repartition(50).checkpoint().cache()
-
-g = GraphFrame(nodes_df, edges_df)
+# Must set checkpoints folder to use Pregel API
+spark.sparkContext.setCheckpointDir("/tmp/spark-checkpoints")
 ```
 
 
@@ -317,6 +297,7 @@ Let's compute the same in-degree metric using Pregel. This is intentionally over
 ```python
 from graphframes.lib import Pregel
 
+
 pregel_in_degree = g.pregel \
     .setMaxIter(1) \
     .withVertexColumn(
@@ -433,7 +414,7 @@ Let's see the top Questions and Users by PageRank:
 pr_results.filter(F.col("Type") == "Question") \
     .select("id", "Title", "pagerank") \
     .orderBy(F.desc("pagerank")) \
-    .show(10, truncate=50)
+    .show(10, truncate=80)
 ```
 
 The top-ranked nodes in a knowledge graph reveal its structure. In Stack Exchange, highly-ranked Users are those who receive many votes on their answers, which in turn point to highly-ranked Questions. Tags that are applied to important questions accumulate PageRank transitively. This is the recursive nature of PageRank — importance flows through the graph topology.
@@ -484,6 +465,11 @@ The algorithm is elegantly simple in Pregel:
 4. Repeat until no labels change
 
 After convergence, all vertices in the same connected component will have the same label — the minimum ID among all vertices in that component.
+
+<figure>
+    <img src="../img/pregel-diagrams/pregel-connected-components.svg" width="800px" alt="Connected components label propagation across supersteps" />
+    <figcaption style="color: black">Minimum-label connected components: each vertex starts with its own ID; the component minimum advances one hop per superstep until every vertex in a component shares the same label</figcaption>
+</figure>
 
 ```python
 cc_vertices = g.vertices.select("id")
