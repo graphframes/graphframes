@@ -37,4 +37,4 @@ repos:
     rev: v2.4.2
     hooks:
       - id: codespell
-        # Configuration (skips and ignore list) lives in .codespellrc.
+        exclude: ^(graphx|python/tutorials/)

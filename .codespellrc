@@ -9,4 +9,6 @@ skip = .git,*.lock,poetry.lock,*.iml,target,build,dist,*_pb2*.py,*_pb2_grpc.py,g
 #   fof/mye/protocall/alledges - local variable names (camelCase) in tests
 #   afterall - ScalaTest `afterAll` lifecycle override
 #   jurney   - maintainer surname (Russell Jurney)
-ignore-words-list = mis,te,ser,fof,mye,protocall,alledges,afterall,jurney
+#   brin     - Sergey Brin, co-founder of Google (PageRank co-inventor)
+#   ans/ques - Mermaid node ids for Answer/Question in generate_diagrams.py
+ignore-words-list = mis,te,ser,fof,mye,protocall,alledges,afterall,jurney,brin,ans,ques
