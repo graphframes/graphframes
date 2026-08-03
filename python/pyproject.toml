@@ -60,6 +60,9 @@ enable = true
 "Code Repository" = "https://github.com/graphframes/graphframes"
 "Bug Tracker" = "https://github.com/graphframes/graphframes/issues"
 
+[tool.poetry.dependencies]
+click = "^8.1.8"
+
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"
 flake8 = "^7.1.1"
@@ -74,7 +77,6 @@ pyspark-client = ">=4.0,<4.2"
 [tool.poetry.group.tutorials.dependencies]
 py7zr = "^0.22.0"
 requests = "^2.33.0"
-click = "^8.1.8"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1"
