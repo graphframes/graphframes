@@ -1,7 +1,5 @@
 import click
 
-from graphframes.tutorials import download
-
 
 @click.group()
 def cli():
@@ -9,10 +7,10 @@ def cli():
     pass
 
 
-cli.add_command(download.stackexchange)
-
-
 def main():
+    from graphframes.tutorials import download
+
+    cli.add_command(download.stackexchange)
     cli()
 
 
