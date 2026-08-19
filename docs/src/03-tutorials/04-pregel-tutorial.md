@@ -80,9 +80,7 @@ At its heart, Pregel is bulk synchronous parallel processing applied to graphs â
 
 ## Why Pregel?
 
-You might wonder: when do I need Pregel instead of GraphFrames' built-in algorithms like `pageRank()` or `connectedComponents()`? Well, in fact both of these are implemented using Pregel :)
-
-**Pregel is for when the built-in algorithms are not enough.** It is a general-purpose framework for writing *any* iterative graph algorithm. The built-in algorithms are themselves implemented using Pregel (or equivalent message-passing primitives) under the hood.
+You might wonder: when do I need Pregel instead of GraphFrames' built-in algorithms like `pageRank()` or `connectedComponents()`? Well, in fact both of these are implemented using Pregel :) **Pregel is for when the built-in algorithms are not enough.** It is a general-purpose framework for writing *any* iterative graph algorithm.
 
 Pregel excels at problems that require:
 
