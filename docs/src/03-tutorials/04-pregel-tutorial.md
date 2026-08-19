@@ -47,6 +47,8 @@ Computation proceeds in a series of **supersteps**. In each superstep:
     <figcaption style="color: white">The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
 </figure>
 
+<br />
+
 This barrier synchronization is what makes Pregel algorithms easy to reason about. At any point during execution, you know that all vertices are in the same superstep. There are no race conditions, no stale reads, no distributed coordination headaches. You trade some potential parallelism for massive simplification of the programming model.
 
 <figure>
