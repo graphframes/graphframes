@@ -47,8 +47,6 @@ Computation proceeds in a series of **supersteps**. In each superstep:
     <figcaption style="color: white">The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
 </figure>
 
-<br />
-
 This barrier synchronization is what makes Pregel algorithms easy to reason about. At any point during execution, you know that all vertices are in the same superstep. There are no race conditions, no stale reads, no distributed coordination headaches. You trade some potential parallelism for massive simplification of the programming model.
 
 <figure>
@@ -68,6 +66,7 @@ Vertices can **vote to halt** — marking themselves inactive. An inactive verte
 Pregel's "think like a vertex" paradigm is a profound shift from how most engineers approach graph problems. When you sit down with a graph database and write a Cypher or Gremlin query, you're thinking *globally* — "find all paths from A to B," "count triangles in the graph," "return the top-10 most central nodes." These are global questions that require the system to traverse large portions of the graph.
 
 In Pregel, you think *locally*. Your vertex function sees only:
+
 - The vertex's own state (its column values)
 - The aggregated messages from the previous superstep
 - The edges connecting it to neighbors (via the triplet structure)
