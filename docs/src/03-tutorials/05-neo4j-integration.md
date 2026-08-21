@@ -161,25 +161,7 @@ and 97,104 edges:
 
 Note the third column. Half of these relationship types have **heterogeneous endpoints** — a `Vote` is `CastFor` a `Question` *or* an `Answer`. That single fact drives the graph model in the next step.
 
-## Step 3: Model the Graph
-
-Before writing any data, decide what the Neo4j model looks like. The Neo4j Spark Connector attaches a relationship by *matching* its two endpoints against **one fixed label set per write**. So the shape of your labels decides whether the relationship load works at all.
-
-The obvious model — label each node with its Stack Exchange type and nothing else — does not survive contact with heterogeneous endpoints. To write `CastFor` you would have to name the target label, and there is no single answer: some targets are `:Question`, some are `:Answer`. You cannot name both, because multiple labels in a match are **ANDed** — `MATCH (n:Question:Answer)` asks for nodes that are simultaneously a question and an answer, which is nothing. You would have to split every relationship type into one write per endpoint-type combination and derive those combinations from the data first.
-
-Instead, give every node **two labels**: a shared `:Node` label plus its type.
-
-```
-(:Node:User)  (:Node:Badge)  (:Node:Question)  (:Node:Answer)  ...
-```
-
-Then put a uniqueness constraint on `:Node(id)`. This gives you:
-
-- **One indexed lookup key for the entire graph.** Endpoint matching and node MERGEs are both index-backed. Without the constraint they degrade into full label scans, and a load that takes minutes takes all night.
-- **One write per relationship type**, matching both endpoints on `:Node`, regardless of what types that relationship actually connects.
-- **Natural Cypher.** `MATCH (u:User)-[:Earns]->(b:Badge)` still reads exactly as you would expect, because the type labels are still there.
-
-## Step 4: Load Stack Exchange Data into Neo4j
+## Step 3: Load Stack Exchange Data into Neo4j
 
 To just get the graph into Neo4j, one command does everything in this step — the constraint, the nodes and the relationships — and prints the verification counts at the end:
 
@@ -194,14 +176,6 @@ The rest of this section explains what it does and why. The full, runnable versi
 ```bash
 spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1,org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4 python/graphframes/tutorials/neo4j.py
 ```
-
-To follow along interactively instead:
-
-```bash
-pyspark --packages io.graphframes:graphframes-spark4_2.13:0.12.1,org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4
-```
-
-On Spark 3.5, use `graphframes-spark3_2.13:0.12.1` and `6.0.0_for_spark_3`.
 
 ### Connect
 
