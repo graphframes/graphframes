@@ -66,6 +66,7 @@ Vertices can **vote to halt** — marking themselves inactive. An inactive verte
 Pregel's "think like a vertex" paradigm is a profound shift from how most engineers approach graph problems. When you sit down with a graph database and write a Cypher or Gremlin query, you're thinking *globally* — "find all paths from A to B," "count triangles in the graph," "return the top-10 most central nodes." These are global questions that require the system to traverse large portions of the graph.
 
 In Pregel, you think *locally*. Your vertex function sees only:
+
 - The vertex's own state (its column values)
 - The aggregated messages from the previous superstep
 - The edges connecting it to neighbors (via the triplet structure)
@@ -78,9 +79,7 @@ At its heart, Pregel is bulk synchronous parallel processing applied to graphs �
 
 ## Why Pregel?
 
-You might wonder: when do I need Pregel instead of GraphFrames' built-in algorithms like `pageRank()` or `connectedComponents()`? Well, in fact both of these are implemented using Pregel :)
-
-**Pregel is for when the built-in algorithms are not enough.** It is a general-purpose framework for writing *any* iterative graph algorithm. The built-in algorithms are themselves implemented using Pregel (or equivalent message-passing primitives) under the hood.
+You might wonder: when do I need Pregel instead of GraphFrames' built-in algorithms like `pageRank()` or `connectedComponents()`? Well, in fact both of these are implemented using Pregel :) **Pregel is for when the built-in algorithms are not enough.** It is a general-purpose framework for writing *any* iterative graph algorithm.
 
 Pregel excels at problems that require:
 
