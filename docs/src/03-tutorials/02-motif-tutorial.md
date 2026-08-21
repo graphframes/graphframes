@@ -38,7 +38,7 @@ NOTE: I use the terms `node` as interchangeable with `vertex` and `edge` with `l
 For a quick run-through of the script, use the following command:
 
 ```bash
-spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.11.0 python/graphframes/tutorials/motif.py
+spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1 python/graphframes/tutorials/motif.py
 ```
 
 The examples below assume you already have `nodes_df`, `edges_df`, and `g` from the [Data Setup Tutorial](03-data-setup.md). You will also need:
