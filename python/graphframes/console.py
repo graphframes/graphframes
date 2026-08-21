@@ -8,9 +8,10 @@ def cli():
 
 
 def main():
-    from graphframes.tutorials import download
+    from graphframes.tutorials import download, neo4j_cli
 
     cli.add_command(download.stackexchange)
+    cli.add_command(neo4j_cli.neo4j)
     cli()
 
 

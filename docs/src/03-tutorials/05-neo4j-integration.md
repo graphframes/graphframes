@@ -67,6 +67,16 @@ flowchart TD
 
 First, let's start a Neo4j instance using Docker. We'll use Neo4j Community Edition with APOC plugins for data import capabilities.
 
+GraphFrames ships a command that does the whole thing — creates the volume directories, starts the container, and waits until Neo4j actually answers queries:
+
+```bash
+graphframes neo4j setup
+```
+
+It is safe to re-run: an existing container is started rather than replaced. `--password`, `--http-port`, `--bolt-port`, `--container-name` and `--heap` are all configurable; run `graphframes neo4j setup --help` for the full list. When you are finished, [Step 7](#step-7-clean-up) tears it back down.
+
+The rest of this step is what that command does, if you would rather run it yourself.
+
 Create a directory for Neo4j data:
 
 ```bash
@@ -171,7 +181,15 @@ Then put a uniqueness constraint on `:Node(id)`. This gives you:
 
 ## Step 4: Load Stack Exchange Data into Neo4j
 
-The full, runnable version of everything below is `python/graphframes/tutorials/neo4j.py`. Run it with:
+To just get the graph into Neo4j, one command does everything in this step — the constraint, the nodes and the relationships — and prints the verification counts at the end:
+
+```bash
+graphframes neo4j load
+```
+
+It reads the Parquet from Step 2, so build that first. Point it elsewhere with `--data-dir`, `--site` and the `--neo4j-*` connection options. Like the code below it is idempotent, so re-running updates rather than duplicating.
+
+The rest of this section explains what it does and why. The full, runnable version — load plus the round trip in Steps 5 and 6 — is `python/graphframes/tutorials/neo4j.py`. Run it with:
 
 ```bash
 spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1,org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4 python/graphframes/tutorials/neo4j.py
@@ -521,6 +539,22 @@ That last query returns the most decorated users in the site's connected core:
 spark.stop()
 ```
 
+## Step 7: Clean Up
+
+When you are done, remove the container and the data it wrote to your disk:
+
+```bash
+graphframes neo4j remove
+```
+
+It lists what it is about to delete and asks before doing it. Pass `--yes` to skip the prompt in a script, or `--keep-data` to drop the container but leave `/tmp/neo4j-data` in place so a later `graphframes neo4j setup` comes back with the graph still loaded.
+
+To do it by hand:
+
+```bash
+docker rm -f neo4j-graphframes && rm -rf /tmp/neo4j-data
+```
+
 ## Troubleshooting
 
 **The load finished but there are no relationships.** The endpoint labels in `relationship.source.labels` / `relationship.target.labels` do not match any node. With `save.mode = Match` the connector skips unmatched endpoints silently. Confirm what your nodes actually carry:
@@ -533,6 +567,12 @@ docker exec neo4j-graphframes cypher-shell -u neo4j -p graphframes123 "CALL db.l
 
 ```bash
 docker exec neo4j-graphframes cypher-shell -u neo4j -p graphframes123 "MATCH (n) CALL (n) { DETACH DELETE n } IN TRANSACTIONS OF 10000 ROWS;"
+```
+
+Or start over from scratch:
+
+```bash
+graphframes neo4j remove --yes && graphframes neo4j setup && graphframes neo4j load
 ```
 
 **`key not found: ArrayType(StringType,true)`.** Connector 6.0.0's schema-optimization code cannot map array columns. Do not pass `schema.optimization.node.keys` on a write whose DataFrame contains one; create the constraint up front on an empty DataFrame, as in Step 4.
