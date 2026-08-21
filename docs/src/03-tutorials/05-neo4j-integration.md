@@ -1,6 +1,6 @@
 # Neo4j Integration Tutorial
 
-This tutorial demonstrates how to integrate GraphFrames with Neo4j, enabling you to offload an expensive connected components calculation onto Spark where it can scale linearly taking advantage of a distributed system. This provides graph database persistence with distributed graph analytics to scale expensive algorithms.
+This tutorial demonstrates how to integrate GraphFrames with Neo4j, enabling you to offload an expensive connected components calculation onto Spark where it can scale linearly taking advantage of Spark's distributed DataFrames. Neo4j + Spark + GraphFrames provides graph database persistence with distributed graph analytics to scale expensive algorithms. It can be used with custom Pregel algorithms to implement arbitrary algorithms at scale that would otherwise be expensive or impossible.
 
 In this tutorial we will:
 
@@ -21,14 +21,14 @@ This is a complete pipeline for bidirectional data flow between Neo4j and GraphF
 - Complex path traversals
 - Interactive graph exploration
 
-**GraphFrames** excels at:
+Spark **GraphFrames** excels at:
 
 - Distributed graph analytics at scale
 - Batch processing of billions of edges
 - Integration with Spark ML pipelines
 - Complex pattern matching with motif finding
 
-One is a natural complement of the other.
+One is a natural complement of the other. GraphFrames can be used to scale expensive algorithms that would be difficult or expensive on Neo4j: **running more cores for expensive analytic algorithms means higher Neo4j license fees**. By contrast, Spark and GraphFrames are free and open source software under the Apache 2.0 License.
 
 ## Prerequisites
 
@@ -49,27 +49,19 @@ docker --version
 
 Our data pipeline:
 
+```mermaid
+flowchart TD
+    A["Stack Exchange Data (Parquet)"] --> B["Load into Neo4j"]
+    B --> C["Neo4j Database<br/>(Docker Container)"]
+    C --> D["Read via Neo4j Connector"]
+    D --> E["PySpark DataFrames"]
+    E --> F["GraphFrames Graph"]
+    F --> G["Connected Components"]
+    G --> H["Enriched DataFrames"]
+    H --> I["Write via Neo4j Connector"]
+    I --> J["Neo4j Database<br/>(updated with component IDs)"]
 ```
-Stack Exchange Data (Parquet)
-         ↓
-    [Load into Neo4j]
-         ↓
-    Neo4j Database ← Docker Container
-         ↓
-[Read via Neo4j Connector]
-         ↓
-    PySpark DataFrames
-         ↓
-    GraphFrames Graph
-         ↓
-  [Connected Components]
-         ↓
-    Enriched DataFrames
-         ↓
-[Write via Neo4j Connector]
-         ↓
-    Neo4j Database (updated with component IDs)
-```
+<!-- markdownlint-disable-next-line -->
 
 ## Step 1: Set Up Neo4j with Docker
 
