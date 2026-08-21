@@ -5,8 +5,8 @@ Pregel and AggregateMessages APIs for scalable graph algorithms, including
 the Four-Question Framework worked example (average answer score per tag).
 
 Spark 4.0+ (recommended):
-    Interactive: pyspark --packages io.graphframes:graphframes-spark4_2.13:0.11.0
-    Batch:       spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.11.0\\
+    Interactive: pyspark --packages io.graphframes:graphframes-spark4_2.13:0.12.1
+    Batch:       spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1\\
                      python/graphframes/tutorials/pregel.py
 
 Spark 3.5.x:
