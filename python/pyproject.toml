@@ -37,6 +37,24 @@ classifiers = [
 dynamic = ["version"]
 requires-python = ">=3.10"
 
+[project.optional-dependencies]
+# Dependencies of the `graphframes` CLI and the tutorial notebooks. These are
+# declared as PEP 621 extras (not as a Poetry group) so that they are recorded
+# in the published wheel metadata and can be installed with
+# `pip install graphframes-py[tutorials]`.
+tutorials = [
+    "click>=8.1.8,<9.0.0",
+    "py7zr>=0.22.0,<0.23.0",
+    "requests>=2.33.0,<3.0.0",
+]
+# `all` is spelled out rather than referencing `graphframes-py[tutorials]`
+# because Poetry rejects self-referential extras when locking.
+all = [
+    "click>=8.1.8,<9.0.0",
+    "py7zr>=0.22.0,<0.23.0",
+    "requests>=2.33.0,<3.0.0",
+]
+
 [build-system]
 requires = ["poetry-core>=1.0.0", "setuptools", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"

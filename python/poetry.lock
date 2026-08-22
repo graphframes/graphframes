@@ -80,8 +80,7 @@ version = "1.2.0"
 description = "Python bindings for the Brotli compression library"
 optional = false
 python-versions = "*"
-groups = ["tutorials"]
-markers = "platform_python_implementation == \"CPython\""
+groups = ["main", "tutorials"]
 files = [
     {file = "brotli-1.2.0-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:99cfa69813d79492f0e5d52a20fd18395bc82e671d5d40bd5a91d13e75e468e8"},
     {file = "brotli-1.2.0-cp27-cp27m-manylinux1_i686.whl", hash = "sha256:3ebe801e0f4e56d17cd386ca6600573e3706ce1845376307f5d2cbd32149b69a"},
@@ -184,6 +183,7 @@ files = [
     {file = "brotli-1.2.0-cp39-cp39-win_amd64.whl", hash = "sha256:1ce223652fd4ed3eb2b7f78fbea31c52314baecfac68db44037bb4167062a937"},
     {file = "brotli-1.2.0.tar.gz", hash = "sha256:e310f77e41941c13340a95976fe66a8a95b01e783d430eeaf7a2f87e0a57dd0a"},
 ]
+markers = {main = "(extra == \"tutorials\" or extra == \"all\") and platform_python_implementation == \"CPython\"", tutorials = "platform_python_implementation == \"CPython\""}
 
 [[package]]
 name = "brotlicffi"
@@ -191,8 +191,7 @@ version = "1.1.0.0"
 description = "Python CFFI bindings to the Brotli library"
 optional = false
 python-versions = ">=3.7"
-groups = ["tutorials"]
-markers = "platform_python_implementation == \"PyPy\""
+groups = ["main", "tutorials"]
 files = [
     {file = "brotlicffi-1.1.0.0-cp37-abi3-macosx_10_9_x86_64.whl", hash = "sha256:9b7ae6bd1a3f0df532b6d67ff674099a96d22bc0948955cb338488c31bfb8851"},
     {file = "brotlicffi-1.1.0.0-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:19ffc919fa4fc6ace69286e0a23b3789b4219058313cf9b45625016bf7ff996b"},
@@ -222,6 +221,7 @@ files = [
     {file = "brotlicffi-1.1.0.0-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:d9eb71bb1085d996244439154387266fd23d6ad37161f6f52f1cd41dd95a3808"},
     {file = "brotlicffi-1.1.0.0.tar.gz", hash = "sha256:b77827a689905143f87915310b93b273ab17888fd43ef350d4832c4a71083c13"},
 ]
+markers = {main = "(extra == \"tutorials\" or extra == \"all\") and platform_python_implementation == \"PyPy\"", tutorials = "platform_python_implementation == \"PyPy\""}
 
 [package.dependencies]
 cffi = ">=1.0.0"
@@ -232,11 +232,12 @@ version = "2025.7.14"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.7"
-groups = ["docs", "tutorials"]
+groups = ["main", "docs", "tutorials"]
 files = [
     {file = "certifi-2025.7.14-py3-none-any.whl", hash = "sha256:6b31f564a415d79ee77df69d757bb49a5bb53bd9f756cbbe24394ffd6fc1f4b2"},
     {file = "certifi-2025.7.14.tar.gz", hash = "sha256:8ea99dbdfaaf2ba2f9bac77b9249ef62ec5218e7c2b2e903378ed5fccf765995"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [[package]]
 name = "cffi"
@@ -244,8 +245,7 @@ version = "1.17.1"
 description = "Foreign Function Interface for Python calling C code."
 optional = false
 python-versions = ">=3.8"
-groups = ["tutorials"]
-markers = "platform_python_implementation == \"PyPy\""
+groups = ["main", "tutorials"]
 files = [
     {file = "cffi-1.17.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:df8b1c11f177bc2313ec4b2d46baec87a5f3e71fc8b45dab2ee7cae86d9aba14"},
     {file = "cffi-1.17.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8f2cdc858323644ab277e9bb925ad72ae0e67f69e804f4898c070998d50b1a67"},
@@ -315,6 +315,7 @@ files = [
     {file = "cffi-1.17.1-cp39-cp39-win_amd64.whl", hash = "sha256:d016c76bdd850f3c626af19b0542c9677ba156e4ee4fccfdd7848803533ef662"},
     {file = "cffi-1.17.1.tar.gz", hash = "sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824"},
 ]
+markers = {main = "(extra == \"tutorials\" or extra == \"all\") and platform_python_implementation == \"PyPy\"", tutorials = "platform_python_implementation == \"PyPy\""}
 
 [package.dependencies]
 pycparser = "*"
@@ -325,7 +326,7 @@ version = "3.4.2"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
 optional = false
 python-versions = ">=3.7"
-groups = ["docs", "tutorials"]
+groups = ["main", "docs", "tutorials"]
 files = [
     {file = "charset_normalizer-3.4.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:7c48ed483eb946e6c04ccbe02c6b4d1d48e51944b6db70f697e089c193404941"},
     {file = "charset_normalizer-3.4.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b2d318c11350e10662026ad0eb71bb51c7812fc8590825304ae0bdd4ac283acd"},
@@ -420,6 +421,7 @@ files = [
     {file = "charset_normalizer-3.4.2-py3-none-any.whl", hash = "sha256:7f56930ab0abd1c45cd15be65cc741c28b1c9a34876ce8c17a2fa107810c0af0"},
     {file = "charset_normalizer-3.4.2.tar.gz", hash = "sha256:5baececa9ecba31eff645232d59845c07aa030f0c81ee70184a90d35099a0e63"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [[package]]
 name = "click"
@@ -427,11 +429,12 @@ version = "8.2.1"
 description = "Composable command line interface toolkit"
 optional = false
 python-versions = ">=3.10"
-groups = ["dev", "tutorials"]
+groups = ["main", "dev", "tutorials"]
 files = [
     {file = "click-8.2.1-py3-none-any.whl", hash = "sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b"},
     {file = "click-8.2.1.tar.gz", hash = "sha256:27c491cc05d968d271d5a1db13e3b5a184636d9d930f148c50b038f0d0646202"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.dependencies]
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
@@ -442,12 +445,12 @@ version = "0.4.6"
 description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
-groups = ["connect", "dev", "docs", "tutorials"]
+groups = ["main", "connect", "dev", "docs", "tutorials"]
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {connect = "sys_platform == \"win32\"", dev = "sys_platform == \"win32\" or platform_system == \"Windows\"", docs = "sys_platform == \"win32\"", tutorials = "platform_system == \"Windows\""}
+markers = {main = "(extra == \"tutorials\" or extra == \"all\") and platform_system == \"Windows\"", connect = "sys_platform == \"win32\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\"", docs = "sys_platform == \"win32\"", tutorials = "platform_system == \"Windows\""}
 
 [[package]]
 name = "docutils"
@@ -605,11 +608,12 @@ version = "3.15"
 description = "Internationalized Domain Names in Applications (IDNA)"
 optional = false
 python-versions = ">=3.8"
-groups = ["docs", "tutorials"]
+groups = ["main", "docs", "tutorials"]
 files = [
     {file = "idna-3.15-py3-none-any.whl", hash = "sha256:048adeaf8c2d788c40fee287673ccaa74c24ffd8dcf09ffa555a2fbb59f10ac8"},
     {file = "idna-3.15.tar.gz", hash = "sha256:ca962446ea538f7092a95e057da437618e886f4d349216d2b1e294abfdb65fdc"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.extras]
 all = ["mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
@@ -632,8 +636,7 @@ version = "1.0.1"
 description = "deflate64 compression/decompression library"
 optional = false
 python-versions = ">=3.9"
-groups = ["tutorials"]
-markers = "python_version >= \"3.12\""
+groups = ["main", "tutorials"]
 files = [
     {file = "inflate64-1.0.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:5122a188995e47a735ab969edc9129d42bbd97b993df5a3f0819b87205ce81b4"},
     {file = "inflate64-1.0.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:975ed694c680e46a5c0bb872380a9c9da271a91f9c0646561c58e8f3714347d4"},
@@ -677,6 +680,7 @@ files = [
     {file = "inflate64-1.0.1-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:91c0c1d41c1655fb0189630baaa894a3b778d77062bb90ca11db878422948395"},
     {file = "inflate64-1.0.1.tar.gz", hash = "sha256:3b1c83c22651b5942b35829df526e89602e494192bf021e0d7d0b600e76c429d"},
 ]
+markers = {main = "python_version >= \"3.12\" and (extra == \"tutorials\" or extra == \"all\")", tutorials = "python_version >= \"3.12\""}
 
 [package.extras]
 check = ["check-manifest", "flake8", "flake8-black", "flake8-deprecated", "flake8-isort", "mypy (>=1.10.0)", "mypy_extensions (>=0.4.1)", "pygments", "readme-renderer", "twine"]
@@ -689,8 +693,7 @@ version = "1.0.3"
 description = "deflate64 compression/decompression library"
 optional = false
 python-versions = "<3.14,>=3.9"
-groups = ["tutorials"]
-markers = "python_version < \"3.12\""
+groups = ["main", "tutorials"]
 files = [
     {file = "inflate64-1.0.3-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:35abad47221ac8cb4cf6a9ef784916ada3f95115bd4f09e0f5f146b4463dcc93"},
     {file = "inflate64-1.0.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:518af99243b6cb4834c52c35b2965f38cc97aacbeb63d3e9cf820a9533957d37"},
@@ -744,6 +747,7 @@ files = [
     {file = "inflate64-1.0.3-cp39-cp39-win_arm64.whl", hash = "sha256:3352f3ca43c349df5b0217bc16c2d533b6344510e1e03acb9ed9a3c2a4db12b5"},
     {file = "inflate64-1.0.3.tar.gz", hash = "sha256:a89edd416c36eda0c3a5d32f31ff1555db2c5a3884aa8df95e8679f8203e12ee"},
 ]
+markers = {main = "python_version < \"3.12\" and (extra == \"tutorials\" or extra == \"all\")", tutorials = "python_version < \"3.12\""}
 
 [package.extras]
 check = ["check-manifest", "flake8", "flake8-black", "flake8-deprecated", "flake8-isort", "mypy (>=1.10.0)", "mypy_extensions (>=0.4.1)", "pygments", "readme-renderer", "twine"]
@@ -885,11 +889,12 @@ version = "0.2.3"
 description = "multi volume file wrapper library"
 optional = false
 python-versions = ">=3.6"
-groups = ["tutorials"]
+groups = ["main", "tutorials"]
 files = [
     {file = "multivolumefile-0.2.3-py3-none-any.whl", hash = "sha256:237f4353b60af1703087cf7725755a1f6fcaeeea48421e1896940cd1c920d678"},
     {file = "multivolumefile-0.2.3.tar.gz", hash = "sha256:a0648d0aafbc96e59198d5c17e9acad7eb531abea51035d08ce8060dcad709d6"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.extras]
 check = ["check-manifest", "flake8", "flake8-black", "isort (>=5.0.3)", "pygments", "readme-renderer", "twine"]
@@ -1141,8 +1146,7 @@ version = "7.0.0"
 description = "Cross-platform lib for process and system monitoring in Python.  NOTE: the syntax of this script MUST be kept compatible with Python 2.7."
 optional = false
 python-versions = ">=3.6"
-groups = ["tutorials"]
-markers = "sys_platform != \"cygwin\""
+groups = ["main", "tutorials"]
 files = [
     {file = "psutil-7.0.0-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:101d71dc322e3cffd7cea0650b09b3d08b8e7c4109dd6809fe452dfd00e58b25"},
     {file = "psutil-7.0.0-cp36-abi3-macosx_11_0_arm64.whl", hash = "sha256:39db632f6bb862eeccf56660871433e111b6ea58f2caea825571951d4b6aa3da"},
@@ -1155,6 +1159,7 @@ files = [
     {file = "psutil-7.0.0-cp37-abi3-win_amd64.whl", hash = "sha256:4cf3d4eb1aa9b348dec30105c55cd9b7d4629285735a102beb4441e38db90553"},
     {file = "psutil-7.0.0.tar.gz", hash = "sha256:7be9c3eba38beccb6495ea33afd982a44074b78f28c434a1f51cc07fd315c456"},
 ]
+markers = {main = "(extra == \"tutorials\" or extra == \"all\") and sys_platform != \"cygwin\"", tutorials = "sys_platform != \"cygwin\""}
 
 [package.extras]
 dev = ["abi3audit", "black (==24.10.0)", "check-manifest", "coverage", "packaging", "pylint", "pyperf", "pypinfo", "pytest", "pytest-cov", "pytest-xdist", "requests", "rstcheck", "ruff", "setuptools", "sphinx", "sphinx_rtd_theme", "toml-sort", "twine", "virtualenv", "vulture", "wheel"]
@@ -1178,11 +1183,12 @@ version = "0.22.0"
 description = "Pure python 7-zip library"
 optional = false
 python-versions = ">=3.8"
-groups = ["tutorials"]
+groups = ["main", "tutorials"]
 files = [
     {file = "py7zr-0.22.0-py3-none-any.whl", hash = "sha256:993b951b313500697d71113da2681386589b7b74f12e48ba13cc12beca79d078"},
     {file = "py7zr-0.22.0.tar.gz", hash = "sha256:c6c7aea5913535184003b73938490f9a4d8418598e533f9ca991d3b8e45a139e"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.dependencies]
 brotli = {version = ">=1.1.0", markers = "platform_python_implementation == \"CPython\""}
@@ -1269,7 +1275,7 @@ version = "1.0.6"
 description = "bcj filter library"
 optional = false
 python-versions = ">=3.9"
-groups = ["tutorials"]
+groups = ["main", "tutorials"]
 files = [
     {file = "pybcj-1.0.6-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:0fc8eda59e9e52d807f411de6db30aadd7603aa0cb0a830f6f45226b74be1926"},
     {file = "pybcj-1.0.6-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:0495443e8691510129f0c589ed956af4962c22b7963c5730b0c80c9c5b818c06"},
@@ -1318,6 +1324,7 @@ files = [
     {file = "pybcj-1.0.6-cp39-cp39-win_arm64.whl", hash = "sha256:6c88e1a04b90547f0470e4d2bd190bbe6b73c8666d4f7196c3ca43a379a15de5"},
     {file = "pybcj-1.0.6.tar.gz", hash = "sha256:70bbe2dc185993351955bfe8f61395038f96f5de92bb3a436acb01505781f8f2"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.extras]
 check = ["check-manifest", "flake8 (<5)", "flake8-black", "flake8-colors", "flake8-isort", "flake8-pyi", "flake8-typing-imports", "mypy (>=1.10.0)", "pygments", "readme-renderer"]
@@ -1341,12 +1348,12 @@ version = "2.22"
 description = "C parser in Python"
 optional = false
 python-versions = ">=3.8"
-groups = ["tutorials"]
-markers = "platform_python_implementation == \"PyPy\""
+groups = ["main", "tutorials"]
 files = [
     {file = "pycparser-2.22-py3-none-any.whl", hash = "sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc"},
     {file = "pycparser-2.22.tar.gz", hash = "sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6"},
 ]
+markers = {main = "(extra == \"tutorials\" or extra == \"all\") and platform_python_implementation == \"PyPy\"", tutorials = "platform_python_implementation == \"PyPy\""}
 
 [[package]]
 name = "pycryptodomex"
@@ -1354,7 +1361,7 @@ version = "3.23.0"
 description = "Cryptographic library for Python"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
-groups = ["tutorials"]
+groups = ["main", "tutorials"]
 files = [
     {file = "pycryptodomex-3.23.0-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:add243d204e125f189819db65eed55e6b4713f70a7e9576c043178656529cec7"},
     {file = "pycryptodomex-3.23.0-cp27-cp27m-manylinux2010_i686.whl", hash = "sha256:1c6d919fc8429e5cb228ba8c0d4d03d202a560b421c14867a65f6042990adc8e"},
@@ -1398,6 +1405,7 @@ files = [
     {file = "pycryptodomex-3.23.0-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:27e13c80ac9a0a1d050ef0a7e0a18cc04c8850101ec891815b6c5a0375e8a245"},
     {file = "pycryptodomex-3.23.0.tar.gz", hash = "sha256:71909758f010c82bc99b0abf4ea12012c98962fbf0583c2164f8b84533c2e4da"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [[package]]
 name = "pyflakes"
@@ -1432,7 +1440,7 @@ version = "1.1.1"
 description = "PPMd compression/decompression library"
 optional = false
 python-versions = ">=3.9"
-groups = ["tutorials"]
+groups = ["main", "tutorials"]
 files = [
     {file = "pyppmd-1.1.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:406b184132c69e3f60ea9621b69eaa0c5494e83f82c307b3acce7b86a4f8f888"},
     {file = "pyppmd-1.1.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:c2cf003bb184adf306e1ac1828107307927737dde63474715ba16462e266cbef"},
@@ -1490,6 +1498,7 @@ files = [
     {file = "pyppmd-1.1.1-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:4ccdd3751e432e71e02de96f16fc8824e4f4bfc47a8b470f0c7aae88dae4c666"},
     {file = "pyppmd-1.1.1.tar.gz", hash = "sha256:f1a812f1e7628f4c26d05de340b91b72165d7b62778c27d322b82ce2e8ff00cb"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.extras]
 check = ["check-manifest", "flake8", "flake8-black", "flake8-isort", "mypy (>=1.10.0)", "pygments", "readme-renderer"]
@@ -1685,7 +1694,7 @@ version = "0.17.0"
 description = "Python bindings to Zstandard (zstd) compression library."
 optional = false
 python-versions = ">=3.5"
-groups = ["tutorials"]
+groups = ["main", "tutorials"]
 files = [
     {file = "pyzstd-0.17.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:8ac857abb4c4daea71f134e74af7fe16bcfeec40911d13cf9128ddc600d46d92"},
     {file = "pyzstd-0.17.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2d84e8d1cbecd3b661febf5ca8ce12c5e112cfeb8401ceedfb84ab44365298ac"},
@@ -1782,6 +1791,7 @@ files = [
     {file = "pyzstd-0.17.0-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:a67d7ef18715875b31127eb90075c03ced722fd87902b34bca4b807a2ce1e4d9"},
     {file = "pyzstd-0.17.0.tar.gz", hash = "sha256:d84271f8baa66c419204c1dd115a4dec8b266f8a2921da21b81764fa208c1db6"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.dependencies]
 typing-extensions = {version = ">=4.13.2", markers = "python_version < \"3.13\""}
@@ -1792,11 +1802,12 @@ version = "2.33.0"
 description = "Python HTTP for Humans."
 optional = false
 python-versions = ">=3.10"
-groups = ["docs", "tutorials"]
+groups = ["main", "docs", "tutorials"]
 files = [
     {file = "requests-2.33.0-py3-none-any.whl", hash = "sha256:3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b"},
     {file = "requests-2.33.0.tar.gz", hash = "sha256:c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.dependencies]
 certifi = ">=2023.5.7"
@@ -2051,11 +2062,12 @@ version = "1.7.0"
 description = "module to create simple ASCII tables"
 optional = false
 python-versions = "*"
-groups = ["tutorials"]
+groups = ["main", "tutorials"]
 files = [
     {file = "texttable-1.7.0-py2.py3-none-any.whl", hash = "sha256:72227d592c82b3d7f672731ae73e4d1f88cd8e2ef5b075a7a7f01a23a3743917"},
     {file = "texttable-1.7.0.tar.gz", hash = "sha256:2d2068fb55115807d3ac77a4ca68fa48803e84ebb0ee2340f858107a36522638"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [[package]]
 name = "tomli"
@@ -2106,12 +2118,12 @@ version = "4.14.1"
 description = "Backported and Experimental Type Hints for Python 3.9+"
 optional = false
 python-versions = ">=3.9"
-groups = ["connect", "dev", "tutorials"]
+groups = ["main", "connect", "dev", "tutorials"]
 files = [
     {file = "typing_extensions-4.14.1-py3-none-any.whl", hash = "sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76"},
     {file = "typing_extensions-4.14.1.tar.gz", hash = "sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36"},
 ]
-markers = {tutorials = "python_version < \"3.13\""}
+markers = {main = "(extra == \"tutorials\" or extra == \"all\") and python_version < \"3.13\"", tutorials = "python_version < \"3.13\""}
 
 [[package]]
 name = "tzdata"
@@ -2131,11 +2143,12 @@ version = "2.7.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.10"
-groups = ["docs", "tutorials"]
+groups = ["main", "docs", "tutorials"]
 files = [
     {file = "urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"},
     {file = "urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"},
 ]
+markers = {main = "extra == \"tutorials\" or extra == \"all\""}
 
 [package.extras]
 brotli = ["brotli (>=1.2.0) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=1.2.0.0) ; platform_python_implementation != \"CPython\""]
@@ -2255,7 +2268,11 @@ files = [
 [package.extras]
 cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and python_version < \"3.14\"", "cffi (>=2.0.0b0) ; platform_python_implementation != \"PyPy\" and python_version >= \"3.14\""]
 
+[extras]
+all = ["click", "py7zr", "requests"]
+tutorials = ["click", "py7zr", "requests"]
+
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "49aa8ff03d24b1dccffacd503a93c37bb9a5c4cf7c74917b14166b1beb8f8a7b"
+content-hash = "346dc8cd35423198b6feb1b0becceba242441a80a8792c36f6f3ce757a53f811"
