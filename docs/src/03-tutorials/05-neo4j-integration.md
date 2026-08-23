@@ -1,6 +1,8 @@
 # Neo4j Integration Tutorial
 
-This tutorial demonstrates how to integrate GraphFrames with Neo4j, enabling you to offload an expensive connected components calculation onto Spark where it can scale linearly taking advantage of Spark's distributed DataFrames. Neo4j + Spark + GraphFrames provides graph database persistence with distributed graph analytics to scale expensive algorithms. It can be used with custom Pregel algorithms to implement arbitrary algorithms at scale that would otherwise be expensive or impossible.
+<img width="780" src="../img/Neo4j-Spark-GraphFrames-Logos.png" alt="Neo4j Logo -> Apache PySpark Logo -> GraphFrames Logo" />
+
+This tutorial demonstrates how to integrate GraphFrames with Neo4j, enabling you to offload and precompute expensive algorithms like connected components onto Spark where they can scale linearly by taking advantage of Spark's distributed DataFrames. Neo4j + Spark + GraphFrames provides graph database persistence with distributed graph analytics to scale expensive algorithms in a cost effective manner. It can be used with custom Pregel algorithms to implement arbitrary algorithms at scale that would otherwise be expensive or impossible on Neo4j.
 
 In this tutorial we will:
 
@@ -37,7 +39,7 @@ Before starting, ensure you have:
 - **Docker**: For running Neo4j (install from [docker.com](https://www.docker.com/))
 - **GraphFrames 0.12+**: `pip install graphframes-py`
 - **Apache Spark 4.x+**: Compatible with your Python version
-- **Stack Exchange Dataset**: Follow the [Tutorial Data Setup](03-data-setup.md) to download
+- **Stack Exchange Dataset**: Follow the [Data Setup Tutorial](03-data-setup.md) to download
 
 Check your versions:
 
@@ -51,41 +53,31 @@ Our data pipeline:
 
 ```mermaid
 flowchart TD
-    A["Stack Exchange Data (Parquet)"] --> B["Load into Neo4j"]
-    B --> C["Neo4j Database<br/>(Docker Container)"]
-    C --> D["Read via Neo4j Connector"]
-    D --> E["PySpark DataFrames"]
-    E --> F["GraphFrames Graph"]
-    F --> G["Connected Components"]
-    G --> H["Enriched DataFrames"]
-    H --> I["Write via Neo4j Connector"]
-    I --> J["Neo4j Database<br/>(updated with component IDs)"]
+    A["Neo4j Database<br/>(Docker Container)"] --> B["Read via Neo4j Connector"]
+    B --> C["PySpark DataFrame"]
+    C --> D["GraphFrames Connected Components"]
+    D --> E["Write via Neo4j Connector"]
+    E --> F["Neo4j Database<br/>(updated with component)"]
 ```
 <!-- markdownlint-disable-next-line -->
 
 ## Step 1: Set Up Neo4j with Docker
 
-First, let's start a Neo4j instance using Docker. We'll use Neo4j Community Edition with APOC plugins for data import capabilities.
+First, let's start a Neo4j instance via Docker. We'll use Neo4j Community Edition with APOC plugins for data import capabilities.
 
-GraphFrames ships a command that does the whole thing — creates the volume directories, starts the container, and waits until Neo4j actually answers queries:
+GraphFrames ships with a command to simplify the setup proecss — it creates the volume directories, starts the container, and waits until Neo4j actually answers queries:
 
 ```bash
 graphframes neo4j setup
 ```
 
-It is safe to re-run: an existing container is started rather than replaced. `--password`, `--http-port`, `--bolt-port`, `--container-name` and `--heap` are all configurable; run `graphframes neo4j setup --help` for the full list. When you are finished, [Step 7](#step-7-clean-up) tears it back down.
+It is safe to re-run, so an existing container is started rather than replaced. `--password`, `--http-port`, `--bolt-port`, `--container-name` and `--heap` are all configurable; When you are finished, [Step 6](#step-6-clean-up) tears it back down: `graphframes neo4j remove`.
 
-The rest of this step is what that command does, if you would rather run it yourself.
-
-Create a directory for Neo4j data:
+To perform these steps manually, just create the folders and start the neo4j container:
 
 ```bash
 mkdir -p /tmp/neo4j-data/data /tmp/neo4j-data/logs /tmp/neo4j-data/import /tmp/neo4j-data/plugins
-```
 
-Start Neo4j container:
-
-```bash
 docker run -d --name neo4j-graphframes -p 7474:7474 -p 7687:7687 -v /tmp/neo4j-data/data:/data -v /tmp/neo4j-data/logs:/logs -v /tmp/neo4j-data/import:/var/lib/neo4j/import -v /tmp/neo4j-data/plugins:/plugins -e NEO4J_apoc_import_file_enabled=true -e NEO4J_apoc_export_file_enabled=true -e NEO4J_AUTH=neo4j/graphframes123 -e NEO4J_PLUGINS='["apoc"]' -e NEO4J_dbms_memory_heap_initial__size=1G -e NEO4J_dbms_memory_heap_max__size=2G neo4j:community
 ```
 
@@ -106,23 +98,7 @@ You can also visit <http://localhost:7474> and log in with the credentials above
 
 ## Step 2: Prepare the Stack Exchange Data
 
-If you haven't already, download and process the Stack Exchange data:
-
-```bash
-graphframes stackexchange stats.meta
-```
-
-Then convert the XML dumps to Parquet. Spark 4 has [native XML support](https://spark.apache.org/docs/4.0.0/sql-data-sources-xml.html):
-
-```bash
-spark-submit --driver-memory 4g --executor-memory 4g python/graphframes/tutorials/stackexchange.py
-```
-
-On Spark 3, add [spark-xml](https://github.com/databricks/spark-xml):
-
-```bash
-spark-submit --packages com.databricks:spark-xml_2.13:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/tutorials/stackexchange.py
-```
+See the [Data Setup Tutorial](03-data-setup.md) for instructions on downloading and processing the Stack Exchange data.
 
 This creates two Parquet datasets in the standard GraphFrames shape:
 
@@ -159,198 +135,26 @@ and 97,104 edges:
 | Links | 1,180 | Post → Post |
 | Duplicates | 88 | Post → Post |
 
-Note the third column. Half of these relationship types have **heterogeneous endpoints** — a `Vote` is `CastFor` a `Question` *or* an `Answer`. That single fact drives the graph model in the next step.
-
 ## Step 3: Load Stack Exchange Data into Neo4j
 
-To just get the graph into Neo4j, one command does everything in this step — the constraint, the nodes and the relationships — and prints the verification counts at the end:
+The `graphframes neo4j load` command creates the the nodes, edges and indices — and prints their verification counts at the end. Point it elsewhere with `--data-dir`, `--site` and the `--neo4j-*` connection options. 
 
 ```bash
 graphframes neo4j load
 ```
 
-It reads the Parquet from Step 2, so build that first. Point it elsewhere with `--data-dir`, `--site` and the `--neo4j-*` connection options. Like the code below it is idempotent, so re-running updates rather than duplicating.
+Then use the [Cypher console](http://localhost:7474/browser/) to query the data at [http://localhost:7474/browser/](http://localhost:7474/browser/):
 
-The rest of this section explains what it does and why. The full, runnable version — load plus the round trip in Steps 5 and 6 — is `python/graphframes/tutorials/neo4j.py`. Run it with:
-
-```bash
-spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1,org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4 python/graphframes/tutorials/neo4j.py
+```cypher
+MATCH (n:Node)
+RETURN n.Type AS Type, count(*) AS count
+ORDER BY count DESC
 ```
 
-### Connect
-
-Pass the Neo4j connection settings as **DataFrame options**, not as `spark.conf` entries. As options they drop the `neo4j.` prefix, and `spark-submit` will not print a `Ignoring non-Spark config property: neo4j.url` warning for every one of them.
-
-```python
-from pathlib import Path
-
-import graphframes
-import pyspark.sql.functions as F
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import StringType, StructField, StructType
-
-from graphframes import GraphFrame
-
-spark = (
-    SparkSession.builder.appName("Neo4j + GraphFrames: Stack Exchange")
-    .config(
-        "spark.jars.packages",
-        "io.graphframes:graphframes-spark4_2.13:0.12.1,"
-        "org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4",
-    )
-    .getOrCreate()
-)
-spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/neo4j")
-
-NEO4J_FORMAT = "org.neo4j.spark.DataSource"
-
-# Passed to every Neo4j read and write below.
-NEO4J = {
-    "url": "neo4j://localhost:7687",
-    "authentication.basic.username": "neo4j",
-    "authentication.basic.password": "graphframes123",
-    "database": "neo4j",
-}
-
-# Every node carries this label in addition to its Stack Exchange type. See Step 3.
-SHARED_LABEL = "Node"
-
-# Change me if you downloaded a different stackexchange site
-STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-# Package data directory — the default download location for `graphframes stackexchange`.
-# If you downloaded with --data-dir, point DATA_DIR at that path instead.
-DATA_DIR = str(Path(graphframes.__file__).parent / "tutorials" / "data")
-BASE_PATH = f"{DATA_DIR}/{STACKEXCHANGE_SITE}"
-
-nodes_df: DataFrame = spark.read.parquet(f"{BASE_PATH}/Nodes.parquet").cache()
-edges_df: DataFrame = spark.read.parquet(f"{BASE_PATH}/Edges.parquet").cache()
-
-print(f"Total nodes: {nodes_df.count():,}")
-print(f"Total edges: {edges_df.count():,}")
-
-nodes_df.groupBy("Type").count().orderBy(F.desc("count")).show()
-edges_df.groupBy("relationship").count().orderBy(F.desc("count")).show()
-```
-
-### Create the constraint
-
-Everything downstream depends on the `:Node(id)` uniqueness constraint, so create it first.
-
-The connector can only create constraints as a side effect of a write, via `schema.optimization.node.keys`. We ask for it on a write of an **empty** DataFrame. That creates the constraint and no nodes — and it sidesteps a limitation in connector 6.0.0, whose schema-optimization code has no mapping for `ArrayType`. Passing `schema.optimization.node.keys` on a write that includes an array column — `Question.Tags`, here — fails with `key not found: ArrayType(StringType,true)`. Creating the constraint up front lets every later write omit the option entirely.
-
-```python
-empty = spark.createDataFrame([], StructType([StructField("id", StringType(), False)]))
-(
-    empty.write.format(NEO4J_FORMAT)
-    .options(**NEO4J)
-    .mode("Overwrite")
-    .option("labels", f":{SHARED_LABEL}")
-    .option("node.keys", "id")
-    .option("schema.optimization.node.keys", "UNIQUE")
-    .save()
-)
-print(f"✓ uniqueness constraint on :{SHARED_LABEL}(id)")
-```
-
-### Load the nodes
-
-Two details matter here.
-
-**Use `Overwrite`, not `Append`.** The connector maps Spark's save modes onto Cypher: `Overwrite` becomes a `MERGE` on `node.keys`, and `Append` becomes a bare `CREATE`. `Append` **ignores `node.keys` entirely**, so it cannot deduplicate — running an `Append` load twice gives you two copies of every node. `Overwrite` is idempotent: re-run it as often as you like.
-
-**Project away the empty columns.** In the unified schema every type carries every other type's columns as nulls. Keeping only the columns a type actually populates makes the Neo4j model readable and cuts what goes over the wire — a `Badge` needs 8 properties, not 53.
-
-```python
-def populated_columns(df: DataFrame) -> list[str]:
-    """Return the columns of df that hold at least one non-null value."""
-    non_null_counts = df.select([F.count(F.col(c)).alias(c) for c in df.columns]).first()
-    return [c for c in df.columns if non_null_counts[c] > 0]
-
-
-node_types = sorted(row["Type"] for row in nodes_df.select("Type").distinct().collect())
-
-for node_type in node_types:
-    type_nodes = nodes_df.filter(F.col("Type") == node_type)
-    type_nodes = type_nodes.select(*populated_columns(type_nodes)).cache()
-
-    count = type_nodes.count()
-    print(f"Loading {count:,} {node_type} nodes ({len(type_nodes.columns)} properties)...")
-
-    (
-        type_nodes.write.format(NEO4J_FORMAT)
-        .options(**NEO4J)
-        .mode("Overwrite")  # MERGE on node.keys — idempotent
-        .option("labels", f":{SHARED_LABEL}:{node_type}")
-        .option("node.keys", "id")
-        .save()
-    )
-    type_nodes.unpersist()
-    print(f"  ✓ {node_type}")
-```
-
-### Load the relationships
-
-Nodes must already exist: the endpoints are **matched**, not created.
-
-```python
-rel_types = sorted(
-    row["relationship"] for row in edges_df.select("relationship").distinct().collect()
-)
-
-for rel_type in rel_types:
-    # 'relationship' becomes the Neo4j relationship type, so drop it from the payload;
-    # any column left over would be written as a relationship property.
-    type_edges = edges_df.filter(F.col("relationship") == rel_type).drop("relationship")
-
-    count = type_edges.count()
-    print(f"Loading {count:,} {rel_type} relationships...")
-
-    (
-        type_edges.coalesce(1)  # see "Deadlocks" below
-        .write.format(NEO4J_FORMAT)
-        .options(**NEO4J)
-        .mode("Overwrite")
-        .option("relationship", rel_type)
-        # Match each endpoint by key. Both ends match on the shared :Node label, which is
-        # what lets one write cover every source/target type this relationship connects.
-        .option("relationship.save.strategy", "keys")
-        .option("relationship.source.labels", f":{SHARED_LABEL}")
-        .option("relationship.source.save.mode", "Match")
-        .option("relationship.source.node.keys", "src:id")
-        .option("relationship.target.labels", f":{SHARED_LABEL}")
-        .option("relationship.target.save.mode", "Match")
-        .option("relationship.target.node.keys", "dst:id")
-        .save()
-    )
-    print(f"  ✓ {rel_type}")
-```
-
-Two things deserve a note.
-
-**Endpoints must match a label that actually exists.** `relationship.source.labels` and `relationship.target.labels` name the labels the connector matches against. With `save.mode = Match`, an endpoint that matches nothing is **silently skipped** — no exception, no warning, just a relationship that never appears. If you finish a load and find zero relationships, this is almost always why: check that the label you named is the label your nodes carry.
-
-**Deadlocks.** `coalesce(1)` writes each relationship type from a single partition. Stack Exchange has dense nodes — one popular question collects thousands of `CastFor` votes — and concurrent Spark partitions attaching relationships to the same node contend for its relationship-group lock. When separate transactions take those locks in different orders, that is a deadlock: Neo4j kills one transaction with a `TransientException` and Spark fails the whole job. One writer cannot deadlock against itself.
-
-That single partition is the throughput ceiling of this load. To go faster on a real graph, keep the parallelism but make sure no two partitions touch the same dense node — repartition by whichever endpoint is the dense one, per relationship type — and raise `transaction.retries` so the occasional loser is retried instead of fatal.
-
-### Verify
-
-Read the counts back with Cypher and compare them against the Parquet:
-
-```python
-def cypher(query: str) -> DataFrame:
-    """Run a read-only Cypher query and return the result as a DataFrame."""
-    return spark.read.format(NEO4J_FORMAT).options(**NEO4J).option("query", query).load()
-
-
-cypher(
-    f"MATCH (n:{SHARED_LABEL}) RETURN n.Type AS Type, count(*) AS count ORDER BY count DESC"
-).show()
-
-cypher(
-    f"MATCH (:{SHARED_LABEL})-[r]->(:{SHARED_LABEL}) "
-    "RETURN type(r) AS relationship, count(*) AS count ORDER BY count DESC"
-).show()
+```cypher
+MATCH (:Node)-[r]->(:Node)
+RETURN type(r) AS relationship, count(*) AS count
+ORDER BY count DESC
 ```
 
 You should see 129,751 nodes and all 97,104 relationships, matching the tables in Step 2 exactly:
@@ -374,76 +178,94 @@ Because both loads MERGE, running the whole thing a second time produces these s
 
 > **Note:** `cypher()` uses the connector's `query` option, which rewrites your query to partition it. That means it rejects a trailing `SKIP`/`LIMIT` — take the top N with `DataFrame.limit()` instead of in Cypher.
 
-## Step 5: Read the Graph Back into GraphFrames
+## Step 4: Read the Graph Back into GraphFrames
 
-Reading with Cypher gives you exactly the column names GraphFrames wants — `id`, `src`, `dst`, `relationship` — with no post-processing. A `query` read is single-partition unless you tell the connector how many rows to expect, so pass a `query.count` and a `partitions` count.
+Everything from here is `python/graphframes/tutorials/neo4j.py`. It needs both the GraphFrames and the Neo4j connector jars on the classpath, so run it with `spark-submit`:
+
+```bash
+spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1,org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4 python/graphframes/tutorials/neo4j.py
+```
+
+On Spark 3.5, use `graphframes-spark3_2.13:0.12.1` and `6.0.0_for_spark_3`. Both coordinates must agree on the Spark major version — a Spark 3 GraphFrames jar will not load beside a `for_spark_4` connector.
+
+The script opens with the same connection settings the loader used, and the same shared label:
 
 ```python
+import pyspark.sql.functions as F
+from pyspark.sql import DataFrame, SparkSession
+
+from graphframes import GraphFrame
+
+NEO4J_FORMAT = "org.neo4j.spark.DataSource"
+
+NEO4J = {
+    "url": "neo4j://localhost:7687",
+    "authentication.basic.username": "neo4j",
+    "authentication.basic.password": "graphframes123",
+    "database": "neo4j",
+}
+
+LABEL = "Node"
 PARTITIONS = 8
 
-vertices = (
-    spark.read.format(NEO4J_FORMAT)
-    .options(**NEO4J)
-    .option("query", f"MATCH (n:{SHARED_LABEL}) RETURN n.id AS id, n.Type AS Type")
-    .option("query.count", f"MATCH (n:{SHARED_LABEL}) RETURN count(n) AS count")
-    .option("partitions", str(PARTITIONS))
-    .load()
-)
+spark = SparkSession.builder.appName("Neo4j + GraphFrames").getOrCreate()
+# Connected Components checkpoints as it iterates, so Spark needs somewhere to put them.
+spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/neo4j")
+```
 
-edges = (
-    spark.read.format(NEO4J_FORMAT)
-    .options(**NEO4J)
-    .option(
-        "query",
-        f"MATCH (s:{SHARED_LABEL})-[r]->(t:{SHARED_LABEL}) "
-        "RETURN s.id AS src, t.id AS dst, type(r) AS relationship",
-    )
-    .option(
-        "query.count",
-        f"MATCH (:{SHARED_LABEL})-[r]->(:{SHARED_LABEL}) RETURN count(r) AS count",
-    )
-    .option("partitions", str(PARTITIONS))
-    .load()
+### One helper for every read
+
+```python
+def cypher(query: str, count_query: str = "") -> DataFrame:
+    reader = spark.read.format(NEO4J_FORMAT).options(**NEO4J).option("query", query)
+    if count_query:
+        reader = reader.option("query.count", count_query).option("partitions", str(PARTITIONS))
+    return reader.load()
+```
+
+A `query` read is **single-partition** unless you tell the connector how many rows to expect. The two big reads below pass a `count_query` and get `PARTITIONS` workers; the small verification queries at the end leave it off, where one partition is fine.
+
+### Read the graph
+
+Cypher aliases do the rest. Return columns named `id`, `src`, `dst` and `relationship` and the DataFrames arrive in exactly the shape `GraphFrame` wants — nothing to rename afterwards.
+
+```python
+vertices = cypher(
+    f"MATCH (n:{LABEL}) RETURN n.id AS id, n.Type AS Type",
+    f"MATCH (n:{LABEL}) RETURN count(n) AS count",
+)
+edges = cypher(
+    f"MATCH (s:{LABEL})-[r]->(t:{LABEL}) "
+    "RETURN s.id AS src, t.id AS dst, type(r) AS relationship",
+    f"MATCH (:{LABEL})-[r]->(:{LABEL}) RETURN count(r) AS count",
 )
 
 graph = GraphFrame(vertices, edges)
-graph.vertices.cache()
-graph.edges.cache()
-
-print(f"Vertices read from Neo4j: {graph.vertices.count():,}")
-print(f"Edges read from Neo4j:    {graph.edges.count():,}")
+print(f"Vertices: {graph.vertices.count():,}   Edges: {graph.edges.count():,}")
 ```
 
-Now run Connected Components — the expensive, iterative job we came to Spark for. GraphFrames treats edges as undirected here, so a component is a set of nodes reachable from one another by any path.
+Matching on `:Node` — the shared label, not the type labels — is what makes this two queries instead of one per type. Every node and every relationship in the graph is covered.
+
+> **Note:** the connector rewrites a `query` read in order to partition it, so it rejects a trailing `SKIP`/`LIMIT`. Take the top N with `DataFrame.limit()` instead of in Cypher.
+
+### Run Connected Components
+
+This is the expensive, iterative job we came to Spark for. GraphFrames treats edges as undirected here, so a component is a set of nodes reachable from one another by any path.
 
 ```python
-components = graph.connectedComponents().cache()
+components = graph.connectedComponents().select("id", "Type", "component").cache()
+print(f"Components found: {components.select('component').distinct().count():,}")
 
-print(f"Connected components found: {components.select('component').distinct().count():,}")
-
-components.groupBy("component").count().orderBy(F.desc("count")).limit(10).show()
-
-# What kinds of node make up the largest component?
 largest = components.groupBy("component").count().orderBy(F.desc("count")).first()["component"]
+print("The largest component, by node type:")
 components.filter(F.col("component") == largest).groupBy("Type").count().orderBy(
     F.desc("count")
 ).show()
 ```
 
-On `stats.meta.stackexchange.com` this finds **40,115 components**, and the distribution is the interesting part:
+`connectedComponents()` returns the vertex DataFrame with a `component` column added, so `Type` survives the call and the breakdown below costs no extra join.
 
-```
-+------------+------+
-|component   |count |
-+------------+------+
-|6           |56,442|
-|103079215534|18    |
-|128849019129|18    |
-|85899346025 |18    |
-...
-```
-
-One giant component holds 56,442 nodes — the connected core of the site — and everything else is tiny. Breaking that core down by type shows what it is made of:
+On `stats.meta.stackexchange.com` this finds **40,115 components**, and the distribution is the interesting part: one giant component holds 56,442 nodes — the connected core of the site — and everything else is tiny. Breaking that core down by type shows what it is made of:
 
 ```
 +--------+------+
@@ -460,40 +282,39 @@ One giant component holds 56,442 nodes — the connected core of the site — an
 
 Only 771 of 37,709 users are in it. The long tail is accounts that registered, earned an automatic badge, and never posted or voted — each one its own little island. That is a real finding about the site, and it is exactly the kind of question that is painful to answer with a traversal query and natural to answer with a distributed algorithm.
 
-## Step 6: Write the Results Back to Neo4j
+## Step 5: Write the Results Back to Neo4j
 
 Send only the key and the new property. The connector writes every column it is given, so a wider DataFrame means rewriting properties Neo4j already has.
 
 ```python
 (
-    components.select("id", F.col("component").alias("componentId"))
+    components.select("id", "component")
     .write.format(NEO4J_FORMAT)
     .options(**NEO4J)
     .mode("Overwrite")
-    .option("labels", f":{SHARED_LABEL}")
+    .option("labels", f":{LABEL}")
     .option("node.keys", "id")
     .save()
 )
-print("✓ componentId written")
 ```
 
-Matching on the shared label alone — `:Node`, not `:Node:Question` — means this one write updates every node type at once. Because `Overwrite` MERGEs on `:Node(id)` and every id already exists, it sets the new property **in place**: it does not create nodes, drop the per-type labels, or disturb the properties loaded in Step 4.
+This is an upsert, and three separate things make it one:
 
-Verify, and then ask a question that mixes the property graph with the result Spark just computed:
+- **`Overwrite` means MERGE.** The connector maps Spark's save modes onto Cypher: `Overwrite` becomes a `MERGE` on `node.keys`, `Append` a bare `CREATE`. Because every `id` here already exists, the MERGE matches rather than creates, and sets `component` **in place** — no new nodes, no dropped type labels, no disturbance to the properties loaded in Step 3.
+- **`:Node` alone, not `:Node:Question`.** Matching the shared label means this one write updates every node type at once.
+- **The constraint from Step 3.** Without the uniqueness constraint on `:Node(id)`, each of the 129,751 MERGEs would scan every `:Node` in the database looking for its match. With it, each one is an index lookup. This is the whole reason `graphframes neo4j load` creates the constraint before it writes anything.
+
+Now ask a question that mixes the property graph with the result Spark just computed:
 
 ```python
+print("Most decorated users in the largest component:")
 cypher(
-    f"MATCH (n:{SHARED_LABEL}) WHERE n.componentId IS NOT NULL "
-    "RETURN count(n) AS nodesWithComponentId"
-).show()
-
-cypher(
-    f"MATCH (u:User)-[:Earns]->(b:Badge) WHERE u.componentId = {largest} "
+    f"MATCH (u:User)-[:Earns]->(b:Badge) WHERE u.component = {largest} "
     "RETURN u.DisplayName AS user, count(b) AS badges ORDER BY badges DESC"
 ).limit(10).show(truncate=False)
-```
 
-That last query returns the most decorated users in the site's connected core:
+spark.stop()
+```
 
 ```
 +---------------------------+------+
@@ -507,13 +328,9 @@ That last query returns the most decorated users in the site's connected core:
 +---------------------------+------+
 ```
 
-`u.componentId` came from Spark; `[:Earns]->(b:Badge)` came from Neo4j. All 129,751 nodes now carry a `componentId`, queryable alongside everything else — in the browser, from Cypher, or from an application. That is the round trip: Neo4j stored the graph, Spark did the work that does not fit on one machine, and Neo4j got the answer back.
+`u.component` came from Spark; `[:Earns]->(b:Badge)` came from Neo4j. All 129,751 nodes now carry a `component`, queryable alongside everything else — in the browser, from Cypher, or from an application. That is the round trip: Neo4j stored the graph, Spark did the work that does not fit on one machine, and Neo4j got the answer back.
 
-```python
-spark.stop()
-```
-
-## Step 7: Clean Up
+## Step 6: Clean Up
 
 When you are done, remove the container and the data it wrote to your disk:
 
@@ -549,7 +366,7 @@ Or start over from scratch:
 graphframes neo4j remove --yes && graphframes neo4j setup && graphframes neo4j load
 ```
 
-**`key not found: ArrayType(StringType,true)`.** Connector 6.0.0's schema-optimization code cannot map array columns. Do not pass `schema.optimization.node.keys` on a write whose DataFrame contains one; create the constraint up front on an empty DataFrame, as in Step 4.
+**`key not found: ArrayType(StringType,true)`.** Connector 6.0.0's schema-optimization code cannot map array columns. Do not pass `schema.optimization.node.keys` on a write whose DataFrame contains one; create the constraint up front on an empty DataFrame, as in Step 3.
 
 **`TransientException` mentioning a deadlock wait cycle.** Concurrent partitions are contending for the relationship-group lock of a dense node. Write relationships from a single partition, or repartition so no two partitions touch the same dense node.
 
@@ -559,4 +376,4 @@ graphframes neo4j remove --yes && graphframes neo4j setup && graphframes neo4j l
 
 - Swap `connectedComponents()` for [PageRank](../04-user-guide/03-centralities.md) or [Label Propagation](../04-user-guide/06-graph-clustering.md) and write those results back the same way
 - Use [motif finding](02-motif-tutorial.md) to search for patterns that Cypher expresses awkwardly, then persist what you find
-- Point `STACKEXCHANGE_SITE` at a larger site and raise the relationship-load parallelism as described in Step 4
+- Point `graphframes neo4j load --site` at a larger site and raise the relationship-load parallelism as described in Step 3
