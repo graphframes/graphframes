@@ -1,22 +1,28 @@
 #!/usr/bin/env python
 
-"""Manage the tutorial's Neo4j container: `graphframes neo4j setup|load|remove`.
+"""Set up the tutorial's Neo4j and load the Stack Exchange graph into it.
 
-Companion to the Neo4j Integration Tutorial and to neo4j.py, which runs the full
-round trip. These commands just handle the boring parts: starting a container,
-loading the Stack Exchange graph into it, and tearing both down again.
+`graphframes neo4j setup|load|remove`. Companion to the Neo4j Integration Tutorial:
+these commands get a graph into Neo4j and take it away again. The analysis - reading
+it back into a GraphFrame, running Connected Components, writing the results back -
+is neo4j.py, which you spark-submit.
 
-Only `load` needs PySpark, so it imports it lazily - `setup` and `remove` work
-with nothing but Docker installed.
+Only `load` needs PySpark, so it imports it lazily - `setup` and `remove` work with
+nothing but Docker installed.
 """
+
+from __future__ import annotations
 
 import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import click
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame, SparkSession
 
 CONTAINER_NAME = "neo4j-graphframes"
 IMAGE = "neo4j:community"
@@ -25,6 +31,22 @@ DEFAULT_PASSWORD = "graphframes123"
 DEFAULT_USER = "neo4j"
 DEFAULT_DATABASE = "neo4j"
 DEFAULT_SITE = "stats.meta.stackexchange.com"
+DEFAULT_DATA_DIR = str(Path(__file__).parent / "data")
+
+# The Neo4j Spark Connector's DataSource name.
+NEO4J_FORMAT = "org.neo4j.spark.DataSource"
+
+# Every node gets this label in addition to its Stack Exchange type label. One shared label
+# with one uniqueness constraint gives us a single indexed lookup key for the whole graph,
+# which is what makes the relationship load here - and the write-back in neo4j.py - cheap.
+# Stack Exchange edges have heterogeneous endpoints (a Vote is CastFor a Question *or* an
+# Answer) and the connector matches endpoints against one fixed label set per write, so
+# without a shared label we would need a write per (source type, relationship, target type).
+SHARED_LABEL = "Node"
+
+# `load` runs outside spark-submit, so it puts these on its own SparkSession.
+GRAPHFRAMES_PACKAGE = "io.graphframes:graphframes-spark4_2.13:0.12.1"
+NEO4J_PACKAGE = "org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4"
 
 # Subdirectories bind-mounted into the container.
 VOLUMES = {
@@ -81,9 +103,129 @@ def _wait_for_neo4j(name: str, user: str, password: str, timeout: int) -> bool:
     return False
 
 
+#
+# The load itself. PySpark is imported inside these so `setup` and `remove` do not need it.
+#
+
+
+def _populated_columns(df: DataFrame) -> List[str]:
+    """Return the columns of df that hold at least one non-null value.
+
+    Nodes.parquet uses a unified schema: every node type carries every column of every other
+    type, almost all of them null. Projecting each type down to its own populated columns
+    keeps the Neo4j model readable and cuts what we push over Bolt - a Badge needs 8
+    properties, not 53.
+    """
+    import pyspark.sql.functions as F
+
+    counts = df.select([F.count(F.col(c)).alias(c) for c in df.columns]).first()
+    return [c for c in df.columns if counts[c] > 0]
+
+
+def _create_constraint(spark: SparkSession, neo4j: Dict[str, str]) -> None:
+    """Create the :Node(id) uniqueness constraint that everything downstream depends on.
+
+    Without it the MERGEs below, the endpoint matching in _load_relationships() and the
+    write-back in neo4j.py all degrade into full label scans, which turns a two-minute load
+    into an overnight one.
+
+    We ask for it on a write of an *empty* DataFrame for two reasons. The connector can only
+    create constraints as a side effect of a write, and its schema-optimization code has no
+    mapping for ArrayType as of 6.0.0 - passing 'schema.optimization.node.keys' on a write
+    that includes an array column (Question.Tags, here) fails with
+    'key not found: ArrayType(StringType,true)'. An empty write creates the constraint,
+    creates no nodes, and lets every later write omit the option.
+    """
+    from pyspark.sql.types import StringType, StructField, StructType
+
+    empty = spark.createDataFrame([], StructType([StructField("id", StringType(), False)]))
+    (
+        empty.write.format(NEO4J_FORMAT)
+        .options(**neo4j)
+        .mode("Overwrite")
+        .option("labels", f":{SHARED_LABEL}")
+        .option("node.keys", "id")
+        .option("schema.optimization.node.keys", "UNIQUE")
+        .save()
+    )
+
+
+def _load_nodes(nodes_df: DataFrame, neo4j: Dict[str, str]) -> None:
+    """Write each node type into Neo4j as :Node:<Type>, keyed on the GraphFrames UUID 'id'."""
+    import pyspark.sql.functions as F
+
+    for node_type in sorted(row["Type"] for row in nodes_df.select("Type").distinct().collect()):
+        type_nodes = nodes_df.filter(F.col("Type") == node_type)
+        type_nodes = type_nodes.select(*_populated_columns(type_nodes)).cache()
+        count = type_nodes.count()
+        click.echo(f"  {count:,} {node_type} ({len(type_nodes.columns)} properties)...")
+
+        (
+            type_nodes.write.format(NEO4J_FORMAT)
+            .options(**neo4j)
+            # 'Overwrite' makes the connector MERGE on node.keys, so re-running updates nodes
+            # instead of duplicating them. 'Append' would CREATE blindly, ignoring node.keys.
+            .mode("Overwrite")
+            .option("labels", f":{SHARED_LABEL}:{node_type}")
+            .option("node.keys", "id")
+            .save()
+        )
+        type_nodes.unpersist()
+        click.echo(f"    \u2713 {node_type}")
+
+
+def _load_relationships(edges_df: DataFrame, neo4j: Dict[str, str]) -> None:
+    """Write each relationship type into Neo4j, matching both endpoints on :Node(id).
+
+    Nodes must already exist: with save.mode 'Match' an endpoint that matches nothing is
+    silently skipped, so a mismatched label yields zero relationships and no error.
+    """
+    import pyspark.sql.functions as F
+
+    rel_types = sorted(
+        row["relationship"] for row in edges_df.select("relationship").distinct().collect()
+    )
+    for rel_type in rel_types:
+        # 'relationship' becomes the Neo4j relationship type, so drop it from the payload;
+        # any column left over would be written as a relationship property.
+        type_edges = edges_df.filter(F.col("relationship") == rel_type).drop("relationship")
+        click.echo(f"  {type_edges.count():,} {rel_type}...")
+
+        # Write from a single partition. Stack Exchange has dense nodes - one popular question
+        # collects thousands of CastFor votes - and concurrent Spark partitions attaching
+        # relationships to the same node fight over its relationship-group lock. When separate
+        # transactions take those locks in different orders, that is a deadlock: Neo4j kills
+        # one with a TransientException and Spark fails the job. One writer cannot deadlock
+        # against itself.
+        #
+        # This is the throughput ceiling of the load. To go faster on a real graph, keep the
+        # parallelism but make sure no two partitions touch the same dense node - repartition
+        # by whichever endpoint is the dense one, per relationship type - and raise
+        # 'transaction.retries' so the occasional loser is retried instead of fatal.
+        (
+            type_edges.coalesce(1)
+            .write.format(NEO4J_FORMAT)
+            .options(**neo4j)
+            .mode("Overwrite")
+            .option("relationship", rel_type)
+            # 'keys' means: match the endpoints by the key columns named below. Both ends match
+            # on the shared :Node label, which is what lets one write cover every source/target
+            # type combination this relationship connects.
+            .option("relationship.save.strategy", "keys")
+            .option("relationship.source.labels", f":{SHARED_LABEL}")
+            .option("relationship.source.save.mode", "Match")
+            .option("relationship.source.node.keys", "src:id")
+            .option("relationship.target.labels", f":{SHARED_LABEL}")
+            .option("relationship.target.save.mode", "Match")
+            .option("relationship.target.node.keys", "dst:id")
+            .save()
+        )
+        click.echo(f"    \u2713 {rel_type}")
+
+
 @click.group()
 def neo4j() -> None:
-    """Set up, load and tear down the tutorial's Neo4j container."""
+    """Set up Neo4j, load the Stack Exchange graph into it, and tear it back down."""
 
 
 @neo4j.command()
@@ -191,24 +333,17 @@ def load(
 ) -> None:
     """Load the Stack Exchange graph into Neo4j.
 
+    Creates a uniqueness constraint on :Node(id) first, so the loads here and the write-back
+    in neo4j.py are index-backed rather than full scans. Then writes the nodes, one type at a
+    time, and the relationships.
+
     Requires the Parquet built by `graphframes stackexchange` plus stackexchange.py.
-    Idempotent: both loads MERGE, so re-running updates rather than duplicating.
+    Idempotent: every write MERGEs, so re-running updates rather than duplicating.
 
     Example: graphframes neo4j load --site stats.meta.stackexchange.com
     """
     # Imported here so `setup` and `remove` do not require PySpark.
-    from pyspark.sql import DataFrame, SparkSession
-
-    from graphframes.tutorials.neo4j import (
-        DEFAULT_DATA_DIR,
-        GRAPHFRAMES_PACKAGE,
-        NEO4J_PACKAGE,
-        SHARED_LABEL,
-        create_constraint,
-        cypher,
-        load_nodes,
-        load_relationships,
-    )
+    from pyspark.sql import SparkSession
 
     base_path = f"{data_dir or DEFAULT_DATA_DIR}/{site}"
     if not Path(base_path, "Nodes.parquet").exists():
@@ -219,7 +354,7 @@ def load(
             f"  spark-submit python/graphframes/tutorials/stackexchange.py"
         )
 
-    spark: SparkSession = (
+    spark = (
         SparkSession.builder.appName("graphframes neo4j load")
         .config("spark.jars.packages", f"{GRAPHFRAMES_PACKAGE},{NEO4J_PACKAGE}")
         .getOrCreate()
@@ -233,37 +368,45 @@ def load(
         "database": neo4j_database,
     }
 
+    def cypher(query: str) -> "DataFrame":
+        return (
+            spark.read.format(NEO4J_FORMAT).options(**neo4j_options).option("query", query).load()
+        )
+
     try:
-        nodes_df: DataFrame = spark.read.parquet(f"{base_path}/Nodes.parquet").cache()
-        edges_df: DataFrame = spark.read.parquet(f"{base_path}/Edges.parquet").cache()
+        nodes_df = spark.read.parquet(f"{base_path}/Nodes.parquet").cache()
+        edges_df = spark.read.parquet(f"{base_path}/Edges.parquet").cache()
         click.echo(f"Read {nodes_df.count():,} nodes and {edges_df.count():,} edges from Parquet")
 
         click.echo("\n=== Loading nodes ===")
-        create_constraint(spark, neo4j_options)
-        click.echo(f"  ✓ uniqueness constraint on :{SHARED_LABEL}(id)")
-        load_nodes(nodes_df, neo4j_options)
+        _create_constraint(spark, neo4j_options)
+        click.echo(f"  \u2713 uniqueness constraint on :{SHARED_LABEL}(id)")
+        _load_nodes(nodes_df, neo4j_options)
 
         click.echo("\n=== Loading relationships ===")
-        load_relationships(edges_df, neo4j_options)
+        _load_relationships(edges_df, neo4j_options)
+
+        nodes_df.unpersist()
+        edges_df.unpersist()
 
         click.echo("\n=== Verifying ===")
         cypher(
-            spark,
-            neo4j_options,
             f"MATCH (n:{SHARED_LABEL}) RETURN n.Type AS Type, count(*) AS count "
-            "ORDER BY count DESC",
+            "ORDER BY count DESC"
         ).show()
         cypher(
-            spark,
-            neo4j_options,
             f"MATCH (:{SHARED_LABEL})-[r]->(:{SHARED_LABEL}) "
-            "RETURN type(r) AS relationship, count(*) AS count ORDER BY count DESC",
+            "RETURN type(r) AS relationship, count(*) AS count ORDER BY count DESC"
         ).show()
     finally:
         spark.stop()
 
-    click.echo("Loaded. Run the full round trip with:")
-    click.echo("  spark-submit python/graphframes/tutorials/neo4j.py")
+    click.echo("Loaded. Now run Connected Components on Spark and write the results back:")
+    click.echo(
+        "  spark-submit --packages "
+        f"{GRAPHFRAMES_PACKAGE},{NEO4J_PACKAGE} "
+        "python/graphframes/tutorials/neo4j.py"
+    )
 
 
 @neo4j.command()
