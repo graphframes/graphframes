@@ -74,9 +74,8 @@ private[propertygraph] object GraphStatistics {
   }
 
   /**
-   * Build a provider that caches `rowCount` per group on first access by calling `df.count()`.
-   * The cache is built lazily and shared across `vertexGroup`/`edgeGroup` lookups. All
-   * non-rowCount fields stay empty.
+   * Build a provider backed by the supplied per-group row-count maps. All non-rowCount fields stay
+   * empty.
    */
   def cachedRowCount(
       vertexRowCounts: Map[String, Long],
