@@ -4,14 +4,12 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.TernaryExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.*
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
 import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.LongType
 
 case class FiniteAXPlusB(first: Expression, second: Expression, third: Expression)
-    extends TernaryExpression
-    with CodegenFallback {
+    extends TernaryExpression {
   override def dataType: DataType = LongType
 
   override protected def withNewChildrenInternal(
@@ -32,6 +30,7 @@ case class FiniteAXPlusB(first: Expression, second: Expression, third: Expressio
     val x = ctx.freshName("x")
     val b = ctx.freshName("b")
     val r = ctx.freshName("r")
+    val irrpoly = ctx.freshName("irrpoly")
 
     val aGenCode = first.genCode(ctx)
     val xGenCode = second.genCode(ctx)
@@ -45,14 +44,14 @@ case class FiniteAXPlusB(first: Expression, second: Expression, third: Expressio
       long $x = ${xGenCode.value};
       long $b = ${bGenCode.value};
       long $r = 0L;
-      long irrpoly = 0x1bL;
+      long $irrpoly = 0x1bL;
       while ($x != 0L) {
         if (($x & 1L) != 0L) {
           $r ^= $a;
         }
         $x = ($x >>> 1) & 0x7fffffffffffffffL;
         if (($a & (1L << 63)) != 0L) {
-          $a = ($a << 1) ^ irrpoly;
+          $a = ($a << 1) ^ $irrpoly;
         } else {
           $a <<= 1;
         }
