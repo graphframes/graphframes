@@ -63,9 +63,7 @@ flowchart TD
 
 ## Step 1: Set Up Neo4j with Docker
 
-First, let's start a Neo4j instance via Docker. We'll use Neo4j Community Edition with APOC plugins for data import capabilities.
-
-GraphFrames ships with a command to simplify the setup proecss — it creates the volume directories, starts the container, and waits until Neo4j actually answers queries:
+I have automated the setup and loading of data in Neo4j via a built-in `graphframes neo4j` command so as to present the Neo4j integration as you would might use in practice: reading an existing Neo4j database into PySpark and GraphFrames. First, let's start a Neo4j instance via Docker. We'll use Neo4j Community Edition with APOC plugins for data import capabilities. The `setup` command creates the volume directories, starts the container, and waits until Neo4j actually answers queries:
 
 ```bash
 graphframes neo4j setup
