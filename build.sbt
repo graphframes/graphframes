@@ -90,7 +90,7 @@ lazy val commonSetting = Seq(
   Test / parallelExecution := false,
   Test / javaOptions ++= Seq(
     "-XX:+IgnoreUnrecognizedVMOptions",
-    "-Xmx2048m",
+    "-Xmx4096m",
     "-XX:ReservedCodeCacheSize=384m",
     "-XX:MaxMetaspaceSize=384m",
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",

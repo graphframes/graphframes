@@ -57,6 +57,7 @@ trait GraphFrameTestSparkContext extends BeforeAndAfterAll { self: Suite =>
       .master("local[2]")
       .appName("GraphFramesUnitTest")
       .config("spark.sql.shuffle.partitions", 4)
+      .config("spark.sql.adaptive.enabled", "true")
       .getOrCreate()
 
     val checkpointDir = Files.createTempDirectory(this.getClass.getName).toString
