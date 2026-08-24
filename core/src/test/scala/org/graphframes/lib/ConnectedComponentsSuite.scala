@@ -119,6 +119,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
           .run()
         val numComps = result.select("component").distinct().count()
         assert(numComps == 2L)
+        result.unpersist()
       }
 
       test(s"empty graph$testPostfixName") {
