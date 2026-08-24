@@ -1,18 +1,29 @@
-import click
+import logging
 
-from graphframes.tutorials import download
+logger = logging.getLogger(__name__)
 
-
-@click.group()
-def cli():
-    """GraphFrames CLI: a collection of commands for graphframes."""
-    pass
-
-
-cli.add_command(download.stackexchange)
+MISSING_TUTORIALS_EXTRA_MSG = (
+    "The `graphframes` CLI requires the optional `tutorials` dependencies, "
+    "which are not installed. Install them with: "
+    "pip install 'graphframes-py[tutorials]'"
+)
 
 
 def main():
+    try:
+        import click
+
+        from graphframes.tutorials import download
+    except ImportError as err:
+        logger.error("%s (%s)", MISSING_TUTORIALS_EXTRA_MSG, err)
+        raise SystemExit(1) from err
+
+    @click.group()
+    def cli():
+        """GraphFrames CLI: a collection of commands for graphframes."""
+        pass
+
+    cli.add_command(download.stackexchange)
     cli()
 
 
