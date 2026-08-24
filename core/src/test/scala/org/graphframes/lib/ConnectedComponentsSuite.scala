@@ -103,6 +103,24 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         else ""}${if (useSkewedJoin) ", skewed join" else ", AQE join"}"
       val broadcastThreshold = if (useSkewedJoin) 1000000 else -1
 
+      test(s"non trivial graph #873$testPostfixName") {
+        val edges = spark
+          .createDataFrame(
+            Seq((1L, 2L), (2L, 3L), (3L, 4L), (4L, 5L), (5L, 1L), (6L, 7L), (7L, 8L), (8L, 6L)))
+          .toDF("src", "dst")
+
+        val vertices =
+          edges.select("src").union(edges.select("dst")).distinct().withColumnRenamed("src", "id")
+        val g = GraphFrame(vertices, edges)
+
+        val result = g.connectedComponents
+          .setBroadcastThreshold(broadcastThreshold)
+          .setUseLocalCheckpoints(useLocalCheckpoint)
+          .run()
+        val numComps = result.select("component").distinct().count()
+        assert(numComps == 2L)
+      }
+
       test(s"empty graph$testPostfixName") {
         for (empty <- Seq(Graphs.empty[Int], Graphs.empty[Long], Graphs.empty[String])) {
           val components = empty.connectedComponents
