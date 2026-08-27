@@ -29,6 +29,10 @@ import scala.util.Random
  *
  * The algorithm contracts the graph iteratively using random linear functions, until no edges
  * remain, then reconstructs the component identifiers.
+ *
+ * Improvements compared to the original paper:
+ *   - fusing symmetrization to the representative choosing
+ *   - remove the first heavy distinct op
  */
 private[graphframes] object RandomizedContraction extends Logging with Serializable {
   private val CHECKPOINT_NAME_PREFIX = "randomized-contraction"
@@ -39,11 +43,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
     val edges = graph.indexedEdges
       .select(col(LONG_SRC).as(SRC), col(LONG_DST).as(DST))
-    val symmetricEdges = edges
-      .union(edges.select(col(DST).alias(SRC), col(SRC).alias(DST)))
-      .distinct()
-    GraphFrame(vertices, symmetricEdges)
 
+    GraphFrame(vertices, edges)
   }
 
   def run(
@@ -126,10 +127,23 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
         stackA.push(rA)
         stackB.push(rB)
 
+        /// trick:
+        /// instead of symmetrization (heavy)
+        /// we sent bi-directional messages
+        ///
+        /// CSE will resolve this into 2 calls of axpb and one least call
+        /// per both directions;
+        ///
+        /// instead of scanning double-edges and 3 calls per both directions.
         ccRepresentatives = edges
-          .groupBy(SRC)
-          .agg(min(axpb(rA, col(DST), rB)).alias("rep"))
-          .select(col(SRC).alias("v"), least(axpb(rA, col(SRC), rB), col("rep")).alias("rep"))
+          .withColumn("msg", least(axpb(rA, col(SRC), rB), axpb(rA, col(DST), rB)))
+          .select(
+            explode(
+              array(
+                struct(col(SRC).alias("v"), col("msg")),
+                struct(col(DST).alias("v"), col("msg")))).alias("arr"))
+          .groupBy(col("arr.v").alias("v"))
+          .agg(min(col("arr.msg")).alias("rep"))
 
         // "free" checkpointing
         ccRepresentatives.write.parquet(tableName(iter))

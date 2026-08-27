@@ -42,7 +42,7 @@ def main() -> None:
         (
             results_dir / "connected-components.json",
             "benchmarks/Jmh/run -rf json -p graphName=wiki-Talk -p useLocalCheckpoints=true "
-            "-p algorithm=graphframes,graphx -p broadcastThreshold=-1 "
+            "-p algorithm=randomized_contraction,graphx "
             "org.graphframes.benchmarks.ConnectedComponentsBenchmark",
         ),
         (
