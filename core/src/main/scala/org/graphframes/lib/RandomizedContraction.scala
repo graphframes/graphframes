@@ -253,6 +253,20 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
             col(ID),
             coalesce(col("new_component"), col(ID))
               .alias(ConnectedComponents.COMPONENT))
+      } else if (!inputGraph.hasIntegralIdType) {
+        // `finalReps` is keyed by the internal LongType vertex index, not by the original
+        // vertex ID, so for non-integral ID types the results have to be mapped back through
+        // `indexedVertices`. Joining `inputGraph.vertices` on ID directly would make Spark
+        // coerce the two sides to a common type, which either fails with CAST_INVALID_INPUT
+        // (ANSI mode) or silently produces wrong results.
+        // See https://github.com/graphframes/graphframes/issues/892
+        inputGraph.indexedVertices
+          .withColumnRenamed(ID, ConnectedComponents.ORIG_ID)
+          .join(finalReps, col(ID) === col(LONG_ID), "left")
+          .select(
+            col(ConnectedComponents.ORIG_ID).alias(ID),
+            coalesce(col(ConnectedComponents.COMPONENT), col(LONG_ID))
+              .alias(ConnectedComponents.COMPONENT))
       } else {
         inputGraph.vertices
           .join(finalReps, ID, "left")
