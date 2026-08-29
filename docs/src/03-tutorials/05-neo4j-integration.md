@@ -191,9 +191,21 @@ spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1,org.neo4j:
 
 On Spark 3.5, use `graphframes-spark3_2.13:0.12.1` and `6.0.0_for_spark_3`. Both coordinates must agree on the Spark major version — a Spark 3 GraphFrames jar will not load beside a `for_spark_4` connector.
 
-The script opens with the same connection settings the loader used, and the same shared label:
+Connection settings default to what `graphframes neo4j setup` created. If you chose your own password — `graphframes neo4j setup --password hunter2` — pass it through the environment, which keeps it out of both the source and your shell history:
+
+```bash
+export NEO4J_PASSWORD=hunter2
+spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1,org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4 python/graphframes/tutorials/neo4j.py
+```
+
+`NEO4J_URL`, `NEO4J_USERNAME` and `NEO4J_DATABASE` work the same way, and `--url`, `--username`, `--password` and `--database` override the environment for a single run.
+
+The script opens with those settings and the same shared label the loader used:
 
 ```python
+import argparse
+import os
+
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame, SparkSession
 
@@ -201,11 +213,25 @@ from graphframes import GraphFrame
 
 NEO4J_FORMAT = "org.neo4j.spark.DataSource"
 
+DEFAULTS = {
+    "url": os.environ.get("NEO4J_URL", "neo4j://localhost:7687"),
+    "username": os.environ.get("NEO4J_USERNAME", "neo4j"),
+    "password": os.environ.get("NEO4J_PASSWORD", "graphframes123"),
+    "database": os.environ.get("NEO4J_DATABASE", "neo4j"),
+}
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--url", default=DEFAULTS["url"])
+parser.add_argument("--username", default=DEFAULTS["username"])
+parser.add_argument("--password", default=DEFAULTS["password"])
+parser.add_argument("--database", default=DEFAULTS["database"])
+args = parser.parse_args()
+
 NEO4J = {
-    "url": "neo4j://localhost:7687",
-    "authentication.basic.username": "neo4j",
-    "authentication.basic.password": "graphframes123",
-    "database": "neo4j",
+    "url": args.url,
+    "authentication.basic.username": args.username,
+    "authentication.basic.password": args.password,
+    "database": args.database,
 }
 
 LABEL = "Node"
@@ -368,6 +394,17 @@ graphframes neo4j remove --yes && graphframes neo4j setup && graphframes neo4j l
 ```
 
 **`key not found: ArrayType(StringType,true)`.** Connector 6.0.0's schema-optimization code cannot map array columns. Do not pass `schema.optimization.node.keys` on a write whose DataFrame contains one; create the constraint up front on an empty DataFrame, as in Step 3.
+
+**The script prints its last table and then sits there forever.** Neo4j's Bolt driver runs its Netty event loops on *non-daemon* threads, and a JVM will not exit while one of those is alive. `spark.stop()` ends the Spark session but not the Bolt driver, so the process parks in `DestroyJavaVM` waiting on threads that never finish. The script's final block reports what is still holding the JVM open and then exits deliberately:
+
+```
+[  109.2s] Spark stopped.
+[  109.3s] 17 non-daemon thread(s) still alive: KQueueEventLoopGroup-10-1, ...
+[  109.3s] The JVM waits on those before exiting, and Neo4j's Bolt event loops never
+[  109.3s] finish, so this is the hang. Exiting explicitly instead of waiting forever.
+```
+
+Keep that block if you adapt this code. On a run that hangs, `jstack <pid>` shows the same `KQueueEventLoopGroup` threads parked in `keventWait`.
 
 **`TransientException` mentioning a deadlock wait cycle.** Concurrent partitions are contending for the relationship-group lock of a dense node. Write relationships from a single partition, or repartition so no two partitions touch the same dense node.
 

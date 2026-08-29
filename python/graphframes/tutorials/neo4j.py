@@ -87,17 +87,25 @@ def step(message: str) -> None:
     print(f"[{time.monotonic() - _START:7.1f}s] {message}", flush=True)
 
 
-def lingering_non_daemon_threads(jvm) -> list[str]:
-    """Names of live non-daemon JVM threads, which are what keep a JVM from exiting.
+# The JVM's own launcher threads. They are non-daemon but they do finish on their own once
+# this script returns, so they are noise in the report below rather than a reason to hang.
+LAUNCHER_THREADS = {"main", "DestroyJavaVM"}
 
-    The JVM exits once its last non-daemon thread finishes. Anything still listed here
-    after Spark has stopped is what stands between this script and a clean exit.
+
+def lingering_non_daemon_threads(jvm) -> list[str]:
+    """Names of live non-daemon JVM threads, minus the launcher's own.
+
+    A JVM exits once its last non-daemon thread finishes, so it waits on every thread named
+    here. Whatever is still listed after Spark has stopped is what stands between this
+    script and a clean exit.
     """
     return sorted(
         {
             thread.getName()
             for thread in jvm.java.lang.Thread.getAllStackTraces().keySet()
-            if thread.isAlive() and not thread.isDaemon() and thread.getName() != "DestroyJavaVM"
+            if thread.isAlive()
+            and not thread.isDaemon()
+            and thread.getName() not in LAUNCHER_THREADS
         }
     )
 
@@ -207,8 +215,9 @@ step("Spark stopped.")
 
 lingering = lingering_non_daemon_threads(jvm)
 if lingering:
-    step(f"{len(lingering)} non-daemon JVM thread(s) still alive: {', '.join(lingering)}")
-    step("These keep the JVM from exiting (Neo4j's Bolt driver). Exiting explicitly.")
+    step(f"{len(lingering)} non-daemon thread(s) still alive: {', '.join(lingering)}")
+    step("The JVM waits on those before exiting, and Neo4j's Bolt event loops never")
+    step("finish, so this is the hang. Exiting explicitly instead of waiting forever.")
     jvm.System.exit(0)
 
 step("Done.")
