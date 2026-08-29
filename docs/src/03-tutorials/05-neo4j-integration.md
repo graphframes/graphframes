@@ -69,7 +69,7 @@ I have automated the setup and loading of data in Neo4j via a built-in `graphfra
 graphframes neo4j setup
 ```
 
-It is safe to re-run, so an existing container is started rather than replaced. `--password`, `--http-port`, `--bolt-port`, `--container-name` and `--heap` are all configurable; When you are finished, [Step 6](#step-6-clean-up) tears it back down: `graphframes neo4j remove`.
+It is safe to re-run, so an existing container is started rather than replaced. `--password`, `--http-port`, `--bolt-port`, `--container-name` and `--heap` are all configurable; When you are finished, [Step 6](#step-6-cleanup) tears it back down: `graphframes neo4j remove`.
 
 To perform these steps manually, just create the folders and start the neo4j container:
 

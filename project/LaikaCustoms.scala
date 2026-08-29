@@ -127,12 +127,12 @@ object LaikaCustoms {
   /**
    * Generate a sitemap.xml from the Laika source markdown files.
    *
-   * Each .md file maps 1:1 to an .html URL. The lastmod timestamp is taken from
-   * the .md file's last-modified time so that it reflects the actual content age
-   * rather than the build timestamp.
+   * Each .md file maps 1:1 to an .html URL. The lastmod timestamp is taken from the .md file's
+   * last-modified time so that it reflects the actual content age rather than the build
+   * timestamp.
    *
-   * The resulting sitemap.xml is written into the docs source directory so that
-   * Laika copies it through to the generated site as a static file.
+   * The resulting sitemap.xml is written into the docs source directory so that Laika copies it
+   * through to the generated site as a static file.
    */
   def generateSitemap(sourceDir: Path, baseUrl: String): Unit = {
     val mdFiles = Files
@@ -186,9 +186,12 @@ object LaikaCustoms {
       println(s"File $benchmarksFile does not exist. Skipping.")
       // Provide fallback values so ${benchmarks.*} references in docs don't cause build failures
       val benchmarkNames = Seq(
-        "benchmarkSP", "benchmarkSPGraphX",
-        "benchmarkCC", "benchmarkCCGraphX",
-        "benchmarkCDLP", "benchmarkCDLPGraphX")
+        "benchmarkShortestPaths.graphframes",
+        "benchmarkShortestPaths.graphx",
+        "benchmarkConnectedComponents.randomized_contraction",
+        "benchmarkConnectedComponents.graphx",
+        "benchmarkLabelPropagation.graphframes",
+        "benchmarkLabelPropagation.graphx")
       return benchmarkNames.foldLeft(baseConfig) { (config, name) =>
         config
           .withConfigValue(s"benchmarks.$name.metric", "N/A")
@@ -268,7 +271,9 @@ object LaikaCustoms {
                   case _ => None
                 }
 
-                maybeLegacyAlias.map(alias => addMetrics(withKeyName, alias)).getOrElse(withKeyName)
+                maybeLegacyAlias
+                  .map(alias => addMetrics(withKeyName, alias))
+                  .getOrElse(withKeyName)
               }
             })
       }
