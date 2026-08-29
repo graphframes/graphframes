@@ -97,6 +97,40 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  Seq(true, false).foreach { useLabelsAsComponents =>
+    test(
+      "randomized contraction with non-integral IDs, " +
+        s"useLabelsAsComponents=$useLabelsAsComponents") {
+      // See https://github.com/graphframes/graphframes/issues/892 : the randomized contraction
+      // implementation works on the internal LongType vertex indices, so the results have to be
+      // mapped back onto the original (here: StringType) vertex IDs.
+      val friends = Graphs.friends
+      val components = friends.connectedComponents
+        .setAlgorithm(ConnectedComponents.ALGO_RANDOMIZED_CONTRACTION)
+        .setUseLabelsAsComponents(useLabelsAsComponents)
+        .run()
+      TestUtils.checkColumnType(components.schema, ID, DataTypes.StringType)
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+
+      if (useLabelsAsComponents) {
+        TestUtils.checkColumnType(components.schema, "component", DataTypes.StringType)
+        assertComponents(components, expected)
+      } else {
+        // Component IDs are arbitrary Longs in this mode, so only the grouping is checked.
+        TestUtils.checkColumnType(components.schema, "component", DataTypes.LongType)
+        val grouping = components
+          .select(col("component"), col(ID))
+          .collect()
+          .groupBy(_.getLong(0))
+          .values
+          .map(_.map(_.getString(1)).toSet)
+          .toSet
+        assert(grouping === expected)
+      }
+      components.unpersist()
+    }
+  }
+
   Seq(true, false).foreach(useSkewedJoin => {
     Seq(true, false).foreach(useLocalCheckpoint => {
       val testPostfixName = s"${if (useLocalCheckpoint) " with local checkpoint"

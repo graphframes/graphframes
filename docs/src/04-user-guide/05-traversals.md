@@ -230,6 +230,10 @@ _With GraphFrames 0.3.0 and later releases, the default Connected Components alg
 
 _Be aware, that returned `DataFrame` is persistent and should be unpersisted manually after processing to avoid memory leaks!_
 
+**NOTE**
+
+_From all the provided algorithms the "randomized_contraction" is the best one by all the characteristics. It is not the default only because of back-compatibility concerns._
+
 ---
 
 ### Python API
@@ -286,7 +290,7 @@ A DataFrame-native implementation based on randomized graph contraction, describ
 
 > Bögeholz, Harald, Michael Brand, and Radu-Alexandru Todor. _"In-database connected component analysis."_ 2020 IEEE 36th International Conference on Data Engineering (ICDE). IEEE, 2020.
 
-This algorithm iteratively contracts the graph using random linear functions until no edges remain, then reconstructs component identifiers in a reverse pass. It has similar convergence characteristics to `two_phase` (AQE mode) and performs comparably on benchmarks — slightly worse than `two_phase` with AQE, but significantly better than `two_phase` with manual skewed joins.
+This algorithm iteratively contracts the graph using random linear functions until no edges remain, then reconstructs component identifiers in a reverse pass. It has similar convergence characteristics to `two_phase` (AQE mode) and performs better on benchmarks than `two_phase` with AQE. This algorithm requires around 2x less amount of memory to perform compared to "two_phase"
 
 Unlike `two_phase`, `randomized_contraction` **always** produces random `Long` component IDs regardless of the input vertex ID type, unless `use_labels_as_components=True` is set.
 

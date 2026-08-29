@@ -457,6 +457,32 @@ def test_page_rank(spark: SparkSession, args: PregelArguments) -> None:
     _ = ranks.unpersist()
 
 
+def test_graphframes_pagerank(spark: SparkSession) -> None:
+    """Regression test for issue #889: pageRank fails on Spark Connect due to
+    AttributeError accessing self.edges and self.outDegrees on GraphFrameConnect."""
+    edges = spark.createDataFrame(
+        [
+            [0, 1],
+            [1, 2],
+            [2, 4],
+            [2, 0],
+            [3, 4],
+            [4, 0],
+            [4, 2],
+        ],
+        ["src", "dst"],
+    )
+    vertices = spark.createDataFrame([[0], [1], [2], [3], [4]], ["id"])
+    g = GraphFrame(vertices, edges)
+
+    result = g.pageRank(resetProbability=0.15, maxIter=3)
+
+    assert "pagerank" in result.vertices.columns
+    assert "weight" in result.edges.columns
+    assert result.vertices.count() == 5
+    assert result.edges.count() == edges.count()
+
+
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
 def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> None:
     edges = spark.createDataFrame(

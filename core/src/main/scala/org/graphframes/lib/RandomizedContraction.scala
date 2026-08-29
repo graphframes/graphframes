@@ -29,6 +29,10 @@ import scala.util.Random
  *
  * The algorithm contracts the graph iteratively using random linear functions, until no edges
  * remain, then reconstructs the component identifiers.
+ *
+ * Improvements compared to the original paper:
+ *   - fusing symmetrization to the representative choosing
+ *   - remove the first heavy distinct op
  */
 private[graphframes] object RandomizedContraction extends Logging with Serializable {
   private val CHECKPOINT_NAME_PREFIX = "randomized-contraction"
@@ -39,11 +43,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
     val edges = graph.indexedEdges
       .select(col(LONG_SRC).as(SRC), col(LONG_DST).as(DST))
-    val symmetricEdges = edges
-      .union(edges.select(col(DST).alias(SRC), col(SRC).alias(DST)))
-      .distinct()
-    GraphFrame(vertices, symmetricEdges)
 
+    GraphFrame(vertices, edges)
   }
 
   def run(
@@ -126,10 +127,23 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
         stackA.push(rA)
         stackB.push(rB)
 
+        /// trick:
+        /// instead of symmetrization (heavy)
+        /// we sent bi-directional messages
+        ///
+        /// CSE will resolve this into 2 calls of axpb and one least call
+        /// per both directions;
+        ///
+        /// instead of scanning double-edges and 3 calls per both directions.
         ccRepresentatives = edges
-          .groupBy(SRC)
-          .agg(min(axpb(rA, col(DST), rB)).alias("rep"))
-          .select(col(SRC).alias("v"), least(axpb(rA, col(SRC), rB), col("rep")).alias("rep"))
+          .withColumn("msg", least(axpb(rA, col(SRC), rB), axpb(rA, col(DST), rB)))
+          .select(
+            explode(
+              array(
+                struct(col(SRC).alias("v"), col("msg")),
+                struct(col(DST).alias("v"), col("msg")))).alias("arr"))
+          .groupBy(col("arr.v").alias("v"))
+          .agg(min(col("arr.msg")).alias("rep"))
 
         // "free" checkpointing
         ccRepresentatives.write.parquet(tableName(iter))
@@ -238,6 +252,20 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
           .select(
             col(ID),
             coalesce(col("new_component"), col(ID))
+              .alias(ConnectedComponents.COMPONENT))
+      } else if (!inputGraph.hasIntegralIdType) {
+        // `finalReps` is keyed by the internal LongType vertex index, not by the original
+        // vertex ID, so for non-integral ID types the results have to be mapped back through
+        // `indexedVertices`. Joining `inputGraph.vertices` on ID directly would make Spark
+        // coerce the two sides to a common type, which either fails with CAST_INVALID_INPUT
+        // (ANSI mode) or silently produces wrong results.
+        // See https://github.com/graphframes/graphframes/issues/892
+        inputGraph.indexedVertices
+          .withColumnRenamed(ID, ConnectedComponents.ORIG_ID)
+          .join(finalReps, col(ID) === col(LONG_ID), "left")
+          .select(
+            col(ConnectedComponents.ORIG_ID).alias(ID),
+            coalesce(col(ConnectedComponents.COMPONENT), col(LONG_ID))
               .alias(ConnectedComponents.COMPONENT))
       } else {
         inputGraph.vertices
