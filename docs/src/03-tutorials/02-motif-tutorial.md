@@ -11,14 +11,14 @@ Graphlets are small, connected subgraphs of a larger graph. Network motifs are r
 
 <figure>
     <img src="../img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
-    <figcaption style="color: white"><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
+    <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
 </figure>
 
 The eight smallest of these — the 2-node and 3-node directed graphlets — are the ones we will actually query in this tutorial:
 
 <figure>
     <img src="../img/motif-diagrams/motif-directed-graphlets-overview.svg" width="750px" alt="The eight 2-node and 3-node directed graphlets" />
-    <figcaption style="color: white">The 2-node and 3-node directed graphlets: G1-G4 above, G5-G8 below</figcaption>
+    <figcaption>The 2-node and 3-node directed graphlets: G1-G4 above, G5-G8 below</figcaption>
 </figure>
 
 We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames' motif finding feature to find network motifs in the graph. You'll see how to combine graph and relational queries to find complex patterns in the graph.
@@ -174,7 +174,7 @@ A complete description of the graph query language is in the [GraphFrames User G
 
 <figure>
     <img src="../img/motif-diagrams/motif-g4-g5-triangles.svg" width="620px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
-    <figcaption style="color: white">
+    <figcaption>
         <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
     </figcaption>
 </figure>
@@ -246,7 +246,7 @@ The dominant instance is a cycle of three linked Questions:
 
 <figure>
     <img src="../img/motif-diagrams/motif-g4-stackexchange.svg" width="400px" alt="G4 in Stack Exchange: a cycle of three linked Questions" />
-    <figcaption style="color: white">The most common G4 continuous triangle: three Questions linked in a cycle (24 instances)</figcaption>
+    <figcaption>The most common G4 continuous triangle: three Questions linked in a cycle (24 instances)</figcaption>
 </figure>
 
 Let's try a different triangle, a divergent triangle. The code to visualize a 3-edged motif is the same each time.
@@ -308,7 +308,7 @@ The top two account for most of the divergent triangles:
 
 <figure>
     <img src="../img/motif-diagrams/motif-g5-stackexchange.svg" width="800px" alt="The two most common G5 divergent triangles in Stack Exchange" />
-    <figcaption style="color: white">The two dominant G5 instances: a Tag shared by two linked Questions, and a User answering their own Question</figcaption>
+    <figcaption>The two dominant G5 instances: a Tag shared by two linked Questions, and a User answering their own Question</figcaption>
 </figure>
 
 ## Property Graph Motifs
@@ -325,7 +325,7 @@ Visually this pattern looks like this:
 
 <figure>
     <img src="../img/motif-diagrams/motif-g30-opposed-3path.svg" width="260px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
-    <figcaption style="color: white">
+    <figcaption>
         <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
     </figcaption>
 </figure>
@@ -400,7 +400,7 @@ Votes dominate the top of this table. The second-ranked instance is a pair of Vo
 
 <figure>
     <img src="../img/motif-diagrams/motif-g30-stackexchange.svg" width="400px" alt="G30 in Stack Exchange: two Votes cast for a pair of linked Questions" />
-    <figcaption style="color: white">A common G30 instance: two Votes cast for two linked Questions (300,017 instances)</figcaption>
+    <figcaption>A common G30 instance: two Votes cast for two linked Questions (300,017 instances)</figcaption>
 </figure>
 
 How many of these motifs are there in the graph? Let's count them.

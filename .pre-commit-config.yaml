@@ -37,4 +37,4 @@ repos:
     rev: v2.4.2
     hooks:
       - id: codespell
-        exclude: ^(graphx|python/tutorials/)
+        exclude: ^(graphx|python/graphframes/tutorials/)

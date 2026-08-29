@@ -228,7 +228,7 @@ def cypher(query: str, count_query: str = "") -> DataFrame:
 
 A `query` read is **single-partition** unless you tell the connector how many rows to expect. The two big reads below pass a `count_query` and get `PARTITIONS` workers; the small verification queries at the end leave it off, where one partition is fine.
 
-### Read the gG
+### Verify and Count the Neo4j Data
 Cypher aliases do the rest. Return columns named `id`, `src`, `dst` and `relationship` and the DataFrames arrive in exactly the shape `GraphFrame` wants — nothing to rename afterwards.
 
 ```python

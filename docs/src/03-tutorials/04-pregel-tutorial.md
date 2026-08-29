@@ -31,7 +31,7 @@ The core idea is deceptively simple: **think like a vertex**. Instead of writing
 
 <figure>
     <img src="../img/Pregel-Compute-Dataflow.png" width="650px" alt="Pregel BSP Compute Dataflow" />
-    <figcaption style="color: white"><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
+    <figcaption><a href="http://stanford.edu/~rezab/dao/">CME 323: Distributed Algorithms and Optimization, Reza Zadeh, Databricks and Stanford</a></figcaption>
 </figure>
 
 Computation proceeds in a series of **supersteps**. In each superstep:
@@ -42,21 +42,21 @@ Computation proceeds in a series of **supersteps**. In each superstep:
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-bsp-model.svg" width="800px" alt="Bulk Synchronous Parallel Model" />
-    <figcaption style="color: white">The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
+    <figcaption>The BSP model: Compute → Communicate → Barrier, repeated until convergence</figcaption>
 </figure>
 
 This barrier synchronization is what makes Pregel algorithms easy to reason about. At any point during execution, you know that all vertices are in the same superstep. There are no race conditions, no stale reads, no distributed coordination headaches. You trade some potential parallelism for massive simplification of the programming model.
 
 <figure>
     <img src="../img/Pregel-Paper-Vertex-State-Machine.png" width="400px" alt="Pregel Vertex State Machine" />
-    <figcaption style="color: white">Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices alternate between active and inactive states</figcaption>
+    <figcaption>Vertex state machine from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices alternate between active and inactive states</figcaption>
 </figure>
 
 Vertices can **vote to halt** — marking themselves inactive. An inactive vertex is woken up when it receives a new message. When all vertices have voted to halt and there are no messages in transit, the algorithm terminates. This is how Pregel algorithms converge: vertices stop updating when their state stabilizes.
 
 <figure>
     <img src="../img/Pregel-Paper-Supersteps.png" width="450px" alt="Pregel supersteps from the original paper" />
-    <figcaption style="color: white">Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices send messages and receive them in the next superstep</figcaption>
+    <figcaption>Superstep progression from the <a href="https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf">Pregel: A System for Large-Scale Graph Processing</a>: vertices send messages and receive them in the next superstep</figcaption>
 </figure>
 
 ## The Power of Local Computation
@@ -175,7 +175,7 @@ The most basic graph metric is **in-degree**: how many edges point to each verte
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-in-degree-am.svg" width="700px" alt="In-degree computation with AggregateMessages" />
-    <figcaption style="color: white">AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
+    <figcaption>AggregateMessages: each source sends 1 to its destination, destinations sum their messages</figcaption>
 </figure>
 
 ```python
@@ -288,7 +288,7 @@ Let's compute the same in-degree metric using Pregel. This is intentionally over
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-in-degree-pregel.svg" width="700px" alt="In-degree computation with Pregel" />
-    <figcaption style="color: white">Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
+    <figcaption>Pregel in-degree: initialize to 0, send 1 along each edge, sum at destination</figcaption>
 </figure>
 
 ```python
@@ -342,7 +342,7 @@ PageRank is the algorithm that launched Google. Defined by Larry Page and Sergey
 
 <figure>
     <img src="../img/Simplified-PageRank-Calculation.png" width="550px" alt="Simplified PageRank Calculation" />
-    <figcaption style="color: white">A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Ranking: Bringing Order to the Web</a></figcaption>
+    <figcaption>A simplified PageRank calculation, from the <a href="https://www.cis.upenn.edu/~mkearns/teaching/NetworkedLife/pagerank.pdf">The PageRank Citation Ranking: Bringing Order to the Web</a></figcaption>
 </figure>
 
 The PageRank formula for a vertex `v` is:
@@ -465,7 +465,7 @@ After convergence, all vertices in the same connected component will have the sa
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-connected-components.svg" width="800px" alt="Connected components label propagation across supersteps" />
-    <figcaption style="color: white">Minimum-label connected components: each vertex starts with its own ID; the component minimum advances one hop per superstep until every vertex in a component shares the same label</figcaption>
+    <figcaption>Minimum-label connected components: each vertex starts with its own ID; the component minimum advances one hop per superstep until every vertex in a component shares the same label</figcaption>
 </figure>
 
 ```python
@@ -640,7 +640,7 @@ Shortest paths in Pregel is essentially BFS implemented as message passing. The 
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-wavefront.svg" width="800px" alt="BFS wavefront expanding one hop per superstep" />
-    <figcaption style="color: white">The shortest-path wavefront: only the source starts at distance 0; each superstep reaches the next ring of neighbors while unreached vertices remain INF</figcaption>
+    <figcaption>The shortest-path wavefront: only the source starts at distance 0; each superstep reaches the next ring of neighbors while unreached vertices remain INF</figcaption>
 </figure>
 
 This wavefront property is why the distance distribution is so informative. Each row in the distribution corresponds to one superstep's work. If distance 3 has the most vertices, it means the third ring of neighbors from the source is the densest — which tells you something about the graph's local structure around your source vertex.
@@ -812,14 +812,14 @@ Every Pregel algorithm answers four questions. They are not arbitrary: each one 
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-four-question-mapping.svg" width="700px" alt="Four design questions mapped to Pregel paper concepts and GraphFrames API" />
-    <figcaption style="color: white">Each design question maps to a Pregel paper concept and a GraphFrames API call</figcaption>
+    <figcaption>Each design question maps to a Pregel paper concept and a GraphFrames API call</figcaption>
 </figure>
 
 Let's walk through how to answer them for a hypothetical new problem: **computing the average answer score for each tag in the Stack Exchange graph**. Tags connect to Questions, Questions connect to Answers, and Answers have scores. We want each Tag to know the average score of all Answers to its tagged Questions.
 
 <figure>
     <img src="../img/pregel-diagrams/pregel-four-question-example.svg" width="700px" alt="Answer scores propagating through Questions to Tags" />
-    <figcaption style="color: white">Worked example: answer scores and counts propagate Answer → Question → Tag; the tag average is total / count</figcaption>
+    <figcaption>Worked example: answer scores and counts propagate Answer → Question → Tag; the tag average is total / count</figcaption>
 </figure>
 
 **Question 1: What vertex state do I need?**
