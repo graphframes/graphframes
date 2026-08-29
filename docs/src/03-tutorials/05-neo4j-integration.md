@@ -255,7 +255,7 @@ Matching on `:Node` — the shared label, not the type labels — is what makes 
 Connected Components is the kind of expensive, iterative algorithm over an entire graph that is well suited to Spark's distributed compute. GraphFrames treats edges as undirected here, so a component is a set of nodes reachable from one another by any path.
 
 ```python
-components = graph.connectedComponents().select("id", "Type", "component").cache()
+components = graph.connectedComponents(algorithm="graphframes").select("id", "Type", "component").cache()
 print(f"Components found: {components.select('component').distinct().count():,}")
 
 largest = components.groupBy("component").count().orderBy(F.desc("count")).first()["component"]
