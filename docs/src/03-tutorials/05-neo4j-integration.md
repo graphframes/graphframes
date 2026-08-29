@@ -305,6 +305,7 @@ This is an upsert, and three separate things make it one:
 - **`Overwrite` means MERGE.** The connector maps Spark's save modes onto Cypher: `Overwrite` becomes a `MERGE` on `node.keys`, `Append` a bare `CREATE`. Because every `id` here already exists, the MERGE matches rather than creates, and sets `component` **in place** — no new nodes, no dropped type labels, no disturbance to the properties loaded in Step 3.
 - **`:Node` alone, not `:Node:Question`.** Matching the shared label means this one write updates every node type at once.
 - **The constraint from Step 3.** Without the uniqueness constraint on `:Node(id)`, each of the 129,751 MERGEs would scan every `:Node` in the database looking for its match. With it, each one is an index lookup. This is the whole reason `graphframes neo4j load` creates the constraint before it writes anything.
+- **SKIP/LIMIT are not allowed at the end of the query.** The connector rewrites `query` reads to partition them. Use `DataFrame.limit()` instead. When you read via .option("query", ...), the connector doesn't run your Cypher verbatim. It treats it as a template and appends its own pagination clauses so it can split the read across Spark partitions:
 
 Now ask a question that mixes the property graph with the result Spark just computed:
 
@@ -369,8 +370,6 @@ graphframes neo4j remove --yes && graphframes neo4j setup && graphframes neo4j l
 **`key not found: ArrayType(StringType,true)`.** Connector 6.0.0's schema-optimization code cannot map array columns. Do not pass `schema.optimization.node.keys` on a write whose DataFrame contains one; create the constraint up front on an empty DataFrame, as in Step 3.
 
 **`TransientException` mentioning a deadlock wait cycle.** Concurrent partitions are contending for the relationship-group lock of a dense node. Write relationships from a single partition, or repartition so no two partitions touch the same dense node.
-
-**`SKIP/LIMIT are not allowed at the end of the query`.** The connector rewrites `query` reads to partition them. Use `DataFrame.limit()` instead.
 
 ## Next Steps
 
