@@ -1,5 +1,7 @@
 import logging
 
+from graphframes.tutorials import download
+
 logger = logging.getLogger(__name__)
 
 MISSING_TUTORIALS_EXTRA_MSG = (
@@ -13,7 +15,7 @@ def main():
     try:
         import click
 
-        from graphframes.tutorials import download, neo4j_cli
+        from graphframes.tutorials import neo4j_cli
     except ImportError as err:
         logger.error("%s (%s)", MISSING_TUTORIALS_EXTRA_MSG, err)
         raise SystemExit(1) from err

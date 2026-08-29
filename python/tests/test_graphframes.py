@@ -360,7 +360,10 @@ def test_all_paths(local_g: GraphFrame) -> None:
 
     # With edge filter that removes the 'follow' edge: no path A->C
     paths_filtered = local_g.all_paths(
-        "name='A'", "name='C'", edge_filter="action!='follow'", use_local_checkpoints=True
+        "name='A'",
+        "name='C'",
+        edge_filter="action!='follow'",
+        use_local_checkpoints=True,
     )
     assert paths_filtered.count() == 0
 

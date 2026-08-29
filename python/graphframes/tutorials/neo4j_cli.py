@@ -83,7 +83,8 @@ def _docker(args: List[str], check: bool = True) -> subprocess.CompletedProcess:
 def _container_state(name: str) -> Optional[str]:
     """Return the container's state ('running', 'exited', ...), or None if it does not exist."""
     result = _docker(
-        ["ps", "-a", "--filter", f"name=^{name}$", "--format", "{{.State}}"], check=False
+        ["ps", "-a", "--filter", f"name=^{name}$", "--format", "{{.State}}"],
+        check=False,
     )
     state = result.stdout.strip()
     return state or None

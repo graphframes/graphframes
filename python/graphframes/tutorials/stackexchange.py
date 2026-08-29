@@ -89,7 +89,8 @@ def main(data_dir: str) -> None:
     # Create a list of tags
     posts_df = (
         posts_df.withColumn(
-            "ParsedTags", F.split(F.regexp_replace(F.col("Tags"), "^\\||\\|$", ""), "\\|")
+            "ParsedTags",
+            F.split(F.regexp_replace(F.col("Tags"), "^\\||\\|$", ""), "\\|"),
         )
         .drop("Tags")
         .withColumnRenamed("ParsedTags", "Tags")

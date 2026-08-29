@@ -43,7 +43,11 @@ def setup(app: Sphinx) -> None:
 
 
 def change_pathto(
-    app: Sphinx, pagename: str, templatename: str, context: dict[str, Any], doctree: Any | None
+    app: Sphinx,
+    pagename: str,
+    templatename: str,
+    context: dict[str, Any],
+    doctree: Any | None,
 ) -> None:
     """
     Replace pathto helper to change paths to folders with a leading underscore.

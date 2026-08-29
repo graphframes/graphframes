@@ -51,7 +51,9 @@ def movies_group(spark: SparkSession):
 
 @pytest.fixture(scope="module")
 def likes_group(
-    spark: SparkSession, people_group: VertexPropertyGroup, movies_group: VertexPropertyGroup
+    spark: SparkSession,
+    people_group: VertexPropertyGroup,
+    movies_group: VertexPropertyGroup,
 ):
     likes_data = spark.createDataFrame(
         [(1, 1), (1, 2), (2, 1), (3, 2), (4, 3), (5, 2)],
@@ -101,7 +103,9 @@ def people_movies_graph(
     )
 
 
-def test_property_graph_frame_constructor(people_movies_graph: PropertyGraphFrame) -> None:
+def test_property_graph_frame_constructor(
+    people_movies_graph: PropertyGraphFrame,
+) -> None:
     assert len(people_movies_graph.vertex_property_groups) == 2
     assert len(people_movies_graph.edges_property_groups) == 2
 

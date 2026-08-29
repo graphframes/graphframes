@@ -1598,7 +1598,10 @@ class GraphFrameConnect:
         @final
         class RWEmbeddings(LogicalPlan):
             def __init__(
-                self, v: DataFrame, e: DataFrame, params: _RandomWalksEmbeddingsParameters
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                params: _RandomWalksEmbeddingsParameters,
             ) -> None:
                 super().__init__(None)
                 self.v = v
