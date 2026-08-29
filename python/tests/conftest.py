@@ -34,7 +34,7 @@ def get_gf_jar_locations() -> tuple[str, str, str]:
     """
     if is_thin_client:
         return "", "", ""
-    
+
     project_root = pathlib.Path(__file__).parent.parent.parent
     graphx_dir = project_root / "graphx" / "target" / f"scala-{scala_version}"
     core_dir = project_root / "core" / "target" / f"scala-{scala_version}"
@@ -121,6 +121,7 @@ def spark():
             yield spark
             spark.stop()
 
+
 @pytest.fixture(scope="module")
 def local_g(spark: SparkSession):
     localVertices = [(1, "A"), (2, "B"), (3, "C")]
@@ -138,10 +139,12 @@ def examples(spark: SparkSession):
         yield None
     else:
         from graphframes.classic.graphframe import _java_api
+
         japi = _java_api(spark._sc)
         assert japi is not None
         examples = japi.examples()
         assert examples is not None
         from py4j.java_gateway import JavaObject
+
         assert isinstance(examples, JavaObject)
         yield examples
