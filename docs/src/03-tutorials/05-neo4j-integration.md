@@ -94,7 +94,7 @@ Wait for the message: `Started.`
 
 You can also visit <http://localhost:7474> and log in with the credentials above.
 
-## Step 2: Prepare the Stack Exchange Data
+## Step 2: Download the Stack Exchange Data
 
 See the [Data Setup Tutorial](03-data-setup.md) for instructions on downloading and processing the Stack Exchange data.
 
@@ -133,7 +133,7 @@ and 97,104 edges:
 | Links | 1,180 | Post → Post |
 | Duplicates | 88 | Post → Post |
 
-## Step 3: Load Stack Exchange Data into Neo4j
+## Step 3: Load Stack Exchange in Neo4j
 
 The `graphframes neo4j load` command creates the the nodes, edges and indices — and prints their verification counts at the end. Point it elsewhere with `--data-dir`, `--site` and the `--neo4j-*` connection options. 
 
@@ -144,10 +144,15 @@ graphframes neo4j load
 Then use the [Cypher console](http://localhost:7474/browser/) to query the data at [http://localhost:7474/browser/](http://localhost:7474/browser/):
 
 ```cypher
-MATCH (n:Node)
-RETURN n.Type AS Type, count(*) AS count
-ORDER BY count DESC
+MATCH (s:Node)-[r]->(t:Node)
+RETURN s, r, t
+LIMIT 10
 ```
+
+<figure>
+    <img style="align: center" width="770" src="../img/Neo4j-Console-Query-GraphFrames.png" alt="Neo4j Console Query of Stack Exchange Data" />
+    <figcaption>Neo4j console lets you easily query Neo4j interactively</figcaption>
+</figure>
 
 ```cypher
 MATCH (:Node)-[r]->(:Node)
@@ -176,7 +181,7 @@ Because both loads MERGE, running the whole thing a second time produces these s
 
 > **Note:** `cypher()` uses the connector's `query` option, which rewrites your query to partition it. That means it rejects a trailing `SKIP`/`LIMIT` — take the top N with `DataFrame.limit()` instead of in Cypher.
 
-## Step 4: Read the Graph Back into GraphFrames
+## Step 4: Import the Graph from Neo4j in Spark / GraphFrames
 
 Everything from here is `python/graphframes/tutorials/neo4j.py`. It needs both the GraphFrames and the Neo4j connector jars on the classpath, so run it with `spark-submit`:
 
@@ -211,7 +216,7 @@ spark = SparkSession.builder.appName("Neo4j + GraphFrames").getOrCreate()
 spark.sparkContext.setCheckpointDir("/tmp/graphframes-checkpoints/neo4j")
 ```
 
-### One helper for every read
+### Query Neo4j from PySpark
 
 ```python
 def cypher(query: str, count_query: str = "") -> DataFrame:
@@ -223,8 +228,7 @@ def cypher(query: str, count_query: str = "") -> DataFrame:
 
 A `query` read is **single-partition** unless you tell the connector how many rows to expect. The two big reads below pass a `count_query` and get `PARTITIONS` workers; the small verification queries at the end leave it off, where one partition is fine.
 
-### Read the graph
-
+### Read the gG
 Cypher aliases do the rest. Return columns named `id`, `src`, `dst` and `relationship` and the DataFrames arrive in exactly the shape `GraphFrame` wants — nothing to rename afterwards.
 
 ```python
@@ -248,7 +252,7 @@ Matching on `:Node` — the shared label, not the type labels — is what makes 
 
 ### Run Connected Components
 
-This is the expensive, iterative job we came to Spark for. GraphFrames treats edges as undirected here, so a component is a set of nodes reachable from one another by any path.
+Connected Components is the kind of expensive, iterative algorithm over an entire graph that is well suited to Spark's distributed compute. GraphFrames treats edges as undirected here, so a component is a set of nodes reachable from one another by any path.
 
 ```python
 components = graph.connectedComponents().select("id", "Type", "component").cache()
@@ -263,7 +267,7 @@ components.filter(F.col("component") == largest).groupBy("Type").count().orderBy
 
 `connectedComponents()` returns the vertex DataFrame with a `component` column added, so `Type` survives the call and the breakdown below costs no extra join.
 
-On `stats.meta.stackexchange.com` this finds **40,115 components**, and the distribution is the interesting part: one giant component holds 56,442 nodes — the connected core of the site — and everything else is tiny. Breaking that core down by type shows what it is made of:
+On `stats.meta.stackexchange.com` this finds **40,115 components**, and the distribution is the interesting part: one giant component holds 56,442 nodes — the connected core of the site — and everything else is tiny. Breaking that core down by type shows what it's made of:
 
 ```
 +--------+------+
@@ -328,15 +332,13 @@ spark.stop()
 
 `u.component` came from Spark; `[:Earns]->(b:Badge)` came from Neo4j. All 129,751 nodes now carry a `component`, queryable alongside everything else — in the browser, from Cypher, or from an application. That is the round trip: Neo4j stored the graph, Spark did the work that does not fit on one machine, and Neo4j got the answer back.
 
-## Step 6: Clean Up
+## Step 6: Cleanup!
 
-When you are done, remove the container and the data it wrote to your disk:
+When you are done, remove the container and its data:
 
 ```bash
 graphframes neo4j remove
 ```
-
-It lists what it is about to delete and asks before doing it. Pass `--yes` to skip the prompt in a script, or `--keep-data` to drop the container but leave `/tmp/neo4j-data` in place so a later `graphframes neo4j setup` comes back with the graph still loaded.
 
 To do it by hand:
 
@@ -373,5 +375,5 @@ graphframes neo4j remove --yes && graphframes neo4j setup && graphframes neo4j l
 ## Next Steps
 
 - Swap `connectedComponents()` for [PageRank](../04-user-guide/03-centralities.md) or [Label Propagation](../04-user-guide/06-graph-clustering.md) and write those results back the same way
-- Use [motif finding](02-motif-tutorial.md) to search for patterns that Cypher expresses awkwardly, then persist what you find
-- Point `graphframes neo4j load --site` at a larger site and raise the relationship-load parallelism as described in Step 3
+- Use [motif finding](02-motif-tutorial.md) to search for patterns that Cypher expresses awkwardly, then persist what you find. Then run another motif including that field!
+- Point `graphframes neo4j load --site` at a larger site :)

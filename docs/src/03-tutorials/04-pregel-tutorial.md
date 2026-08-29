@@ -2,8 +2,6 @@
 
 This tutorial covers GraphFrames' @:pydoc(graphframes.lib.Pregel) API for developing scalable, iterative graph algorithms using **Apache Spark 4.x**. We will implement progressively complex algorithms — from simple degree counting to path-tracing algorithms — using the same Stack Exchange knowledge graph from the [Motif Finding Tutorial](02-motif-tutorial.md).
 
-A Jupyter Notebook version of this tutorial is available on GitHub: [Pregel Tutorial Notebook](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Pregel.ipynb).
-
 [Pregel](https://15799.courses.cs.cmu.edu/fall2013/static/papers/p135-malewicz.pdf) is a vertex-centric programming model for distributed graph processing. It was introduced by Google engineers in 2010 and has become the foundation for graph computation at scale. GraphFrames implements the Pregel model using Apache Spark DataFrames, giving you the full power of Spark's query optimizer and distributed execution engine behind a clean, declarative API.
 
 By the end of this tutorial, you will understand how to think in Pregel — how to decompose graph problems into local vertex computations that converge to global solutions through iterative message passing. This is a fundamentally different way of thinking about graph algorithms, and it unlocks computations that are difficult or impossible to express with traditional graph queries or even GraphFrames' built-in algorithms.
