@@ -1,21 +1,23 @@
+# Python hook paths must stay in sync with the `lint` job in
+# .github/workflows/python-ci.yml.
 repos:
   - repo: local
     hooks:
       - id: black
         name: black
-        entry: bash -c 'cd python && poetry run black --config pyproject.toml graphframes/ dev/ ../dev/' --
+        entry: bash -c 'cd python && poetry run black --config pyproject.toml graphframes/ tests/ docs/ dev/ ../dev/' --
         language: system
         types: [python]
 
       - id: flake8
         name: flake8
-        entry: bash -c 'cd python && poetry run flake8 graphframes/ dev/ ../dev/' --
+        entry: bash -c 'cd python && poetry run flake8 graphframes/ tests/ docs/ dev/ ../dev/' --
         language: system
         types: [python]
 
       - id: isort
         name: isort
-        entry: bash -c 'cd python && poetry run isort --settings-path pyproject.toml graphframes/ dev/ ../dev/' --
+        entry: bash -c 'cd python && poetry run isort --settings-path pyproject.toml graphframes/ tests/ docs/ dev/ ../dev/' --
         language: system
         types: [python]
 
