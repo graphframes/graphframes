@@ -192,6 +192,36 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
+  test("RandomizedContraction: cleans up checkpoint files after failure") {
+    val graph = Graphs.chain(3L)
+    val checkpointRoot = new org.apache.hadoop.fs.Path(spark.sparkContext.getCheckpointDir.get)
+
+    intercept[ArithmeticException] {
+      RandomizedContraction
+        .run(
+          inputGraph = graph,
+          useLabelsAsComponents = false,
+          intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+          useLocalCheckpoints = true,
+          checkpointInterval = 0,
+          isGraphPrepared = false)
+        .count()
+    }
+
+    val fs = checkpointRoot.getFileSystem(spark.sparkContext.hadoopConfiguration)
+    val remainingCheckpointDirs =
+      if (fs.exists(checkpointRoot)) {
+        fs
+          .listStatus(checkpointRoot)
+          .map(_.getPath.getName)
+          .filter(_.startsWith("randomized-contraction-"))
+      } else {
+        Array.empty[String]
+      }
+    assert(remainingCheckpointDirs.isEmpty)
+    assertFunctionRegistryClean()
+  }
+
   test("RandomizedContraction: no memory leaks") {
     val priorCached = spark.sparkContext.getPersistentRDDs
 
