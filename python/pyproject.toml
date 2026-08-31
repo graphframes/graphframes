@@ -104,7 +104,10 @@ graphframes = "graphframes.console:main"
 [tool.black]
 line-length = 100
 target-version = ["py39"]
-include = ["graphframes"]
+# `include` must be a regex string, not a list. A list silently disables black's
+# default `\.pyi?$` filter, making black try to parse non-Python files (Makefile,
+# .rst, .css) when it is handed a directory.
+include = "\\.pyi?$"
 
 required-version = "23.12.1"
 

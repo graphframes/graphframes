@@ -24,9 +24,7 @@ from pyspark.sql import functions as sqlfunctions
 from pyspark.sql.utils import is_remote
 from pyspark.storagelevel import StorageLevel
 
-from graphframes.graphframe import AggregateNeighbors
-
-from graphframes.graphframe import GraphFrame, RandomWalkEmbeddings
+from graphframes.graphframe import AggregateNeighbors, GraphFrame, RandomWalkEmbeddings
 
 
 @dataclass
@@ -359,16 +357,22 @@ def test_all_paths(local_g: GraphFrame) -> None:
     assert paths_list[0]["len"] == 2
 
     # With edge filter that removes the 'follow' edge: no path A->C
-    paths_filtered = local_g.all_paths("name='A'", "name='C'", edge_filter="action!='follow'", use_local_checkpoints=True)
+    paths_filtered = local_g.all_paths(
+        "name='A'", "name='C'", edge_filter="action!='follow'", use_local_checkpoints=True
+    )
     assert paths_filtered.count() == 0
 
     # Undirected: A->B->C and A->B->A (no simple path to C via A again),
     # but also C->B->A is now possible, still only A->B->C from A to C
-    paths_undirected = local_g.all_paths("name='A'", "name='C'", is_directed=False, use_local_checkpoints=True)
+    paths_undirected = local_g.all_paths(
+        "name='A'", "name='C'", is_directed=False, use_local_checkpoints=True
+    )
     assert paths_undirected.count() >= 1
 
     # max_path_length too short: no paths
-    paths_short = local_g.all_paths("name='A'", "name='C'", max_path_length=1, use_local_checkpoints=True)
+    paths_short = local_g.all_paths(
+        "name='A'", "name='C'", max_path_length=1, use_local_checkpoints=True
+    )
     assert paths_short.count() == 0
 
 
@@ -747,7 +751,7 @@ def test_random_walk_embeddings_api(local_g: GraphFrame) -> None:
 
 def test_random_walk_embeddings_invalid_args(local_g: GraphFrame) -> None:
     rwe = RandomWalkEmbeddings(local_g)
-    
+
     with pytest.raises(ValueError, match="supported decay functions are"):
         rwe.set_hash2vec(decay_function="invalid_function")
 
@@ -793,6 +797,7 @@ def test_approx_triangle_counts(spark: SparkSession) -> None:
         with pytest.raises(ValueError, match=".*requires Spark.*"):
             c = g.triangleCount(storage_level=StorageLevel.MEMORY_AND_DISK, algorithm="approx")
 
+
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
 def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
     vertices = spark.createDataFrame(
@@ -814,9 +819,7 @@ def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
 @pytest.mark.parametrize("storage_level", STORAGE_LEVELS, ids=STORAGE_LEVELS_IDS)
 def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
     # Create a graph with isolated vertices
-    vertices = spark.createDataFrame(
-        [(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"]
-    )
+    vertices = spark.createDataFrame([(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"])
 
     # Only connect vertices 0 and 1
     edges = spark.createDataFrame([(0, 1, "edge1")], ["src", "dst", "name"])
@@ -836,7 +839,7 @@ def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_svd_plus_plus(examples, spark: SparkSession):
     from graphframes.classic.graphframe import _from_java_gf
-    
+
     g = _from_java_gf(getattr(examples, "ALSSyntheticData")(), spark)
     (v2, cost) = g.svdPlusPlus()
     _df_hasCols(v2, vcols=["id", "column1", "column2", "column3", "column4"])
@@ -869,9 +872,8 @@ def test_mutithreaded_sparksession_usage(spark: SparkSession):
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_belief_propagation(spark: SparkSession):
-    from graphframes.examples import BeliefPropagation
-    from graphframes.examples import Graphs
-    
+    from graphframes.examples import BeliefPropagation, Graphs
+
     # Create a graphical model g of size 3x3.
     g = Graphs(spark).gridIsingModel(3)
     # Run Belief Propagation (BP) for 5 iterations.
@@ -886,7 +888,7 @@ def test_belief_propagation(spark: SparkSession):
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_graph_friends(spark: SparkSession):
     from graphframes.examples import Graphs
-    
+
     # Construct the graph.
     g = Graphs(spark).friends()
     # Check that the result is an instance of GraphFrame.
@@ -896,7 +898,7 @@ def test_graph_friends(spark: SparkSession):
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_graph_grid_ising_model(spark: SparkSession):
     from graphframes.examples import Graphs
-    
+
     # Construct a grid Ising model graph.
     n = 3
     g = Graphs(spark).gridIsingModel(n)
@@ -982,21 +984,17 @@ def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
     # Validate hierarchical structure
     # Core vertices (0-4) should have highest k-core
     for i in range(5):
-        assert kcore_map[i] >= 4, (
-            f"Core vertex {i} should have high k-core, got {kcore_map[i]}"
-        )
+        assert kcore_map[i] >= 4, f"Core vertex {i} should have high k-core, got {kcore_map[i]}"
 
     # Mid-layer vertices (5-14) should have medium k-core
     for i in range(5, 15):
-        assert 2 <= kcore_map[i] <= 4, (
-            f"Mid-layer vertex {i} should have medium k-core, got {kcore_map[i]}"
-        )
+        assert (
+            2 <= kcore_map[i] <= 4
+        ), f"Mid-layer vertex {i} should have medium k-core, got {kcore_map[i]}"
 
     # Outer vertices (15-29) should have low k-core
     for i in range(15, 30):
-        assert kcore_map[i] <= 2, (
-            f"Outer vertex {i} should have low k-core, got {kcore_map[i]}"
-        )
+        assert kcore_map[i] <= 2, f"Outer vertex {i} should have low k-core, got {kcore_map[i]}"
 
     _ = result.unpersist()
 
