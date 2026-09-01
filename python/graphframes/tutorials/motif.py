@@ -119,12 +119,7 @@ def main(data_dir: str) -> None:
 
     graphlet_count_df = (
         graphlet_type_df.groupby(
-            "A_Type",
-            "(a)-[e1]->(b)",
-            "B_Type",
-            "(b)-[e2]->(c)",
-            "C_Type",
-            "(c)-[e3]->(a)",
+            "A_Type", "(a)-[e1]->(b)", "B_Type", "(b)-[e2]->(c)", "C_Type", "(c)-[e3]->(a)"
         )
         .count()
         .orderBy(F.col("count").desc())
@@ -147,12 +142,7 @@ def main(data_dir: str) -> None:
 
     graphlet_count_df = (
         graphlet_type_df.groupby(
-            "A_Type",
-            "(a)-[e1]->(b)",
-            "B_Type",
-            "(a)-[e2]->(c)",
-            "C_Type",
-            "(c)-[e3]->(b)",
+            "A_Type", "(a)-[e1]->(b)", "B_Type", "(a)-[e2]->(c)", "C_Type", "(c)-[e3]->(b)"
         )
         .count()
         .orderBy(F.col("count").desc())
@@ -192,15 +182,7 @@ def main(data_dir: str) -> None:
     graphlet_count_df.show()
 
     graphlet_count_df.orderBy(
-        [
-            "A_Type",
-            "(a)-[e1]->(b)",
-            "B_Type",
-            "(b)-[e2]->(c)",
-            "C_Type",
-            "(d)-[e3]->(c)",
-            "D_Type",
-        ],
+        ["A_Type", "(a)-[e1]->(b)", "B_Type", "(b)-[e2]->(c)", "C_Type", "(d)-[e3]->(c)", "D_Type"],
         ascending=False,
     ).show(104)
 

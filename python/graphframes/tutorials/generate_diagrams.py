@@ -39,9 +39,7 @@ def save_diagram(
         # Post-process SVG:
         # 1. Add a white background rect so the diagram isn't transparent
         svg_text = re.sub(
-            r"(<svg[^>]*>)",
-            r'\1<rect width="100%" height="100%" fill="white"/>',
-            svg_text,
+            r"(<svg[^>]*>)", r'\1<rect width="100%" height="100%" fill="white"/>', svg_text
         )
         # 2. Lift edge labels off the line they annotate. Mermaid centres each
         #    label on the edge midpoint, so it sits on top of the line (and

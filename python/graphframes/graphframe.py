@@ -1109,10 +1109,7 @@ class GraphFrame:
         )
 
     def triangleCount(
-        self,
-        storage_level: StorageLevel,
-        algorithm: str = "exact",
-        lg_nom_entries: int = 12,
+        self, storage_level: StorageLevel, algorithm: str = "exact", lg_nom_entries: int = 12
     ) -> DataFrame:
         """
         Computes the number of triangles passing through each vertex.
@@ -1141,9 +1138,7 @@ class GraphFrame:
             err_msg += f" version {spark_version[:3]} is not supported"
             raise ValueError(err_msg)
         return self._impl.triangleCount(
-            storage_level=storage_level,
-            algorithm=algorithm,
-            log_nom_entries=lg_nom_entries,
+            storage_level=storage_level, algorithm=algorithm, log_nom_entries=lg_nom_entries
         )
 
     def powerIterationClustering(

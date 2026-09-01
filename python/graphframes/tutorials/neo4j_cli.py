@@ -83,8 +83,7 @@ def _docker(args: List[str], check: bool = True) -> subprocess.CompletedProcess:
 def _container_state(name: str) -> Optional[str]:
     """Return the container's state ('running', 'exited', ...), or None if it does not exist."""
     result = _docker(
-        ["ps", "-a", "--filter", f"name=^{name}$", "--format", "{{.State}}"],
-        check=False,
+        ["ps", "-a", "--filter", f"name=^{name}$", "--format", "{{.State}}"], check=False
     )
     state = result.stdout.strip()
     return state or None
@@ -95,8 +94,7 @@ def _wait_for_neo4j(name: str, user: str, password: str, timeout: int) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         probe = _docker(
-            ["exec", name, "cypher-shell", "-u", user, "-p", password, "RETURN 1;"],
-            check=False,
+            ["exec", name, "cypher-shell", "-u", user, "-p", password, "RETURN 1;"], check=False
         )
         if probe.returncode == 0:
             return True

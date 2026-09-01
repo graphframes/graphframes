@@ -24,9 +24,7 @@ from pyspark.sql import functions as sqlfunctions
 from pyspark.sql.utils import is_remote
 from pyspark.storagelevel import StorageLevel
 
-from graphframes.graphframe import AggregateNeighbors
-
-from graphframes.graphframe import GraphFrame, RandomWalkEmbeddings
+from graphframes.graphframe import AggregateNeighbors, GraphFrame, RandomWalkEmbeddings
 
 
 @dataclass
@@ -360,10 +358,7 @@ def test_all_paths(local_g: GraphFrame) -> None:
 
     # With edge filter that removes the 'follow' edge: no path A->C
     paths_filtered = local_g.all_paths(
-        "name='A'",
-        "name='C'",
-        edge_filter="action!='follow'",
-        use_local_checkpoints=True,
+        "name='A'", "name='C'", edge_filter="action!='follow'", use_local_checkpoints=True
     )
     assert paths_filtered.count() == 0
 
@@ -877,8 +872,7 @@ def test_mutithreaded_sparksession_usage(spark: SparkSession):
 
 @pytest.mark.skipif(is_remote(), reason="DISABLE FOR CONNECT")
 def test_belief_propagation(spark: SparkSession):
-    from graphframes.examples import BeliefPropagation
-    from graphframes.examples import Graphs
+    from graphframes.examples import BeliefPropagation, Graphs
 
     # Create a graphical model g of size 3x3.
     g = Graphs(spark).gridIsingModel(3)

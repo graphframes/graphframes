@@ -25,12 +25,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-:Description: Sphinx extension to remove leading under-scores from directories names in the html build output directory.
+:Description: Sphinx extension to remove leading under-scores from directory
+names in the html build output directory.
 """
 import os
 import shutil
 from collections.abc import Callable
 from typing import Any
+
 from sphinx.application import Sphinx
 
 
@@ -43,11 +45,7 @@ def setup(app: Sphinx) -> None:
 
 
 def change_pathto(
-    app: Sphinx,
-    pagename: str,
-    templatename: str,
-    context: dict[str, Any],
-    doctree: Any | None,
+    app: Sphinx, pagename: str, templatename: str, context: dict[str, Any], doctree: Any | None
 ) -> None:
     """
     Replace pathto helper to change paths to folders with a leading underscore.
