@@ -132,10 +132,9 @@ def cypher(query: str, count_query: str = "") -> DataFrame:
 
 #
 # 1. Read the graph. The Cypher aliases are exactly the column names GraphFrames expects,
-#    so there is nothing to rename afterwards. Cache both: `vertices` is read again below
-#    to bring `Type` back after the algorithm runs, and `edges` is filtered eight ways to
-#    build one EdgePropertyGroup per relationship type - without caching, each filter would
-#    otherwise re-run the Cypher read against Neo4j.
+#    so there is nothing to rename afterwards. Cache both: `vertices` is filtered seven
+#    ways below (once per node type) and `edges` eight ways (once per relationship type) -
+#    without caching, each filter would otherwise re-run the Cypher read against Neo4j.
 #
 
 vertices = cypher(
@@ -148,39 +147,87 @@ edges = cypher(
     f"MATCH (:{LABEL})-[r]->(:{LABEL}) RETURN count(r) AS count",
 ).cache()
 
-#
-# 2. Model the graph as a PropertyGraphFrame instead of handing raw DataFrames straight to
-#    GraphFrame: one VertexPropertyGroup for the nodes (ids are already globally-unique
-#    UUIDs, so apply_mask_on_id=False skips hashing them), and one EdgePropertyGroup per
-#    relationship type, split locally out of the single `edges` read above.
-#
 
-nodes_group = VertexPropertyGroup("nodes", vertices, "id", apply_mask_on_id=False)
-edge_groups = [
-    EdgePropertyGroup(
+def _nodes_of_type(node_type: str) -> DataFrame:
+    return vertices.filter(F.col("Type") == node_type).select("id")
+
+
+def _edges_of_type(relationship: str) -> DataFrame:
+    return edges.filter(F.col("relationship") == relationship).select("src", "dst")
+
+
+def _edge_group(relationship: str, src_group: VertexPropertyGroup, dst_group: VertexPropertyGroup):
+    return EdgePropertyGroup(
         relationship,
-        edges.filter(F.col("relationship") == relationship).select("src", "dst"),
-        nodes_group,
-        nodes_group,
+        _edges_of_type(relationship),
+        src_group,
+        dst_group,
         is_directed=True,
         src_column_name="src",
         dst_column_name="dst",
     )
-    for relationship in RELATIONSHIP_TYPES
+
+
+#
+# 2. Model the graph as a PropertyGraphFrame instead of handing raw DataFrames straight to
+#    GraphFrame: one VertexPropertyGroup per real Stack Exchange node type - ids are already
+#    globally-unique UUIDs, so apply_mask_on_id=False skips hashing them, and each group is
+#    named after its Type so it doubles as one after the fact (see step 4 below). CastFor,
+#    Tags, Links and Duplicates all connect to a Post - Question or Answer, Stack Exchange's
+#    word for either - so `posts` exists purely to give those four relationship types one
+#    dst/src group to name instead of the two each could mean; it is never itself part of a
+#    vertex projection below, only referenced by the edge groups that need it.
+#
+
+users = VertexPropertyGroup("User", _nodes_of_type("User"), "id", apply_mask_on_id=False)
+badges = VertexPropertyGroup("Badge", _nodes_of_type("Badge"), "id", apply_mask_on_id=False)
+votes = VertexPropertyGroup("Vote", _nodes_of_type("Vote"), "id", apply_mask_on_id=False)
+questions = VertexPropertyGroup(
+    "Question", _nodes_of_type("Question"), "id", apply_mask_on_id=False
+)
+answers = VertexPropertyGroup("Answer", _nodes_of_type("Answer"), "id", apply_mask_on_id=False)
+post_links = VertexPropertyGroup(
+    "PostLinks", _nodes_of_type("PostLinks"), "id", apply_mask_on_id=False
+)
+tags = VertexPropertyGroup("Tag", _nodes_of_type("Tag"), "id", apply_mask_on_id=False)
+post_data = vertices.filter(F.col("Type").isin("Question", "Answer")).select("id")
+posts = VertexPropertyGroup("Post", post_data, "id", apply_mask_on_id=False)
+
+NODE_TYPES = [
+    users.name,
+    badges.name,
+    votes.name,
+    questions.name,
+    answers.name,
+    post_links.name,
+    tags.name,
 ]
-property_graph = PropertyGraphFrame([nodes_group], edge_groups)
+
+property_graph = PropertyGraphFrame(
+    [users, badges, votes, questions, answers, post_links, tags, posts],
+    [
+        _edge_group("Earns", users, badges),
+        _edge_group("CastFor", votes, posts),
+        _edge_group("Tags", tags, posts),
+        _edge_group("Answers", answers, questions),
+        _edge_group("Posts", users, answers),
+        _edge_group("Asks", users, questions),
+        _edge_group("Links", posts, posts),
+        _edge_group("Duplicates", posts, posts),
+    ],
+)
 
 #
 # 3. Project the PropertyGraphFrame down to a GraphFrame. to_graphframe() always takes an
 #    explicit list of vertex/edge property groups rather than assuming "everything" - here
-#    that projection is the whole graph, because Connected Components is meant to answer
-#    "how does the whole graph connect". A narrower question - say, how users, questions
-#    and answers connect through content alone - would instead pass
-#    edge_property_groups=["Asks", "Posts", "Answers"] and leave Votes and Badges out.
+#    that projection is every real node type and every relationship, because Connected
+#    Components is meant to answer "how does the whole graph connect". A narrower question -
+#    say, how users, questions and answers connect through content alone - would instead
+#    pass edge_property_groups=["Asks", "Posts", "Answers"] and leave Votes and Badges out.
 #
 
 graph = property_graph.to_graphframe(
-    vertex_property_groups=["nodes"], edge_property_groups=RELATIONSHIP_TYPES
+    vertex_property_groups=NODE_TYPES, edge_property_groups=RELATIONSHIP_TYPES
 )
 step(
     "Counting vertices and edges - the first read, so this is where a bad URL or password shows up."
@@ -195,10 +242,14 @@ print(f"Vertices: {graph.vertices.count():,}   Edges: {graph.edges.count():,}")
 #
 
 step("Running Connected Components. This is the long one - minutes, not seconds.")
-# to_graphframe() only carries `id` and `property_group` on the vertices - joining back
-# onto `vertices` is what brings `Type` back after the algorithm adds `component`.
+# Each vertex group above is named after its Type, so to_graphframe()'s "property_group"
+# column - which connectedComponents() carries through untouched alongside the new
+# "component" column - already *is* Type. No join back to `vertices` is needed.
 components = (
-    graph.connectedComponents().join(vertices, "id").select("id", "Type", "component").cache()
+    graph.connectedComponents()
+    .withColumnRenamed("property_group", "Type")
+    .select("id", "Type", "component")
+    .cache()
 )
 print(f"Components found: {components.select('component').distinct().count():,}")
 
