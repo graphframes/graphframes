@@ -31,7 +31,7 @@ import time
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame, SparkSession
 
-from graphframes import GraphFrame
+from graphframes.pg import EdgePropertyGroup, PropertyGraphFrame, VertexPropertyGroup
 
 # The Neo4j Spark Connector's DataSource name, used for every read and write below.
 NEO4J_FORMAT = "org.neo4j.spark.DataSource"
@@ -42,6 +42,11 @@ LABEL = "Node"
 
 # A 'query' read is single-partition unless we tell the connector how many rows to expect.
 PARTITIONS = 8
+
+# The eight relationship types `graphframes neo4j load` creates - see the tables in the
+# Data Setup tutorial and Step 3 below. Each becomes its own EdgePropertyGroup, which is
+# what makes this a PropertyGraphFrame instead of one flat, heterogeneous edge DataFrame.
+RELATIONSHIP_TYPES = ["Earns", "CastFor", "Tags", "Answers", "Posts", "Asks", "Links", "Duplicates"]
 
 # Defaults match `graphframes neo4j setup`. The password is a throwaway for a local tutorial
 # container, so it is a default rather than a hard-coded constant: anything real belongs in
@@ -127,31 +132,74 @@ def cypher(query: str, count_query: str = "") -> DataFrame:
 
 #
 # 1. Read the graph. The Cypher aliases are exactly the column names GraphFrames expects,
-#    so there is nothing to rename afterwards.
+#    so there is nothing to rename afterwards. Cache both: `vertices` is read again below
+#    to bring `Type` back after the algorithm runs, and `edges` is filtered eight ways to
+#    build one EdgePropertyGroup per relationship type - without caching, each filter would
+#    otherwise re-run the Cypher read against Neo4j.
 #
 
 vertices = cypher(
     f"MATCH (n:{LABEL}) RETURN n.id AS id, n.Type AS Type",
     f"MATCH (n:{LABEL}) RETURN count(n) AS count",
-)
+).cache()
 edges = cypher(
     f"MATCH (s:{LABEL})-[r]->(t:{LABEL}) "
     "RETURN s.id AS src, t.id AS dst, type(r) AS relationship",
     f"MATCH (:{LABEL})-[r]->(:{LABEL}) RETURN count(r) AS count",
-)
+).cache()
 
-graph = GraphFrame(vertices, edges)
+#
+# 2. Model the graph as a PropertyGraphFrame instead of handing raw DataFrames straight to
+#    GraphFrame: one VertexPropertyGroup for the nodes (ids are already globally-unique
+#    UUIDs, so apply_mask_on_id=False skips hashing them), and one EdgePropertyGroup per
+#    relationship type, split locally out of the single `edges` read above.
+#
+
+nodes_group = VertexPropertyGroup("nodes", vertices, "id", apply_mask_on_id=False)
+edge_groups = [
+    EdgePropertyGroup(
+        relationship,
+        edges.filter(F.col("relationship") == relationship).select("src", "dst"),
+        nodes_group,
+        nodes_group,
+        is_directed=True,
+        src_column_name="src",
+        dst_column_name="dst",
+    )
+    for relationship in RELATIONSHIP_TYPES
+]
+property_graph = PropertyGraphFrame([nodes_group], edge_groups)
+
+#
+# 3. Project the PropertyGraphFrame down to a GraphFrame. to_graphframe() always takes an
+#    explicit list of vertex/edge property groups rather than assuming "everything" - here
+#    that projection is the whole graph, because Connected Components is meant to answer
+#    "how does the whole graph connect". A narrower question - say, how users, questions
+#    and answers connect through content alone - would instead pass
+#    edge_property_groups=["Asks", "Posts", "Answers"] and leave Votes and Badges out.
+#
+
+graph = property_graph.to_graphframe(
+    vertex_property_groups=["nodes"], edge_property_groups=RELATIONSHIP_TYPES
+)
 step(
     "Counting vertices and edges - the first read, so this is where a bad URL or password shows up."
 )
+# validate() catches the two things that would otherwise fail silently or blow up mid-run:
+# duplicate vertex ids, and edges pointing at a vertex that does not exist.
+graph.validate()
 print(f"Vertices: {graph.vertices.count():,}   Edges: {graph.edges.count():,}")
 
 #
-# 2. Run Connected Components - the expensive, iterative job we came to Spark for.
+# 4. Run Connected Components - the expensive, iterative job we came to Spark for.
 #
 
 step("Running Connected Components. This is the long one - minutes, not seconds.")
-components = graph.connectedComponents().select("id", "Type", "component").cache()
+# to_graphframe() only carries `id` and `property_group` on the vertices - joining back
+# onto `vertices` is what brings `Type` back after the algorithm adds `component`.
+components = (
+    graph.connectedComponents().join(vertices, "id").select("id", "Type", "component").cache()
+)
 print(f"Components found: {components.select('component').distinct().count():,}")
 
 step("Finding the largest component.")
@@ -162,7 +210,7 @@ components.filter(F.col("component") == largest).groupBy("Type").count().orderBy
 ).show()
 
 #
-# 3. Write the component IDs back. 'Overwrite' makes the connector MERGE on node.keys, so this
+# 5. Write the component IDs back. 'Overwrite' makes the connector MERGE on node.keys, so this
 #    upserts a 'component' property onto nodes that already exist: it creates nothing, drops no
 #    labels and disturbs no other property. Matching the shared :Node label alone updates every
 #    node type in one write, and the :Node(id) constraint keeps the MERGE index-backed instead
@@ -182,7 +230,7 @@ step("Writing component IDs back to Neo4j.")
 )
 
 #
-# 4. The component IDs are queryable in Neo4j alongside everything else now. This asks a
+# 6. The component IDs are queryable in Neo4j alongside everything else now. This asks a
 #    question that mixes the property graph with the result Spark just computed.
 #
 
@@ -194,7 +242,7 @@ cypher(
 ).limit(10).show(truncate=False)
 
 #
-# 5. Shut down. spark.stop() ends the Spark session but not the Neo4j Bolt driver, whose Netty
+# 7. Shut down. spark.stop() ends the Spark session but not the Neo4j Bolt driver, whose Netty
 #    event loops run on *non-daemon* threads. A JVM will not exit while a non-daemon thread is
 #    alive, so on its own this script prints its last result and then sits there forever, with
 #    the driver's main thread parked in DestroyJavaVM waiting on threads that never finish.
