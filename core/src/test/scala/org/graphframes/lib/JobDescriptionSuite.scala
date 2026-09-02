@@ -128,6 +128,48 @@ class JobDescriptionSuite extends SparkFunSuite with GraphFrameTestSparkContext 
     assert(descriptions.exists(_.startsWith("GraphFrames ShortestPaths: iteration 1")))
   }
 
+  test("maximal independent set sets job descriptions and restores the caller's") {
+    sc.setJobDescription("caller description")
+    try {
+      val descriptions = capturedDescriptionsDuring {
+        val _ = chainGraph().maximalIndependentSet.run(seed = 12345L)
+      }(_.contains("GraphFrames MaximalIndependentSet: materializing final result"))
+
+      assert(descriptions.exists(_.startsWith("GraphFrames MaximalIndependentSet: iteration ")))
+      assert(sc.getLocalProperty(descriptionKey) === "caller description")
+    } finally {
+      sc.setLocalProperty(descriptionKey, null)
+    }
+  }
+
+  test("random walks set per-batch job descriptions and restore the caller's") {
+    val temporaryPrefix = java.nio.file.Files.createTempDirectory("rw-job-descriptions").toString
+    val rwRunner = new org.graphframes.rw.RandomWalkWithRestart()
+      .onGraph(chainGraph())
+      .setNumBatches(2)
+      .setBatchSize(2)
+      .setNumWalksPerNode(1)
+      .setTemporaryPrefix(temporaryPrefix)
+
+    sc.setJobDescription("caller description")
+    try {
+      val descriptions = capturedDescriptionsDuring {
+        val _ = rwRunner.run()
+      }(_.exists(_.endsWith(": materializing final result")))
+
+      assert(descriptions.exists(d =>
+        d.startsWith("GraphFrames RandomWalkWithRestart [") && d.endsWith(": batch 1 of 2")))
+      assert(
+        descriptions.exists(d =>
+          d.startsWith("GraphFrames RandomWalkWithRestart [")
+            && d.endsWith(": materializing final result")))
+      assert(sc.getLocalProperty(descriptionKey) === "caller description")
+    } finally {
+      sc.setLocalProperty(descriptionKey, null)
+      rwRunner.cleanUp()
+    }
+  }
+
   // broadcastThreshold -1 selects the AQE-based two-phase implementation
   Seq(("two_phase", 1000000), ("two_phase", -1), ("randomized_contraction", 1000000)).foreach {
     case (algorithm, broadcastThreshold) =>
