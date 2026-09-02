@@ -659,12 +659,7 @@ class Triplets(_message.Message):
     def __init__(self) -> None: ...
 
 class MaximalIndependentSet(_message.Message):
-    __slots__ = (
-        "checkpoint_interval",
-        "storage_level",
-        "use_local_checkpoints",
-        "seed",
-    )
+    __slots__ = ("checkpoint_interval", "storage_level", "use_local_checkpoints", "seed")
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]

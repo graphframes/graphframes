@@ -6,7 +6,6 @@ import tempfile
 import warnings
 
 import pytest
-
 from pyspark.sql import SparkSession
 from pyspark.version import __version__
 
@@ -68,7 +67,8 @@ def get_gf_jar_locations() -> tuple[str, str, str]:
 
     if connect_jar is None:
         raise ValueError(
-            f"Failed to find graphframes connect jar for Spark {spark_major_version} in {connect_dir}"
+            "Failed to find graphframes connect jar for Spark "
+            f"{spark_major_version} in {connect_dir}"
         )
 
     return core_jar, connect_jar, graphx_jar

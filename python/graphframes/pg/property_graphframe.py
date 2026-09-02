@@ -280,8 +280,7 @@ class PropertyGraphFrame:
 
         # Join edges on common destination (the right part)
         joined = e1.join(
-            e2,
-            col("e1." + old_group.dst_column_name) == col("e2." + old_group.dst_column_name),
+            e2, col("e1." + old_group.dst_column_name) == col("e2." + old_group.dst_column_name)
         )
 
         # Filter to avoid duplicates (e1.src < e2.src)

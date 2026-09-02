@@ -108,10 +108,7 @@ def main(data_dir: str) -> None:
     click.echo("=" * 70)
 
     # Each source node sends 1 to its destination
-    am_in_degrees = g.aggregateMessages(
-        F.count(AM.msg).alias("in_degree"),
-        sendToDst=F.lit(1),
-    )
+    am_in_degrees = g.aggregateMessages(F.count(AM.msg).alias("in_degree"), sendToDst=F.lit(1))
 
     # Left join to include zero-degree nodes
     complete_in_deg = (
@@ -315,22 +312,13 @@ def main(data_dir: str) -> None:
         .withVertexColumn(
             "distance",
             F.when(F.col("id") == source_id, F.lit(0)).otherwise(F.lit(INF)),
-            F.least(
-                F.col("distance"),
-                F.coalesce(Pregel.msg(), F.lit(INF)),
-            ),
+            F.least(F.col("distance"), F.coalesce(Pregel.msg(), F.lit(INF))),
         )
         .sendMsgToDst(
-            F.when(
-                Pregel.src("distance") < F.lit(INF),
-                Pregel.src("distance") + F.lit(1),
-            )
+            F.when(Pregel.src("distance") < F.lit(INF), Pregel.src("distance") + F.lit(1))
         )
         .sendMsgToSrc(
-            F.when(
-                Pregel.dst("distance") < F.lit(INF),
-                Pregel.dst("distance") + F.lit(1),
-            )
+            F.when(Pregel.dst("distance") < F.lit(INF), Pregel.dst("distance") + F.lit(1))
         )
         .aggMsgs(F.min(Pregel.msg()))
         .run()
@@ -361,23 +349,17 @@ def main(data_dir: str) -> None:
 
     # Get user nodes with Reputation
     user_nodes = nodes_df.filter(F.col("Type") == "User").select(
-        "id",
-        F.col("Reputation").cast("double").alias("reputation"),
-        F.lit("User").alias("Type"),
+        "id", F.col("Reputation").cast("double").alias("reputation"), F.lit("User").alias("Type")
     )
 
     # Get answer nodes
     answer_nodes = nodes_df.filter(F.col("Type") == "Answer").select(
-        "id",
-        F.col("Score").cast("double").alias("score"),
-        F.lit("Answer").alias("Type"),
+        "id", F.col("Score").cast("double").alias("score"), F.lit("Answer").alias("Type")
     )
 
     # Get question nodes
     question_nodes = nodes_df.filter(F.col("Type") == "Question").select(
-        "id",
-        F.col("ViewCount").cast("double").alias("views"),
-        F.lit("Question").alias("Type"),
+        "id", F.col("ViewCount").cast("double").alias("views"), F.lit("Question").alias("Type")
     )
 
     # Build unified vertices for the reputation subgraph
@@ -416,10 +398,7 @@ def main(data_dir: str) -> None:
         )
         .sendMsgToDst(
             # Send authority to destination
-            F.when(
-                Pregel.src("authority") > F.lit(0),
-                Pregel.src("authority"),
-            )
+            F.when(Pregel.src("authority") > F.lit(0), Pregel.src("authority"))
         )
         .aggMsgs(F.sum(Pregel.msg()))
         .run()
@@ -438,8 +417,7 @@ def main(data_dir: str) -> None:
         rep_results.filter(F.col("Type") == "Question")
         .select(F.col("id"), F.col("authority"))
         .join(
-            nodes_df.filter(F.col("Type") == "Question").select("id", "Title", "ViewCount"),
-            on="id",
+            nodes_df.filter(F.col("Type") == "Question").select("id", "Title", "ViewCount"), on="id"
         )
         .orderBy(F.desc("authority"))
     )
@@ -460,14 +438,10 @@ def main(data_dir: str) -> None:
 
     # Subgraph: Tags, Questions, and Answers (Answers carry Score)
     tag_nodes = nodes_df.filter(F.col("Type") == "Tag").select(
-        "id",
-        F.col("TagName").alias("name"),
-        F.lit("Tag").alias("Type"),
+        "id", F.col("TagName").alias("name"), F.lit("Tag").alias("Type")
     )
     question_nodes = nodes_df.filter(F.col("Type") == "Question").select(
-        "id",
-        F.lit(None).cast("string").alias("name"),
-        F.lit("Question").alias("Type"),
+        "id", F.lit(None).cast("string").alias("name"), F.lit("Question").alias("Type")
     )
     answer_nodes = nodes_df.filter(F.col("Type") == "Answer").select(
         "id",
@@ -486,8 +460,7 @@ def main(data_dir: str) -> None:
     # Answers → Questions (as-is); reverse Tags so Questions → Tags
     answers_edges = edges_df.filter(F.col("relationship") == "Answers").select("src", "dst")
     questions_to_tags = edges_df.filter(F.col("relationship") == "Tags").select(
-        F.col("dst").alias("src"),
-        F.col("src").alias("dst"),
+        F.col("dst").alias("src"), F.col("src").alias("dst")
     )
     avg_edges = answers_edges.unionByName(questions_to_tags)
     avg_graph = GraphFrame(avg_vertices, avg_edges)
@@ -549,12 +522,10 @@ def main(data_dir: str) -> None:
 
     # Use a small test graph for clarity
     test_vertices = spark.createDataFrame(
-        [("A", "Alice"), ("B", "Bob"), ("C", "Charlie"), ("D", "David")],
-        ["id", "name"],
+        [("A", "Alice"), ("B", "Bob"), ("C", "Charlie"), ("D", "David")], ["id", "name"]
     )
     test_edges = spark.createDataFrame(
-        [("A", "B"), ("A", "C"), ("B", "C"), ("C", "D")],
-        ["src", "dst"],
+        [("A", "B"), ("A", "C"), ("B", "C"), ("C", "D")], ["src", "dst"]
     )
     test_graph = GraphFrame(test_vertices, test_edges)
 
@@ -567,11 +538,7 @@ def main(data_dir: str) -> None:
         .withVertexColumn(
             "trace",
             F.col("id"),  # Start with own id
-            F.concat_ws(
-                " <- ",
-                F.coalesce(Pregel.msg(), F.lit("")),
-                F.col("id"),
-            ),
+            F.concat_ws(" <- ", F.coalesce(Pregel.msg(), F.lit("")), F.col("id")),
         )
         .sendMsgToDst(Pregel.src("trace"))
         .aggMsgs(

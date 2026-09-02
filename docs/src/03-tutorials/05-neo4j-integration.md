@@ -197,7 +197,7 @@ The script opens with the same connection settings the loader used, and the same
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame, SparkSession
 
-from graphframes import GraphFrame
+from graphframes.pg import EdgePropertyGroup, PropertyGraphFrame, VertexPropertyGroup
 
 NEO4J_FORMAT = "org.neo4j.spark.DataSource"
 
@@ -210,6 +210,9 @@ NEO4J = {
 
 LABEL = "Node"
 PARTITIONS = 8
+
+# The eight relationship types `graphframes neo4j load` creates - see the tables above.
+RELATIONSHIP_TYPES = ["Earns", "CastFor", "Tags", "Answers", "Posts", "Asks", "Links", "Duplicates"]
 
 spark = SparkSession.builder.appName("Neo4j + GraphFrames").getOrCreate()
 # Connected Components checkpoints as it iterates, so Spark needs somewhere to put them.
@@ -228,34 +231,122 @@ def cypher(query: str, count_query: str = "") -> DataFrame:
 
 A `query` read is **single-partition** unless you tell the connector how many rows to expect. The two big reads below pass a `count_query` and get `PARTITIONS` workers; the small verification queries at the end leave it off, where one partition is fine.
 
-### Verify and Count the Neo4j Data
-Cypher aliases do the rest. Return columns named `id`, `src`, `dst` and `relationship` and the DataFrames arrive in exactly the shape `GraphFrame` wants — nothing to rename afterwards.
+> **Note:** the connector rewrites a `query` read in order to partition it, so it rejects a trailing `SKIP`/`LIMIT`. Take the top N with `DataFrame.limit()` instead of in Cypher.
+
+### Model the Graph as a PropertyGraphFrame
+
+Neo4j's `:Node` label covers seven Stack Exchange node types and eight relationship types (see Step 2 and Step 3 above). Reading all of that into one untyped vertex DataFrame and one untyped edge DataFrame — then handing both straight to `GraphFrame` — throws away that structure the moment it leaves Neo4j. A [`PropertyGraphFrame`](../04-user-guide/11-property-graphs.md) keeps it: one `VertexPropertyGroup` **per node type**, and one `EdgePropertyGroup` per relationship type, wired up exactly like the "Shape" column in the Step 2 table. Cypher aliases do the rest — return columns named `id`, `Type`, `src`, `dst` and `relationship`, and the DataFrames arrive in exactly the shape the property groups want.
 
 ```python
 vertices = cypher(
     f"MATCH (n:{LABEL}) RETURN n.id AS id, n.Type AS Type",
     f"MATCH (n:{LABEL}) RETURN count(n) AS count",
-)
+).cache()
 edges = cypher(
     f"MATCH (s:{LABEL})-[r]->(t:{LABEL}) "
     "RETURN s.id AS src, t.id AS dst, type(r) AS relationship",
     f"MATCH (:{LABEL})-[r]->(:{LABEL}) RETURN count(r) AS count",
-)
+).cache()
 
-graph = GraphFrame(vertices, edges)
+
+def _nodes_of_type(node_type: str) -> DataFrame:
+    return vertices.filter(F.col("Type") == node_type).select("id")
+
+
+def _edges_of_type(relationship: str) -> DataFrame:
+    return edges.filter(F.col("relationship") == relationship).select("src", "dst")
+
+
+def _edge_group(relationship: str, src_group: VertexPropertyGroup, dst_group: VertexPropertyGroup):
+    return EdgePropertyGroup(
+        relationship,
+        _edges_of_type(relationship),
+        src_group,
+        dst_group,
+        is_directed=True,
+        src_column_name="src",
+        dst_column_name="dst",
+    )
+```
+
+One `VertexPropertyGroup` per real node type, each named after its `Type` — ids are already globally-unique UUIDs, so `apply_mask_on_id=False` skips hashing them, and naming each group after its `Type` is what lets [Step 4](#project-validate-and-count) below read `Type` straight off the projected graph with no join:
+
+```python
+users = VertexPropertyGroup("User", _nodes_of_type("User"), "id", apply_mask_on_id=False)
+badges = VertexPropertyGroup("Badge", _nodes_of_type("Badge"), "id", apply_mask_on_id=False)
+votes = VertexPropertyGroup("Vote", _nodes_of_type("Vote"), "id", apply_mask_on_id=False)
+questions = VertexPropertyGroup(
+    "Question", _nodes_of_type("Question"), "id", apply_mask_on_id=False
+)
+answers = VertexPropertyGroup("Answer", _nodes_of_type("Answer"), "id", apply_mask_on_id=False)
+post_links = VertexPropertyGroup(
+    "PostLinks", _nodes_of_type("PostLinks"), "id", apply_mask_on_id=False
+)
+tags = VertexPropertyGroup("Tag", _nodes_of_type("Tag"), "id", apply_mask_on_id=False)
+```
+
+`CastFor`, `Tags`, `Links` and `Duplicates` all connect to a **Post** — Stack Exchange's word for "a Question or an Answer" (see Step 2). `EdgePropertyGroup` needs one fixed vertex group per side, so those four relationship types need one dst/src group that means either, instead of the two each could mean:
+
+```python
+post_data = vertices.filter(F.col("Type").isin("Question", "Answer")).select("id")
+posts = VertexPropertyGroup("Post", post_data, "id", apply_mask_on_id=False)
+```
+
+`posts` shares its id space with `questions` and `answers` — unmasked ids pass through unchanged regardless of which group's name they are read through — so it is never itself part of a vertex projection; only the edge groups below reference it. Now build the property graph, one `EdgePropertyGroup` per row of the Step 2 relationship table:
+
+```python
+NODE_TYPES = [
+    users.name,
+    badges.name,
+    votes.name,
+    questions.name,
+    answers.name,
+    post_links.name,
+    tags.name,
+]
+
+property_graph = PropertyGraphFrame(
+    [users, badges, votes, questions, answers, post_links, tags, posts],
+    [
+        _edge_group("Earns", users, badges),
+        _edge_group("CastFor", votes, posts),
+        _edge_group("Tags", tags, posts),
+        _edge_group("Answers", answers, questions),
+        _edge_group("Posts", users, answers),
+        _edge_group("Asks", users, questions),
+        _edge_group("Links", posts, posts),
+        _edge_group("Duplicates", posts, posts),
+    ],
+)
+```
+
+Matching on `:Node` — the shared label, not the type labels — is what makes the two Cypher reads above cover every node and every relationship in the graph, instead of one query per type. Splitting `vertices` seven ways and `edges` eight ways afterwards costs nothing extra in Neo4j: both are cached DataFrames, filtered locally by Spark.
+
+### Project, Validate and Count
+
+`to_graphframe()` never hands you the whole property graph implicitly — you always name the vertex and edge property groups you want, which doubles as documentation: this call says exactly which parts of the Stack Exchange graph feed the algorithm that follows. Connected Components is meant to answer "how does the *whole* graph connect", so this projection includes every node type and every relationship (`posts` is deliberately left out — it would just add duplicate copies of the `questions` and `answers` ids already there); a narrower question — say, how users, questions and answers connect through content alone — would instead pass `edge_property_groups=["Asks", "Posts", "Answers"]` and leave `CastFor` (votes) and `Earns` (badges) out.
+
+```python
+graph = property_graph.to_graphframe(
+    vertex_property_groups=NODE_TYPES, edge_property_groups=RELATIONSHIP_TYPES
+)
+graph.validate()
 print(f"Vertices: {graph.vertices.count():,}   Edges: {graph.edges.count():,}")
 ```
 
-Matching on `:Node` — the shared label, not the type labels — is what makes this two queries instead of one per type. Every node and every relationship in the graph is covered.
-
-> **Note:** the connector rewrites a `query` read in order to partition it, so it rejects a trailing `SKIP`/`LIMIT`. Take the top N with `DataFrame.limit()` instead of in Cypher.
+`validate()` checks the two things that would otherwise fail silently or blow up mid-algorithm: no duplicate vertex ids, and no edge pointing at a vertex that does not exist. Both are cheap to check up front and expensive to debug from a Connected Components stack trace.
 
 ### Run Connected Components
 
 Connected Components is the kind of expensive, iterative algorithm over an entire graph that is well suited to Spark's distributed compute. GraphFrames treats edges as undirected here, so a component is a set of nodes reachable from one another by any path.
 
 ```python
-components = graph.connectedComponents(algorithm="graphframes").select("id", "Type", "component").cache()
+components = (
+    graph.connectedComponents()
+    .withColumnRenamed("property_group", "Type")
+    .select("id", "Type", "component")
+    .cache()
+)
 print(f"Components found: {components.select('component').distinct().count():,}")
 
 largest = components.groupBy("component").count().orderBy(F.desc("count")).first()["component"]
@@ -265,7 +356,7 @@ components.filter(F.col("component") == largest).groupBy("Type").count().orderBy
 ).show()
 ```
 
-`connectedComponents()` returns the vertex DataFrame with a `component` column added, so `Type` survives the call and the breakdown below costs no extra join.
+Every vertex group above is named after its `Type`, so `to_graphframe()`'s `property_group` column — the one column besides `id` it keeps, and the one `connectedComponents()` carries through untouched alongside the new `component` column — already *is* `Type`. Renaming it is all that is needed; no join back onto `vertices` required.
 
 On `stats.meta.stackexchange.com` this finds **40,115 components**, and the distribution is the interesting part: one giant component holds 56,442 nodes — the connected core of the site — and everything else is tiny. Breaking that core down by type shows what it's made of:
 
@@ -374,5 +465,6 @@ graphframes neo4j remove --yes && graphframes neo4j setup && graphframes neo4j l
 ## Next Steps
 
 - Swap `connectedComponents()` for [PageRank](../04-user-guide/03-centralities.md) or [Label Propagation](../04-user-guide/06-graph-clustering.md) and write those results back the same way
+- Project a narrower graph — e.g. `edge_property_groups=["Asks", "Posts", "Answers"]` — to see how the site's *content* connects on its own, without votes or badges pulling everything into one giant component
 - Use [motif finding](02-motif-tutorial.md) to search for patterns that Cypher expresses awkwardly, then persist what you find. Then run another motif including that field!
 - Point `graphframes neo4j load --site` at a larger site :)
