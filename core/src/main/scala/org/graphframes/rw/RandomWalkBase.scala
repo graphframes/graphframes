@@ -16,8 +16,10 @@ import org.apache.spark.sql.graphframes.expressions.KMinSampling
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.DataType
 import org.graphframes.GraphFrame
+import org.graphframes.JobDescription
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithJobDescriptionPrefix
 
 import scala.util.Random
 
@@ -25,7 +27,13 @@ import scala.util.Random
  * Base trait for implementing random walk algorithms on graph data. Provides common functionality
  * for generating random walks across a graph structure.
  */
-trait RandomWalkBase extends Serializable with Logging with WithIntermediateStorageLevel {
+trait RandomWalkBase
+    extends Serializable
+    with Logging
+    with WithIntermediateStorageLevel
+    with WithJobDescriptionPrefix {
+
+  override protected def defaultJobDescriptionPrefix: String = "GraphFrames RandomWalk"
 
   /** Maximum number of neighbors to consider per vertex during random walks. */
   protected var maxNbrs: Int = 50
@@ -243,6 +251,12 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
       throw new IllegalArgumentException("Temporary prefix is required for random walks.")
     }
 
+    JobDescription.withRestoredJobDescription(graph.vertices.sparkSession) {
+      runBatches()
+    }
+  }
+
+  private def runBatches(): DataFrame = {
     logInfo(s"Starting random walk with runID: $runID")
 
     val iterationsRng = new Random(globalSeed)
@@ -259,6 +273,8 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
 
     for (i <- startingIteration to numBatches) {
       logInfo(s"Starting batch $i of $numBatches")
+      spark.sparkContext.setJobDescription(
+        s"$getJobDescriptionPrefix [$runID]: batch $i of $numBatches")
       val iterSeed = iterationsRng.nextLong()
       val preparedGraph = prepareGraph(iterSeed)
       val prevIterationDF = if (i == 1) { None }
@@ -271,6 +287,8 @@ trait RandomWalkBase extends Serializable with Logging with WithIntermediateStor
     }
 
     logInfo("Finished all batches, merging results.")
+    spark.sparkContext.setJobDescription(
+      s"$getJobDescriptionPrefix [$runID]: materializing final result")
 
     val result = (1 to numBatches)
       .map(i => spark.read.parquet(iterationTmpPath(i)))

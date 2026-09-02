@@ -181,6 +181,7 @@ class StructureAwareLabelPropagation private[graphframes] (private val graph: Gr
     val pregel = preparedGraph.pregel
 
     pregel
+      .setJobDescriptionPrefix("GraphFrames StructureAwareLabelPropagation")
       .setMaxIter(maxIterChecked)
       .setCheckpointInterval(checkpointInterval)
       .setUseLocalCheckpoints(useLocalCheckpoints)

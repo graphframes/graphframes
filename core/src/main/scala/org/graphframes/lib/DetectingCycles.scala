@@ -85,6 +85,7 @@ object DetectingCycles {
       x => array_append(x, col(GraphFrame.ID)))
 
     preparedGraph.pregel
+      .setJobDescriptionPrefix("GraphFrames DetectingCycles")
       .setCheckpointInterval(checkpointInterval)
       .setUseLocalCheckpoints(useLocalCheckpoints)
       .setIntermediateStorageLevel(intermediateStorageLevel)
