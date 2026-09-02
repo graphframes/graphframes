@@ -31,6 +31,7 @@ import org.graphframes.GraphFrame.LONG_DST
 import org.graphframes.GraphFrame.LONG_ID
 import org.graphframes.GraphFrame.LONG_SRC
 import org.graphframes.GraphFrame.SRC
+import org.graphframes.JobDescription
 import org.graphframes.Logging
 
 import java.io.IOException
@@ -259,6 +260,7 @@ private[graphframes] object TwoPhase extends Logging {
     val spark = graph.spark
     val sc = spark.sparkContext
     val originalAQE = spark.conf.get("spark.sql.adaptive.enabled")
+    val previousJobDescription = sc.getLocalProperty(JobDescription.JOB_DESCRIPTION_KEY)
 
     try {
       spark.conf.set("spark.sql.adaptive.enabled", "false")
@@ -266,6 +268,8 @@ private[graphframes] object TwoPhase extends Logging {
       val runId = UUID.randomUUID().toString.takeRight(8)
       val logPrefix = s"[CC $runId]"
       logInfo(s"$logPrefix Start connected components with run ID $runId.")
+      val jobDescriptionPrefix = s"GraphFrames ConnectedComponents [$runId]"
+      sc.setJobDescription(s"$jobDescriptionPrefix: preparing graph")
 
       val shouldCheckpoint = checkpointInterval > 0
       val checkpointDir: Option[String] = if (useLocalCheckpoints) { None }
@@ -314,6 +318,7 @@ private[graphframes] object TwoPhase extends Logging {
 
       var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
       while (!converged) {
+        sc.setJobDescription(s"$jobDescriptionPrefix: iteration $iteration")
         var currRoundPersistedDFs = Seq[DataFrame]()
 
         // large-star step
@@ -430,6 +435,7 @@ private[graphframes] object TwoPhase extends Logging {
       logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
       logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
 
+      sc.setJobDescription(s"$jobDescriptionPrefix: materializing final result")
       val output = buildOutput(graph, vv, ee, useLabelsAsComponents)
         .persist(intermediateStorageLevel)
 
@@ -447,6 +453,7 @@ private[graphframes] object TwoPhase extends Logging {
       output
     } finally {
       spark.conf.set("spark.sql.adaptive.enabled", originalAQE)
+      sc.setLocalProperty(JobDescription.JOB_DESCRIPTION_KEY, previousJobDescription)
     }
   }
 
@@ -464,11 +471,37 @@ private[graphframes] object TwoPhase extends Logging {
       isGraphPrepared: Boolean,
       optStartIter: Int = 2,
       sparsityThreshold: Double = 2.0,
-      shrinkageThreshold: Double = 2.0): DataFrame = {
+      shrinkageThreshold: Double = 2.0): DataFrame =
+    JobDescription.withRestoredJobDescription(graph.spark) {
+      runAQEInternal(
+        graph,
+        checkpointInterval,
+        intermediateStorageLevel,
+        useLabelsAsComponents,
+        useLocalCheckpoints,
+        isGraphPrepared,
+        optStartIter,
+        sparsityThreshold,
+        shrinkageThreshold)
+    }
 
+  private def runAQEInternal(
+      graph: GraphFrame,
+      checkpointInterval: Int,
+      intermediateStorageLevel: StorageLevel,
+      useLabelsAsComponents: Boolean,
+      useLocalCheckpoints: Boolean,
+      isGraphPrepared: Boolean,
+      optStartIter: Int,
+      sparsityThreshold: Double,
+      shrinkageThreshold: Double): DataFrame = {
+
+    val sc = graph.spark.sparkContext
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
     logInfo(s"$logPrefix Start connected components with run ID $runId.")
+    val jobDescriptionPrefix = s"GraphFrames ConnectedComponents [$runId]"
+    sc.setJobDescription(s"$jobDescriptionPrefix: preparing graph")
 
     val shouldCheckpoint = checkpointInterval > 0
 
@@ -497,6 +530,7 @@ private[graphframes] object TwoPhase extends Logging {
 
     var lastRoundPersistedDFs = Seq[DataFrame](ee, minNbrs1)
     while (!converged) {
+      sc.setJobDescription(s"$jobDescriptionPrefix: iteration $iteration")
       var currRoundPersistedDFs = Seq[DataFrame]()
 
       // large-star step
@@ -603,6 +637,7 @@ private[graphframes] object TwoPhase extends Logging {
     logInfo(s"$logPrefix Connected components converged in ${iteration - 1} iterations.")
     logInfo(s"$logPrefix Join and return component assignments with original vertex IDs.")
 
+    sc.setJobDescription(s"$jobDescriptionPrefix: materializing final result")
     val output = buildOutput(graph, vv, ee, useLabelsAsComponents)
       .persist(intermediateStorageLevel)
 
