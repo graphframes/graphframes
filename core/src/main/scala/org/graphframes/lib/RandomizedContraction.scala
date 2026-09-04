@@ -21,6 +21,7 @@ import java.io.IOException
 import java.util.UUID
 import scala.collection.mutable.Stack
 import scala.util.Random
+import scala.util.control.NonFatal
 
 /**
  * Implementation of parallel connected components algorithm using randomized contraction, based
@@ -88,6 +89,19 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     var iter = 0
 
     def tableName(iter: Int): String = s"${checkpointDir}/ccreps-${iter}"
+
+    def cleanupCheckpointDir(): Unit = {
+      try {
+        val checkpointPath = new Path(checkpointDir)
+        val fs = checkpointPath.getFileSystem(sc.hadoopConfiguration)
+        if (fs.exists(checkpointPath)) {
+          val _ = fs.delete(checkpointPath, true)
+        }
+      } catch {
+        case NonFatal(e) =>
+          logWarn(s"Failed to clean up checkpoint directory $checkpointDir: ${e.getMessage}")
+      }
+    }
 
     val graph = if (isGraphPrepared) {
       inputGraph
@@ -281,16 +295,13 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       outputComponents.count()
 
       // clean-up
-      val chDirPath = new Path(checkpointDir)
-      val fs = chDirPath.getFileSystem(sc.hadoopConfiguration)
-      if (fs.exists(chDirPath)) {
-        fs.delete(chDirPath, true)
-      }
+      cleanupCheckpointDir()
 
       outputComponents
     } finally {
       // to be 100% sure;
       edges.unpersist()
+      cleanupCheckpointDir()
       val dereg = functionRegistry.dropFunction(FunctionIdentifier("_axpb"))
       if (!dereg) {
         logWarn(

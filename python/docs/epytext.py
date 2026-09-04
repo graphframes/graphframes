@@ -1,4 +1,5 @@
 import re
+
 from sphinx.application import Sphinx
 
 RULES = (
