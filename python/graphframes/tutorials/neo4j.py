@@ -7,7 +7,7 @@ Code from the Neo4j Integration Tutorial. Run it once the graph is loaded:
     graphframes neo4j setup
     graphframes neo4j load
     spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1,\
-org.neo4j:neo4j-connector-apache-spark_2.13:6.0.0_for_spark_4 \
+org.neo4j.connectors:spark:6.0.0-s_2.13 \
         python/graphframes/tutorials/neo4j.py
 
 Connection settings default to what `graphframes neo4j setup` creates. If you set Neo4j up
@@ -21,7 +21,9 @@ or as arguments, which take precedence over the environment:
 
     spark-submit --packages ... python/graphframes/tutorials/neo4j.py --password hunter2
 
-On Spark 3.5 use graphframes-spark3_2.13:0.12.1 and 6.0.0_for_spark_3 instead.
+On Spark 3.5 use graphframes-spark3_2.12:0.12.1 and
+org.neo4j:neo4j-connector-apache-spark_2.12:5.4.3_for_spark_3 instead - the 6.0.0 line of the
+connector dropped Spark 3.5 support.
 """
 
 import argparse

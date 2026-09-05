@@ -109,8 +109,6 @@ graphframes = "graphframes.console:main"
 line-length = 100
 target-version = ["py39"]
 
-'''
-=======
 # `include` must be a regex string, not a list. A list silently disables black's
 # default `\.pyi?$` filter, making black try to parse non-Python files (Makefile,
 # .rst, .css) when it is handed a directory.
@@ -120,7 +118,7 @@ include = "\\.pyi?$"
 # the stubs are regenerated, so the churn comes back on every regen.
 # force-exclude (not exclude) is required, because exclude is ignored for paths
 # passed explicitly on the command line.
-force-exclude = ["/graphframes/connect/proto/", "/graphframes/tutorials/data/"]
+force-exclude = "/graphframes/connect/proto/|/graphframes/tutorials/data/"
 
 required-version = "23.12.1"
 
