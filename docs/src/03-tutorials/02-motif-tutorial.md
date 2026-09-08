@@ -1,181 +1,56 @@
 # Motif Tutorial
 
-This tutorial covers GraphFrames' motif finding feature. We perform pattern matching on a property graph representing a Stack Exchange site using Apache Spark and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md) feature. We will download the `stats.meta` archive from the [Stack Exchange Data Dump at the Internet Archive](https://archive.org/details/stackexchange), use PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
+This tutorial covers GraphFrames' motif finding feature using **Apache Spark 4.x** and [GraphFrames' motif finding](/04-user-guide/04-motif-finding.md). We perform pattern matching on a property graph representing a Stack Exchange site, using PySpark to build a property graph and then mine it for property graph network motifs by combining both graph and relational queries.
+
+A Jupyter Notebook version of this tutorial is available on GitHub: [Network Motif Finding Notebook](https://github.com/graphframes/graphframes/blob/master/python/graphframes/tutorials/notebooks/Network_Motif_Finding.ipynb).
 
 
 # What are graphlets and network motifs?
 
 Graphlets are small, connected subgraphs of a larger graph. Network motifs are recurring patterns in complex networks that are significantly more frequent than in random networks. They are the building blocks of complex networks and can be used to understand the structure and function of networks. Network motifs can be used to identify functional modules in biological networks, detect anomalies in social networks, detect money laundering and terrorism financing in financial networks, and predict the behavior of complex systems.
 
-<center>
-    <figure>
-        <img src="../img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
-        <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of
-Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
-    </figure>
-</center>
+<figure>
+    <img src="../img/4-node-directed-graphlets.png" width="800px" alt="Directed network motifs for up to Four nodes" title="All 2 and 3-node directed graphlets and the 4-node directed graphlets that have no bidirectional edges, Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017, Aparicio et al. 2017" style="margin: 10px 25px 10px 25px" />
+    <figcaption><a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">Extending the Applicability of Graphlets to Directed Networks, Aparicio et al. 2017</a></figcaption>
+</figure>
+
+The eight smallest of these — the 2-node and 3-node directed graphlets — are the ones we will actually query in this tutorial:
+
+<figure>
+    <img src="../img/motif-diagrams/motif-directed-graphlets-overview.svg" width="750px" alt="The eight 2-node and 3-node directed graphlets" />
+    <figcaption>The 2-node and 3-node directed graphlets: G1-G4 above, G5-G8 below</figcaption>
+</figure>
 
 We are going to mine motifs using Stack Exchange data. The Stack Exchange network is a complex network of users, posts, votes, badges, and tags. We will use GraphFrames to build a property graph from the Stack Exchange data dump and then use GraphFrames' motif finding feature to find network motifs in the graph. You'll see how to combine graph and relational queries to find complex patterns in the graph.
 
-# Download the Stack Exchange Dump for [stats.meta](https://stats.meta.stackexchange.com)
+# Data Setup
 
-The Python tutorials include a CLI utility at `graphframes stackexchange`for downloading any site's [Stack Exchange Data Dump](https://archive.org/details/stackexchange) from the Internet Archive. The command takes the subdomain as an argument, downloads the corresponding 7zip archive and expands it into the `python/graphframes/tutorials/data` folder.
+**⚠️ Before continuing**: Complete the [Data Setup Tutorial](03-data-setup.md) first. That tutorial covers installing `graphframes-py`, downloading the `stats.meta` archive, converting XML to Parquet, and loading the graph into `nodes_df`, `edges_df`, and `g`. Come back here once those steps are done.
 
-```bash
-Usage: graphframes [OPTIONS] COMMAND [ARGS]...
-
-  GraphFrames CLI: a collection of commands for graphframes.
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  stackexchange  Download Stack Exchange archive for a given SUBDOMAIN.
-```
-
-Use `graphframes stackexchange stats.meta` to download the Stack Exchange Data Dump for `stats.meta.stackexchange.com`.
-
-```bash
-$ graphframes stackexchange stats.meta
-
-Downloading archive from <https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z>
-Downloading  [####################################]  100%
-Download complete: python/graphframes/tutorials/data/stats.meta.stackexchange.com.7z
-Extracting archive...
-Extraction complete: stats.meta.stackexchange.com
-```
-
-# Build the Graph
-
-We will build a property graph from the Stack Exchange data dump using PySpark in the @:srcLink(python/graphframes/tutorials/stackexchange.py) script. The data comes as a single XML file, so we use [spark-xml](https://github.com/databricks/spark-xml) (moving inside Spark as of 4.0) to load the data, extract the relevant fields and build the nodes and edges of the graph. For some reason Spark XML uses a lot of RAM, so we need to increase the driver and executor memory to at least 4GB.
-
-```bash
-$ spark-submit --packages com.databricks:spark-xml_2.12:0.18.0 --driver-memory 4g --executor-memory 4g python/graphframes/tutorials/stackexchange.py
-```
-
-The script will output the nodes and edges of the graph in the `python/graphframes/tutorials/data` folder. We can now use GraphFrames to load the graph and perform motif finding.
+The dataset is [`stats.meta.stackexchange.com`](https://archive.org/download/stackexchange/stats.meta.stackexchange.com.7z) (part of the [Stack Exchange Data Dump](https://archive.org/details/stackexchange)): ~130K nodes and ~97K edges across 8 relationship types. The @:srcLink(python/graphframes/tutorials/stackexchange.py) script handles XML parsing and graph construction.
 
 # Motif Finding
 
-We will use GraphFrames to find motifs in the Stack Exchange property graph. The script @:srcLink(python/graphframes/tutorials/motif.py) demonstrates how to load the graph, define various motifs and find all instances of the motif in the graph.
+We will use GraphFrames to find motifs in the Stack Exchange property graph. The script @:srcLink(python/graphframes/tutorials/motif.py) demonstrates how to load the graph (same steps as [Data Setup](03-data-setup.md)), define motifs, and find all instances of each motif.
 
 NOTE: I use the terms `node` as interchangeable with `vertex` and `edge` with `link` or `relationship`. The API is @:pydoc(graphframes.GraphFrame.vertices) and @:pydoc(graphframes.GraphFrame.edges) but some documentation says `relationships`. We need to add an alias from `g.vertices` to `g.nodes` and `g.edges` to both `g.relationships` and `g.links`.
 
 For a quick run-through of the script, use the following command:
 
 ```bash
-spark-submit --packages graphframes:graphframes:0.8.3-spark3.5-s_2.12 python/graphframes/tutorials/motif.py
+spark-submit --packages io.graphframes:graphframes-spark4_2.13:0.12.1 python/graphframes/tutorials/motif.py
 ```
 
-Let's walk through what it does, line-by-line. The script starts by importing the necessary modules and defining some utility functions for visualizing paths returned by [g.find()](/04-user-guide/04-motif-finding.md). Note that if you give `python/graphframes/tutorials/download.py` CLI a different subdomain, you will need to change the `STACKEXCHANGE_SITE` variable.
+The examples below assume you already have `nodes_df`, `edges_df`, and `g` from the [Data Setup Tutorial](03-data-setup.md). You will also need:
 
 ```python
 import pyspark.sql.functions as F
 from graphframes import GraphFrame
-from pyspark import SparkContext
-from pyspark.sql import DataFrame, SparkSession
-
-# Initialize a SparkSession
-spark: SparkSession = (
-    SparkSession.builder.appName("Stack Overflow Motif Analysis")
-    # Lets the Id:(Stack Overflow int) and id:(GraphFrames ULID) coexist
-    .config("spark.sql.caseSensitive", True)
-    .getOrCreate()
-)
-sc: SparkContext = spark.sparkContext
-sc.setCheckpointDir("/tmp/graphframes-checkpoints")
-
-# Change me if you download a different stackexchange site
-STACKEXCHANGE_SITE = "stats.meta.stackexchange.com"
-BASE_PATH = f"python/graphframes/tutorials/data/{STACKEXCHANGE_SITE}"
-```
-
-Load the nodes and edges of the graph from the `data` folder and count the types of node and edge. We repartition the nodes and edges to give our motif searches parallelism. GraphFrames likes nodes/vertices and edges/relatonships to be cached.
-
-```python
-#
-# Load the nodes and edges from disk, repartition, checkpoint [plan got long for some reason] and cache.
-#
-
-# We created these in stackexchange.py from Stack Exchange data dump XML files
-NODES_PATH: str = f"{BASE_PATH}/Nodes.parquet"
-nodes_df: DataFrame = spark.read.parquet(NODES_PATH)
-
-# Repartition the nodes to give our motif searches parallelism
-nodes_df = nodes_df.repartition(50).checkpoint().cache()
-
-# We created these in stackexchange.py from Stack Exchange data dump XML files
-EDGES_PATH: str = f"{BASE_PATH}/Edges.parquet"
-edges_df: DataFrame = spark.read.parquet(EDGES_PATH)
-
-# Repartition the edges to give our motif searches parallelism
-edges_df = edges_df.repartition(50).checkpoint().cache()
-```
-
-Check out the node types we have to work with:
-
-```python
-# What kind of nodes we do we have to work with?
-node_counts = (
-    nodes_df
-    .select("id", F.col("Type").alias("Node Type"))
-    .groupBy("Node Type")
-    .count()
-    .orderBy(F.col("count").desc())
-    # Add a comma formatted column for display
-    .withColumn("count", F.format_number(F.col("count"), 0))
-)
-node_counts.show()
-```
-
-```
-+---------+------+
-|Node Type| count|
-+---------+------+
-|    Badge|43,029|
-|     Vote|42,593|
-|     User|37,709|
-|   Answer| 2,978|
-| Question| 2,025|
-|PostLinks| 1,274|
-|      Tag|   143|
-+---------+------+
-```
-
-Check out the edge types we have to work with:
-
-```python
-# What kind of edges do we have to work with?
-edge_counts = (
-    edges_df
-    .select("src", "dst", F.col("relationship").alias("Edge Type"))
-    .groupBy("Edge Type")
-    .count()
-    .orderBy(F.col("count").desc())
-    # Add a comma formatted column for display
-    .withColumn("count", F.format_number(F.col("count"), 0))
-)
-edge_counts.show()
-```
-
-```
-+----------+------+
-| Edge Type| count|
-+----------+------+
-|     Earns|43,029|
-|   CastFor|40,701|
-|      Tags| 4,427|
-|   Answers| 2,978|
-|     Posts| 2,767|
-|      Asks| 1,934|
-|     Links| 1,180|
-|Duplicates|    88|
-+----------+------+
 ```
 
 ## Combining Node Types
 
-**Note: you don't need to run the code in this section, it is just for reference. The data we loaded above is already prepared for use.** Jump ahead to <a href="#creating-graphframes">Creating GraphFrames</a> and run that next :)
+**Note: you don't need to run the code in this section, it is just for reference. The Parquet files from data setup are already prepared for use.** Jump ahead to <a href="#creating-graphframes">Creating GraphFrames</a> and run that next :)
 
 At the moment, GraphFrames has a limitation: *there is only one node and edge type (for now).* There are many fields in the nodes of our `GraphFrame` because there only one node type is available. I have combined different types of node into a single type by including all properties of all types in one class of node. I created a `Type` field for each type of node, then merged all fields into a single, global `nodes_df` `DataFrame`. This `Type` column can then be used in relational [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/dataframe.html) operations to distinguish between types of nodes.
 
@@ -228,12 +103,10 @@ assert (
 
 ## Creating GraphFrames
 
-Now we create a @pydoc(graphframes.GraphFrame) from the `nodes_df` and `edges_df` `DataFrames`. We will use this object to find motifs in the graph.
-
-Back to our motifs :) It is time to create our @:pydoc(graphframes.GraphFrame) object. It has a number of powerful APIs, including the @:srcLink(python/graphframes.html#graphframes.GraphFrame.find) method for finding motifs in the graph.
+If you followed [Data Setup](03-data-setup.md), you already have a @:pydoc(graphframes.GraphFrame) named `g`. Recreate it here if needed — we will use it for motif finding via @:srcLink(python/graphframes.html#graphframes.GraphFrame.find).
 
 ```python
-g = GraphFrame(nodes_df, edges_df)  
+g = GraphFrame(nodes_df, edges_df)
 
 g.vertices.show(10)
 print(f"Node columns: {g.vertices.columns}")
@@ -299,14 +172,12 @@ The `g.find()` method returns a `DataFrame` with fields for each of the node and
 
 A complete description of the graph query language is in the [GraphFrames User Guide](/04-user-guide/04-motif-finding.md). Let's look at an example: a directed triangle. We will find all instances of a directed triangle in the graph.
 
-<center>
-    <figure>
-        <img src="../img/G4_and_G5_directed_network_motif.png" width="200px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
-        <figcaption>
-            <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
-        </figcaption>
-    </figure>
-</center>
+<figure>
+    <img src="../img/motif-diagrams/motif-g4-g5-triangles.svg" width="620px" alt="G4 and G5 Directed Network Motifs" title="G4 and G5 Directed Network Motifs" style="margin: 15px" />
+    <figcaption>
+        <a href="https://www.nature.com/articles/srep35098">G4 is a continuous triangle. G5 is a divergent triangle.</a>
+    </figcaption>
+</figure>
 
 ```python
 # G4: Continuous Triangles
@@ -371,6 +242,13 @@ The result shows the only continuous triangles in the graph are 39 question-link
 +--------+-------------+--------+-------------+--------+-------------+-----+
 ```
 
+The dominant instance is a cycle of three linked Questions:
+
+<figure>
+    <img src="../img/motif-diagrams/motif-g4-stackexchange.svg" width="400px" alt="G4 in Stack Exchange: a cycle of three linked Questions" />
+    <figcaption>The most common G4 continuous triangle: three Questions linked in a cycle (24 instances)</figcaption>
+</figure>
+
 Let's try a different triangle, a divergent triangle. The code to visualize a 3-edged motif is the same each time.
 
 ```python
@@ -426,6 +304,13 @@ The result is a count of the divergent triangles in the graph by type.
 4. `(Tag)-[Tags]->(Question B); (Tag)-[Tags]->(Question C); (Question B)-[Duplicates]->(Question C)`, or "A tag appears for a pair of duplicate answers."
 5. A user asks linked questions.
 
+The top two account for most of the divergent triangles:
+
+<figure>
+    <img src="../img/motif-diagrams/motif-g5-stackexchange.svg" width="800px" alt="The two most common G5 divergent triangles in Stack Exchange" />
+    <figcaption>The two dominant G5 instances: a Tag shared by two linked Questions, and a User answering their own Question</figcaption>
+</figure>
+
 ## Property Graph Motifs
 
 Simple motif finding can be used to explore a knowledge graph. It is also possible to use domain knowledge to define and match known patterns and then explore new variant motifs. This can be used to apply and then expand domain knowledge about a knowledge graph. It is powerful stuff!
@@ -438,14 +323,12 @@ First lets express the structural logic of the motif we are looking for. Let's t
 
 Visually this pattern looks like this:
 
-<center>
-    <figure>
-        <img src="../img/Directed-Graphlet-G30.png" width="90px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
-        <figcaption>
-            <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
-        </figcaption>
-    </figure>
-</center>
+<figure>
+    <img src="../img/motif-diagrams/motif-g30-opposed-3path.svg" width="260px" alt="G30: an opposed 3-path" title="G30: an opposed 3-path" style="margin: 15px" />
+    <figcaption>
+        <a href="https://www.dcc.fc.up.pt/~pribeiro/pubs/pdf/aparicio-tcbb2017.pdf">G30: an opposed 3-path</a>
+    </figcaption>
+</figure>
 
 The simplest pattern with four nodes is a 3-path, directed graphlet G30. Let's see how aggregation makes this a more powerful pattern than we might at first guess.
 
@@ -512,6 +395,13 @@ graphlet_count_df.show()
 +--------+-------------+--------+-------------+--------+-------------+--------+-------+
 only showing top 20 rows
 ```
+
+Votes dominate the top of this table. The second-ranked instance is a pair of Votes cast for two linked Questions:
+
+<figure>
+    <img src="../img/motif-diagrams/motif-g30-stackexchange.svg" width="400px" alt="G30 in Stack Exchange: two Votes cast for a pair of linked Questions" />
+    <figcaption>A common G30 instance: two Votes cast for two linked Questions (300,017 instances)</figcaption>
+</figure>
 
 How many of these motifs are there in the graph? Let's count them.
 

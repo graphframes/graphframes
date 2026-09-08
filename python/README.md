@@ -28,6 +28,13 @@ This package is maintained by the GraphFrames project and is available on PyPI.
 
 **NOTE!** *GraphFrames depends on its own version of GraphX. While in case of installation from the Maven Central repository, all the runtime dependencies will be resolved automatically, you may need to add them manually in case of installation from the local repository.*
 
+## Tutorials
+
+The following tutorials assist with using the more advanced features of GraphFrames:
+
+- [Motif Finding Tutorial](https://graphframes.io/03-tutorials/02-motif-tutorial.html)
+- [Pregel Tutorial](https://graphframes.io/03-tutorials/04-pregel-tutorial.html)
+
 ## Spark-Connect Note
 
 GraphFrames PySpark is choosing connect or classic implementation implicitly based on the result of `is_remote()`.
