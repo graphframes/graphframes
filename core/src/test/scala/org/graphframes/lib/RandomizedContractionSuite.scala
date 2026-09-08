@@ -280,8 +280,7 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
   }
 
   private def assertFunctionRegistryClean(): Unit = {
-    val functionRegistry = spark.sessionState.functionRegistry
-    val _ = assert(!functionRegistry.functionExists(FunctionIdentifier("_axpb")))
+    val _ = assert(!spark.sessionState.catalog.isTemporaryFunction(FunctionIdentifier("_axpb")))
   }
 
   private def listParquetFiles(): Set[String] = {

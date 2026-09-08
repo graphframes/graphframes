@@ -65,14 +65,15 @@ object KCore extends Serializable with Logging {
       storageLevel: StorageLevel,
       checkpointInterval: Int,
       useLocalCheckpoints: Boolean): DataFrame = {
+    val spark = graph.vertices.sparkSession
     val degrees = graph.degrees
     val preparedGraph = GraphFrame(
       degrees.withColumn("degree", col("degree").cast(IntegerType)),
       graph.edges.select(GraphFrame.SRC, GraphFrame.DST))
 
-    val functionRegistry = graph.vertices.sparkSession.sessionState.functionRegistry
-    functionRegistry.registerFunction(
-      FunctionIdentifier("_kcoreMerge"),
+    val functionRegistry = spark.sessionState.functionRegistry
+    functionRegistry.createOrReplaceTempFunction(
+      "_kcoreMerge",
       (children: Seq[Expression]) => KCoreMerge(children(0), children(1)),
       "scala_udf")
 
@@ -98,7 +99,8 @@ object KCore extends Serializable with Logging {
 
       pregel.run()
     } finally {
-      val dereg = functionRegistry.dropFunction(FunctionIdentifier("_kcoreMerge"))
+      val catalog = spark.sessionState.catalog
+      val dereg = catalog.unregisterFunction(FunctionIdentifier("_kcoreMerge"))
       if (!dereg) {
         logWarn(
           "graphframes faced an internal error and was not able to de-register function _kcoreMerge; Spark' functionRegistry is in a bad state")

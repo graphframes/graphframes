@@ -77,8 +77,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     logInfo(s"$logPrefix Using $checkpointDir for storing intermediate tables.")
 
     val functionRegistry = spark.sessionState.functionRegistry
-    functionRegistry.registerFunction(
-      FunctionIdentifier("_axpb"),
+    functionRegistry.createOrReplaceTempFunction(
+      "_axpb",
       (children: Seq[Expression]) => FiniteAXPlusB(children(0), children(1), children(2)),
       "scala_udf")
 
@@ -302,7 +302,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       // to be 100% sure;
       edges.unpersist()
       cleanupCheckpointDir()
-      val dereg = functionRegistry.dropFunction(FunctionIdentifier("_axpb"))
+      val catalog = spark.sessionState.catalog
+      val dereg = catalog.unregisterFunction(FunctionIdentifier("_axpb"))
       if (!dereg) {
         logWarn(
           "graphframes faced an internal error and was not able to de-register function _axpb; Spark' functionRegistry is in a bad state")
