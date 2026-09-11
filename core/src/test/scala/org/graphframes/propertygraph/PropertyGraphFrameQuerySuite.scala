@@ -667,4 +667,139 @@ class PropertyGraphFrameQuerySuite extends SparkFunSuite with GraphFrameTestSpar
     val rows = df.collect().map(r => (r.getString(0), r.getInt(1))).toSet
     assert(rows === Set(("Alice", 30)))
   }
+
+  // =========================================================================
+  // QueryOptions: defaults, factories, and the maxEnumeratedPaths guard.
+  //
+  // maxEnumeratedPaths bounds how many Spark plans a single query may union.
+  // It is the only guard on fan-out width (maxSchemaPathLength bounds depth),
+  // and it is enforced for `query` but deliberately not for `explain`.
+  // =========================================================================
+
+  test("QueryOptions defaults are the documented values") {
+    val opts = QueryOptions()
+    assert(opts.enableStatistics === true)
+    assert(opts.maxSchemaPathLength === 10)
+    assert(opts.maxVarLength === 5)
+    assert(opts.maxEnumeratedPaths === 32)
+  }
+
+  test("the Java-friendly factories agree with the Scala defaults") {
+    assert(QueryOptions.withDefualts === QueryOptions())
+    assert(QueryOptions.withMaxSchemaPathLength(3) === QueryOptions(maxSchemaPathLength = 3))
+    // The other fields must keep their defaults.
+    val opts = QueryOptions.withMaxSchemaPathLength(3)
+    assert(opts.maxVarLength === 5)
+    assert(opts.maxEnumeratedPaths === 32)
+    assert(opts.enableStatistics === true)
+  }
+
+  test("maxEnumeratedPaths rejects a fan-out wider than the cap") {
+    // A fully untyped 2-hop pattern fans out to more than one schema path over this fixture.
+    val gql = "MATCH (a)-[]->(b)-[]->(c)"
+    // Uncapped, the same query is legal and produces rows from every enumerated path.
+    assert(pgf.query(gql, QueryOptions(maxEnumeratedPaths = 32)).count() > 0)
+
+    val e = intercept[IllegalArgumentException] {
+      pgf.query(gql, QueryOptions(maxEnumeratedPaths = 1))
+    }
+    assert(e.getMessage.contains("1"))
+  }
+
+  test("a fan-out exactly at the cap is accepted") {
+    // The guard is `paths.size <= maxEnumeratedPaths`, so the boundary value must pass.
+    val gql = "MATCH (a)-[]->(b)-[]->(c)"
+    val resolvedCount = {
+      val ast = org.graphframes.propertygraph.internal.AstBuilder.parse(gql)
+      org.graphframes.propertygraph.internal.Resolver
+        .resolve(
+          ast,
+          org.graphframes.propertygraph.internal.SchemaGraphSnapshot
+            .fromPropertyGraphFrame(pgf),
+          QueryOptions())
+        .paths
+        .size
+    }
+    assert(resolvedCount > 1, "fixture no longer fans out; the cap test needs a wider pattern")
+    pgf.query(gql, QueryOptions(maxEnumeratedPaths = resolvedCount))
+    intercept[IllegalArgumentException] {
+      pgf.query(gql, QueryOptions(maxEnumeratedPaths = resolvedCount - 1))
+    }
+  }
+
+  test("explain bypasses the maxEnumeratedPaths guard so users can inspect the fan-out") {
+    val gql = "MATCH (a)-[]->(b)-[]->(c)"
+    val opts = QueryOptions(maxEnumeratedPaths = 1)
+    intercept[IllegalArgumentException] {
+      pgf.query(gql, opts)
+    }
+    assert(pgf.explain(gql, ExplainMode.Logical, opts).contains("Logical plan"))
+    assert(pgf.explain(gql, ExplainMode.Physical, opts).contains("Physical plan"))
+  }
+
+  test("a single-path query is unaffected by a cap of one") {
+    val df =
+      pgf.query("MATCH (a:Person)-[:WORKS_AT]->(c:Company)", QueryOptions(maxEnumeratedPaths = 1))
+    assert(df.count() === 1)
+  }
+
+  // =========================================================================
+  // Convenience overloads on the public surface.
+  // =========================================================================
+
+  test("query(gql) matches query(gql, QueryOptions())") {
+    val gql = "MATCH (a:Person)-[:KNOWS]->(b:Person)"
+    val a = pgf.query(gql).collect().toSeq
+    val b = pgf.query(gql, QueryOptions()).collect().toSeq
+    assert(a === b)
+  }
+
+  test("explain(gql, mode) matches explain(gql, mode, QueryOptions())") {
+    val gql = "MATCH (a:Person)-[:KNOWS]->(b:Person)"
+    assert(
+      pgf.explain(gql, ExplainMode.Physical) ===
+        pgf.explain(gql, ExplainMode.Physical, QueryOptions()))
+  }
+
+  test("physical explain renders one plan block per enumerated schema path") {
+    val text = pgf.explain("MATCH (a)-[]->(b)-[]->(c)", ExplainMode.Physical)
+    val blocks = text.linesIterator.count(_.trim.startsWith("Plan "))
+    assert(blocks > 1)
+    assert(text.contains("join order:"))
+    assert(text.contains("statistics:"))
+  }
+
+  test("logical explain lists the scan-local filter next to the node it was pushed to") {
+    val text =
+      pgf.explain("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 30", ExplainMode.Logical)
+    assert(text.contains("(a:Person{(a.age > 30)})"))
+  }
+
+  // =========================================================================
+  // Resolution errors surface before any Spark job is submitted.
+  // =========================================================================
+
+  test("an unknown label is rejected by explain as well as by query") {
+    intercept[InvalidPropertyGroupException] {
+      pgf.explain("MATCH (a:Alien)-[:KNOWS]->(b:Person)")
+    }
+  }
+
+  test("bad syntax is rejected by explain as well as by query") {
+    intercept[InvalidParseException] {
+      pgf.explain("MATCH (a:Person")
+    }
+  }
+
+  test("a variable-length pattern beyond maxVarLength is rejected") {
+    intercept[InvalidPropertyGroupException] {
+      pgf.query("MATCH (a:Person)-[:KNOWS*1..9]->(b:Person)", QueryOptions(maxVarLength = 5))
+    }
+  }
+
+  test("a variable-length pattern cannot bind an edge variable") {
+    intercept[InvalidParseException] {
+      pgf.query("MATCH (a:Person)-[e:KNOWS*1..2]->(b:Person)")
+    }
+  }
 }

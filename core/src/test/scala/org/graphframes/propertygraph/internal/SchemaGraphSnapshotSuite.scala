@@ -146,4 +146,48 @@ class SchemaGraphSnapshotSuite extends SparkFunSuite with GraphFrameTestSparkCon
         "posts" -> Vector(SchemaEdge("writes", "users", "posts", true)),
         "users" -> Vector(SchemaEdge("follows", "users", "users", false))))
   }
+
+  test("toDOT renders an undirected edge group with the same arrow as a directed one") {
+    // DOT output is always a `digraph` and every edge is drawn `->`; direction lives in the
+    // schema, not in the rendering. Pinned so a reader of the DOT is not misled into thinking
+    // the renderer distinguishes them.
+    val snapshot = SchemaGraphSnapshot(
+      vertexGroupNames = Set("Person"),
+      edges = Vector(
+        SchemaEdge("KNOWS", "Person", "Person", isDirected = false),
+        SchemaEdge("FOLLOWS", "Person", "Person", isDirected = true)))
+    val dot = SchemaGraphSnapshot.toDOT(snapshot)
+    assert(dot.contains("\"Person\" -> \"Person\" [label=\"KNOWS\"];"))
+    assert(dot.contains("\"Person\" -> \"Person\" [label=\"FOLLOWS\"];"))
+  }
+
+  test("toString does not distinguish directed from undirected edge groups either") {
+    val snapshot = SchemaGraphSnapshot(
+      vertexGroupNames = Set("Person"),
+      edges = Vector(SchemaEdge("KNOWS", "Person", "Person", isDirected = false)))
+    assert(SchemaGraphSnapshot.toString(snapshot).contains("KNOWS: Person -> Person"))
+  }
+
+  test("outgoing and incoming index every edge exactly once per endpoint") {
+    val snapshot = SchemaGraphSnapshot(
+      vertexGroupNames = Set("Person", "Company"),
+      edges = Vector(
+        SchemaEdge("KNOWS", "Person", "Person", isDirected = true),
+        SchemaEdge("WORKS_AT", "Person", "Company", isDirected = true)))
+    assert(snapshot.outgoing("Person").map(_.edgeGroupName).toSet === Set("KNOWS", "WORKS_AT"))
+    assert(snapshot.incoming("Person").map(_.edgeGroupName).toSet === Set("KNOWS"))
+    assert(snapshot.incoming("Company").map(_.edgeGroupName).toSet === Set("WORKS_AT"))
+    // A group with no edges in a direction is simply absent from the index.
+    assert(snapshot.outgoing.get("Company") === None)
+  }
+
+  test("parallel edge groups between the same pair are both indexed") {
+    val snapshot = SchemaGraphSnapshot(
+      vertexGroupNames = Set("Person"),
+      edges = Vector(
+        SchemaEdge("KNOWS", "Person", "Person", isDirected = true),
+        SchemaEdge("FOLLOWS", "Person", "Person", isDirected = true)))
+    assert(snapshot.outgoing("Person").length === 2)
+    assert(snapshot.incoming("Person").length === 2)
+  }
 }

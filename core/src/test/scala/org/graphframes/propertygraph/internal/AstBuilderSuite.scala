@@ -434,4 +434,154 @@ class AstBuilderSuite extends SparkFunSuite {
         PrefixEnv.raw)
     }
   }
+
+  // =========================================================================
+  // Literals not otherwise covered, and the reserved-word boundary.
+  // =========================================================================
+
+  test("NULL parses to a Literal carrying null") {
+    val ast = AstBuilder.parse("MATCH (a:Person) WHERE a.nickname = NULL")
+    assert(ast.where === Some(Comparison(PropertyAccess("a", "nickname"), Eq, Literal(null))))
+  }
+
+  test("TRUE and FALSE parse to boxed booleans") {
+    val t = AstBuilder.parse("MATCH (a:Person) WHERE a.active = TRUE").where
+    val f = AstBuilder.parse("MATCH (a:Person) WHERE a.active = false").where
+    assert(
+      t === Some(Comparison(PropertyAccess("a", "active"), Eq, Literal(java.lang.Boolean.TRUE))))
+    assert(
+      f === Some(Comparison(PropertyAccess("a", "active"), Eq, Literal(java.lang.Boolean.FALSE))))
+  }
+
+  test("an empty string literal parses to an empty string") {
+    val ast = AstBuilder.parse("MATCH (a:Person) WHERE a.name = ''")
+    assert(ast.where === Some(Comparison(PropertyAccess("a", "name"), Eq, Literal(""))))
+  }
+
+  test("a string literal of only an escaped quote parses to a single quote") {
+    val ast = AstBuilder.parse("MATCH (a:Person) WHERE a.name = ''''")
+    assert(ast.where === Some(Comparison(PropertyAccess("a", "name"), Eq, Literal("'"))))
+  }
+
+  test("an integer literal parses to Long and a decimal to Double") {
+    val ints = AstBuilder.parse("MATCH (a:Person) WHERE a.age = 30").where
+    assert(ints === Some(Comparison(PropertyAccess("a", "age"), Eq, Literal(30L))))
+    val decs = AstBuilder.parse("MATCH (a:Person) WHERE a.score = 1.5").where
+    assert(decs === Some(Comparison(PropertyAccess("a", "score"), Eq, Literal(1.5d))))
+  }
+
+  test("there is no unary minus, so a negative literal is a parse error") {
+    // `a.age - 1` is valid additive arithmetic; `> -1` has no rule to match.
+    assert(AstBuilder.parse("MATCH (a:Person) WHERE a.age - 1 > 0").where.isDefined)
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Person) WHERE a.age > -1")
+    }
+  }
+
+  test("KNOWN LIMITATION: keywords cannot be used as variable names") {
+    // Keyword rules precede IDENTIFIER in the lexer, so these words can never lex as an
+    // identifier -- and the grammar offers no quoted/escaped identifier form to escape them.
+    // A user whose data has an `as` or `in` column, or who reaches for `is` as a variable, gets
+    // an opaque parse error. A backtick-quoted identifier rule would fix it.
+    Seq("as", "is", "in", "or", "not", "and", "match", "where", "return", "true", "false", "null")
+      .foreach { word =>
+        intercept[InvalidParseException] {
+          AstBuilder.parse(s"MATCH ($word:Person)")
+        }
+      }
+  }
+
+  test("KNOWN LIMITATION: keywords cannot be used as property names") {
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Person) WHERE a.in = 1")
+    }
+  }
+
+  test("KNOWN LIMITATION: keywords cannot be used as labels") {
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Match)")
+    }
+  }
+
+  test("KNOWN LIMITATION: IS and IN are reserved but have no grammar rule") {
+    // The lexer defines IS and IN, but no parser rule consumes them, so the SQL-ish forms a user
+    // would reach for are rejected. They are reserved for a future `IS NULL` / `IN (...)`.
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Person) WHERE a.nickname IS NULL")
+    }
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Person) WHERE a.age IN (1, 2)")
+    }
+  }
+
+  test("a word that merely starts with a keyword is still a valid identifier") {
+    // Maximal munch: `inbox` must lex as one IDENTIFIER, not IN followed by `box`.
+    val ast = AstBuilder.parse("MATCH (inbox:Person) WHERE inbox.android = 1")
+    val nodes = ast.pattern.elements.collect { case n: NodePattern => n }
+    assert(nodes.head.variable === Some("inbox"))
+    assert(ast.where === Some(Comparison(PropertyAccess("inbox", "android"), Eq, Literal(1L))))
+  }
+
+  test("an identifier may start with, and contain, an underscore") {
+    val ast = AstBuilder.parse("MATCH (_a:Person) WHERE _a.first_name = 'x'")
+    val nodes = ast.pattern.elements.collect { case n: NodePattern => n }
+    assert(nodes.head.variable === Some("_a"))
+    assert(ast.where === Some(Comparison(PropertyAccess("_a", "first_name"), Eq, Literal("x"))))
+  }
+
+  test("an identifier may not start with a digit") {
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (1a:Person)")
+    }
+  }
+
+  // =========================================================================
+  // Pattern shapes that must be rejected.
+  // =========================================================================
+
+  test("a pattern that starts or ends with an edge is rejected") {
+    intercept[InvalidParseException](AstBuilder.parse("MATCH -[:KNOWS]->(b:Person)"))
+    intercept[InvalidParseException](AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->"))
+  }
+
+  test("two adjacent edges without an intervening node are rejected") {
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->-[:KNOWS]->(b:Person)")
+    }
+  }
+
+  test("a trailing comma in RETURN is rejected") {
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Person) RETURN a.name,")
+    }
+  }
+
+  test("WHERE without an expression is rejected") {
+    intercept[InvalidParseException](AstBuilder.parse("MATCH (a:Person) WHERE"))
+  }
+
+  test("a variable-length quantifier with a missing bound is rejected") {
+    intercept[InvalidParseException] {
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..]->(b:Person)")
+    }
+  }
+
+  test("a variable-length quantifier is parsed as an inclusive range") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*2..4]->(b:Person)")
+    val edges = ast.pattern.elements.collect { case e: EdgePattern => e }
+    assert(edges.head.hopsRange === Some((2, 4)))
+  }
+
+  test("an exact variable-length quantifier collapses to an equal lo and hi") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*3]->(b:Person)")
+    val edges = ast.pattern.elements.collect { case e: EdgePattern => e }
+    assert(edges.head.hopsRange === Some((3, 3)))
+  }
+
+  test("an undirected variable-length quantifier keeps both the range and the direction") {
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS*1..2]-(b:Person)")
+    val edges = ast.pattern.elements.collect { case e: EdgePattern => e }
+    assert(edges.head.hopsRange === Some((1, 2)))
+    assert(edges.head.direction === Undirected)
+  }
 }

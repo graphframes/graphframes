@@ -870,4 +870,195 @@ class ResolverSuite extends SparkFunSuite {
         options)
     }
   }
+
+  // =========================================================================
+  // WHERE classification: the remaining buckets of `classifyWhere`.
+  //
+  // A conjunct is routed to exactly one of four destinations -- a node's
+  // scanFilter, a step's scanFilter, joinPredicates, or postFilters -- and the
+  // routing decides whether the predicate can be pushed under the shuffle.
+  // The node-scan and adjacent-join buckets are covered above; these cover the
+  // edge-scan bucket, the post-filter fallbacks, and multi-position variables.
+  // =========================================================================
+
+  test("single edge-variable WHERE predicate is attached to the matching PathStep") {
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[e:KNOWS]->(b:Person) WHERE e.weight > 1")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.paths.length === 1)
+    val step = rq.paths.head.steps.head
+    assert(step.variable === Some("e"))
+    assert(step.scanFilter.length === 1)
+    assert(step.scanFilter.head === Comparison(PropertyAccess("e", "weight"), Gt, Literal(1L)))
+    // It is a scan-local filter, so it must NOT also appear as a join or post predicate.
+    assert(rq.joinPredicates.isEmpty)
+    assert(rq.postFilters.isEmpty)
+    // And it must not leak onto the endpoint nodes.
+    assert(rq.paths.head.nodes.forall(_.scanFilter.isEmpty))
+  }
+
+  test("an edge-variable predicate is not attached to an unrelated step") {
+    val ast = AstBuilder.parse(
+      "MATCH (a:Person)-[e1:KNOWS]->(b:Person)-[e2:KNOWS]->(c:Person) WHERE e1.weight > 1")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    val steps = rq.paths.head.steps
+    assert(steps.head.scanFilter.length === 1)
+    assert(steps(1).scanFilter.isEmpty)
+  }
+
+  test("a predicate mixing an edge variable and a node variable becomes a post-filter") {
+    // Edge and node variables are bound by different scans, so the conjunct cannot be pushed
+    // into either one.
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[e:KNOWS]->(b:Person) WHERE e.weight > a.age")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.postFilters.length === 1)
+    assert(rq.joinPredicates.isEmpty)
+    assert(rq.paths.head.steps.forall(_.scanFilter.isEmpty))
+    assert(rq.paths.head.nodes.forall(_.scanFilter.isEmpty))
+  }
+
+  test("a predicate over two edge variables becomes a post-filter") {
+    val ast = AstBuilder.parse(
+      "MATCH (a:Person)-[e1:KNOWS]->(b:Person)-[e2:KNOWS]->(c:Person) " +
+        "WHERE e1.weight > e2.weight")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.postFilters.length === 1)
+    assert(rq.joinPredicates.isEmpty)
+    assert(rq.paths.head.steps.forall(_.scanFilter.isEmpty))
+  }
+
+  test("a two-variable predicate over NON-adjacent nodes becomes a post-filter") {
+    // a is at position 0 and c at position 2: no single hop connects them, so the conjunct
+    // cannot be used as a join condition.
+    val ast = AstBuilder.parse(
+      "MATCH (a:Person)-[:WORKS_AT]->(b:Company)-[:LOCATED_IN]->(c:City) WHERE a.age > c.founded")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.postFilters.length === 1)
+    assert(rq.joinPredicates.isEmpty)
+  }
+
+  test("a literal-only WHERE conjunct becomes a post-filter") {
+    // It references no variable at all, so there is no scan and no join to attach it to.
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE 1 = 1")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.postFilters === Seq(Comparison(Literal(1L), Eq, Literal(1L))))
+    assert(rq.joinPredicates.isEmpty)
+    assert(rq.paths.head.nodes.forall(_.scanFilter.isEmpty))
+  }
+
+  test("one WHERE clause is split across all four destinations at once") {
+    val ast = AstBuilder.parse(
+      "MATCH (a:Person)-[e:KNOWS]->(b:Person) " +
+        "WHERE a.age > 30 AND e.weight > 1 AND a.age > b.age AND 1 = 1")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    val path = rq.paths.head
+    assert(
+      path.nodes.head.scanFilter === Seq(
+        Comparison(PropertyAccess("a", "age"), Gt, Literal(30L))))
+    assert(path.nodes(1).scanFilter.isEmpty)
+    assert(
+      path.steps.head.scanFilter === Seq(
+        Comparison(PropertyAccess("e", "weight"), Gt, Literal(1L))))
+    assert(
+      rq.joinPredicates === Seq(
+        Comparison(PropertyAccess("a", "age"), Gt, PropertyAccess("b", "age"))))
+    assert(rq.postFilters === Seq(Comparison(Literal(1L), Eq, Literal(1L))))
+  }
+
+  test("a variable bound at several positions receives its scan filter at every position") {
+    // Triangle: `a` binds both node 0 and node 2, so the scan-local predicate must be attached
+    // to both -- otherwise one leg of the triangle is scanned unfiltered.
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(a) WHERE a.age > 30")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.paths.length === 1)
+    val nodes = rq.paths.head.nodes
+    assert(nodes.length === 3)
+    assert(nodes.head.variable === Some("a"))
+    assert(nodes(2).variable === Some("a"))
+    assert(nodes.head.scanFilter.length === 1)
+    assert(nodes(2).scanFilter.length === 1)
+    assert(nodes(1).scanFilter.isEmpty)
+  }
+
+  test("adjacency of a multi-position variable is satisfied by any one of its positions") {
+    // `a` binds {0, 2} and `b` binds {1}; |2 - 1| == 1, so the predicate is join-eligible.
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(a) WHERE a.age > b.age")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.joinPredicates.length === 1)
+    assert(rq.postFilters.isEmpty)
+  }
+
+  test("repeated scan filters on the same variable accumulate in order") {
+    val ast = AstBuilder.parse(
+      "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 30 AND a.name = 'Alice'")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    val filters = rq.paths.head.nodes.head.scanFilter
+    assert(filters.length === 2)
+    assert(filters.head === Comparison(PropertyAccess("a", "age"), Gt, Literal(30L)))
+    assert(filters(1) === Comparison(PropertyAccess("a", "name"), Eq, Literal("Alice")))
+  }
+
+  test("a WHERE predicate on an anonymous element is classified as a post-filter") {
+    // `(:Person)` binds no variable, so `x.age` cannot resolve to it; the conjunct references an
+    // unknown variable and falls through to the post-filter bucket rather than being dropped.
+    val ast = AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(:Person) WHERE x.age > 30")
+    val rq = Resolver.resolve(ast, schema, options)
+
+    assert(rq.postFilters.length === 1)
+    assert(rq.paths.head.nodes.forall(_.scanFilter.isEmpty))
+  }
+
+  // =========================================================================
+  // Label validation messages.
+  // =========================================================================
+
+  test("an unknown vertex label names the known vertex groups in the message") {
+    val e = intercept[InvalidPropertyGroupException] {
+      Resolver.resolve(AstBuilder.parse("MATCH (a:Alien)"), schema, options)
+    }
+    assert(e.getMessage.contains("Unknown vertex label 'Alien'"))
+    Seq("City", "Company", "Person").foreach(g => assert(e.getMessage.contains(g)))
+  }
+
+  test("an unknown edge label names the known edge groups in the message") {
+    val e = intercept[InvalidPropertyGroupException] {
+      Resolver.resolve(AstBuilder.parse("MATCH (a:Person)-[:HATES]->(b:Person)"), schema, options)
+    }
+    assert(e.getMessage.contains("Unknown edge label 'HATES'"))
+    Seq("KNOWS", "LOCATED_IN", "WORKS_AT").foreach(g => assert(e.getMessage.contains(g)))
+  }
+
+  test("vertex and edge label namespaces are kept separate") {
+    // A vertex group name used in an edge position is not a valid edge label, and vice versa.
+    intercept[InvalidPropertyGroupException] {
+      Resolver.resolve(
+        AstBuilder.parse("MATCH (a:Person)-[:Person]->(b:Person)"),
+        schema,
+        options)
+    }
+    intercept[InvalidPropertyGroupException] {
+      Resolver.resolve(AstBuilder.parse("MATCH (a:KNOWS)"), schema, options)
+    }
+  }
+
+  test("label validation runs before path enumeration, so a disconnected pattern still throws") {
+    // (:City)-[:KNOWS]->(:City) is disconnected in the schema AND uses a valid edge label; with
+    // an invalid label the error must win over the silent empty-path result.
+    intercept[InvalidPropertyGroupException] {
+      Resolver.resolve(AstBuilder.parse("MATCH (a:City)-[:NOPE]->(b:City)"), schema, options)
+    }
+  }
 }

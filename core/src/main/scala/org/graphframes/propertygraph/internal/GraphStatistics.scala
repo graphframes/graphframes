@@ -74,8 +74,8 @@ private[propertygraph] object GraphStatistics {
   }
 
   /**
-   * Build a provider backed by the supplied per-group row-count maps. All non-rowCount fields stay
-   * empty.
+   * Build a provider backed by the supplied per-group row-count maps. All non-rowCount fields
+   * stay empty.
    */
   def cachedRowCount(
       vertexRowCounts: Map[String, Long],

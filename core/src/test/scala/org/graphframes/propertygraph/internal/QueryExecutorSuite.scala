@@ -19,6 +19,9 @@ package org.graphframes.propertygraph.internal
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructType
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.SparkFunSuite
@@ -766,5 +769,290 @@ class QueryExecutorSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(sizes === Map(2 -> 3, 3 -> 3))
     // The final hop is always WORKS_AT (the fixed tail), regardless of the KNOWS length.
     assert(rows.forall(r => pathArray(r).last.getAs[String](0) == "WORKS_AT"))
+  }
+
+  // =========================================================================
+  // ScanKey: the equality contract that the scan memo depends on.
+  // =========================================================================
+
+  test("ScanKey: equal group, filter and carried columns compare equal") {
+    val f = Seq[Expression](Comparison(PropertyAccess("a", "age"), Gt, Literal(30L)))
+    val k1 = QueryExecutor.ScanKey("person", f, Set("age", "name"))
+    val k2 = QueryExecutor.ScanKey("person", f, Set("age", "name"))
+    assert(k1 === k2)
+    assert(k1.hashCode === k2.hashCode)
+  }
+
+  test("ScanKey: carried columns are a Set, so their order does not fragment the memo") {
+    val k1 = QueryExecutor.ScanKey("person", Seq.empty, Set("age", "name"))
+    val k2 = QueryExecutor.ScanKey("person", Seq.empty, Set("name", "age"))
+    assert(k1 === k2)
+  }
+
+  test("ScanKey: structurally equal filter ASTs compare equal without canonicalization") {
+    // The AST nodes are case classes, so two independently-built copies of the same predicate
+    // must key the same scan.
+    val k1 = QueryExecutor.ScanKey(
+      "person",
+      Seq(Comparison(PropertyAccess("a", "age"), Gt, Literal(30L))),
+      Set("age"))
+    val k2 = QueryExecutor.ScanKey(
+      "person",
+      Seq(Comparison(PropertyAccess("a", "age"), Gt, Literal(30L))),
+      Set("age"))
+    assert(k1 === k2)
+  }
+
+  test("ScanKey: a different group, filter or column set is a different key") {
+    val base = QueryExecutor.ScanKey("person", Seq.empty, Set("age"))
+    assert(base !== QueryExecutor.ScanKey("company", Seq.empty, Set("age")))
+    assert(base !== QueryExecutor.ScanKey("person", Seq(Literal(true)), Set("age")))
+    assert(base !== QueryExecutor.ScanKey("person", Seq.empty, Set("age", "name")))
+    // Group names are lower-cased by the caller, so casing is significant at the key level.
+    assert(base !== QueryExecutor.ScanKey("Person", Seq.empty, Set("age")))
+  }
+
+  test("ScanKey: filters are a Seq, so their order is significant (documented caveat)") {
+    // Two logically identical conjunct lists in different order do not share a scan. The
+    // resolver emits conjuncts in source order, so this does not bite in practice, but the
+    // behaviour is pinned so a future canonicalization is a deliberate change.
+    val p = Comparison(PropertyAccess("a", "age"), Gt, Literal(30L))
+    val q = Comparison(PropertyAccess("a", "name"), Eq, Literal("Alice"))
+    assert(
+      QueryExecutor.ScanKey("person", Seq(p, q), Set.empty) !==
+        QueryExecutor.ScanKey("person", Seq(q, p), Set.empty))
+  }
+
+  // =========================================================================
+  // The fixed output schema is a public contract of `query`.
+  // =========================================================================
+
+  test("the fixed output schema has the documented field names, types and order") {
+    val schema = QueryExecutor.outputSchema
+    assert(
+      schema.fieldNames.toSeq === Seq(
+        "start_id",
+        "start_property_group",
+        "end_id",
+        "end_property_group",
+        "edge_property_group",
+        "path"))
+    assert(schema.fields.take(5).forall(_.dataType === StringType))
+    assert(schema.fields.forall(_.nullable))
+
+    val pathElement = schema("path").dataType.asInstanceOf[ArrayType].elementType
+    assert(
+      pathElement.asInstanceOf[StructType].fieldNames.toSeq ===
+        Seq("edge_property_group", "node_id", "node_property_group"))
+  }
+
+  test("an executed query's field names and types match the declared output schema") {
+    val actual = run("MATCH (a:Person)-[:KNOWS]->(b:Person)").schema
+    val declared = QueryExecutor.outputSchema
+    assert(actual.fieldNames.toSeq === declared.fieldNames.toSeq)
+    assert(
+      actual.fields.map(_.dataType.typeName).toSeq === declared.fields
+        .map(_.dataType.typeName)
+        .toSeq)
+  }
+
+  test("KNOWN LIMITATION: an empty result and a non-empty result differ in nullability") {
+    // `outputSchema` declares every field nullable, but the projection builds the property-group
+    // and path columns from `lit(...)`, which Spark types as non-nullable. So the schema of a
+    // query that matched rows is NOT equal to the schema of one that matched none, even though
+    // both are documented as "the fixed output schema".
+    //
+    // It is benign for a union (nullability is widened) but it breaks `df.schema == other.schema`
+    // for callers, and it means the empty-result path is the only one that matches the declared
+    // contract. A fix would build the projection columns with an explicit nullable cast.
+    val empty = QueryExecutor.execute(pgf, Seq.empty).schema
+    val nonEmpty = run("MATCH (a:Person)-[:KNOWS]->(b:Person)").schema
+    assert(empty !== nonEmpty)
+    assert(empty === QueryExecutor.outputSchema)
+    assert(empty.fieldNames.toSeq === nonEmpty.fieldNames.toSeq)
+    assert(nonEmpty("start_property_group").nullable === false)
+    assert(empty("start_property_group").nullable === true)
+  }
+
+  test("an empty plan list produces the declared output schema with no rows") {
+    val df = QueryExecutor.execute(pgf, Seq.empty)
+    assert(df.schema === QueryExecutor.outputSchema)
+    assert(df.isEmpty)
+  }
+
+  // =========================================================================
+  // RETURN * currently behaves as the default projection.
+  // =========================================================================
+
+  test("RETURN * produces the same schema and rows as an omitted RETURN") {
+    // `Projection.Star` and `Projection.Default` share a branch in `project`, so `*` yields the
+    // fixed output schema rather than one column per bound variable. Pinned so that implementing
+    // a real `*` projection is a deliberate, visible change.
+    val withStar = run("MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN *")
+    val withoutReturn = run("MATCH (a:Person)-[:KNOWS]->(b:Person)")
+    assert(withStar.schema === withoutReturn.schema)
+    assert(withStar.collect().toSeq === withoutReturn.collect().toSeq)
+  }
+
+  // =========================================================================
+  // Fan-out with RETURN items: property availability across candidate groups.
+  // =========================================================================
+
+  test("RETURN over a fan-out works when the property exists in every candidate group") {
+    // Both Person and Company carry `name`, so the untyped edge fan-out unions cleanly.
+    val names = run("MATCH (a:Person)-[]->(b) RETURN b.name")
+      .collect()
+      .map(_.getString(0))
+      .toSet
+    assert(names === Set("Alice", "Bob", "Carol", "Acme", "Globex"))
+  }
+
+  test("RETURN of a property missing from one candidate group fails rather than nulling it") {
+    // `age` exists on Person but not on Company; the Company leg of the fan-out cannot resolve
+    // `b_age`. This is a real limitation of the per-path UNION: the failure comes from Spark
+    // analysis, not from a GQL-level diagnostic.
+    intercept[Exception] {
+      run("MATCH (a:Person)-[]->(b) RETURN b.age").collect()
+    }
+  }
+
+  // =========================================================================
+  // Repeated node variables (cyclic patterns).
+  // =========================================================================
+
+  test("a cyclic pattern that binds one variable twice resolves to a single schema path") {
+    // Resolution handles the repeated binding; this pins the resolved shape so the executor
+    // test below is unambiguous about what it is executing.
+    val ast =
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)-[:KNOWS]->(a)")
+    val resolved =
+      Resolver.resolve(ast, SchemaGraphSnapshot.fromPropertyGraphFrame(pgf), QueryOptions())
+    assert(resolved.paths.length === 1)
+    val nodes = resolved.paths.head.nodes
+    assert(nodes.length === 4)
+    assert(nodes.head.variable === Some("a"))
+    assert(nodes(3).variable === Some("a"))
+  }
+
+  test(
+    "KNOWN LIMITATION: a pattern that binds one variable twice fails with AMBIGUOUS_REFERENCE") {
+    // `PrefixEnv.nodePrefix` uses the bound variable as the column prefix, so nodes 0 and 3 of
+    // `(a)-[]->(b)-[]->(c)-[]->(a)` are both renamed to `a_id` / `a_property_group`. Joining the
+    // two scans then leaves a duplicated name and every `col("a_id")` reference is ambiguous.
+    //
+    // Resolution already supports repeated bindings (see the test above and the multi-position
+    // handling in `Resolver.classifyWhere`), so this is an executor-side gap, not a designed
+    // restriction. A fix would make the prefix positional (`a0`, `a3`) while keeping
+    // `prefixFor` pointing at one representative position, and add the implied self-equality
+    // (`a0_id === a3_id`) as a join condition.
+    //
+    // Cyclic patterns are a core motivation for a pattern language, so this is worth fixing
+    // before the API is public. When it is, replace this with an assertion on the 3 cycles that
+    // the KNOWS fixture (1->2, 2->3, 3->1) should return.
+    val e = intercept[Exception] {
+      run("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)-[:KNOWS]->(a)").collect()
+    }
+    assert(e.getMessage.contains("AMBIGUOUS_REFERENCE") || e.getMessage.contains("ambiguous"))
+  }
+
+  test("a cyclic pattern with distinct variables at every position works") {
+    // The same 3-cycle, written without reusing `a`, executes fine -- which isolates the cause
+    // of the failure above to the repeated binding rather than to cyclic topology.
+    val df =
+      run("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(c:Person)-[:KNOWS]->(d:Person)")
+    assert(df.count() === 3)
+  }
+
+  // =========================================================================
+  // KNOWN LIMITATION: nullif cannot be used anywhere in a query.
+  // =========================================================================
+
+  test("KNOWN LIMITATION: nullif fails in a scan-local WHERE") {
+    // See FunctionRegistrySuite for the cause: `functions.nullif` reads its argument's dataType
+    // at construction time, and every lowered argument here is unresolved.
+    intercept[Exception] {
+      run("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE nullif(a.age, 99) > 20").collect()
+    }
+  }
+
+  test("KNOWN LIMITATION: nullif fails in a RETURN item") {
+    intercept[Exception] {
+      run("MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN nullif(a.age, 99)").collect()
+    }
+  }
+
+  test("KNOWN LIMITATION: nullif fails in a join predicate") {
+    intercept[Exception] {
+      run("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE nullif(a.age, b.age) > 20").collect()
+    }
+  }
+
+  test("nvl, ifnull and coalesce work end-to-end where nullif does not") {
+    val rows = run("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE nvl(a.age, 0) > 26").count()
+    assert(rows === 2) // Alice(30)->Bob and Bob(40)->Carol; Carol(25) is filtered out
+    assert(
+      run("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE coalesce(a.age, 0) > 26").count() === rows)
+    assert(
+      run("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE ifnull(a.age, 0) > 26").count() === rows)
+  }
+
+  // =========================================================================
+  // KNOWN LIMITATION: scan-local predicates resolve `id` against raw columns.
+  // =========================================================================
+
+  private def nonIdPkGraph(): PropertyGraphFrame = {
+    // Same shape as the main fixture, but the primary key column is NOT called `id`. The masked
+    // `id` column only comes into existence inside `getData`'s projection.
+    val persons =
+      Seq((1L, "Alice", 30), (2L, "Bob", 40)).toDF("person_id", "name", "age")
+    val personGroup = VertexPropertyGroup("Person", persons, "person_id")
+    val knows = Seq((1L, 2L)).toDF("src", "dst")
+    val knowsGroup = EdgePropertyGroup(
+      "KNOWS",
+      knows,
+      personGroup,
+      personGroup,
+      isDirected = true,
+      "src",
+      "dst",
+      lit(1.0))
+    PropertyGraphFrame(Seq(personGroup), Seq(knowsGroup))
+  }
+
+  test("KNOWN LIMITATION: a scan-local bare-variable predicate needs a primary key named id") {
+    // A single-variable conjunct is classified scan-local and lowered with `PrefixEnv.raw`, so
+    // `Variable(a)` becomes `col("id")` and is applied by `getData` to the RAW group data --
+    // where the column is `person_id`, not `id`. A fix would lower scan-local `Variable` /
+    // `PropertyAccess(_, "id")` references to the group's `primaryKeyColumn`, or classify them
+    // as post-filters so they are evaluated after aliasing.
+    val graph = nonIdPkGraph()
+    val e = intercept[Exception] {
+      runOn(graph, "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a = 'nobody'").collect()
+    }
+    assert(e.getMessage.contains("id"))
+  }
+
+  test("KNOWN LIMITATION: the same predicate written as a.id fails identically") {
+    val graph = nonIdPkGraph()
+    intercept[Exception] {
+      runOn(graph, "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.id = 'nobody'").collect()
+    }
+  }
+
+  test("a bare-variable predicate in a JOIN position works with a non-id primary key") {
+    // Two variables => a join predicate, lowered against the already-aliased frame, where
+    // `a_id` / `b_id` do exist. This isolates the failure above to the scan-local path.
+    val graph = nonIdPkGraph()
+    assert(runOn(graph, "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a <> b").count() === 1)
+  }
+
+  test("a bare variable in RETURN works with a non-id primary key") {
+    val graph = nonIdPkGraph()
+    assert(runOn(graph, "MATCH (a:Person)-[:KNOWS]->(b:Person) RETURN a").count() === 1)
+  }
+
+  test("a scan-local predicate over ordinary properties is unaffected by the pk column name") {
+    val graph = nonIdPkGraph()
+    assert(runOn(graph, "MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE a.age > 25").count() === 1)
   }
 }
