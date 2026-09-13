@@ -16,6 +16,7 @@
 #
 
 
+import inspect
 from dataclasses import dataclass
 
 import pytest
@@ -642,6 +643,28 @@ def test_connected_components_example(spark: SparkSession) -> None:
     res = cc.collect()
     assert len(res) == 3
     _ = cc.unpersist()
+
+
+def test_connected_components_graphx_default_max_iter_is_unlimited(spark: SparkSession) -> None:
+    """Regression: the default `2 ^ 31 - 2` is XOR and evaluated to 31, truncating GraphX."""
+    n = 50
+    v = spark.createDataFrame([(i,) for i in range(n)], ["id"])
+    e = spark.createDataFrame([(i, i + 1) for i in range(n - 1)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    # max_iter is deliberately not passed: this exercises the default. The path graph has
+    # diameter n - 1 = 49, so a default capped at 31 supersteps splits it into 19 components.
+    result = g.connectedComponents(algorithm="graphx")
+    assert result.count() == n
+    assert result.select("component").distinct().count() == 1
+
+    _ = result.unpersist()
+
+
+def test_connected_components_max_iter_default_value() -> None:
+    """Guard the default itself so a `**` -> `^` regression fails without starting Spark."""
+    default = inspect.signature(GraphFrame.connectedComponents).parameters["max_iter"].default
+    assert default == 2**31 - 2
 
 
 @pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
