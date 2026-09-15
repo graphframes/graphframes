@@ -63,7 +63,7 @@ For `graphframes` only. By default, GraphFrames uses persistent checkpoints. The
 
 The level of storage for intermediate results and the output `DataFrame` with components. By default it is memory and disk deserialized as a good balance between performance and reliability. For very big graphs and out-of-core scenarios, using `DISK_ONLY` may be faster.
 
-- `is_direted`
+- `is_directed`
 
 By default this is true and algorithm will look for only directed paths. By passing false, graph will be considered as undirected and algorithm will look for any shortest path.
 
@@ -280,7 +280,7 @@ A DataFrame-native implementation based on the large-star / small-star label pro
 
 This algorithm has much better convergence complexity than `graphx` and requires significantly less memory thanks to efficient Tungsten serialization. It is the recommended default for most workloads.
 
-Component IDs produced by `two_phase` are stable `Long` values. For graphs whose vertex IDs are already integral types (`Long`, `Int`, `Short`, `Byte`), the component ID will be the minimum original vertex ID within the component. For `String`-typed (or other non-integral) vertex IDs, the component ID will be a random `Long` unless `use_labels_as_components=True` is set (see below).
+Component IDs produced by `two_phase` are stable `Long` values. For graphs whose vertex IDs are already integral types (`Long`, `Int`, `Short`, `Byte`), the component ID will be the minimum original vertex ID within the component. For `String`-typed (or other non-integral) vertex IDs, the component ID will be a random `Long` unless `useLabelsAsComponents=True` is set (see below).
 
 This algorithm has two internal join modes — see [AQE-broadcast mode](#aqe-broadcast-mode) below for details.
 
@@ -292,7 +292,7 @@ A DataFrame-native implementation based on randomized graph contraction, describ
 
 This algorithm iteratively contracts the graph using random linear functions until no edges remain, then reconstructs component identifiers in a reverse pass. It has similar convergence characteristics to `two_phase` (AQE mode) and performs better on benchmarks than `two_phase` with AQE. This algorithm requires around 2x less amount of memory to perform compared to "two_phase"
 
-Unlike `two_phase`, `randomized_contraction` **always** produces random `Long` component IDs regardless of the input vertex ID type, unless `use_labels_as_components=True` is set.
+Unlike `two_phase`, `randomized_contraction` **always** produces random `Long` component IDs regardless of the input vertex ID type, unless `useLabelsAsComponents=True` is set.
 
 #### Deprecation notice
 
@@ -309,31 +309,31 @@ The algorithm name `graphframes` is a deprecated alias for `two_phase` and will 
 
 ### Arguments
 
-- `algorithm`
+- `algorithm` (Python) / `setAlgorithm` (Scala)
 
 Selects the algorithm. Supported values: `graphx`, `two_phase` (default), `randomized_contraction`. The value `graphframes` is a deprecated alias for `two_phase`.
 
-- `maxIter`
+- `max_iter` (Python) / `maxIter` (Scala)
 
-For `graphx` only. Limits the maximum number of Pregel iterations. Default is `Integer.MAX_VALUE` (unlimited). It is generally not recommended to change this value.
+For `graphx` only. Limits the maximum number of Pregel iterations. The default is effectively unlimited, and it is generally not recommended to change this value.
 
-- `checkpoint_interval`
+- `checkpointInterval` (Python) / `setCheckpointInterval` (Scala)
 
 For `two_phase` and `randomized_contraction`. To avoid exponential growth of the Spark logical plan, DataFrame lineage, and query optimization time, checkpointing is performed periodically. It is recommended to keep this value at `2` or below.
 
-- `broadcast_threshold`
+- `broadcastThreshold` (Python) / `setBroadcastThreshold` (Scala)
 
 For `two_phase` only. See [AQE-broadcast mode](#aqe-broadcast-mode) below for details.
 
-- `use_labels_as_components`
+- `useLabelsAsComponents` (Python) / `setUseLabelsAsComponents` (Scala)
 
-For `two_phase` and `randomized_contraction`. By default, component IDs are `Long` values. For `two_phase` with integral vertex ID types, the component ID is the minimum original vertex ID in the component. For `String`-typed vertices (or any non-integral type), and always for `randomized_contraction`, the component ID is a random `Long`. By setting `use_labels_as_components=True`, GraphFrames will instead use the minimum original vertex label as the component ID. This requires an additional `groupBy` + `agg` + `join` and is not free.
+For `two_phase` and `randomized_contraction`. By default, component IDs are `Long` values. For `two_phase` with integral vertex ID types, the component ID is the minimum original vertex ID in the component. For `String`-typed vertices (or any non-integral type), and always for `randomized_contraction`, the component ID is a random `Long`. By setting `useLabelsAsComponents=True`, GraphFrames will instead use the minimum original vertex label as the component ID. This requires an additional `groupBy` + `agg` + `join` and is not free.
 
-- `use_local_checkpoints`
+- `use_local_checkpoints` (Python) / `setUseLocalCheckpoints` (Scala)
 
 For `two_phase` and `randomized_contraction`. By default, GraphFrames uses persistent checkpoints, which are reliable but require a `checkpointDir` to be configured in persistent storage (e.g. S3 or HDFS). Setting `use_local_checkpoints=True` uses the local disks of Spark executors instead. Local checkpoints are faster but less reliable: if an executor is lost, the checkpoint is lost and the job will fail.
 
-- `storage_level`
+- `storage_level` (Python) / `setIntermediateStorageLevel` (Scala)
 
 The storage level for intermediate datasets and the output DataFrame. Default is `MEMORY_AND_DISK`. For very large graphs or out-of-core scenarios, `DISK_ONLY` may be preferable.
 
@@ -343,7 +343,7 @@ _Starting from 0.10.0_
 
 For `two_phase` only. During iterations, this algorithm can produce edges with highly skewed degree distributions, where some vertices have very high degree. In earlier versions of GraphFrames, this was handled by manually broadcasting high-degree nodes. However, this manual broadcasting is incompatible with Apache Spark Adaptive Query Execution (AQE), which is why AQE was previously disabled for Connected Components.
 
-From GraphFrames 0.10+, you can disable manual broadcasting and instead rely on AQE to handle skewness automatically. To enable this mode, pass `-1` as the `broadcast_threshold` (or call `setBroadcastThreshold(-1)`). Based on benchmarks, this mode provides approximately **5x speed-up** over the manual skewed-join mode. It is possible that in a future release, `-1` will become the default value for `broadcast_threshold`.
+From GraphFrames 0.10+, you can disable manual broadcasting and instead rely on AQE to handle skewness automatically. To enable this mode, pass `-1` as the `broadcastThreshold` (or call `setBroadcastThreshold(-1)`). Based on benchmarks, this mode provides approximately **5x speed-up** over the manual skewed-join mode. It is possible that in a future release, `-1` will become the default value for `broadcastThreshold`.
 
 ### Advanced: skipping graph preparation
 

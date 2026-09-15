@@ -8,12 +8,12 @@ The following table lists all available GraphFrames configurations:
 
 | Configuration | Description | Default Value | Since Version |
 |---------------|-------------|---------------|---------------|
-| `spark.graphframes.useLocalCheckpoints` | Tells the connected components algorithm to use local checkpoints. If set to "true", iterative algorithm will use the checkpointing mechanism to the persistent storage. Local checkpoints are faster but can make the whole job less prone to errors. | `false` | 0.9.3 |
-| `spark.graphframes.useLabelsAsComponents` | Tells the connected components algorithm to use labels as components in the output DataFrame. If set to "false", randomly generated labels with the data type LONG will returned. | Optional (default: `true`) | 0.9.0 |
-| `spark.graphframes.connectedComponents.algorithm` | Sets the connected components algorithm to use. Supported algorithms: <br>- "graphframes": Uses alternating large star and small star iterations proposed in [Connected Components in MapReduce and Beyond](http://dx.doi.org/10.1145/2670979.2670997) with skewed join optimization. <br>- "graphx": Converts the graph to a GraphX graph and then uses the connected components implementation in GraphX. | Optional (default: `graphframes`) | 0.9.0 |
-| `spark.graphframes.connectedComponents.broadcastthreshold` | Sets broadcast threshold in propagating component assignments. If a node degree is greater than this threshold at some iteration, its component assignment will be collected and then broadcasted back to propagate the assignment to its neighbors. Otherwise, the assignment propagation is done by a normal Spark join. This parameter is only used when the algorithm is set to "graphframes". | Optional (default: `1000000`) | 0.9.0 |
-| `spark.graphframes.connectedComponents.checkpointinterval` | Sets checkpoint interval in terms of number of iterations. Checkpointing regularly helps recover from failures, clean shuffle files, shorten the lineage of the computation graph, and reduce the complexity of plan optimization. As of Spark 2.0, the complexity of plan optimization would grow exponentially without checkpointing. Hence, disabling or setting longer-than-default checkpoint intervals are not recommended. Checkpoint data is saved under `org.apache.spark.SparkContext.getCheckpointDir` with prefix "connected-components". If the checkpoint directory is not set, this throws a `java.io.IOException`. Set a nonpositive value to disable checkpointing. This parameter is only used when the algorithm is set to "graphframes". | Optional (default: `2`) | 0.9.0 |
-| `spark.graphframes.connectedComponents.intermediatestoragelevel` | Sets storage level for intermediate datasets that require multiple passes. | Optional (default: `MEMORY_AND_DISK`) | 0.9.0 |
+| `spark.graphframes.useLocalCheckpoints` | Tells the connected components algorithm to use local checkpoints. If set to "true", the algorithm checkpoints to the local disks of the executors instead of to persistent storage, which removes the need to configure a checkpoint directory. Local checkpoints are faster but less reliable: they do not survive the loss of an executor. Used by the "two_phase" and "randomized_contraction" algorithms. | Optional (default: `false`) | 0.9.3 |
+| `spark.graphframes.useLabelsAsComponents` | Tells the connected components algorithm to use the minimum original vertex label as the component ID. When "false", component IDs have the data type LONG. The effect depends on the algorithm and on the vertex ID type, see [Traversals](/04-user-guide/05-traversals.md) for the details. Used by the "two_phase" and "randomized_contraction" algorithms. | Optional (default: `false`) | 0.9.0 |
+| `spark.graphframes.connectedComponents.algorithm` | Sets the connected components algorithm to use. Supported algorithms: <br>- "two_phase": Uses alternating large star and small star iterations proposed in [Connected Components in MapReduce and Beyond](http://dx.doi.org/10.1145/2670979.2670997). <br>- "randomized_contraction": Uses the randomized algorithm proposed in [In-database connected component analysis](https://arxiv.org/pdf/1802.09478). <br>- "graphx": Converts the graph to a GraphX graph and then uses the connected components implementation in GraphX. <br>- "graphframes": Deprecated alias for "two_phase". | Optional (default: `two_phase`) | 0.9.0 |
+| `spark.graphframes.connectedComponents.broadcastthreshold` | Sets broadcast threshold in propagating component assignments. If a node degree is greater than this threshold at some iteration, its component assignment will be collected and then broadcasted back to propagate the assignment to its neighbors. Otherwise, the assignment propagation is done by a normal Spark join. Set it to `-1` to disable manual broadcasting and let Adaptive Query Execution handle the skew instead; that mode is considerably faster on most graphs. This parameter is only used by the "two_phase" algorithm. | Optional (default: `1000000`) | 0.9.0 |
+| `spark.graphframes.connectedComponents.checkpointinterval` | Sets checkpoint interval in terms of number of iterations. Checkpointing regularly helps recover from failures, clean shuffle files, shorten the lineage of the computation graph, and reduce the complexity of plan optimization. As of Spark 2.0, the complexity of plan optimization would grow exponentially without checkpointing. Hence, disabling or setting longer-than-default checkpoint intervals are not recommended. Checkpoint data is saved under the directory set by `org.apache.spark.SparkContext.setCheckpointDir`, or, when that is not set, under the `spark.checkpoint.dir` configuration; the algorithm writes into a sub-directory prefixed with its own name ("connected-components" or "randomized-contraction"). If neither is set and local checkpoints are not enabled, this throws a `java.io.IOException`. Set a nonpositive value to disable checkpointing. Used by the "two_phase" and "randomized_contraction" algorithms; note that "two_phase" in AQE mode (`broadcastthreshold` set to `-1`) relies on Spark's own DataFrame checkpointing instead of its own sub-directory. | Optional (default: `2`) | 0.9.0 |
+| `spark.graphframes.connectedComponents.intermediatestoragelevel` | Sets storage level for intermediate datasets that require multiple passes. Used by all the connected components algorithms. | Optional (default: `MEMORY_AND_DISK`) | 0.9.0 |
 
 ## Setting Configurations
 
@@ -30,7 +30,7 @@ import org.apache.spark.sql.SparkSession
 
 val spark = SparkSession.builder()
   .appName("GraphFrames Example")
-  .config("spark.graphframes.connectedComponents.algorithm", "graphframes")
+  .config("spark.graphframes.connectedComponents.algorithm", "two_phase")
   .config("spark.graphframes.connectedComponents.checkpointinterval", 3)
   .getOrCreate()
 ```
@@ -42,7 +42,7 @@ from pyspark.sql import SparkSession
 
 spark = SparkSession.builder \
   .appName("GraphFrames Example") \
-  .config("spark.graphframes.connectedComponents.algorithm", "graphframes") \
+  .config("spark.graphframes.connectedComponents.algorithm", "two_phase") \
   .config("spark.graphframes.connectedComponents.checkpointinterval", 3) \
   .getOrCreate()
 ```
@@ -54,13 +54,13 @@ You can also set configurations at runtime:
 #### Scala API
 
 ```scala
-spark.conf.set("spark.graphframes.connectedComponents.algorithm", "graphframes")
+spark.conf.set("spark.graphframes.connectedComponents.algorithm", "two_phase")
 spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", 3)
 ```
 
 #### Python API
 ```python
-spark.conf.set("spark.graphframes.connectedComponents.algorithm", "graphframes")
+spark.conf.set("spark.graphframes.connectedComponents.algorithm", "two_phase")
 spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", 3)
 ```
 
@@ -78,7 +78,7 @@ import org.graphframes.examples
 val g = examples.Graphs.friends
 
 // Set configurations
-spark.conf.set("spark.graphframes.connectedComponents.algorithm", "graphframes")
+spark.conf.set("spark.graphframes.connectedComponents.algorithm", "two_phase")
 spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", 3)
 spark.conf.set("spark.graphframes.useLocalCheckpoints", true)
 
@@ -96,7 +96,7 @@ from graphframes.examples import Graphs
 g = Graphs(spark).friends()
 
 # Set configurations
-spark.conf.set("spark.graphframes.connectedComponents.algorithm", "graphframes")
+spark.conf.set("spark.graphframes.connectedComponents.algorithm", "two_phase")
 spark.conf.set("spark.graphframes.connectedComponents.checkpointinterval", 3)
 spark.conf.set("spark.graphframes.useLocalCheckpoints", "true")
 
@@ -107,7 +107,7 @@ result.show()
 
 ## Notes on Configuration Usage
 
-- **Checkpoint Directory**: For configurations related to checkpointing, make sure to set a checkpoint directory using `spark.sparkContext.setCheckpointDir("path/to/checkpoint/dir")` before running algorithms that use checkpointing.
+- **Checkpoint Directory**: For configurations related to checkpointing, make sure to set a checkpoint directory using `spark.sparkContext.setCheckpointDir("path/to/checkpoint/dir")` before running algorithms that use checkpointing. Where `sparkContext` is not reachable, for example from a Spark Connect client, set the `spark.checkpoint.dir` configuration instead; GraphFrames falls back to it. Alternatively, enable `spark.graphframes.useLocalCheckpoints`, which needs no checkpoint directory at all.
 - **Storage Levels**: When setting the `spark.graphframes.connectedComponents.intermediatestoragelevel` configuration, use one of the following values: `MEMORY_ONLY`, `MEMORY_AND_DISK`, `MEMORY_ONLY_SER`, `MEMORY_AND_DISK_SER`, `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc.
-- **Algorithm Selection**: The choice of algorithm for connected components can significantly impact performance. The "graphframes" algorithm is generally more scalable for large graphs, while the "graphx" algorithm may be faster for smaller graphs.
-- **Local Checkpoints**: Local checkpoints are faster and less error prone, but can put strain on the local disk if insufficiently large. Because local checkpoints do not require to set `checkpointDir` it is a recommended option.
+- **Algorithm Selection**: The choice of algorithm for connected components can significantly impact performance. The DataFrame-based algorithms, "two_phase" (the default) and "randomized_contraction", are generally more scalable for large graphs, while the RDD-based "graphx" algorithm may be faster for smaller graphs. See [Traversals](/04-user-guide/05-traversals.md) for a comparison of the algorithms.
+- **Local Checkpoints**: Local checkpoints are faster and can put strain on the local disk if insufficiently large. They are also less reliable than checkpoints in persistent storage, because they do not survive the loss of an executor. Because local checkpoints do not require setting `checkpointDir`, they are a convenient option for shorter runs.
