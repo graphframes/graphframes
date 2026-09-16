@@ -26,6 +26,7 @@ import org.graphframes.Logging
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
+import org.graphframes.WithMaxIter
 
 /**
  * PageRank algorithm implementation, version 2. It is a native DataFrame implementation built on
@@ -49,12 +50,12 @@ class PageRankV2 private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Logging
     with WithCheckpointInterval
+    with WithMaxIter
     with WithLocalCheckpoints
     with WithIntermediateStorageLevel {
 
   private var resetProb: Double = 0.15
   private var tol: Option[Double] = None
-  private var maxIter: Option[Int] = None
   private var srcId: Option[Any] = None
 
   /** Source vertex for a Personalized Page Rank (optional) */
@@ -72,12 +73,6 @@ class PageRankV2 private[graphframes] (private val graph: GraphFrame)
   /** Convergence tolerance. Cannot be used together with [[maxIter]]. */
   def tol(value: Double): this.type = {
     tol = Some(value)
-    this
-  }
-
-  /** Fixed number of iterations. Cannot be used together with [[tol]]. */
-  def maxIter(value: Int): this.type = {
-    maxIter = Some(value)
     this
   }
 
