@@ -42,6 +42,9 @@ import scala.jdk.CollectionConverters.*
  * SybilRank algorithm for ranking the trustworthiness of accounts in social networks and
  * detecting sybils (fake accounts).
  *
+ * Cao, Qiang, et al. "Aiding the detection of fake accounts in large scale social online
+ * services." 9th USENIX symposium on networked systems design and implementation (NSDI 12). 2012.
+ *
  * The implementation follows the SybilRank algorithm published by Cao et al. at NSDI'12, with the
  * weighted-graph extension of Boshmaf et al. (the same variant that is used by the Okapi graph
  * processing library).
@@ -85,12 +88,6 @@ import scala.jdk.CollectionConverters.*
  *
  * @param graph
  *   the graph to run SybilRank on
- * @see
- *   <a href="https://doi.org/10.1145/1993077.1993083">Cao et al., "Aiding the Detection of Fake
- *   Accounts in Large Scale Social Online Services", NSDI'12</a>
- * @see
- *   <a href="https://doi.org/10.1145/2485885.2485888">Boshmaf et al., "Integro: Leveraging Victim
- *   Prediction for Robust and Automatic Fake Account Detection", CCS'15</a>
  */
 class SybilRank private[graphframes] (private val graph: GraphFrame)
     extends WithCheckpointInterval
