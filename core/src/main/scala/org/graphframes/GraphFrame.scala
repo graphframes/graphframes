@@ -1009,6 +1009,16 @@ class GraphFrame private (
    */
   def hyperANF: HyperANF = new HyperANF(this)
 
+  /**
+   * SybilRank algorithm for ranking the trustworthiness of accounts and detecting sybils (fake
+   * accounts) in social networks.
+   *
+   * See [[org.graphframes.lib.SybilRank]] for more details.
+   *
+   * @group stdlib
+   */
+  def sybilRank: SybilRank = new SybilRank(this)
+
   // ========= Graph Machine Learning ==========
 
   /**

@@ -1473,6 +1473,91 @@ class GraphFrameConnect:
             self._spark,
         )
 
+    def sybil_rank(
+        self,
+        trusted_vertices: list[str | int] | None,
+        trusted_vertices_col: str | None,
+        weight_col: str | None,
+        total_trust: float | None,
+        iteration_multiplier: float,
+        is_directed: bool,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        @final
+        class SybilRank(LogicalPlan):
+            def __init__(
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                trusted_vertices: list[str | int] | None,
+                trusted_vertices_col: str | None,
+                weight_col: str | None,
+                total_trust: float | None,
+                iteration_multiplier: float,
+                is_directed: bool,
+                checkpoint_interval: int,
+                use_local_checkpoints: bool,
+                storage_level: StorageLevel,
+            ) -> None:
+                super().__init__(None)
+                self.v = v
+                self.e = e
+                self.trusted_vertices = trusted_vertices
+                self.trusted_vertices_col = trusted_vertices_col
+                self.weight_col = weight_col
+                self.total_trust = total_trust
+                self.iteration_multiplier = iteration_multiplier
+                self.is_directed = is_directed
+                self.checkpoint_interval = checkpoint_interval
+                self.use_local_checkpoints = use_local_checkpoints
+                self.storage_level = storage_level
+
+            @override
+            def plan(self, session: SparkConnectClient) -> proto.Relation:
+                graphframes_api_call = GraphFrameConnect._get_pb_api_message(
+                    self.v, self.e, session
+                )
+                sybil_rank_message = pb.SybilRank(
+                    iteration_multiplier=self.iteration_multiplier,
+                    is_directed=self.is_directed,
+                    checkpoint_interval=self.checkpoint_interval,
+                    use_local_checkpoints=self.use_local_checkpoints,
+                    storage_level=storage_level_to_proto(self.storage_level),
+                )
+                if self.trusted_vertices is not None:
+                    sybil_rank_message.trusted_vertex_ids.extend(
+                        [make_str_or_long_id(raw_id) for raw_id in self.trusted_vertices]
+                    )
+                if self.trusted_vertices_col is not None:
+                    sybil_rank_message.trusted_vertices_col = self.trusted_vertices_col
+                if self.weight_col is not None:
+                    sybil_rank_message.weight_col = self.weight_col
+                if self.total_trust is not None:
+                    sybil_rank_message.total_trust = self.total_trust
+                graphframes_api_call.sybil_rank.CopyFrom(sybil_rank_message)
+                plan = self._create_proto_relation()
+                plan.extension.Pack(graphframes_api_call)
+                return plan
+
+        return _dataframe_from_plan(
+            SybilRank(
+                self._vertices,
+                self._edges,
+                trusted_vertices,
+                trusted_vertices_col,
+                weight_col,
+                total_trust,
+                iteration_multiplier,
+                is_directed,
+                checkpoint_interval,
+                use_local_checkpoints,
+                storage_level,
+            ),
+            self._spark,
+        )
+
     def aggregate_neighbors(
         self,
         starting_vertices: Column | str,
@@ -1598,7 +1683,10 @@ class GraphFrameConnect:
         @final
         class RWEmbeddings(LogicalPlan):
             def __init__(
-                self, v: DataFrame, e: DataFrame, params: _RandomWalksEmbeddingsParameters
+                self,
+                v: DataFrame,
+                e: DataFrame,
+                params: _RandomWalksEmbeddingsParameters,
             ) -> None:
                 super().__init__(None)
                 self.v = v

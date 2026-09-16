@@ -359,7 +359,10 @@ def test_all_paths(local_g: GraphFrame) -> None:
 
     # With edge filter that removes the 'follow' edge: no path A->C
     paths_filtered = local_g.all_paths(
-        "name='A'", "name='C'", edge_filter="action!='follow'", use_local_checkpoints=True
+        "name='A'",
+        "name='C'",
+        edge_filter="action!='follow'",
+        use_local_checkpoints=True,
     )
     assert paths_filtered.count() == 0
 
@@ -645,7 +648,9 @@ def test_connected_components_example(spark: SparkSession) -> None:
     _ = cc.unpersist()
 
 
-def test_connected_components_graphx_default_max_iter_is_unlimited(spark: SparkSession) -> None:
+def test_connected_components_graphx_default_max_iter_is_unlimited(
+    spark: SparkSession,
+) -> None:
     """Regression: the default `2 ^ 31 - 2` is XOR and evaluated to 31, truncating GraphX."""
     n = 50
     v = spark.createDataFrame([(i,) for i in range(n)], ["id"])
@@ -1179,3 +1184,84 @@ def test_hyper_anf_invalid_args(spark: SparkSession) -> None:
 
     with pytest.raises(ValueError, match="lg_nom_entries must be between 4 and 21"):
         g.hyper_anf(lg_nom_entries=22)
+
+
+def test_sybil_rank_basic(spark: SparkSession) -> None:
+    """Smoke test: star graph with a trusted center; verify columns and known ranks."""
+    v = spark.createDataFrame([(0,), (1,), (2,), (3,)], ["id"])
+    e = spark.createDataFrame([(0, 1), (0, 2), (0, 3)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    result = g.sybil_rank(trusted_vertices=[0], use_local_checkpoints=True)
+
+    assert result.columns == ["id", "sybil_rank"]
+    ranks = {row["id"]: row["sybil_rank"] for row in result.collect()}
+    assert abs(ranks[0]) < 1e-6
+    for leaf in (1, 2, 3):
+        assert abs(ranks[leaf] - 4.0 / 3.0) < 1e-6
+
+    _ = result.unpersist()
+
+
+def test_sybil_rank_args_passed(spark: SparkSession) -> None:
+    """Verify that non-default args (trusted col, weights, total_trust) are passed correctly."""
+    v = spark.createDataFrame([(0, True), (1, False), (2, False)], ["id", "trusted"])
+    e = spark.createDataFrame([(0, 1, 3.0), (0, 2, 1.0)], ["src", "dst", "weight"])
+    g = GraphFrame(v, e)
+
+    result = g.sybil_rank(
+        trusted_vertices_col="trusted",
+        weight_col="weight",
+        total_trust=3.0,
+        iteration_multiplier=1.0,
+        is_directed=False,
+        checkpoint_interval=2,
+        use_local_checkpoints=True,
+    )
+
+    assert result.columns == ["id", "sybil_rank"]
+    ranks = {row["id"]: row["sybil_rank"] for row in result.collect()}
+    # total_trust=3.0 on a weighted star: the center starts with rank 3.0 and
+    # distributes it proportionally to the edge weights.
+    assert abs(ranks[0]) < 1e-6
+    assert abs(ranks[1] - 0.75) < 1e-6
+    assert abs(ranks[2] - 0.75) < 1e-6
+
+    _ = result.unpersist()
+
+
+def test_sybil_rank_invalid_args(spark: SparkSession) -> None:
+    """Verify that invalid arguments raise ValueError on the Python side."""
+    v = spark.createDataFrame([(1,), (2,)], ["id"])
+    e = spark.createDataFrame([(1, 2)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    with pytest.raises(ValueError, match="must be provided"):
+        g.sybil_rank()
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        g.sybil_rank(trusted_vertices=[1], trusted_vertices_col="trusted")
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        g.sybil_rank(trusted_vertices=[])
+
+    with pytest.raises(ValueError, match="iteration_multiplier must be a positive"):
+        g.sybil_rank(trusted_vertices=[1], iteration_multiplier=0.0)
+
+    with pytest.raises(ValueError, match="total_trust must be a positive"):
+        g.sybil_rank(trusted_vertices=[1], total_trust=0.0)
+
+
+def test_sybil_rank_unknown_trusted_vertex_fails_fast(spark: SparkSession) -> None:
+    """Unknown trusted IDs are rejected (fast-fail) by the implementation.
+
+    In the classic mode the error is raised by the call itself; in the Spark Connect
+    mode the relation is lazy, so the error is raised by the first action.
+    """
+    v = spark.createDataFrame([(1,), (2,)], ["id"])
+    e = spark.createDataFrame([(1, 2)], ["src", "dst"])
+    g = GraphFrame(v, e)
+
+    with pytest.raises(Exception):
+        result = g.sybil_rank(trusted_vertices=[1, 42])
+        result.collect()
