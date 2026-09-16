@@ -70,7 +70,7 @@ class PageRankV2 private[graphframes] (private val graph: GraphFrame)
     this
   }
 
-  /** Convergence tolerance. Cannot be used together with [[maxIter]]. */
+  /** Convergence tolerance. Cannot be used together with `maxIter` */
   def tol(value: Double): this.type = {
     tol = Some(value)
     this
