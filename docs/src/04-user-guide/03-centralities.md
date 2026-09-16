@@ -119,6 +119,70 @@ For the API details refer to:
 - Scala API: @:scaladoc(org.graphframes.lib.ParallelPersonalizedPageRank)
 - Python API: @:pydoc(graphframes.GraphFrame.parallelPersonalizedPageRank)
 
+
+
+## SybilRank
+
+SybilRank is a trust-oriented centrality metric: it assigns every vertex a rank that reflects how trustworthy this vertex is in a social network and helps to detect sybils (fake accounts). The rank itself is computed as a decaying power iteration similar to PageRank, but instead of a reset probability the initial rank mass is concentrated in a chosen set of trusted vertices. Trusted ("non-sybil") vertices share an initial amount of trust, which then propagates over the graph and decays: on every power iteration a vertex distributes its current rank among its neighbors proportionally to the edge weights, and its own rank is updated to the sum of the incoming messages divided by its degree. After the iterations finish, sybils far away from the trusted region have a rank close to zero, while honest accounts close to the trusted region keep a relatively high rank.
+
+The implementation follows the SybilRank algorithm published by Cao et al. at NSDI'12 ([https://doi.org/10.1145/1993077.1993083](https://doi.org/10.1145/1993077.1993083)), with the weighted-graph extension of Boshmaf et al. The number of power iterations defaults to `ceil(iteration_multiplier * log10(N))`, where `N` is the number of vertices and `iteration_multiplier` is `1.0` by default.
+
+By default the graph is treated as undirected: messages travel along each edge in both directions and the degree of a vertex is the sum of the weights of all the incident edges. Isolated vertices (and vertices connected only by zero-weight edges) always end up with a zero rank.
+
+The result contains the vertex `id` and the `sybil_rank` (`DoubleType`) columns.
+
+### Python API
+
+```python
+result = g.sybil_rank(
+    trusted_vertices=[1, 2],
+    weight_col="weight",
+)
+
+result.select("id", "sybil_rank").show()
+```
+
+### Scala API
+
+```scala
+val result = g.sybilRank
+  .setTrustedVertices(Seq(1L, 2L))
+  .setWeightCol("weight")
+  .run()
+
+result.select("id", "sybil_rank").show()
+```
+
+### Arguments
+
+- `trusted_vertices` / `trustedVertices`
+
+IDs of the trusted (non-sybil) vertices. Exactly one of `trusted_vertices` and `trusted_vertices_col` must be provided. All the provided IDs must exist in the vertex set, otherwise the algorithm fast-fails.
+
+- `trusted_vertices_col` / `setTrustedVerticesCol`
+
+Name of a boolean vertex column that marks the trusted (non-sybil) vertices. Exactly one of `trusted_vertices` and `trusted_vertices_col` must be provided.
+
+- `weight_col` / `setWeightCol`
+
+Optional name of a numeric edge column with edge weights. If it is not provided, all the edges are treated as having weight 1.0. The weighted degree of a vertex is the sum of the weights of its incident edges (outgoing edges for directed graphs).
+
+- `total_trust` / `setTotalTrust`
+
+Total amount of trust distributed over the trusted vertices at the start. Defaults to the number of vertices, so every trusted vertex starts with rank 1.0.
+
+- `iteration_multiplier` / `setIterationMultiplier`
+
+Multiplier used to compute the default number of power iterations `ceil(iteration_multiplier * log10(N))`. Default is 1.0.
+
+- `max_iter` / `maxIter`
+
+Optional explicit number of power iterations. Takes precedence over the iteration multiplier.
+
+- `is_directed` / `setIsDirected`
+
+Whether to follow the edge directions. By default (false) the graph is treated as undirected.
+
 ## K-Core
 
 K-Core decomposition is a method used to identify the most tightly connected subgraphs within a network. A k-core is a maximal subgraph where every vertex has at least degree k. This metric helps in understanding the inner structure of networks by filtering out less connected nodes, revealing cores of highly interconnected entities. K-Core centrality can be applied in various domains such as social network analysis to find influential users, in biology to detect stable protein complexes, or in infrastructure networks to assess robustness and vulnerability.

@@ -836,6 +836,99 @@ class GraphFrame:
             storage_level=storage_level,
         )
 
+    def sybil_rank(
+        self,
+        trusted_vertices: list[int | str] | None = None,
+        trusted_vertices_col: str | None = None,
+        weight_col: str | None = None,
+        total_trust: float | None = None,
+        iteration_multiplier: float = 1.0,
+        is_directed: bool = False,
+        checkpoint_interval: int = 2,
+        use_local_checkpoints: bool = False,
+        storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+    ) -> DataFrame:
+        """
+        SybilRank algorithm for ranking the trustworthiness of accounts and detecting
+        sybils (fake accounts) in social networks.
+
+        The implementation follows the SybilRank algorithm published by Cao et al. at
+        NSDI'12, with the weighted-graph extension of Boshmaf et al. Trusted vertices
+        share an initial amount of trust (`totalTrust` spread uniformly, equal to the
+        number of vertices by default, so every trusted vertex starts with rank 1.0).
+        On every power iteration a vertex distributes its current rank among its
+        neighbors proportionally to the edge weights and its rank is updated to the sum
+        of the incoming messages divided by its degree. The total rank decays over
+        iterations, so sybils far away from the trusted region end up with a rank close
+        to zero. The number of power iterations defaults to
+        ``ceil(iteration_multiplier * log10(N))``, where ``N`` is the number of
+        vertices.
+
+        By default the graph is treated as undirected: messages are sent along each
+        edge in both directions and the degree of a vertex is the sum of the weights of
+        all the incident edges.
+
+        Vertices with zero degree (isolated vertices, or vertices connected only by
+        zero-weight edges) always end up with a zero rank.
+
+        **Example:**
+
+        >>> result = g.sybil_rank(trusted_vertices=[1, 2])
+        >>> result.select("sybil_rank").show()
+
+        :param trusted_vertices: IDs of the trusted (non-sybil) vertices. All the
+            provided IDs must exist in the vertex set, otherwise the algorithm
+            fast-fails. Exactly one of ``trusted_vertices`` and
+            ``trusted_vertices_col`` must be provided.
+        :param trusted_vertices_col: Name of a boolean vertex column that marks the
+            trusted (non-sybil) vertices. Exactly one of ``trusted_vertices`` and
+            ``trusted_vertices_col`` must be provided.
+        :param weight_col: Optional name of a numeric edge column with edge weights.
+            If it is not provided, all the edges are treated as having weight 1.0.
+        :param total_trust: Total amount of trust distributed over the trusted
+            vertices at the start. Defaults to the number of vertices.
+        :param iteration_multiplier: Multiplier used to compute the default number of
+            power iterations ``ceil(iteration_multiplier * log10(N))``. Default is 1.0.
+        :param is_directed: Whether to follow the edge directions. By default (False)
+            the graph is treated as undirected.
+        :param checkpoint_interval: Checkpoint interval in terms of number of
+            iterations (default: 2). Use 0 to disable checkpointing.
+        :param use_local_checkpoints: Whether to use local checkpoints instead of a
+            persistent checkpoint directory. Local checkpoints are faster but less
+            reliable.
+        :param storage_level: Storage level for intermediate and final DataFrames.
+
+        :return: Persisted DataFrame with columns ``id`` and ``sybil_rank``.
+        """
+        if trusted_vertices is not None and trusted_vertices_col is not None:
+            raise ValueError(
+                "trusted_vertices and trusted_vertices_col are mutually exclusive; "
+                "provide exactly one of them"
+            )
+        if trusted_vertices is None and trusted_vertices_col is None:
+            raise ValueError(
+                "trusted_vertices (list of IDs) or trusted_vertices_col (boolean column "
+                "name) must be provided"
+            )
+        if trusted_vertices is not None and len(trusted_vertices) == 0:
+            raise ValueError("trusted_vertices must not be empty")
+        if iteration_multiplier <= 0.0:
+            raise ValueError("iteration_multiplier must be a positive number")
+        if total_trust is not None and total_trust <= 0.0:
+            raise ValueError("total_trust must be a positive number")
+
+        return self._impl.sybil_rank(
+            trusted_vertices=trusted_vertices,
+            trusted_vertices_col=trusted_vertices_col,
+            weight_col=weight_col,
+            total_trust=total_trust,
+            iteration_multiplier=iteration_multiplier,
+            is_directed=is_directed,
+            checkpoint_interval=checkpoint_interval,
+            use_local_checkpoints=use_local_checkpoints,
+            storage_level=storage_level,
+        )
+
     def labelPropagation(
         self,
         maxIter: int,
@@ -1112,7 +1205,10 @@ class GraphFrame:
         )
 
     def triangleCount(
-        self, storage_level: StorageLevel, algorithm: str = "exact", lg_nom_entries: int = 12
+        self,
+        storage_level: StorageLevel,
+        algorithm: str = "exact",
+        lg_nom_entries: int = 12,
     ) -> DataFrame:
         """
         Computes the number of triangles passing through each vertex.
@@ -1141,7 +1237,9 @@ class GraphFrame:
             err_msg += f" version {spark_version[:3]} is not supported"
             raise ValueError(err_msg)
         return self._impl.triangleCount(
-            storage_level=storage_level, algorithm=algorithm, log_nom_entries=lg_nom_entries
+            storage_level=storage_level,
+            algorithm=algorithm,
+            log_nom_entries=lg_nom_entries,
         )
 
     def powerIterationClustering(

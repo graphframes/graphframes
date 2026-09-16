@@ -42,6 +42,7 @@ message GraphFramesAPI {
     NeighborhoodAwareCDLP neighborhood_aware_cdlp = 25;
     AllPaths all_paths = 26;
     HyperANF hyper_anf = 27;
+    SybilRank sybil_rank = 28;
   }
 }
 
@@ -200,6 +201,23 @@ message Pregel {
   optional string required_src_columns = 16;
   optional string required_dst_columns = 17;
   optional string required_edge_columns = 18;
+}
+
+message SybilRank {
+  // Exactly one of trusted_vertex_ids / trusted_vertices_col must be provided
+  repeated StringOrLongID trusted_vertex_ids = 1;
+  optional string trusted_vertices_col = 2;
+  // Numeric edge weight column; unset = unweighted (all weights 1.0)
+  optional string weight_col = 3;
+  // Total trust distributed over the trusted vertices; unset = number of vertices
+  optional double total_trust = 4;
+  double iteration_multiplier = 5;
+  bool is_directed = 6;
+  bool use_local_checkpoints = 7;
+  int32 checkpoint_interval = 8;
+  optional StorageLevel storage_level = 9;
+  // Explicit number of power iterations; overrides the iteration multiplier
+  optional int32 max_iter = 10;
 }
 
 message ShortestPaths {
