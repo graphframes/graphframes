@@ -24,6 +24,11 @@ import org.graphframes.Logging
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank.
  *
+ * This GraphX-based implementation is deprecated and will be removed in a future release. Use
+ * [[org.graphframes.lib.PageRankV2]] (`GraphFrame#pageRankV2`) instead: it is a native DataFrame
+ * implementation that returns only the vertices DataFrame with ranks normalized to sum up to 1.0
+ * and does not compute edge weights.
+ *
  * The first one uses the `org.apache.spark.graphx.graph` interface with `aggregateMessages` and
  * runs PageRank for a fixed number of iterations. This can be executed by setting `maxIter`.
  * Conceptually, the algorithm does the following:
@@ -67,6 +72,12 @@ import org.graphframes.Logging
 class PageRank private[graphframes] (private val graph: GraphFrame)
     extends Arguments
     with Logging {
+
+  logWarn(
+    "PageRank is deprecated and will be removed in a future release. Please use PageRankV2 " +
+      "instead (GraphFrame#pageRankV2). Note that PageRankV2 is a native DataFrame " +
+      "implementation that returns only the vertices DataFrame with ranks normalized to sum up " +
+      "to 1.0 and does not compute edge weights.")
 
   private var tol: Option[Double] = None
   private var resetProb: Option[Double] = Some(0.15)
