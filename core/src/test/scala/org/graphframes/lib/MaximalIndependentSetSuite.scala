@@ -104,6 +104,37 @@ class MaximalIndependentSetSuite extends SparkFunSuite with GraphFrameTestSparkC
     mis.unpersist()
   }
 
+  test("MIS with local checkpoints enabled") {
+    val graph = Graphs.friends
+
+    val mis = graph.maximalIndependentSet.setUseLocalCheckpoints(true).run(seed = 12345L)
+
+    assert(isIndependent(graph, mis))
+    assert(isMaximal(graph, mis))
+
+    mis.unpersist()
+  }
+
+  test("MIS on graph with extra vertex and edge attributes") {
+    val vertices =
+      spark
+        .createDataFrame(
+          Seq((0L, "a", 1), (1L, "b", 2), (2L, "c", 3), (3L, "d", 4), (4L, "e", 5)))
+        .toDF("id", "name", "score")
+    val edges =
+      spark
+        .createDataFrame(Seq((0L, 1L, "x"), (1L, 2L, "y"), (2L, 3L, "z"), (3L, 4L, "w")))
+        .toDF("src", "dst", "label")
+    val graph = GraphFrame(vertices, edges)
+
+    val mis = graph.maximalIndependentSet.run(seed = 42L)
+
+    assert(isIndependent(graph, mis))
+    assert(isMaximal(graph, mis))
+
+    mis.unpersist()
+  }
+
   test("MIS on complete graph of 5 vertices") {
     val vertices = spark.range(5).toDF("id")
     val edges = for {
