@@ -249,6 +249,32 @@ class PropertyGraphFrameTest
     assert(projectedEdges === expectedEdges)
   }
 
+  test("schemaString returns human-readable schema description") {
+    val schema = peopleMoviesGraph.schemaString
+
+    assert(schema.contains("people"))
+    assert(schema.contains("movies"))
+    assert(schema.contains("likes"))
+    assert(schema.contains("messages"))
+    assert(schema.startsWith("Property graph schema:"))
+  }
+
+  test("schemaStringDOT returns valid DOT format") {
+    val dot = peopleMoviesGraph.schemaStringDOT
+
+    assert(dot.startsWith("digraph SchemaGraph {"))
+    assert(dot.contains("\"people\""))
+    assert(dot.contains("\"movies\""))
+    assert(dot.contains("likes"))
+    assert(dot.contains("messages"))
+    assert(dot.trim().endsWith("}"))
+  }
+
+  test("print schema") {
+    println(peopleMoviesGraph.schemaString)
+    println(peopleMoviesGraph.schemaStringDOT)
+  }
+
   test("joinVertices withConnectedComponents") {
     // Convert to GraphFrame with all vertices and edges
     val graph = peopleMoviesGraph.toGraphFrame(
