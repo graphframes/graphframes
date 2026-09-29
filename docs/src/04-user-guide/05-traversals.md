@@ -331,7 +331,7 @@ For `two_phase` and `randomized_contraction`. By default, component IDs are `Lon
 
 - `use_local_checkpoints` (Python) / `setUseLocalCheckpoints` (Scala)
 
-For `two_phase` and `randomized_contraction`. By default, GraphFrames uses persistent checkpoints, which are reliable but require a `checkpointDir` to be configured in persistent storage (e.g. S3 or HDFS). Setting `use_local_checkpoints=True` uses the local disks of Spark executors instead. Local checkpoints are faster but less reliable: if an executor is lost, the checkpoint is lost and the job will fail.
+For `two_phase` and `randomized_contraction`. By default, GraphFrames uses persistent checkpoints, which are reliable but require a `checkpointDir` to be configured in persistent storage (e.g. S3 or HDFS). Setting `use_local_checkpoints=True` uses the local disks of Spark executors instead. Local checkpoints are faster but less reliable: if an executor is lost, the checkpoint is lost and the job will fail. `randomized_contraction` still requires a `checkpointDir`, because it writes its intermediate tables there.
 
 - `storage_level` (Python) / `setIntermediateStorageLevel` (Scala)
 
