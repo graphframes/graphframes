@@ -54,7 +54,7 @@ object QueryOptions {
    *   - `maxVarLength` = `5`
    *   - `maxEnumeratedPaths` = `32`
    */
-  def withDefualts: QueryOptions = QueryOptions()
+  def withDefaults: QueryOptions = QueryOptions()
 
   /**
    * Creates a new [[QueryOptions]] instance with the specified
@@ -67,7 +67,7 @@ object QueryOptions {
    *
    * @param maxSchemaPathLength
    *   the maximum schema-path enumeration depth to use; see [[QueryOptions.maxSchemaPathLength]]
-   *   for the effect of this setting. Must be non-negative.
+   *   for the effect of this setting. Must be positive.
    * @return
    *   a new [[QueryOptions]] with
    *   - `enableStatistics` = `true`

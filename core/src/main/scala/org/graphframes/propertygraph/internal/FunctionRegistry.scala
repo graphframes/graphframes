@@ -191,7 +191,9 @@ private[propertygraph] object FunctionRegistry {
   }
 
   private def litInt(e: Expression): Int = e match {
-    case Literal(v: Long) => v.toInt
+    case Literal(v: Long) if v.isValidInt => v.toInt
+    case Literal(v: Long) =>
+throw new UnsupportedOperationException(s"integer literal $v is outside the Int range")
     case Literal(v: Int) => v
     case _ =>
       throw new UnsupportedOperationException("argument must be an integer literal")
