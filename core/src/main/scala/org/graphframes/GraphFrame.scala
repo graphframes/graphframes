@@ -850,11 +850,27 @@ class GraphFrame private (
   /**
    * PageRank algorithm.
    *
+   * The GraphX-based implementation is deprecated: use [[pageRankV2]] instead.
+   *
    * See [[org.graphframes.lib.PageRank]] for more details.
    *
    * @group stdlib
    */
   def pageRank: PageRank = new PageRank(this)
+
+  /**
+   * PageRank algorithm, version 2: the native DataFrame implementation built on the
+   * [[org.graphframes.lib.Pregel Pregel]] engine.
+   *
+   * Unlike the deprecated [[pageRank]], it returns only the vertices DataFrame with the ranks
+   * (normalized to sum up to 1.0) instead of a new [[GraphFrame]] and does not compute the
+   * normalized edge weights.
+   *
+   * See [[org.graphframes.lib.PageRankV2]] for more details.
+   *
+   * @group stdlib
+   */
+  def pageRankV2: PageRankV2 = new PageRankV2(this)
 
   /**
    * Parallel personalized PageRank algorithm.

@@ -170,7 +170,7 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
       props.getProperty(s"graph.${LDBCUtils.TEST_PR_UNDIRECTED}.pr.num-iterations").toInt)
   }
 
-  // TODO: add graphframes after finishing #569
+  // The deprecated GraphX-based implementation.
   Seq("graphx").foreach { algo =>
     test(s"test undirected PR with LDBC for algo ${algo}") {
       val testCase = ldbcTestPageRankUndirected
@@ -188,6 +188,27 @@ class TestLDBCCases extends SparkFunSuite with GraphFrameTestSparkContext {
         prResultsNormalized
           .join(testCase._2, Seq("id"), "left")
           .filter(abs(col("pagerank") - col("pr")) >= lit(1e-4))
+          .collect()
+          .isEmpty)
+    }
+  }
+
+  // The native DataFrame implementation (PageRankV2, #569) has a single "graphframes"
+  // implementation. Its ranks are already normalized to 1.0, so no additional rescaling is
+  // needed before the comparison.
+  Seq("graphframes").foreach { algo =>
+    test(s"test undirected PR with LDBC for algo ${algo}") {
+      val testCase = ldbcTestPageRankUndirected
+      val prResults = testCase._1.pageRankV2
+        .resetProbability(1.0 - testCase._3)
+        .maxIter(testCase._4)
+        .run()
+
+      assert(prResults.count() == testCase._1.vertices.count())
+      assert(
+        prResults
+          .join(testCase._2, Seq("id"), "left")
+          .filter(abs(col("pageranks") - col("pr")) >= lit(1e-4))
           .collect()
           .isEmpty)
     }
