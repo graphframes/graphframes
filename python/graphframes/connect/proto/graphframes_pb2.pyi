@@ -1,12 +1,8 @@
-from collections.abc import Iterable as _Iterable
-from collections.abc import Mapping as _Mapping
-from typing import ClassVar as _ClassVar
-from typing import Optional as _Optional
-from typing import Union as _Union
-
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from google.protobuf.internal import containers as _containers
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -39,6 +35,7 @@ class GraphFramesAPI(_message.Message):
         "neighborhood_aware_cdlp",
         "all_paths",
         "hyper_anf",
+        "sybil_rank",
     )
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
@@ -67,6 +64,7 @@ class GraphFramesAPI(_message.Message):
     NEIGHBORHOOD_AWARE_CDLP_FIELD_NUMBER: _ClassVar[int]
     ALL_PATHS_FIELD_NUMBER: _ClassVar[int]
     HYPER_ANF_FIELD_NUMBER: _ClassVar[int]
+    SYBIL_RANK_FIELD_NUMBER: _ClassVar[int]
     vertices: bytes
     edges: bytes
     aggregate_messages: AggregateMessages
@@ -94,6 +92,7 @@ class GraphFramesAPI(_message.Message):
     neighborhood_aware_cdlp: NeighborhoodAwareCDLP
     all_paths: AllPaths
     hyper_anf: HyperANF
+    sybil_rank: SybilRank
     def __init__(
         self,
         vertices: _Optional[bytes] = ...,
@@ -111,7 +110,9 @@ class GraphFramesAPI(_message.Message):
         parallel_personalized_page_rank: _Optional[
             _Union[ParallelPersonalizedPageRank, _Mapping]
         ] = ...,
-        power_iteration_clustering: _Optional[_Union[PowerIterationClustering, _Mapping]] = ...,
+        power_iteration_clustering: _Optional[
+            _Union[PowerIterationClustering, _Mapping]
+        ] = ...,
         pregel: _Optional[_Union[Pregel, _Mapping]] = ...,
         shortest_paths: _Optional[_Union[ShortestPaths, _Mapping]] = ...,
         strongly_connected_components: _Optional[
@@ -124,9 +125,12 @@ class GraphFramesAPI(_message.Message):
         mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
         rw_embeddings: _Optional[_Union[RandomWalkEmbeddings, _Mapping]] = ...,
         aggregate_neighbors: _Optional[_Union[AggregateNeighbors, _Mapping]] = ...,
-        neighborhood_aware_cdlp: _Optional[_Union[NeighborhoodAwareCDLP, _Mapping]] = ...,
+        neighborhood_aware_cdlp: _Optional[
+            _Union[NeighborhoodAwareCDLP, _Mapping]
+        ] = ...,
         all_paths: _Optional[_Union[AllPaths, _Mapping]] = ...,
         hyper_anf: _Optional[_Union[HyperANF, _Mapping]] = ...,
+        sybil_rank: _Optional[_Union[SybilRank, _Mapping]] = ...,
     ) -> None: ...
 
 class StorageLevel(_message.Message):
@@ -174,7 +178,9 @@ class ColumnOrExpression(_message.Message):
     EXPR_FIELD_NUMBER: _ClassVar[int]
     col: bytes
     expr: str
-    def __init__(self, col: _Optional[bytes] = ..., expr: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self, col: _Optional[bytes] = ..., expr: _Optional[str] = ...
+    ) -> None: ...
 
 class StringOrLongID(_message.Message):
     __slots__ = ("long_id", "string_id")
@@ -182,7 +188,9 @@ class StringOrLongID(_message.Message):
     STRING_ID_FIELD_NUMBER: _ClassVar[int]
     long_id: int
     string_id: str
-    def __init__(self, long_id: _Optional[int] = ..., string_id: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self, long_id: _Optional[int] = ..., string_id: _Optional[str] = ...
+    ) -> None: ...
 
 class AggregateMessages(_message.Message):
     __slots__ = ("agg_col", "send_to_src", "send_to_dst", "storage_level")
@@ -544,8 +552,12 @@ class Pregel(_message.Message):
     def __init__(
         self,
         agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        send_msg_to_dst: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        send_msg_to_src: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        send_msg_to_dst: _Optional[
+            _Iterable[_Union[ColumnOrExpression, _Mapping]]
+        ] = ...,
+        send_msg_to_src: _Optional[
+            _Iterable[_Union[ColumnOrExpression, _Mapping]]
+        ] = ...,
         checkpoint_interval: _Optional[int] = ...,
         max_iter: _Optional[int] = ...,
         additional_col_name: _Optional[str] = ...,
@@ -561,6 +573,55 @@ class Pregel(_message.Message):
         required_src_columns: _Optional[str] = ...,
         required_dst_columns: _Optional[str] = ...,
         required_edge_columns: _Optional[str] = ...,
+    ) -> None: ...
+
+class SybilRank(_message.Message):
+    __slots__ = (
+        "trusted_vertex_ids",
+        "trusted_vertices_col",
+        "weight_col",
+        "total_trust",
+        "iteration_multiplier",
+        "is_directed",
+        "use_local_checkpoints",
+        "checkpoint_interval",
+        "storage_level",
+        "max_iter",
+    )
+    TRUSTED_VERTEX_IDS_FIELD_NUMBER: _ClassVar[int]
+    TRUSTED_VERTICES_COL_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_COL_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TRUST_FIELD_NUMBER: _ClassVar[int]
+    ITERATION_MULTIPLIER_FIELD_NUMBER: _ClassVar[int]
+    IS_DIRECTED_FIELD_NUMBER: _ClassVar[int]
+    USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    MAX_ITER_FIELD_NUMBER: _ClassVar[int]
+    trusted_vertex_ids: _containers.RepeatedCompositeFieldContainer[StringOrLongID]
+    trusted_vertices_col: str
+    weight_col: str
+    total_trust: float
+    iteration_multiplier: float
+    is_directed: bool
+    use_local_checkpoints: bool
+    checkpoint_interval: int
+    storage_level: StorageLevel
+    max_iter: int
+    def __init__(
+        self,
+        trusted_vertex_ids: _Optional[
+            _Iterable[_Union[StringOrLongID, _Mapping]]
+        ] = ...,
+        trusted_vertices_col: _Optional[str] = ...,
+        weight_col: _Optional[str] = ...,
+        total_trust: _Optional[float] = ...,
+        iteration_multiplier: _Optional[float] = ...,
+        is_directed: _Optional[bool] = ...,
+        use_local_checkpoints: _Optional[bool] = ...,
+        checkpoint_interval: _Optional[int] = ...,
+        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
+        max_iter: _Optional[int] = ...,
     ) -> None: ...
 
 class ShortestPaths(_message.Message):
@@ -659,7 +720,12 @@ class Triplets(_message.Message):
     def __init__(self) -> None: ...
 
 class MaximalIndependentSet(_message.Message):
-    __slots__ = ("checkpoint_interval", "storage_level", "use_local_checkpoints", "seed")
+    __slots__ = (
+        "checkpoint_interval",
+        "storage_level",
+        "use_local_checkpoints",
+        "seed",
+    )
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
@@ -741,8 +807,12 @@ class AggregateNeighbors(_message.Message):
         starting_vertices: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         max_hops: _Optional[int] = ...,
         accumulator_names: _Optional[_Iterable[str]] = ...,
-        accumulator_inits: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        accumulator_updates: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
+        accumulator_inits: _Optional[
+            _Iterable[_Union[ColumnOrExpression, _Mapping]]
+        ] = ...,
+        accumulator_updates: _Optional[
+            _Iterable[_Union[ColumnOrExpression, _Mapping]]
+        ] = ...,
         stopping_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         target_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
         required_vertex_attributes: _Optional[_Iterable[str]] = ...,

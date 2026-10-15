@@ -611,6 +611,47 @@ object GraphFramesConnectUtils {
           haBuilder.run()
         }
       }
+      case proto.GraphFramesAPI.MethodCase.SYBIL_RANK => {
+        val sybilRankProto = apiMessage.getSybilRank
+        val sybilRankBuilder = graphFrame.sybilRank
+          .setIterationMultiplier(sybilRankProto.getIterationMultiplier)
+          .setIsDirected(sybilRankProto.getIsDirected)
+          .setCheckpointInterval(sybilRankProto.getCheckpointInterval)
+          .setUseLocalCheckpoints(sybilRankProto.getUseLocalCheckpoints)
+
+        val hasTrustedIds = sybilRankProto.getTrustedVertexIdsList.size() > 0
+        val hasTrustedCol = sybilRankProto.hasTrustedVerticesCol
+        require(
+          hasTrustedIds != hasTrustedCol,
+          "SybilRank requires exactly one of trusted_vertex_ids and trusted_vertices_col.")
+
+        if (hasTrustedIds) {
+          sybilRankBuilder.setTrustedVertices(
+            sybilRankProto.getTrustedVertexIdsList.asScala.map(parseLongOrStringID).toSeq)
+        } else {
+          sybilRankBuilder.setTrustedVerticesCol(sybilRankProto.getTrustedVerticesCol)
+        }
+
+        if (sybilRankProto.hasWeightCol) {
+          sybilRankBuilder.setWeightCol(sybilRankProto.getWeightCol)
+        }
+
+        if (sybilRankProto.hasTotalTrust) {
+          sybilRankBuilder.setTotalTrust(sybilRankProto.getTotalTrust)
+        }
+
+        if (sybilRankProto.hasMaxIter) {
+          sybilRankBuilder.maxIter(sybilRankProto.getMaxIter)
+        }
+
+        if (sybilRankProto.hasStorageLevel) {
+          sybilRankBuilder
+            .setIntermediateStorageLevel(parseStorageLevel(sybilRankProto.getStorageLevel))
+            .run()
+        } else {
+          sybilRankBuilder.run()
+        }
+      }
       case _ => throw new GraphFramesUnreachableException() // Unreachable
     }
   }

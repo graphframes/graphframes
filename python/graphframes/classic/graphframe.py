@@ -463,6 +463,36 @@ class GraphFrame:
 
         return DataFrame(jdf, self._spark)
 
+    def sybil_rank(
+        self,
+        trusted_vertices: list[int | str] | None,
+        trusted_vertices_col: str | None,
+        weight_col: str | None,
+        total_trust: float | None,
+        iteration_multiplier: float,
+        is_directed: bool,
+        checkpoint_interval: int,
+        use_local_checkpoints: bool,
+        storage_level: StorageLevel,
+    ) -> DataFrame:
+        builder = self._jvm_graph.sybilRank()
+        if trusted_vertices is not None:
+            builder.setTrustedVertices(trusted_vertices)
+        if trusted_vertices_col is not None:
+            builder.setTrustedVerticesCol(trusted_vertices_col)
+        if weight_col is not None:
+            builder.setWeightCol(weight_col)
+        if total_trust is not None:
+            builder.setTotalTrust(float(total_trust))
+        builder.setIterationMultiplier(float(iteration_multiplier))
+        builder.setIsDirected(is_directed)
+        builder.setCheckpointInterval(checkpoint_interval)
+        builder.setUseLocalCheckpoints(use_local_checkpoints)
+        builder.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
+        jdf = builder.run()
+
+        return DataFrame(jdf, self._spark)
+
     def aggregate_neighbors(
         self,
         starting_vertices: Column | str,
