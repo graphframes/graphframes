@@ -17,6 +17,7 @@
 
 package org.graphframes.propertygraph.internal
 
+import org.graphframes.InvalidParseException
 import org.graphframes.InvalidPropertyGroupException
 import org.graphframes.propertygraph.QueryOptions
 
@@ -31,7 +32,8 @@ import org.graphframes.propertygraph.QueryOptions
  *
  * Steps:
  *   1. Validate every typed label against the schema (unknown label =>
- *      `InvalidPropertyGroupException`).
+ *      `InvalidPropertyGroupException`) and how variables are bound and referenced (=>
+ *      `InvalidParseException`).
  *   2. Enumerate concrete `SchemaPath`s by a bounded DFS over `outgoing`/`incoming`, fanning out
  *      over untyped nodes/edges. Disconnected patterns yield no paths (empty, not an error).
  *   3. Classify WHERE conjuncts into scan-local (attached to `PathNode`), join (two adjacent node
@@ -52,6 +54,7 @@ private[propertygraph] object Resolver {
       s"GQL pattern must alternate node/edge/node; got ${nodes.length} nodes, ${edges.length} edges")
 
     validateLabels(nodes, edges, schema)
+    validateVariables(nodes, edges, ast)
 
     val paths = enumeratePaths(nodes, edges, schema, options)
 
@@ -99,6 +102,73 @@ private[propertygraph] object Resolver {
         }
       }
     }
+  }
+
+  /**
+   * Validate variable bindings and references. Every rejected shape used to surface later as a
+   * raw Spark `AnalysisException` naming an internal column:
+   *   - an edge variable bound more than once (an edge cannot repeat in a path);
+   *   - one name bound to both a node and an edge;
+   *   - a bare edge variable used as a value (edges have no id; reference a property or
+   *     `weight(e)` instead);
+   *   - `id(...)` / `weight(...)` not applied to exactly one node / edge variable respectively.
+   *
+   * A node variable MAY repeat (e.g. the cycle `(a)-[]->(b)-[]->(a)`): all its positions bind the
+   * same vertex.
+   */
+  private def validateVariables(
+      nodes: Seq[NodePattern],
+      edges: Seq[EdgePattern],
+      ast: MatchStatement): Unit = {
+    val nodeVars = nodes.flatMap(_.variable).toSet
+    val edgeVarSeq = edges.flatMap(_.variable)
+    val edgeVars = edgeVarSeq.toSet
+
+    edgeVarSeq.diff(edgeVarSeq.distinct).distinct.foreach { v =>
+      throw new InvalidParseException(
+        s"Edge variable '$v' is bound more than once in the pattern; an edge cannot repeat")
+    }
+    nodeVars.intersect(edgeVars).toSeq.sorted.foreach { v =>
+      throw new InvalidParseException(
+        s"Variable '$v' is bound to both a node and an edge; use distinct variable names")
+    }
+
+    def check(expr: Expression): Unit = expr match {
+      case Variable(v) if edgeVars.contains(v) =>
+        throw new InvalidParseException(
+          s"Edge variable '$v' cannot be used as a value: edges have no id; reference one of " +
+            s"its properties (e.g. $v.<property>) or ${GqlAst.WeightFunction}($v)")
+      case FunctionCall(name, args) if name.equalsIgnoreCase(GqlAst.IdFunction) =>
+        checkElementFunction(GqlAst.IdFunction, args, nodeVars, "node")
+      case FunctionCall(name, args) if name.equalsIgnoreCase(GqlAst.WeightFunction) =>
+        checkElementFunction(GqlAst.WeightFunction, args, edgeVars, "edge")
+      case FunctionCall(_, args) => args.foreach(check)
+      case Comparison(l, _, r) => check(l); check(r)
+      case Arithmetic(l, _, r) => check(l); check(r)
+      case Not(e) => check(e)
+      case And(l, r) => check(l); check(r)
+      case Or(l, r) => check(l); check(r)
+      case Variable(_) | PropertyAccess(_, _) | Literal(_) => ()
+    }
+
+    ast.where.foreach(check)
+    ast.returnClause.foreach {
+      case ReturnItems(items) => items.foreach(i => check(i.expression))
+      case ReturnStar => ()
+    }
+  }
+
+  /** `id(n)` / `weight(e)` take exactly one variable of the expected element kind. */
+  private def checkElementFunction(
+      name: String,
+      args: Seq[Expression],
+      allowedVars: Set[String],
+      kind: String): Unit = args match {
+    case Seq(Variable(v)) if allowedVars.contains(v) => ()
+    case _ =>
+      throw new InvalidParseException(
+        s"Function '$name' expects exactly one $kind variable bound in the pattern, got " +
+          args.mkString("(", ", ", ")"))
   }
 
   // ---------------------------------------------------------------------
@@ -279,8 +349,11 @@ private[propertygraph] object Resolver {
       val refs = GqlAst.referencedVariables(conjunct)
       val nodeRefs = refs.intersect(nodeVarPositions.keySet)
       val edgeRefs = refs.intersect(edgeVarNames)
-      if (edgeRefs.isEmpty && nodeRefs.size == 1) {
-        // Scan-local: a single node variable (possibly bound at several positions).
+      if (edgeRefs.isEmpty && nodeRefs.size == 1 &&
+        !GqlAst.readsStandardizedNodeColumn(conjunct)) {
+        // Scan-local: a single node variable (possibly bound at several positions). A conjunct
+        // reading the standardized id (bare `a` or `id(a)`) cannot run against the raw group
+        // data, so it falls through to the post-join filters.
         val v = nodeRefs.head
         nodeScan(v) = nodeScan.getOrElse(v, Seq.empty) :+ conjunct
       } else if (edgeRefs.isEmpty && nodeRefs.size == 2) {

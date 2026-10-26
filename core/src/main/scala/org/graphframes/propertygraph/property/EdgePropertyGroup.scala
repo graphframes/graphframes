@@ -107,14 +107,20 @@ case class EdgePropertyGroup(
       hashDstEdge.alias(GraphFrame.DST),
       col(weightColumnName).alias(GraphFrame.WEIGHT))
 
-    val baseEdges = filteredData.select(baseCols ++ availableProperties.map(col): _*)
+    // Requested properties are emitted under a reserved output name so that a raw `src`/`dst`/
+    // `weight` property never collides with the standardized column of the same name.
+    val propertyNames = availableProperties.map(PropertyGroup.requestedPropertyColumn)
+    val baseEdges = filteredData.select(
+      baseCols ++ availableProperties.zip(propertyNames).map { case (p, out) =>
+        col(p).alias(out)
+      }: _*)
 
     if (isDirected) {
       baseEdges
     } else {
       // For undirected edges, surface both orientations. The extra property columns are copied
       // verbatim into both halves of the union (they describe the same row, just reoriented).
-      val propertyCols = availableProperties.map(c => col(c).alias(c))
+      val propertyCols = propertyNames.map(col)
       baseEdges.union(
         baseEdges.select(
           (col(GraphFrame.DST).as(GraphFrame.SRC)

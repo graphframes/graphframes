@@ -75,7 +75,8 @@ case class VertexPropertyGroup(
       col(primaryKeyColumn).cast(StringType)
     }
 
-    // Requested properties are carried through unmodified (they are not join keys, never masked).
+    // Requested properties are carried through unmodified (they are not join keys, never masked),
+    // under a reserved output name so they never collide with the standardized columns.
     // Unknown requested property names are dropped silently -- the caller (the query engine) is
     // expected to validate them against `data.columns` before requesting.
     val availableProperties = requestedProperties.filter(data.columns.contains)
@@ -83,7 +84,10 @@ case class VertexPropertyGroup(
     val baseCols =
       Seq(idCol.alias(GraphFrame.ID), lit(name).alias(PropertyGraphFrame.PROPERTY_GROUP_COL_NAME))
 
-    filteredData.select(baseCols ++ availableProperties.map(col): _*)
+    val propertyCols =
+      availableProperties.map(p => col(p).alias(PropertyGroup.requestedPropertyColumn(p)))
+
+    filteredData.select(baseCols ++ propertyCols: _*)
   }
 }
 

@@ -146,6 +146,35 @@ private[propertygraph] case object Mod extends MulOp // `%` (sign follows the di
 
 private[propertygraph] object GqlAst {
 
+  /**
+   * `id(n)`: the standardized (masked) id of the node bound to `n`. Unlike `n.id`, which is the
+   * raw property named `id`, this is the value the engine joins on.
+   */
+  val IdFunction: String = "id"
+
+  /**
+   * `weight(e)`: the standardized weight of the edge bound to `e` (the group's weight column,
+   * whatever its raw name). Unlike `e.weight`, which is the raw property named `weight`.
+   */
+  val WeightFunction: String = "weight"
+
+  /**
+   * True when `expr` reads a standardized node column -- a bare variable (its id) or `id(n)`.
+   * Such a column only exists after `getData` standardizes the group, so a conjunct containing it
+   * cannot be lowered against the raw group data as a scan-local filter.
+   */
+  def readsStandardizedNodeColumn(expr: Expression): Boolean = expr match {
+    case Variable(_) => true
+    case FunctionCall(name, _) if name.equalsIgnoreCase(IdFunction) => true
+    case PropertyAccess(_, _) | Literal(_) => false
+    case Comparison(l, _, r) => readsStandardizedNodeColumn(l) || readsStandardizedNodeColumn(r)
+    case Arithmetic(l, _, r) => readsStandardizedNodeColumn(l) || readsStandardizedNodeColumn(r)
+    case Not(e) => readsStandardizedNodeColumn(e)
+    case And(l, r) => readsStandardizedNodeColumn(l) || readsStandardizedNodeColumn(r)
+    case Or(l, r) => readsStandardizedNodeColumn(l) || readsStandardizedNodeColumn(r)
+    case FunctionCall(_, args) => args.exists(readsStandardizedNodeColumn)
+  }
+
   /** Collect every variable name referenced anywhere in `expr`. */
   def referencedVariables(expr: Expression): Set[String] = expr match {
     case Variable(name) => Set(name)

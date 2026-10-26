@@ -166,9 +166,13 @@ class PropertyGraphFrameQuerySuite extends SparkFunSuite with GraphFrameTestSpar
   private def comparePaths(
       df: DataFrame,
       expected: Seq[ExpectedPath]): org.scalatest.Assertion = {
-    val actual = df.collect().map(rowToActual).groupBy(identity).map { case (path, rows) => path -> rows.length }
+    val actual = df.collect().map(rowToActual).groupBy(identity).map { case (path, rows) =>
+      path -> rows.length
+    }
     val expectedActuals =
-    expected.map(expectedToActual).groupBy(identity).map { case (path, rows) => path -> rows.length }
+      expected.map(expectedToActual).groupBy(identity).map { case (path, rows) =>
+        path -> rows.length
+      }
     assert(
       actual === expectedActuals,
       s"""|Query result mismatch.

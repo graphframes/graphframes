@@ -30,6 +30,7 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.graphframes.GraphFrame
 import org.graphframes.propertygraph.PropertyGraphFrame
+import org.graphframes.propertygraph.property.PropertyGroup
 
 /**
  * Executes a sequence of [[JoinPlan]]s against a [[PropertyGraphFrame]] and returns a single
@@ -158,7 +159,10 @@ private[propertygraph] object QueryExecutor {
     var frame: DataFrame = null
     var boundVars: Set[String] = Set.empty
     def bindElement(i: Int, isNode: Boolean): Unit = {
-      if (isNode) path.nodes(i).variable.foreach(v => boundVars += v)
+      // A node variable repeated in the pattern (a cycle) is lowered against its first position,
+      // so it only counts as bound once that position is joined.
+      if (isNode)
+        path.nodes(i).variable.filter(env.nodeIndexOf(_).contains(i)).foreach(boundVars += _)
       else path.steps(i).variable.foreach(v => boundVars += v)
     }
     plan.order.foreach {
@@ -233,7 +237,7 @@ private[propertygraph] object QueryExecutor {
     scanMemo.getOrElseUpdate(
       key, {
         val group = pgf.vertexGroups(node.vertexGroupName.toLowerCase)
-        val filterCol = lowerScanFilter(node.scanFilter)
+        val filterCol = lowerScanFilter(node.scanFilter, PrefixEnv.raw)
         group.getData(filterCol, props.carriedToScan.toSeq.sorted)
       })
   }
@@ -252,20 +256,22 @@ private[propertygraph] object QueryExecutor {
     scanMemo.getOrElseUpdate(
       key, {
         val group = pgf.edgeGroups(step.edge.edgeGroupName.toLowerCase)
-        val filterCol = lowerScanFilter(step.scanFilter)
+        // `weight(e)` reads the group's weight column under its raw name.
+        val rawEnv = PrefixEnv.rawWith(Map(GraphFrame.WEIGHT -> col(group.weightColumnName)))
+        val filterCol = lowerScanFilter(step.scanFilter, rawEnv)
         group.getData(filterCol, props.carriedToScan.toSeq.sorted)
       })
   }
 
   /**
-   * Lower the scan-local predicates of a node into a single ANDed Column (lit(true) if none).
-   * These reference the node's variable, but the resulting Column is applied by `getData` against
-   * the RAW group columns (before aliasing), so the variable resolves to the empty prefix (raw
-   * column names): e.g. `a.age > 30` -> `col("age") > 30`.
+   * Lower the scan-local predicates of an element into a single ANDed Column (lit(true) if none).
+   * These reference the element's variable, but the resulting Column is applied by `getData`
+   * against the RAW group columns (before aliasing), so `rawEnv` resolves the variable to the
+   * empty prefix (raw column names): e.g. `a.age > 30` -> `col("age") > 30`.
    */
-  private def lowerScanFilter(filters: Seq[Expression]): Column =
+  private def lowerScanFilter(filters: Seq[Expression], rawEnv: PrefixEnv): Column =
     if (filters.isEmpty) lit(true)
-    else filters.map(ExpressionLowering.lower(_, PrefixEnv.raw)).reduce(_ && _)
+    else filters.map(ExpressionLowering.lower(_, rawEnv)).reduce(_ && _)
 
   /** Prefix every column of `df` with `prefix_` in place. */
   private def renameAll(df: DataFrame, prefix: String): DataFrame = {
@@ -309,7 +315,8 @@ private[propertygraph] object QueryExecutor {
   /**
    * Build the equi-join conditions between the newly-joined element's columns and the frame's
    * columns. An edge `k` is adjacent to its two endpoint nodes (`k`, `k+1`); a node `j` is
-   * adjacent to the edges touching it (`j-1` and `j`).
+   * adjacent to the edges touching it (`j-1` and `j`). Positions bound to the same node variable
+   * (a cycle such as `(a)-[]->(b)-[]->(a)`) must also bind the same vertex.
    */
   private def adjacencyConditions(
       incoming: Set[String],
@@ -335,6 +342,16 @@ private[propertygraph] object QueryExecutor {
       val (srcNode, dstNode) = if (forward) (nKId, nK1Id) else (nK1Id, nKId)
       bothPresent(eSrc, srcNode).foreach(conds += _)
       bothPresent(eDst, dstNode).foreach(conds += _)
+    }
+
+    // Same node variable at positions p < q: node_p.id == node_q.id.
+    path.nodes.indices.groupBy(path.nodes(_).variable).foreach {
+      case (Some(_), positions) =>
+        for (p <- positions; q <- positions if p < q) {
+          bothPresent(env.nodeCol(p, GraphFrame.ID), env.nodeCol(q, GraphFrame.ID))
+            .foreach(conds += _)
+        }
+      case (None, _) => ()
     }
     conds.result()
   }
@@ -371,20 +388,19 @@ private[propertygraph] object QueryExecutor {
         // prefix; only output-only columns need the terminal join-back. Edges are NOT join-backed
         // and edge RETURN-properties are carried instead.
         //
-        // The joined-back property columns are aliased to the element's PREFIXED names so that
-        // `ExpressionLowering.lower(PropertyAccess(v, p))` -- which resolves to `<prefix>_p` --
-        // finds them. (Carried columns already live under those prefixed names; this puts the
-        // output-only ones under the same convention.)
+        // The joined-back property columns are aliased to the element's PREFIXED property names so
+        // that `ExpressionLowering.lower(PropertyAccess(v, p))` -- which resolves to
+        // `env.propertyCol(v, p)` -- finds them. (Carried columns already live under those prefixed
+        // names; this puts the output-only ones under the same convention.)
         var withOutput = frame
         path.nodes.indices.foreach { i =>
           val props = nodeProps.getOrElse(i, ElementProps.Empty)
           if (props.outputOnly.nonEmpty) {
             val node = path.nodes(i)
             val group = pgf.vertexGroups(node.vertexGroupName.toLowerCase)
-            val prefix = env.nodePrefix(i)
             // Build a narrow join-back frame: the masked `id` (join key) plus the output-only
-            // property columns, renamed to the element's prefixed names so `ExpressionLowering`
-            // resolves `PropertyAccess(v, p)` -> `<prefix>_p` against them. We drop
+            // property columns, renamed to the element's prefixed property names so
+            // `ExpressionLowering` resolves `PropertyAccess(v, p)` against them. We drop
             // `property_group` (the group name is a constant the projection emits itself) and avoid
             // surfacing a second un-prefixed `id` column that would collide across multiple
             // join-backs; the masked `id` is kept only as the join key and dropped afterward.
@@ -394,8 +410,11 @@ private[propertygraph] object QueryExecutor {
             val joinKey = s"_gjid_$i"
             val groupId = group
               .getData(lit(true), carryCols)
-              .select((col(GraphFrame.ID).alias(joinKey) +: carryCols
-                .map(p => col(p).alias(env.join(prefix, p)))): _*)
+              .select(
+                (col(GraphFrame.ID).alias(joinKey) +: carryCols
+                  .map(p =>
+                    col(PropertyGroup.requestedPropertyColumn(p))
+                      .alias(env.nodePropertyCol(i, p)))): _*)
             val idCol = env.nodeCol(i, GraphFrame.ID)
             withOutput = withOutput.join(groupId, withOutput(idCol) === groupId(joinKey), "left")
           }
@@ -513,7 +532,9 @@ private[propertygraph] object QueryExecutor {
       path: SchemaPath,
       plan: JoinPlan,
       node: Boolean): Map[Int, ElementProps] = {
-    val nodeVarIndex: Map[String, Int] = path.nodes.zipWithIndex.collect {
+    // A repeated node variable (a cycle) maps to its first position, the one `PrefixEnv` lowers
+    // its references against.
+    val nodeVarIndex: Map[String, Int] = path.nodes.zipWithIndex.reverse.collect {
       case (n, i) if n.variable.isDefined => n.variable.get -> i
     }.toMap
     val edgeVarIndex: Map[String, Int] = path.steps.zipWithIndex.collect {
@@ -582,23 +603,37 @@ private[propertygraph] object QueryExecutor {
 // -----------------------------------------------------------------------------
 // Prefix environment: maps each element to a unique column prefix so that joins
 // never collide on the standardized column names (id/property_group/src/dst/weight).
+//
+// Prefixes are positional (`n<i>` / `e<i>`), never the user's variable names, so two
+// positions bound to the same variable (a cycle) or a variable named like another
+// element's prefix still get distinct columns. Within an element, standardized columns
+// are `<prefix>_<column>` and requested properties are
+// `<prefix>_<PropertyGroup.requestedPropertyColumn(property)>`, so a raw property named
+// e.g. `id` or `weight` never collides with the standardized column of the same name.
 // -----------------------------------------------------------------------------
 
-private[propertygraph] final class PrefixEnv private (path: SchemaPath, val raw: Boolean) {
+private[propertygraph] final class PrefixEnv private (
+    path: SchemaPath,
+    val raw: Boolean,
+    rawStandardized: Map[String, Column]) {
 
-  /** Prefix for node `i`: the variable if named, else `node<i>`. Empty when `raw`. */
+  /** Positional prefix for node `i`. Empty when `raw`. */
   def nodePrefix(i: Int): String =
-    if (raw) "" else path.nodes(i).variable.getOrElse(s"node$i")
+    if (raw) "" else s"n$i"
 
-  /** Prefix for edge `i`: the variable if named, else `edge<i>`. Empty when `raw`. */
+  /** Positional prefix for edge `i`. Empty when `raw`. */
   def edgePrefix(i: Int): String =
-    if (raw) "" else path.steps(i).variable.getOrElse(s"edge$i")
+    if (raw) "" else s"e$i"
 
-  /** Fully-qualified column name for a node's output column (e.g. the `id`). */
+  /** Fully-qualified column name for a node's standardized column (e.g. the `id`). */
   def nodeCol(i: Int, colName: String): String = join(nodePrefix(i), colName)
 
-  /** Fully-qualified column name for an edge's output column (`src`/`dst`/`weight`). */
+  /** Fully-qualified column name for an edge's standardized column (`src`/`dst`/`weight`). */
   def edgeCol(i: Int, colName: String): String = join(edgePrefix(i), colName)
+
+  /** Fully-qualified column name for the requested property `property` of node `i`. */
+  def nodePropertyCol(i: Int, property: String): String =
+    join(nodePrefix(i), PropertyGroup.requestedPropertyColumn(property))
 
   /**
    * Join a prefix and a column name: `colName` when the prefix is empty, else `prefix_colName`.
@@ -606,31 +641,72 @@ private[propertygraph] final class PrefixEnv private (path: SchemaPath, val raw:
   def join(prefix: String, colName: String): String =
     if (prefix.isEmpty) colName else s"${prefix}_$colName"
 
+  /**
+   * The (first) node position bound to `variable`. A repeated node variable resolves to its first
+   * position; the executor joins the other positions to it on id.
+   */
+  def nodeIndexOf(variable: String): Option[Int] =
+    if (raw) None else Some(path.nodes.indexWhere(_.variable.contains(variable))).filter(_ >= 0)
+
+  /** The edge position bound to `variable`. */
+  def edgeIndexOf(variable: String): Option[Int] =
+    if (raw) None else Some(path.steps.indexWhere(_.variable.contains(variable))).filter(_ >= 0)
+
+  /** True when `variable` names an edge of this path. */
+  def isEdgeVariable(variable: String): Boolean = edgeIndexOf(variable).isDefined
+
   /** The prefix string for a variable, if that variable names a node or edge in this path. */
-  def prefixFor(variable: String): Option[String] = {
+  def prefixFor(variable: String): Option[String] =
     if (raw) Some("")
-    else
-      path.nodes.zipWithIndex
-        .find(_._1.variable.contains(variable))
-        .map { case (_, i) => nodePrefix(i) }
-        .orElse(path.steps.zipWithIndex.find(_._1.variable.contains(variable)).map {
-          case (_, i) =>
-            edgePrefix(i)
-        })
-  }
+    else nodeIndexOf(variable).map(nodePrefix).orElse(edgeIndexOf(variable).map(edgePrefix))
+
+  /**
+   * Column holding the property `property` of `variable`: the raw column name when `raw`, else
+   * the element's prefixed requested-property column.
+   */
+  def propertyCol(variable: String, property: String): String =
+    if (raw) property
+    else join(prefixOrFail(variable), PropertyGroup.requestedPropertyColumn(property))
+
+  /**
+   * Column holding the standardized column `colName` (`id`, `weight`, ...) of `variable`. A raw
+   * environment only knows the standardized columns it was built with (see
+   * [[PrefixEnv.rawWith]]).
+   */
+  def standardizedCol(variable: String, colName: String): Column =
+    if (raw) {
+      rawStandardized.getOrElse(
+        colName,
+        throw new IllegalArgumentException(
+          s"The standardized '$colName' of '$variable' cannot be evaluated against raw group data"))
+    } else {
+      col(join(prefixOrFail(variable), colName))
+    }
+
+  private def prefixOrFail(variable: String): String =
+    prefixFor(variable).getOrElse(
+      throw new IllegalArgumentException(
+        s"Variable '$variable' is not bound to any element of the matched path"))
 }
 
 private[propertygraph] object PrefixEnv {
 
   /** A real path environment. */
-  def apply(path: SchemaPath): PrefixEnv = new PrefixEnv(path, raw = false)
+  def apply(path: SchemaPath): PrefixEnv = new PrefixEnv(path, raw = false, Map.empty)
 
   /**
    * A raw (empty-prefix) environment: every variable resolves to the empty prefix, so lowered
    * columns reference raw group column names. Used for scan-local filters, which are applied by
-   * `getData` against the raw group data before aliasing.
+   * `getData` against the raw group data before aliasing. It knows no standardized column.
    */
-  val raw: PrefixEnv = new PrefixEnv(null, raw = true)
+  val raw: PrefixEnv = rawWith(Map.empty)
+
+  /**
+   * A raw environment that additionally lowers the given standardized columns (e.g. `weight` ->
+   * the group's raw weight column) for `id(...)` / `weight(...)` in scan-local filters.
+   */
+  def rawWith(standardized: Map[String, Column]): PrefixEnv =
+    new PrefixEnv(null, raw = true, standardized)
 }
 
 // -----------------------------------------------------------------------------
@@ -643,9 +719,10 @@ private[propertygraph] object ExpressionLowering {
    * Lower a GQL AST [[Expression]] to a Spark [[Column]] in the context of `env` (variable ->
    * prefix mapping).
    *
-   *   - `Variable(v)` -> `col("<prefix>_id")` (a bare variable reference resolves to the
-   *     element's id column);
-   *   - `PropertyAccess(v, p)` -> `col("<prefix>_<p>")`;
+   *   - `Variable(v)` -> the node's standardized id column (a bare variable reference resolves to
+   *     the node's id; edges have no id and are rejected);
+   *   - `id(v)` / `weight(v)` -> the node's standardized id / the edge's standardized weight;
+   *   - `PropertyAccess(v, p)` -> the element's column for the raw property `p`;
    *   - `Literal(value)` -> a typed `lit` (Long/Double/Boolean/String/null);
    *   - comparison/arithmetic/boolean combinators recurse and map to the corresponding Spark
    *     operators.
@@ -653,19 +730,28 @@ private[propertygraph] object ExpressionLowering {
   def lower(expr: Expression, env: PrefixEnv): Column = expr match {
     case Literal(value) => litLiteral(value)
     case Variable(name) =>
-      val prefix = env
-        .prefixFor(name)
-        .getOrElse(
-          throw new IllegalArgumentException(
-            s"Variable '$name' is not bound to any element of the matched path"))
-      col(env.join(prefix, GraphFrame.ID))
+      if (env.isEdgeVariable(name)) {
+        throw new IllegalArgumentException(
+          s"Edge variable '$name' cannot be used as a value: edges have no id")
+      }
+      env.standardizedCol(name, GraphFrame.ID)
     case PropertyAccess(variable, property) =>
-      val prefix = env
-        .prefixFor(variable)
-        .getOrElse(
+      col(env.propertyCol(variable, property))
+    case FunctionCall(name, args) if name.equalsIgnoreCase(GqlAst.IdFunction) =>
+      args match {
+        case Seq(v: Variable) => lower(v, env)
+        case _ =>
           throw new IllegalArgumentException(
-            s"Variable '$variable' is not bound to any element of the matched path"))
-      col(env.join(prefix, property))
+            s"Function '${GqlAst.IdFunction}' expects exactly one node variable")
+      }
+    case FunctionCall(name, args) if name.equalsIgnoreCase(GqlAst.WeightFunction) =>
+      args match {
+        case Seq(Variable(v)) if env.raw || env.isEdgeVariable(v) =>
+          env.standardizedCol(v, GraphFrame.WEIGHT)
+        case _ =>
+          throw new IllegalArgumentException(
+            s"Function '${GqlAst.WeightFunction}' expects exactly one edge variable")
+      }
     case Comparison(left, op, right) => compOp(lower(left, env), op, lower(right, env))
     case Arithmetic(left, op, right) => arithOp(lower(left, env), op, lower(right, env))
     case Not(e) => !lower(e, env)

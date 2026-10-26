@@ -17,6 +17,7 @@
 
 package org.graphframes.propertygraph.internal
 
+import org.graphframes.InvalidParseException
 import org.graphframes.InvalidPropertyGroupException
 import org.graphframes.SparkFunSuite
 import org.graphframes.propertygraph.QueryOptions
@@ -869,5 +870,87 @@ class ResolverSuite extends SparkFunSuite {
         schema,
         options)
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Variable binding / reference validation.
+  // -----------------------------------------------------------------------
+
+  private def rejects(gql: String): InvalidParseException =
+    intercept[InvalidParseException] {
+      Resolver.resolve(AstBuilder.parse(gql), schema, options)
+    }
+
+  test("a bare edge variable in RETURN is rejected") {
+    val e = rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN e")
+    assert(e.getMessage.contains("'e'"))
+  }
+
+  test("a bare edge variable in WHERE is rejected") {
+    rejects(
+      "MATCH (a:Person)-[e:KNOWS]->(b:Person)-[f:KNOWS]->(c:Person) WHERE e <> f RETURN a.name")
+  }
+
+  test("a bare edge variable nested in a function call is rejected") {
+    rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN hash(e)")
+  }
+
+  test("one name bound to both a node and an edge is rejected") {
+    val e = rejects("MATCH (a:Person)-[a:KNOWS]->(b:Person)")
+    assert(e.getMessage.contains("'a'"))
+  }
+
+  test("an edge variable bound twice is rejected") {
+    rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person)-[e:KNOWS]->(c:Person)")
+  }
+
+  test("a repeated node variable (a cycle) is accepted") {
+    val rq = Resolver.resolve(
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person)-[:KNOWS]->(a:Person)"),
+      schema,
+      options)
+    assert(rq.paths.length === 1)
+  }
+
+  test("id() accepts a node variable and rejects an edge variable or a non-variable") {
+    Resolver.resolve(
+      AstBuilder.parse("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN id(a)"),
+      schema,
+      options)
+    rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN id(e)")
+    rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN id(a.name)")
+    rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN id(a, b)")
+  }
+
+  test("weight() accepts an edge variable and rejects a node variable or an unbound name") {
+    Resolver.resolve(
+      AstBuilder.parse("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN weight(e)"),
+      schema,
+      options)
+    rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN weight(a)")
+    rejects("MATCH (a:Person)-[e:KNOWS]->(b:Person) RETURN weight(x)")
+  }
+
+  test("a single-node conjunct reading the standardized id is a post-filter, not scan-local") {
+    // `id(a)` only exists after standardization, so it cannot be pushed into the raw scan.
+    val rq = Resolver.resolve(
+      AstBuilder.parse("MATCH (a:Person)-[:KNOWS]->(b:Person) WHERE id(a) = 'x' AND a.age > 1"),
+      schema,
+      options)
+    assert(
+      rq.postFilters === Seq(
+        Comparison(FunctionCall("id", Seq(Variable("a"))), Eq, Literal("x"))))
+    assert(
+      rq.paths.head.nodes.head.scanFilter === Seq(
+        Comparison(PropertyAccess("a", "age"), Gt, Literal(1L))))
+  }
+
+  test("an edge conjunct using weight() stays scan-local") {
+    val rq = Resolver.resolve(
+      AstBuilder.parse("MATCH (a:Person)-[e:KNOWS]->(b:Person) WHERE weight(e) > 1"),
+      schema,
+      options)
+    assert(rq.postFilters === Nil)
+    assert(rq.paths.head.steps.head.scanFilter.length === 1)
   }
 }

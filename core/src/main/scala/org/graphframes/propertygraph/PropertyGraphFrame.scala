@@ -102,9 +102,14 @@ case class PropertyGraphFrame(
    *
    * The query is compiled through: ANTLR parse -> AST -> schema resolution -> join planning ->
    * DataFrame execution (per-path `UNION ALL`). Disconnected patterns (no schema path matches)
-   * return an empty DataFrame without touching data. Bad syntax throws
-   * [[org.graphframes.InvalidParseException]]; unknown labels throw
-   * [[org.graphframes.InvalidPropertyGroupException]].
+   * return an empty DataFrame without touching data. Bad syntax or an invalid use of a variable
+   * (e.g. a bare edge variable as a value) throws [[org.graphframes.InvalidParseException]];
+   * unknown labels throw [[org.graphframes.InvalidPropertyGroupException]].
+   *
+   * `v.p` always names the raw property `p` of the element's data, even when `p` is `id`, `src`,
+   * `dst` or `weight`. The standardized values are available through `id(n)` (the masked node id,
+   * also what a bare node variable `n` returns) and `weight(e)` (the edge group's weight column,
+   * whatever its raw name).
    *
    * @param gql
    *   a GQL `MATCH` statement in the supported subset.
