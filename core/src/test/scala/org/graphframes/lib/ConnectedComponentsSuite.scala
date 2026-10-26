@@ -97,11 +97,64 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  Seq(true, false).foreach { useLabelsAsComponents =>
+    test(
+      "randomized contraction with non-integral IDs, " +
+        s"useLabelsAsComponents=$useLabelsAsComponents") {
+      // See https://github.com/graphframes/graphframes/issues/892 : the randomized contraction
+      // implementation works on the internal LongType vertex indices, so the results have to be
+      // mapped back onto the original (here: StringType) vertex IDs.
+      val friends = Graphs.friends
+      val components = friends.connectedComponents
+        .setAlgorithm(ConnectedComponents.ALGO_RANDOMIZED_CONTRACTION)
+        .setUseLabelsAsComponents(useLabelsAsComponents)
+        .run()
+      TestUtils.checkColumnType(components.schema, ID, DataTypes.StringType)
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+
+      if (useLabelsAsComponents) {
+        TestUtils.checkColumnType(components.schema, "component", DataTypes.StringType)
+        assertComponents(components, expected)
+      } else {
+        // Component IDs are arbitrary Longs in this mode, so only the grouping is checked.
+        TestUtils.checkColumnType(components.schema, "component", DataTypes.LongType)
+        val grouping = components
+          .select(col("component"), col(ID))
+          .collect()
+          .groupBy(_.getLong(0))
+          .values
+          .map(_.map(_.getString(1)).toSet)
+          .toSet
+        assert(grouping === expected)
+      }
+      components.unpersist()
+    }
+  }
+
   Seq(true, false).foreach(useSkewedJoin => {
     Seq(true, false).foreach(useLocalCheckpoint => {
       val testPostfixName = s"${if (useLocalCheckpoint) " with local checkpoint"
         else ""}${if (useSkewedJoin) ", skewed join" else ", AQE join"}"
       val broadcastThreshold = if (useSkewedJoin) 1000000 else -1
+
+      test(s"non trivial graph #873$testPostfixName") {
+        val edges = spark
+          .createDataFrame(
+            Seq((1L, 2L), (2L, 3L), (3L, 4L), (4L, 5L), (5L, 1L), (6L, 7L), (7L, 8L), (8L, 6L)))
+          .toDF("src", "dst")
+
+        val vertices =
+          edges.select("src").union(edges.select("dst")).distinct().withColumnRenamed("src", "id")
+        val g = GraphFrame(vertices, edges)
+
+        val result = g.connectedComponents
+          .setBroadcastThreshold(broadcastThreshold)
+          .setUseLocalCheckpoints(useLocalCheckpoint)
+          .run()
+        val numComps = result.select("component").distinct().count()
+        assert(numComps == 2L)
+        result.unpersist()
+      }
 
       test(s"empty graph$testPostfixName") {
         for (empty <- Seq(Graphs.empty[Int], Graphs.empty[Long], Graphs.empty[String])) {

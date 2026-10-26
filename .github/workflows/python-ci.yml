@@ -3,6 +3,38 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  # Formatting and lint run as their own job: once (not once per Spark matrix
+  # entry) and without the Spark/JDK setup, so style feedback is not gated on
+  # the full test matrix.
+  #
+  # Keep the checked paths in sync with .pre-commit-config.yaml.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+    - name: Install and configure Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: 2.1.3
+        virtualenvs-create: true
+        virtualenvs-in-project: false
+        installer-parallel: true
+    - name: Install lint dependencies
+      working-directory: ./python
+      run: poetry install --with=dev
+    - name: black
+      working-directory: ./python
+      run: poetry run python -m black --check --config pyproject.toml graphframes tests docs dev ../dev
+    - name: isort
+      working-directory: ./python
+      run: poetry run python -m isort --check --settings-path pyproject.toml graphframes tests docs dev ../dev
+    - name: flake8
+      working-directory: ./python
+      run: poetry run python -m flake8 graphframes tests docs dev ../dev
+
   test:
     strategy:
       fail-fast: false
@@ -54,12 +86,6 @@ jobs:
       run: |
         poetry install --with=dev
         poetry run pip install pyspark[connect]==${{ matrix.spark-version }}
-    - name: Code style
-      working-directory: ./python
-      run: |
-        poetry run python -m black --check --config pyproject.toml graphframes dev ../dev
-        poetry run python -m flake8 graphframes dev ../dev
-        poetry run python -m isort --check --settings-path pyproject.toml graphframes dev ../dev
     - name: Build jar
       working-directory: ./python
       run: |

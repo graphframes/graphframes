@@ -4,14 +4,12 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.TernaryExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.*
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
 import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.LongType
 
 case class FiniteAXPlusB(first: Expression, second: Expression, third: Expression)
-    extends TernaryExpression
-    with CodegenFallback {
+    extends TernaryExpression {
   override def dataType: DataType = LongType
 
   override protected def withNewChildrenInternal(
@@ -32,32 +30,40 @@ case class FiniteAXPlusB(first: Expression, second: Expression, third: Expressio
     val x = ctx.freshName("x")
     val b = ctx.freshName("b")
     val r = ctx.freshName("r")
+    val irrpoly = ctx.freshName("irrpoly")
+    val nullFlag = ctx.freshName("nullFlag")
 
     val aGenCode = first.genCode(ctx)
     val xGenCode = second.genCode(ctx)
     val bGenCode = third.genCode(ctx)
 
     ev.copy(code = code"""
-      ${aGenCode.code}
       ${xGenCode.code}
+      ${aGenCode.code}
       ${bGenCode.code}
       long $a = ${aGenCode.value};
-      long $x = ${xGenCode.value};
       long $b = ${bGenCode.value};
       long $r = 0L;
-      long irrpoly = 0x1bL;
-      while ($x != 0L) {
-        if (($x & 1L) != 0L) {
-          $r ^= $a;
+      long $irrpoly = 0x1bL;
+      boolean $nullFlag = false;
+
+      if (!${xGenCode.isNull}) {
+        long $x = ${xGenCode.value};
+        while ($x != 0L) {
+          if (($x & 1L) != 0L) {
+            $r ^= $a;
+          }
+          $x = ($x >>> 1) & 0x7fffffffffffffffL;
+          if (($a & (1L << 63)) != 0L) {
+            $a = ($a << 1) ^ $irrpoly;
+          } else {
+            $a <<= 1;
+          }
         }
-        $x = ($x >>> 1) & 0x7fffffffffffffffL;
-        if (($a & (1L << 63)) != 0L) {
-          $a = ($a << 1) ^ irrpoly;
-        } else {
-          $a <<= 1;
-        }
+      } else {
+        $nullFlag = true;
       }
-      boolean ${ev.isNull} = false;
+      boolean ${ev.isNull} = $nullFlag;
       long ${ev.value} = $r ^ $b;
     """)
   }

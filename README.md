@@ -182,4 +182,4 @@ See [release notes](https://github.com/graphframes/graphframes/releases).
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=graphframes/graphframes&type=Date)](https://www.star-history.com/#graphframes/graphframes&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=graphframes/graphframes&type=Date)](https://star-history.dera.page/#graphframes/graphframes&Date)

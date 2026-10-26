@@ -661,7 +661,7 @@ class GraphFrame:
         broadcastThreshold: int = 1000000,
         useLabelsAsComponents: bool = False,
         use_local_checkpoints: bool = False,
-        max_iter: int = 2 ^ 31 - 2,
+        max_iter: int = 2**31 - 2,
         storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
     ) -> DataFrame:
         """
@@ -685,6 +685,9 @@ class GraphFrame:
                                     a persistent checkpointDir; from the other side, local
                                     checkpoints are less reliable and require executors to have
                                     big enough local disks.
+        :param max_iter: maximum number of Pregel supersteps, only used when the algorithm is
+                         "graphx" (default: 2 ** 31 - 2, that is effectively unlimited). The
+                         other algorithms run until convergence and ignore this value.
         :param storage_level: storage level for both intermediate and final dataframes.
 
         :return: DataFrame with new vertices column "component"

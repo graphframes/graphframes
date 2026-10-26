@@ -25,7 +25,7 @@ algorithms is measured, and the time to read/parse source files, serialize, and 
 | -------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
 | Shortest Paths Graphframes       | ${benchmarks.benchmarkShortestPaths.graphframes.measurements}       | ${benchmarks.benchmarkShortestPaths.graphframes.metric}       |
 | Shortest Paths GraphX            | ${benchmarks.benchmarkShortestPaths.graphx.measurements}            | ${benchmarks.benchmarkShortestPaths.graphx.metric}            |
-| Connected Components Graphframes | ${benchmarks.benchmarkConnectedComponents.graphframes.measurements} | ${benchmarks.benchmarkConnectedComponents.graphframes.metric} |
+| Connected Components (Randomized Contraction) | ${benchmarks.benchmarkConnectedComponents.randomized_contraction.measurements} | ${benchmarks.benchmarkConnectedComponents.randomized_contraction.metric} |
 | Connected Components GraphX      | ${benchmarks.benchmarkConnectedComponents.graphx.measurements}      | ${benchmarks.benchmarkConnectedComponents.graphx.metric}      |
 | Label Propagation GraphFrames    | ${benchmarks.benchmarkLabelPropagation.graphframes.measurements}    | ${benchmarks.benchmarkLabelPropagation.graphframes.metric}    |
 | Label Propagation GraphX         | ${benchmarks.benchmarkLabelPropagation.graphx.measurements}         | ${benchmarks.benchmarkLabelPropagation.graphx.metric}         |

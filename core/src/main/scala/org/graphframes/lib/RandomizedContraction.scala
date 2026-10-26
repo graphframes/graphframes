@@ -21,6 +21,7 @@ import java.io.IOException
 import java.util.UUID
 import scala.collection.mutable.Stack
 import scala.util.Random
+import scala.util.control.NonFatal
 
 /**
  * Implementation of parallel connected components algorithm using randomized contraction, based
@@ -29,6 +30,10 @@ import scala.util.Random
  *
  * The algorithm contracts the graph iteratively using random linear functions, until no edges
  * remain, then reconstructs the component identifiers.
+ *
+ * Improvements compared to the original paper:
+ *   - fusing symmetrization to the representative choosing
+ *   - remove the first heavy distinct op
  */
 private[graphframes] object RandomizedContraction extends Logging with Serializable {
   private val CHECKPOINT_NAME_PREFIX = "randomized-contraction"
@@ -39,11 +44,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
     val edges = graph.indexedEdges
       .select(col(LONG_SRC).as(SRC), col(LONG_DST).as(DST))
-    val symmetricEdges = edges
-      .union(edges.select(col(DST).alias(SRC), col(SRC).alias(DST)))
-      .distinct()
-    GraphFrame(vertices, symmetricEdges)
 
+    GraphFrame(vertices, edges)
   }
 
   def run(
@@ -75,8 +77,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     logInfo(s"$logPrefix Using $checkpointDir for storing intermediate tables.")
 
     val functionRegistry = spark.sessionState.functionRegistry
-    functionRegistry.registerFunction(
-      FunctionIdentifier("_axpb"),
+    functionRegistry.createOrReplaceTempFunction(
+      "_axpb",
       (children: Seq[Expression]) => FiniteAXPlusB(children(0), children(1), children(2)),
       "scala_udf")
 
@@ -87,6 +89,19 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     var iter = 0
 
     def tableName(iter: Int): String = s"${checkpointDir}/ccreps-${iter}"
+
+    def cleanupCheckpointDir(): Unit = {
+      try {
+        val checkpointPath = new Path(checkpointDir)
+        val fs = checkpointPath.getFileSystem(sc.hadoopConfiguration)
+        if (fs.exists(checkpointPath)) {
+          val _ = fs.delete(checkpointPath, true)
+        }
+      } catch {
+        case NonFatal(e) =>
+          logWarn(s"Failed to clean up checkpoint directory $checkpointDir: ${e.getMessage}")
+      }
+    }
 
     val graph = if (isGraphPrepared) {
       inputGraph
@@ -126,10 +141,23 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
         stackA.push(rA)
         stackB.push(rB)
 
+        /// trick:
+        /// instead of symmetrization (heavy)
+        /// we sent bi-directional messages
+        ///
+        /// CSE will resolve this into 2 calls of axpb and one least call
+        /// per both directions;
+        ///
+        /// instead of scanning double-edges and 3 calls per both directions.
         ccRepresentatives = edges
-          .groupBy(SRC)
-          .agg(min(axpb(rA, col(DST), rB)).alias("rep"))
-          .select(col(SRC).alias("v"), least(axpb(rA, col(SRC), rB), col("rep")).alias("rep"))
+          .withColumn("msg", least(axpb(rA, col(SRC), rB), axpb(rA, col(DST), rB)))
+          .select(
+            explode(
+              array(
+                struct(col(SRC).alias("v"), col("msg")),
+                struct(col(DST).alias("v"), col("msg")))).alias("arr"))
+          .groupBy(col("arr.v").alias("v"))
+          .agg(min(col("arr.msg")).alias("rep"))
 
         // "free" checkpointing
         ccRepresentatives.write.parquet(tableName(iter))
@@ -239,6 +267,20 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
             col(ID),
             coalesce(col("new_component"), col(ID))
               .alias(ConnectedComponents.COMPONENT))
+      } else if (!inputGraph.hasIntegralIdType) {
+        // `finalReps` is keyed by the internal LongType vertex index, not by the original
+        // vertex ID, so for non-integral ID types the results have to be mapped back through
+        // `indexedVertices`. Joining `inputGraph.vertices` on ID directly would make Spark
+        // coerce the two sides to a common type, which either fails with CAST_INVALID_INPUT
+        // (ANSI mode) or silently produces wrong results.
+        // See https://github.com/graphframes/graphframes/issues/892
+        inputGraph.indexedVertices
+          .withColumnRenamed(ID, ConnectedComponents.ORIG_ID)
+          .join(finalReps, col(ID) === col(LONG_ID), "left")
+          .select(
+            col(ConnectedComponents.ORIG_ID).alias(ID),
+            coalesce(col(ConnectedComponents.COMPONENT), col(LONG_ID))
+              .alias(ConnectedComponents.COMPONENT))
       } else {
         inputGraph.vertices
           .join(finalReps, ID, "left")
@@ -253,17 +295,15 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       outputComponents.count()
 
       // clean-up
-      val chDirPath = new Path(checkpointDir)
-      val fs = chDirPath.getFileSystem(sc.hadoopConfiguration)
-      if (fs.exists(chDirPath)) {
-        fs.delete(chDirPath, true)
-      }
+      cleanupCheckpointDir()
 
       outputComponents
     } finally {
       // to be 100% sure;
       edges.unpersist()
-      val dereg = functionRegistry.dropFunction(FunctionIdentifier("_axpb"))
+      cleanupCheckpointDir()
+      val catalog = spark.sessionState.catalog
+      val dereg = catalog.unregisterFunction(FunctionIdentifier("_axpb"))
       if (!dereg) {
         logWarn(
           "graphframes faced an internal error and was not able to de-register function _axpb; Spark' functionRegistry is in a bad state")

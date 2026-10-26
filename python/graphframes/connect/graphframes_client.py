@@ -352,6 +352,12 @@ class GraphFrameConnect:
     def pregel(self):
         return PregelConnect(self)
 
+    @property
+    def outDegrees(self) -> DataFrame:
+        return self._edges.groupBy(F.col(self._SRC).alias(self._ID)).agg(
+            F.count("*").alias("outDegree")
+        )
+
     def find(self, pattern: str) -> DataFrame:
         @final
         class Find(LogicalPlan):
@@ -913,7 +919,7 @@ class GraphFrameConnect:
         )
 
     def _update_page_rank_edge_weights(self, new_vertices: DataFrame) -> "GraphFrameConnect":
-        cols2select = self.edges.columns + ["weight"]
+        cols2select = self._edges.columns + ["weight"]
         new_edges = (
             self._edges.join(
                 new_vertices.withColumn(self._SRC, F.col(self._ID)),

@@ -50,7 +50,9 @@ def movies_group(spark: SparkSession):
 
 
 @pytest.fixture(scope="module")
-def likes_group(spark: SparkSession, people_group: VertexPropertyGroup, movies_group: VertexPropertyGroup):
+def likes_group(
+    spark: SparkSession, people_group: VertexPropertyGroup, movies_group: VertexPropertyGroup
+):
     likes_data = spark.createDataFrame(
         [(1, 1), (1, 2), (2, 1), (3, 2), (4, 3), (5, 2)],
         ["src", "dst"],
@@ -225,8 +227,8 @@ def test_to_graph_frame_all_groups(people_movies_graph: PropertyGraphFrame) -> N
     message_edges = [e for e in edges if e.weight != 1.0]
     like_edges = [e for e in edges if e.weight == 1.0]
 
-    assert len(message_edges) == 5   # Directed messages
-    assert len(like_edges) == 12     # 6 undirected edges * 2
+    assert len(message_edges) == 5  # Directed messages
+    assert len(like_edges) == 12  # 6 undirected edges * 2
 
 
 def test_to_graph_frame_unmasked_ids(
@@ -239,9 +241,7 @@ def test_to_graph_frame_unmasked_ids(
         [(1, "Matrix"), (2, "Inception"), (3, "Interstellar")],
         ["id", "title"],
     )
-    unmasked_movies_group = VertexPropertyGroup(
-        "movies", movies_data, "id", apply_mask_on_id=False
-    )
+    unmasked_movies_group = VertexPropertyGroup("movies", movies_data, "id", apply_mask_on_id=False)
 
     new_likes_group = EdgePropertyGroup(
         "likes",
@@ -275,12 +275,8 @@ def test_to_graph_frame_unmasked_ids(
     assert sha256_hash(1, "people") in vertices
 
     likes_edges = [e for e in edges if e.weight == 1.0]
-    assert any(
-        e.src == sha256_hash(1, "people") and e.dst == "1" for e in likes_edges
-    )
-    assert any(
-        e.src == "1" and e.dst == sha256_hash(1, "people") for e in likes_edges
-    )
+    assert any(e.src == sha256_hash(1, "people") and e.dst == "1" for e in likes_edges)
+    assert any(e.src == "1" and e.dst == sha256_hash(1, "people") for e in likes_edges)
 
 
 def test_join_vertices_with_connected_components(
@@ -295,9 +291,7 @@ def test_join_vertices_with_connected_components(
 
     components = graph.connectedComponents()
 
-    joined_back = people_movies_graph.join_vertices(
-        components, vertex_groups=["people", "movies"]
-    )
+    joined_back = people_movies_graph.join_vertices(components, vertex_groups=["people", "movies"])
 
     joined_data = joined_back.collect()
 
