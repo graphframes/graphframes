@@ -94,22 +94,39 @@ case class EdgePropertyGroup(
     col(dstColumnName).cast(StringType)
   }
 
-  override protected[graphframes] def getData(filter: Column): DataFrame = {
+  override private[propertygraph] def getData(
+      filter: Column,
+      requestedProperties: Seq[String]): DataFrame = {
     val filteredData = data.filter(filter)
 
-    val baseEdges = filteredData.select(
+    // Unknown requested property names are dropped silently; the query engine validates first.
+    val availableProperties = requestedProperties.filter(data.columns.contains)
+
+    val baseCols = Seq(
       hashSrcEdge.alias(GraphFrame.SRC),
       hashDstEdge.alias(GraphFrame.DST),
       col(weightColumnName).alias(GraphFrame.WEIGHT))
 
+    // Requested properties are emitted under a reserved output name so that a raw `src`/`dst`/
+    // `weight` property never collides with the standardized column of the same name.
+    val propertyNames = availableProperties.map(PropertyGroup.requestedPropertyColumn)
+    val baseEdges = filteredData.select(
+      baseCols ++ availableProperties.zip(propertyNames).map { case (p, out) =>
+        col(p).alias(out)
+      }: _*)
+
     if (isDirected) {
       baseEdges
     } else {
+      // For undirected edges, surface both orientations. The extra property columns are copied
+      // verbatim into both halves of the union (they describe the same row, just reoriented).
+      val propertyCols = propertyNames.map(col)
       baseEdges.union(
         baseEdges.select(
-          col(GraphFrame.DST).as(GraphFrame.SRC),
-          col(GraphFrame.SRC).as(GraphFrame.DST),
-          col(GraphFrame.WEIGHT).alias(GraphFrame.WEIGHT)))
+          (col(GraphFrame.DST).as(GraphFrame.SRC)
+            +: col(GraphFrame.SRC).as(GraphFrame.DST)
+            +: col(GraphFrame.WEIGHT).alias(GraphFrame.WEIGHT)
+            +: propertyCols): _*))
     }
   }
 }
