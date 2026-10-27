@@ -26,6 +26,7 @@ from pyspark.sql.utils import is_remote
 from pyspark.storagelevel import StorageLevel
 
 from graphframes.graphframe import AggregateNeighbors, GraphFrame, RandomWalkEmbeddings
+from graphframes.lib import AggregateMessages as AM
 
 
 @dataclass
@@ -1182,8 +1183,6 @@ def test_hyper_anf_invalid_args(spark: SparkSession) -> None:
 
 
 def test_aggregate_messages_multiple_agg_cols(local_g: GraphFrame) -> None:
-    from graphframes.lib import AggregateMessages as AM
-
     res_cols = local_g.aggregateMessages(
         [sqlfunctions.count(AM.msg).alias("cnt"), sqlfunctions.max(AM.msg).alias("mx")],
         sendToDst=AM.src["id"],

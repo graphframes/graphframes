@@ -1,4 +1,10 @@
+from pyspark.sql.utils import is_remote
+
 from .aggregate_messages import AggregateMessages
-from .pregel import Pregel
+
+if is_remote():
+    from graphframes.connect.graphframes_client import PregelConnect as Pregel
+else:
+    from .pregel import Pregel
 
 __all__ = ["AggregateMessages", "Pregel"]
