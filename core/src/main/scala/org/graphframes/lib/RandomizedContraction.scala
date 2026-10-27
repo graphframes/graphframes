@@ -15,6 +15,7 @@ import org.graphframes.GraphFrame.LONG_DST
 import org.graphframes.GraphFrame.LONG_ID
 import org.graphframes.GraphFrame.LONG_SRC
 import org.graphframes.GraphFrame.SRC
+import org.graphframes.JobDescription
 import org.graphframes.Logging
 
 import java.io.IOException
@@ -59,6 +60,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     val sc = spark.sparkContext
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
+    val jobDescriptionPrefix = s"GraphFrames ConnectedComponents [$runId]"
+    val previousJobDescription = sc.getLocalProperty(JobDescription.JOB_DESCRIPTION_KEY)
 
     val checkpointDir = sc.getCheckpointDir
       .map { d =>
@@ -115,6 +118,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     def axpb(a: Long, x: Column, b: Long): Column = call_function("_axpb", lit(a), x, lit(b))
 
     try {
+      sc.setJobDescription(s"$jobDescriptionPrefix: preparing graph")
       var rA = 0L
       var graphSize = edges.count()
       var ccRepresentatives: DataFrame = null
@@ -132,6 +136,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
       while (graphSize > 0) {
         logInfo(s"iteration ${iter}, edges left ${graphSize}")
+        sc.setJobDescription(s"$jobDescriptionPrefix: iteration $iter, $graphSize edges left")
         iter += 1
         rA = 0L
         while (rA == 0L) {
@@ -205,6 +210,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
       while (iter > 1) {
         iter -= 1
+        sc.setJobDescription(s"$jobDescriptionPrefix: reverse transformation step $iter")
         val poppedA = stackA.pop()
         val poppedB = stackB.pop()
 
@@ -290,6 +296,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
               .alias(ConnectedComponents.COMPONENT))
       }
 
+      sc.setJobDescription(s"$jobDescriptionPrefix: materializing final result")
       outputComponents.persist(intermediateStorageLevel)
       // materialize to be able to clean up everything
       outputComponents.count()
@@ -299,6 +306,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
       outputComponents
     } finally {
+      sc.setLocalProperty(JobDescription.JOB_DESCRIPTION_KEY, previousJobDescription)
       // to be 100% sure;
       edges.unpersist()
       cleanupCheckpointDir()

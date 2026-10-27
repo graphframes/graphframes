@@ -27,8 +27,10 @@ import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.graphframes.SparkShims
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.*
+import org.graphframes.JobDescription
 import org.graphframes.Logging
 import org.graphframes.WithIntermediateStorageLevel
+import org.graphframes.WithJobDescriptionPrefix
 import org.graphframes.WithLocalCheckpoints
 
 import java.io.IOException
@@ -93,7 +95,10 @@ import scala.util.control.Breaks.breakable
 class Pregel(val graph: GraphFrame)
     extends Logging
     with WithLocalCheckpoints
-    with WithIntermediateStorageLevel {
+    with WithIntermediateStorageLevel
+    with WithJobDescriptionPrefix {
+
+  override protected def defaultJobDescriptionPrefix: String = "GraphFrames Pregel"
 
   private val withVertexColumnList = collection.mutable.ListBuffer.empty[(String, Column, Column)]
 
@@ -410,6 +415,12 @@ class Pregel(val graph: GraphFrame)
       withVertexColumnList.size > 0,
       "There should be at least one additional vertex columns for updating.")
 
+    JobDescription.withRestoredJobDescription(graph.spark) {
+      runAlgorithm()
+    }
+  }
+
+  private def runAlgorithm(): DataFrame = {
     val sendMsgsColList = sendMsgs.toList.map { case (id, msg) =>
       struct(id.as(ID), msg.as("msg"))
     }
@@ -466,6 +477,9 @@ class Pregel(val graph: GraphFrame)
 
     var iteration = 1
 
+    // Avoid "iteration 3 / 2147483647" for algorithms that rely on early stopping.
+    val maxIterSuffix = if (maxIter == Int.MaxValue) "" else s" / $maxIter"
+
     val shouldCheckpoint = checkpointInterval > 0
 
     if (shouldCheckpoint && graph.spark.sparkContext.getCheckpointDir.isEmpty && !useLocalCheckpoints) {
@@ -490,6 +504,8 @@ class Pregel(val graph: GraphFrame)
     breakable {
       while (iteration <= maxIter) {
         logInfo(s"start Pregel iteration $iteration / $maxIter")
+        graph.spark.sparkContext.setJobDescription(
+          s"$getJobDescriptionPrefix: iteration $iteration$maxIterSuffix")
         val currRoundPersistent = scala.collection.mutable.Queue[DataFrame]()
         currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
 
@@ -588,6 +604,8 @@ class Pregel(val graph: GraphFrame)
       }
     }
 
+    graph.spark.sparkContext.setJobDescription(
+      s"$getJobDescriptionPrefix: materializing final result")
     val res = currentVertices.persist(intermediateStorageLevel)
     res.count()
     while (lastRoundPersistent.nonEmpty) {

@@ -1,6 +1,57 @@
 package org.graphframes
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
+
+private[graphframes] object JobDescription {
+  // Mirrors SparkContext.SPARK_JOB_DESCRIPTION, which is private[spark].
+  private[graphframes] val JOB_DESCRIPTION_KEY = "spark.job.description"
+
+  /**
+   * Runs `body` and afterwards restores the Spark job description (a thread-local property) that
+   * the caller had set, so descriptions set inside `body` do not leak into jobs the caller
+   * triggers later on the same thread.
+   */
+  def withRestoredJobDescription[T](spark: SparkSession)(body: => T): T = {
+    val sc = spark.sparkContext
+    val previousDescription = sc.getLocalProperty(JOB_DESCRIPTION_KEY)
+    try {
+      body
+    } finally {
+      sc.setLocalProperty(JOB_DESCRIPTION_KEY, previousDescription)
+    }
+  }
+}
+
+/**
+ * Provides support for customizing the Spark job descriptions set by iterative algorithms.
+ *
+ * Job descriptions are shown in the "Description" column of the Jobs and Stages pages of the
+ * Spark UI, making the progress of long iterative runs visible without reading driver logs.
+ */
+private[graphframes] trait WithJobDescriptionPrefix {
+
+  /** The prefix used when no custom prefix is set, typically the algorithm name. */
+  protected def defaultJobDescriptionPrefix: String
+
+  protected var jobDescriptionPrefixOpt: Option[String] = None
+
+  /**
+   * Sets a custom prefix for the Spark job descriptions set by this algorithm (default: the
+   * algorithm name). Setting distinct prefixes allows telling apart multiple concurrent runs
+   * within the same Spark application.
+   */
+  def setJobDescriptionPrefix(value: String): this.type = {
+    jobDescriptionPrefixOpt = Some(value)
+    this
+  }
+
+  /**
+   * Gets the prefix of the Spark job descriptions set by this algorithm.
+   */
+  def getJobDescriptionPrefix: String =
+    jobDescriptionPrefixOpt.getOrElse(defaultJobDescriptionPrefix)
+}
 
 private[graphframes] trait WithAlgorithmChoice {
   protected val ALGO_GRAPHX = "graphx"

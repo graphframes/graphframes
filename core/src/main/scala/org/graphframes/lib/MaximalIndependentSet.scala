@@ -5,6 +5,7 @@ import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
+import org.graphframes.JobDescription
 import org.graphframes.Logging
 import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithIntermediateStorageLevel
@@ -103,10 +104,13 @@ object MaximalIndependentSet extends Serializable with Logging {
 
     // randomized algorithms are not working with AQE well
     val originalAQE = spark.conf.get("spark.sql.adaptive.enabled")
+    val previousJobDescription =
+      spark.sparkContext.getLocalProperty(JobDescription.JOB_DESCRIPTION_KEY)
     try {
       spark.conf.set("spark.sql.adaptive.enabled", "false")
 
       while (!converged) {
+        spark.sparkContext.setJobDescription(s"GraphFrames MaximalIndependentSet: iteration $i")
         val iterSeed = rng.nextLong()
         // compute effective degree as a sum of nbrs p
         val effectiveDegrees =
@@ -210,6 +214,8 @@ object MaximalIndependentSet extends Serializable with Logging {
       vertices.unpersist(true)
       edges.unpersist(true)
 
+      spark.sparkContext.setJobDescription(
+        "GraphFrames MaximalIndependentSet: materializing final result")
       val mis = misDF.filter(col(isMIS)).select(GraphFrame.ID).persist(storageLevel)
       // materialize
       mis.count()
@@ -220,6 +226,8 @@ object MaximalIndependentSet extends Serializable with Logging {
     } finally {
       // Restore original AQE setting
       spark.conf.set("spark.sql.adaptive.enabled", originalAQE)
+      spark.sparkContext
+        .setLocalProperty(JobDescription.JOB_DESCRIPTION_KEY, previousJobDescription)
     }
   }
 }
