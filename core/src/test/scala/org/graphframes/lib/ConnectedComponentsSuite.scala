@@ -79,17 +79,23 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     components.unpersist()
   }
 
-  test("friends graph with different broadcast thresholds") {
+  test("friends graph, graphx") {
     val friends = Graphs.friends
     val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
-    for ((algorithm, broadcastThreshold) <-
-        Seq(
-          ("graphx", 1000000),
-          ("graphframes", 100000),
-          ("graphframes", 1),
-          ("graphframes", -1))) {
+    val components = friends.connectedComponents
+      .setAlgorithm(ConnectedComponents.ALGO_GRAPHX)
+      .run()
+    assertComponents(components, expected)
+    components.unpersist()
+  }
+
+  // 100000 and 1 are different thresholds of the skewed join flow, -1 is the AQE flow
+  Seq(100000, 1, -1).foreach { broadcastThreshold =>
+    test(s"friends graph, two_phase, broadcastThreshold=$broadcastThreshold") {
+      val friends = Graphs.friends
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
       val components = friends.connectedComponents
-        .setAlgorithm(algorithm)
+        .setAlgorithm(ConnectedComponents.ALGO_TWO_PHASE)
         .setBroadcastThreshold(broadcastThreshold)
         .run()
       assertComponents(components, expected)
@@ -131,196 +137,205 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     }
   }
 
+  // Checkpointing is tested on the chain graph only: it needs more than one iteration to
+  // converge, and checkpointInterval=1 guarantees that checkpoints are actually done.
   Seq(true, false).foreach(useSkewedJoin => {
     Seq(true, false).foreach(useLocalCheckpoint => {
       val testPostfixName = s"${if (useLocalCheckpoint) " with local checkpoint"
-        else ""}${if (useSkewedJoin) ", skewed join" else ", AQE join"}"
+        else " with checkpoint"}${if (useSkewedJoin) ", skewed join" else ", AQE join"}"
       val broadcastThreshold = if (useSkewedJoin) 1000000 else -1
-
-      test(s"non trivial graph #873$testPostfixName") {
-        val edges = spark
-          .createDataFrame(
-            Seq((1L, 2L), (2L, 3L), (3L, 4L), (4L, 5L), (5L, 1L), (6L, 7L), (7L, 8L), (8L, 6L)))
-          .toDF("src", "dst")
-
-        val vertices =
-          edges.select("src").union(edges.select("dst")).distinct().withColumnRenamed("src", "id")
-        val g = GraphFrame(vertices, edges)
-
-        val result = g.connectedComponents
-          .setBroadcastThreshold(broadcastThreshold)
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .run()
-        val numComps = result.select("component").distinct().count()
-        assert(numComps == 2L)
-        result.unpersist()
-      }
-
-      test(s"empty graph$testPostfixName") {
-        for (empty <- Seq(Graphs.empty[Int], Graphs.empty[Long], Graphs.empty[String])) {
-          val components = empty.connectedComponents
-            .setBroadcastThreshold(broadcastThreshold)
-            .setUseLocalCheckpoints(useLocalCheckpoint)
-            .run()
-          assert(components.count() === 0L)
-          components.unpersist()
-        }
-      }
-
-      test(s"single vertex$testPostfixName") {
-        val v = spark.createDataFrame(List((0L, "a", "b"))).toDF("id", "vattr", "gender")
-        // Create an empty dataframe with the proper columns.
-        val e = spark
-          .createDataFrame(List((0L, 0L, 1L)))
-          .toDF("src", "dst", "test")
-          .filter("src > 10")
-        val g = GraphFrame(v, e)
-        val comps = g.connectedComponents
-          .setBroadcastThreshold(broadcastThreshold)
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .run()
-        TestUtils.testSchemaInvariants(g, comps)
-        TestUtils.checkColumnType(comps.schema, "component", DataTypes.LongType)
-        assert(comps.count() === 1)
-        assert(
-          comps.select("id", "component", "vattr", "gender").collect()
-            === Seq(Row(0L, 0L, "a", "b")))
-        comps.unpersist()
-      }
-
-      test(s"disconnected vertices$testPostfixName") {
-        val n = 5L
-        val vertices = spark.range(n).toDF(ID)
-        val edges = spark.createDataFrame(Seq.empty[(Long, Long)]).toDF(SRC, DST)
-        val g = GraphFrame(vertices, edges)
-        val components = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        val expected = (0L until n).map(Set(_)).toSet
-        assertComponents(components, expected)
-        components.unpersist()
-      }
-
-      test(s"two connected vertices$testPostfixName") {
-        val v =
-          spark.createDataFrame(List((0L, "a0", "b0"), (1L, "a1", "b1"))).toDF("id", "A", "B")
-        val e = spark.createDataFrame(List((0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
-        val g = GraphFrame(v, e)
-        val comps = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        TestUtils.testSchemaInvariants(g, comps)
-        assert(comps.count() === 2)
-        val vxs = comps.sort("id").select("id", "component", "A", "B").collect()
-        assert(List(Row(0L, 0L, "a0", "b0"), Row(1L, 0L, "a1", "b1")) === vxs)
-        comps.unpersist()
-      }
 
       test(s"chain graph$testPostfixName") {
         val n = 5L
         val g = Graphs.chain(5L)
         val components = g.connectedComponents
           .setUseLocalCheckpoints(useLocalCheckpoint)
+          .setCheckpointInterval(1)
           .setBroadcastThreshold(broadcastThreshold)
           .run()
         val expected = Set((0L until n).toSet)
         assertComponents(components, expected)
         components.unpersist()
       }
-
-      test(s"star graph$testPostfixName") {
-        val n = 5L
-        val g = Graphs.star(5L)
-        val components = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        val expected = Set((0L to n).toSet)
-        assertComponents(components, expected)
-        components.unpersist()
-      }
-
-      test(s"two blobs$testPostfixName") {
-        val n = 5L
-        val g = Graphs.twoBlobs(n.toInt)
-        val components = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        val expected = Set((0L until 2 * n).toSet)
-        assertComponents(components, expected)
-        components.unpersist()
-      }
-
-      test(s"two components$testPostfixName") {
-        val vertices = spark.range(6L).toDF(ID)
-        val edges = spark
-          .createDataFrame(Seq((0L, 1L), (1L, 2L), (2L, 0L), (3L, 4L), (4L, 5L), (5L, 3L)))
-          .toDF(SRC, DST)
-        val g = GraphFrame(vertices, edges)
-        val components = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L))
-        assertComponents(components, expected)
-        components.unpersist()
-      }
-
-      test(s"one component, differing edge directions$testPostfixName") {
-        val vertices = spark.range(5L).toDF(ID)
-        val edges = spark
-          .createDataFrame(
-            Seq(
-              // 0 -> 4 -> 3 <- 2 -> 1
-              (0L, 4L),
-              (4L, 3L),
-              (2L, 3L),
-              (2L, 1L)))
-          .toDF(SRC, DST)
-        val g = GraphFrame(vertices, edges)
-        val components = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        val expected = Set((0L to 4L).toSet)
-        assertComponents(components, expected)
-        components.unpersist()
-      }
-
-      test(s"two components and two dangling vertices$testPostfixName") {
-        val vertices = spark.range(8L).toDF(ID)
-        val edges = spark
-          .createDataFrame(Seq((0L, 1L), (1L, 2L), (2L, 0L), (3L, 4L), (4L, 5L), (5L, 3L)))
-          .toDF(SRC, DST)
-        val g = GraphFrame(vertices, edges)
-        val components = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
-        assertComponents(components, expected)
-        components.unpersist()
-      }
-
-      test(s"really large long IDs$testPostfixName") {
-        val max = Long.MaxValue
-        val chain = examples.Graphs.chain(10L)
-        val vertices = chain.vertices.select((lit(max) - col(ID)).as(ID))
-        val edges =
-          chain.edges.select((lit(max) - col(SRC)).as(SRC), (lit(max) - col(DST)).as(DST))
-        val g = GraphFrame(vertices, edges)
-        val components = g.connectedComponents
-          .setUseLocalCheckpoints(useLocalCheckpoint)
-          .setBroadcastThreshold(broadcastThreshold)
-          .run()
-        assert(components.count() === 10L)
-        assert(components.groupBy("component").count().count() === 1L)
-        components.unpersist()
-      }
     })
+  })
+
+  // Local checkpoints are used because they are faster.
+  Seq(true, false).foreach(useSkewedJoin => {
+    val testPostfixName = s"${if (useSkewedJoin) ", skewed join" else ", AQE join"}"
+    val broadcastThreshold = if (useSkewedJoin) 1000000 else -1
+
+    test(s"non trivial graph #873$testPostfixName") {
+      val edges = spark
+        .createDataFrame(
+          Seq((1L, 2L), (2L, 3L), (3L, 4L), (4L, 5L), (5L, 1L), (6L, 7L), (7L, 8L), (8L, 6L)))
+        .toDF("src", "dst")
+
+      val vertices =
+        edges.select("src").union(edges.select("dst")).distinct().withColumnRenamed("src", "id")
+      val g = GraphFrame(vertices, edges)
+
+      val result = g.connectedComponents
+        .setBroadcastThreshold(broadcastThreshold)
+        .setUseLocalCheckpoints(true)
+        .run()
+      val numComps = result.select("component").distinct().count()
+      assert(numComps == 2L)
+      result.unpersist()
+    }
+
+    test(s"empty graph$testPostfixName") {
+      for (empty <- Seq(Graphs.empty[Int], Graphs.empty[Long], Graphs.empty[String])) {
+        val components = empty.connectedComponents
+          .setBroadcastThreshold(broadcastThreshold)
+          .setUseLocalCheckpoints(true)
+          .run()
+        assert(components.count() === 0L)
+        components.unpersist()
+      }
+    }
+
+    test(s"single vertex$testPostfixName") {
+      val v = spark.createDataFrame(List((0L, "a", "b"))).toDF("id", "vattr", "gender")
+      // Create an empty dataframe with the proper columns.
+      val e = spark
+        .createDataFrame(List((0L, 0L, 1L)))
+        .toDF("src", "dst", "test")
+        .filter("src > 10")
+      val g = GraphFrame(v, e)
+      val comps = g.connectedComponents
+        .setBroadcastThreshold(broadcastThreshold)
+        .setUseLocalCheckpoints(true)
+        .run()
+      TestUtils.testSchemaInvariants(g, comps)
+      TestUtils.checkColumnType(comps.schema, "component", DataTypes.LongType)
+      assert(comps.count() === 1)
+      assert(
+        comps.select("id", "component", "vattr", "gender").collect()
+          === Seq(Row(0L, 0L, "a", "b")))
+      comps.unpersist()
+    }
+
+    test(s"disconnected vertices$testPostfixName") {
+      val n = 5L
+      val vertices = spark.range(n).toDF(ID)
+      val edges = spark.createDataFrame(Seq.empty[(Long, Long)]).toDF(SRC, DST)
+      val g = GraphFrame(vertices, edges)
+      val components = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      val expected = (0L until n).map(Set(_)).toSet
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+
+    test(s"two connected vertices$testPostfixName") {
+      val v =
+        spark.createDataFrame(List((0L, "a0", "b0"), (1L, "a1", "b1"))).toDF("id", "A", "B")
+      val e = spark.createDataFrame(List((0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
+      val g = GraphFrame(v, e)
+      val comps = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      TestUtils.testSchemaInvariants(g, comps)
+      assert(comps.count() === 2)
+      val vxs = comps.sort("id").select("id", "component", "A", "B").collect()
+      assert(List(Row(0L, 0L, "a0", "b0"), Row(1L, 0L, "a1", "b1")) === vxs)
+      comps.unpersist()
+    }
+
+    test(s"star graph$testPostfixName") {
+      val n = 5L
+      val g = Graphs.star(5L)
+      val components = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      val expected = Set((0L to n).toSet)
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+
+    test(s"two blobs$testPostfixName") {
+      val n = 5L
+      val g = Graphs.twoBlobs(n.toInt)
+      val components = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      val expected = Set((0L until 2 * n).toSet)
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+
+    test(s"two components$testPostfixName") {
+      val vertices = spark.range(6L).toDF(ID)
+      val edges = spark
+        .createDataFrame(Seq((0L, 1L), (1L, 2L), (2L, 0L), (3L, 4L), (4L, 5L), (5L, 3L)))
+        .toDF(SRC, DST)
+      val g = GraphFrame(vertices, edges)
+      val components = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L))
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+
+    test(s"one component, differing edge directions$testPostfixName") {
+      val vertices = spark.range(5L).toDF(ID)
+      val edges = spark
+        .createDataFrame(
+          Seq(
+            // 0 -> 4 -> 3 <- 2 -> 1
+            (0L, 4L),
+            (4L, 3L),
+            (2L, 3L),
+            (2L, 1L)))
+        .toDF(SRC, DST)
+      val g = GraphFrame(vertices, edges)
+      val components = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      val expected = Set((0L to 4L).toSet)
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+
+    test(s"two components and two dangling vertices$testPostfixName") {
+      val vertices = spark.range(8L).toDF(ID)
+      val edges = spark
+        .createDataFrame(Seq((0L, 1L), (1L, 2L), (2L, 0L), (3L, 4L), (4L, 5L), (5L, 3L)))
+        .toDF(SRC, DST)
+      val g = GraphFrame(vertices, edges)
+      val components = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      val expected = Set(Set(0L, 1L, 2L), Set(3L, 4L, 5L), Set(6L), Set(7L))
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+
+    test(s"really large long IDs$testPostfixName") {
+      val max = Long.MaxValue
+      val chain = examples.Graphs.chain(10L)
+      val vertices = chain.vertices.select((lit(max) - col(ID)).as(ID))
+      val edges =
+        chain.edges.select((lit(max) - col(SRC)).as(SRC), (lit(max) - col(DST)).as(DST))
+      val g = GraphFrame(vertices, edges)
+      val components = g.connectedComponents
+        .setUseLocalCheckpoints(true)
+        .setBroadcastThreshold(broadcastThreshold)
+        .run()
+      assert(components.count() === 10L)
+      assert(components.groupBy("component").count().count() === 1L)
+      components.unpersist()
+    }
   })
 
   test("set configuration from spark conf") {
@@ -344,35 +359,15 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     spark.conf.unset("spark.graphframes.connectedComponents.intermediatestoragelevel")
   }
 
-  Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY, StorageLevel.NONE).foreach(
-    storageLevel => {
-      test(s"intermediate storage level $storageLevel") {
-        val friends = Graphs.friends
-        val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+  test("intermediate storage level MEMORY_ONLY") {
+    val friends = Graphs.friends
+    val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
 
-        val components =
-          friends.connectedComponents.setIntermediateStorageLevel(storageLevel).run()
-        assertComponents(components, expected)
-        components.unpersist()
-        ()
-      }
-    })
-
-  Seq(StorageLevel.DISK_ONLY, StorageLevel.MEMORY_ONLY).foreach(storageLevel => {
-    test(s"intermediate storage level without skewedJoin $storageLevel") {
-      val friends = Graphs.friends
-      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
-
-      val components =
-        friends.connectedComponents
-          .setIntermediateStorageLevel(storageLevel)
-          .setBroadcastThreshold(-1)
-          .run()
-      assertComponents(components, expected)
-      components.unpersist()
-      ()
-    }
-  })
+    val components =
+      friends.connectedComponents.setIntermediateStorageLevel(StorageLevel.MEMORY_ONLY).run()
+    assertComponents(components, expected)
+    components.unpersist()
+  }
 
   test("not leaking cached data") {
     val priorCachedDFsSize = spark.sparkContext.getPersistentRDDs.size

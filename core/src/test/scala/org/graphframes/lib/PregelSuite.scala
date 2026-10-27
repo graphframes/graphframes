@@ -25,124 +25,112 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   import sqlImplicits.*
 
-  Seq(true, false).foreach(useLocalCheckpoint => {
-    test(s"page rank${if (useLocalCheckpoint) " with local checkpoint" else ""}") {
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", useLocalCheckpoint.toString)
-      val edges = Seq(
-        (0L, 1L),
-        (1L, 2L),
-        (2L, 4L),
-        (2L, 0L),
-        (3L, 4L), // 3 has no in-links
-        (4L, 0L),
-        (4L, 2L)).toDF("src", "dst").cache()
-      val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
-      val numVertices = vertices.count()
-      val graph = GraphFrame(vertices, edges)
+  test("page rank") {
+    val edges = Seq(
+      (0L, 1L),
+      (1L, 2L),
+      (2L, 4L),
+      (2L, 0L),
+      (3L, 4L), // 3 has no in-links
+      (4L, 0L),
+      (4L, 2L)).toDF("src", "dst").cache()
+    val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
+    val numVertices = vertices.count()
+    val graph = GraphFrame(vertices, edges)
 
-      val alpha = 0.15
-      // NOTE: This version doesn't handle nodes with no out-links.
-      val ranks = graph.pregel
-        .setMaxIter(5)
-        .withVertexColumn(
-          "rank",
-          lit(1.0 / numVertices),
-          coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
-        .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-        .aggMsgs(sum(Pregel.msg))
-        .run()
+    val alpha = 0.15
+    // NOTE: This version doesn't handle nodes with no out-links.
+    val ranks = graph.pregel
+      .setMaxIter(5)
+      .withVertexColumn(
+        "rank",
+        lit(1.0 / numVertices),
+        coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
+      .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
+      .aggMsgs(sum(Pregel.msg))
+      .run()
 
-      val result = ranks
-        .sort(col("id"))
-        .select("rank")
-        .as[Double]
-        .collect()
-      assert(result.sum === 1.0 +- 1e-6)
-      val expected = Seq(0.245, 0.224, 0.303, 0.03, 0.197)
-      result.zip(expected).foreach { case (r, e) =>
-        assert(r === e +- 1e-3)
-      }
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", "false")
+    val result = ranks
+      .sort(col("id"))
+      .select("rank")
+      .as[Double]
+      .collect()
+    assert(result.sum === 1.0 +- 1e-6)
+    val expected = Seq(0.245, 0.224, 0.303, 0.03, 0.197)
+    result.zip(expected).foreach { case (r, e) =>
+      assert(r === e +- 1e-3)
     }
+  }
 
-    test(s"chain propagation${if (useLocalCheckpoint) " with local checkpoint" else ""}") {
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", useLocalCheckpoint.toString)
-      val n = 5
-      val verDF = (1 to n).toDF("id").repartition(3)
-      val edgeDF = (1 until n)
-        .map(x => (x, x + 1))
-        .toDF("src", "dst")
-        .repartition(3)
+  test("chain propagation") {
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x, x + 1))
+      .toDF("src", "dst")
+      .repartition(3)
 
-      val graph = GraphFrame(verDF, edgeDF)
+    val graph = GraphFrame(verDF, edgeDF)
 
-      val resultDF = graph.pregel
-        .setMaxIter(n - 1)
-        .withVertexColumn(
-          "value",
-          when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
-          when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
-        .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
-        .aggMsgs(max(Pregel.msg))
-        .run()
+    val resultDF = graph.pregel
+      .setMaxIter(n - 1)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
+      .aggMsgs(max(Pregel.msg))
+      .run()
 
-      assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", "false")
-    }
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
 
-    test(
-      s"reverse chain propagation${if (useLocalCheckpoint) " with local checkpoint" else ""}") {
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", useLocalCheckpoint.toString)
-      val n = 5
-      val verDF = (1 to n).toDF("id").repartition(3)
-      val edgeDF = (1 until n)
-        .map(x => (x + 1, x))
-        .toDF("src", "dst")
-        .repartition(3)
+  test("reverse chain propagation") {
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x + 1, x))
+      .toDF("src", "dst")
+      .repartition(3)
 
-      val graph = GraphFrame(verDF, edgeDF)
+    val graph = GraphFrame(verDF, edgeDF)
 
-      val resultDF = graph.pregel
-        .setMaxIter(n - 1)
-        .withVertexColumn(
-          "value",
-          when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
-          when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
-        .sendMsgToSrc(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.dst("value")))
-        .aggMsgs(max(Pregel.msg))
-        .run()
+    val resultDF = graph.pregel
+      .setMaxIter(n - 1)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      .sendMsgToSrc(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.dst("value")))
+      .aggMsgs(max(Pregel.msg))
+      .run()
 
-      assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", "false")
-    }
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
 
-    test(s"chain propagation with termination${if (useLocalCheckpoint) " with local checkpoint"
-      else ""}") {
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", useLocalCheckpoint.toString)
-      val n = 5
-      val verDF = (1 to n).toDF("id").repartition(3)
-      val edgeDF = (1 until n)
-        .map(x => (x, x + 1))
-        .toDF("src", "dst")
-        .repartition(3)
+  test("chain propagation with termination") {
+    val n = 5
+    val verDF = (1 to n).toDF("id").repartition(3)
+    val edgeDF = (1 until n)
+      .map(x => (x, x + 1))
+      .toDF("src", "dst")
+      .repartition(3)
 
-      val graph = GraphFrame(verDF, edgeDF)
+    val graph = GraphFrame(verDF, edgeDF)
 
-      val resultDF = graph.pregel
-        .setMaxIter(1000)
-        .setEarlyStopping(true)
-        .withVertexColumn(
-          "value",
-          when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
-          when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
-        .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
-        .aggMsgs(max(Pregel.msg))
-        .run()
+    val resultDF = graph.pregel
+      .setMaxIter(1000)
+      .setEarlyStopping(true)
+      .withVertexColumn(
+        "value",
+        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
+        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
+      .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
+      .aggMsgs(max(Pregel.msg))
+      .run()
 
-      assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
-      spark.conf.set("spark.graphframes.useLocalCheckpoints", "false")
-    }
-  })
+    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
+  }
 
   test("new vertex column is based on the nullable column") {
     val verDF = Seq(1L, 2L, 3L, 4L)
@@ -258,100 +246,6 @@ class PregelSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .aggMsgs(max(Pregel.msg))
       .requiredSrcColumns("value") // Only need "value" from source
       .requiredDstColumns("value") // Only need "value" from destination
-      .run()
-
-    assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
-  }
-
-  test("requiredSrcColumns with empty list uses all columns (default behavior)") {
-    // Verify that not calling requiredSrcColumns means all columns are used
-    // This is the same as the original page rank test
-
-    val edges = Seq((0L, 1L), (1L, 2L), (2L, 4L), (2L, 0L), (3L, 4L), (4L, 0L), (4L, 2L))
-      .toDF("src", "dst")
-      .cache()
-    val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
-    val numVertices = vertices.count()
-    val graph = GraphFrame(vertices, edges)
-
-    val alpha = 0.15
-    val ranks = graph.pregel
-      .setMaxIter(5)
-      .withVertexColumn(
-        "rank",
-        lit(1.0 / numVertices),
-        coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
-      .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-      .aggMsgs(sum(Pregel.msg))
-      // No requiredSrcColumns or requiredDstColumns - should use all columns
-      .run()
-
-    val result = ranks
-      .sort(col("id"))
-      .select("rank")
-      .as[Double]
-      .collect()
-    assert(result.sum === 1.0 +- 1e-6)
-  }
-
-  test("automatic dst join skipping - PageRank only uses src columns") {
-    // PageRank only references Pregel.src("rank") and Pregel.src("outDegree"),
-    // so the second join (for dst vertex state) should be automatically skipped.
-    // This test verifies the optimization produces correct results.
-
-    val edges = Seq((0L, 1L), (1L, 2L), (2L, 4L), (2L, 0L), (3L, 4L), (4L, 0L), (4L, 2L))
-      .toDF("src", "dst")
-      .cache()
-    val vertices = GraphFrame.fromEdges(edges).outDegrees.cache()
-    val numVertices = vertices.count()
-    val graph = GraphFrame(vertices, edges)
-
-    val alpha = 0.15
-    // PageRank only uses Pregel.src(...) - dst state should be automatically skipped
-    val ranks = graph.pregel
-      .setMaxIter(5)
-      .withVertexColumn(
-        "rank",
-        lit(1.0 / numVertices),
-        coalesce(Pregel.msg, lit(0.0)) * (1.0 - alpha) + alpha / numVertices)
-      .sendMsgToDst(Pregel.src("rank") / Pregel.src("outDegree"))
-      .aggMsgs(sum(Pregel.msg))
-      .run()
-
-    val result = ranks
-      .sort(col("id"))
-      .select("rank")
-      .as[Double]
-      .collect()
-    assert(result.sum === 1.0 +- 1e-6)
-    val expected = Seq(0.245, 0.224, 0.303, 0.03, 0.197)
-    result.zip(expected).foreach { case (r, e) =>
-      assert(r === e +- 1e-3)
-    }
-  }
-
-  test("automatic dst join NOT skipped when dst columns are referenced") {
-    // This test uses Pregel.dst("value") in the message expression,
-    // so the second join must NOT be skipped.
-
-    val n = 5
-    val verDF = (1 to n).toDF("id").repartition(3)
-    val edgeDF = (1 until n)
-      .map(x => (x, x + 1))
-      .toDF("src", "dst")
-      .repartition(3)
-
-    val graph = GraphFrame(verDF, edgeDF)
-
-    val resultDF = graph.pregel
-      .setMaxIter(n - 1)
-      .withVertexColumn(
-        "value",
-        when(col("id") === lit(1), lit(1)).otherwise(lit(0)),
-        when(Pregel.msg > col("value"), Pregel.msg).otherwise(col("value")))
-      // This references BOTH src and dst - dst join should NOT be skipped
-      .sendMsgToDst(when(Pregel.dst("value") =!= Pregel.src("value"), Pregel.src("value")))
-      .aggMsgs(max(Pregel.msg))
       .run()
 
     assert(resultDF.sort("id").select("value").as[Int].collect() === Array.fill(n)(1))
