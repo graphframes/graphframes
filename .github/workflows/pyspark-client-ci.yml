@@ -8,11 +8,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 4.0.4
+          - spark-version: 4.0.5
             scala-version: 2.13
             python-version: "3.12"
             java-version: 17
-          - spark-version: 4.1.3
+          - spark-version: 4.1.4
             scala-version: 2.13
             python-version: "3.13"
             java-version: 17
