@@ -230,7 +230,7 @@ class GraphFrame:
                 jdf = builder.agg(aggCol[0])
         elif len(aggCol) > 1:
             if all(isinstance(x, Column) for x in aggCol):
-                jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol]))
+                jdf = builder.agg(aggCol[0]._jc, _to_seq(self._sc, [x._jc for x in aggCol[1:]]))
             elif all(isinstance(x, str) for x in aggCol):
                 jdf = builder.agg(aggCol[0], _to_seq(self._sc, aggCol[1:]))
             else:

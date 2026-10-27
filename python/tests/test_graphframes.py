@@ -1179,3 +1179,21 @@ def test_hyper_anf_invalid_args(spark: SparkSession) -> None:
 
     with pytest.raises(ValueError, match="lg_nom_entries must be between 4 and 21"):
         g.hyper_anf(lg_nom_entries=22)
+
+
+def test_aggregate_messages_multiple_agg_cols(local_g: GraphFrame) -> None:
+    from graphframes.lib import AggregateMessages as AM
+
+    res_cols = local_g.aggregateMessages(
+        [sqlfunctions.count(AM.msg).alias("cnt"), sqlfunctions.max(AM.msg).alias("mx")],
+        sendToDst=AM.src["id"],
+    )
+    assert res_cols.columns == ["id", "cnt", "mx"]
+    _ = res_cols.unpersist()
+
+    res_strs = local_g.aggregateMessages(
+        ["count(MSG) AS cnt", "max(MSG) AS mx"],
+        sendToDst=AM.src["id"],
+    )
+    assert res_strs.columns == ["id", "cnt", "mx"]
+    _ = res_strs.unpersist()
