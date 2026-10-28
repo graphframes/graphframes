@@ -211,6 +211,9 @@ class GraphFrame private (
       persistedVertices.unpersist()
       verticesSetFromEdges.unpersist()
       ()
+    } else {
+      persistedVertices.unpersist()
+      ()
     }
   }
 
