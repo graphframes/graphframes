@@ -4,11 +4,14 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.graphframes.expressions.FiniteAXPlusB
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrameTestSparkContext
 import org.graphframes.SparkFunSuite
 import org.graphframes.examples.Graphs
+
+import scala.util.Random
 
 class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
@@ -131,6 +134,38 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     val compCounts =
       components.groupBy("component").count().collect().map(r => r.getLong(1)).toSet
     assert(compCounts === Set(1L, 1L, 3L, 3L))
+    assertFunctionRegistryClean()
+  }
+
+  test("RandomizedContraction: isolated vertex id does not collide with component label") {
+    val random = new Random()
+    random.setSeed(42L)
+    var rA = 0L
+    while (rA == 0L) {
+      rA = random.nextLong()
+    }
+    val rB = random.nextLong()
+    val label = math.min(FiniteAXPlusB.axpb(rA, 1L, rB), FiniteAXPlusB.axpb(rA, 2L, rB))
+
+    val vertices = spark.createDataFrame(Seq(1L, 2L, label).map(Tuple1.apply)).toDF(GraphFrame.ID)
+    val edges = spark.createDataFrame(Seq((1L, 2L))).toDF(GraphFrame.SRC, GraphFrame.DST)
+    val graph = GraphFrame(vertices, edges)
+    val components = RandomizedContraction.run(
+      inputGraph = graph,
+      useLabelsAsComponents = false,
+      intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 1,
+      isGraphPrepared = false)
+    val compValues =
+      components
+        .select(GraphFrame.ID, "component")
+        .collect()
+        .map(r => r.getLong(0) -> r.getLong(1))
+        .toMap
+    assert(compValues.size === 3)
+    assert(compValues(1L) === compValues(2L))
+    assert(compValues(label) !== compValues(1L))
     assertFunctionRegistryClean()
   }
 
