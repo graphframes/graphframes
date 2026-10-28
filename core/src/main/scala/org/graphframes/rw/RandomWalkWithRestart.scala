@@ -17,6 +17,8 @@ import org.graphframes.GraphFrame
  */
 class RandomWalkWithRestart extends RandomWalkBase {
 
+  override protected def defaultJobDescriptionPrefix: String = "GraphFrames RandomWalkWithRestart"
+
   /** The probability of restarting the walk at each step (resets to starting node). */
   private var restartProbability: Double = 0.1
 

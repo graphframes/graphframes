@@ -7,6 +7,7 @@ import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.graphframes.expressions.FiniteAXPlusB
+import org.apache.spark.sql.types.LongType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.DST
@@ -15,6 +16,7 @@ import org.graphframes.GraphFrame.LONG_DST
 import org.graphframes.GraphFrame.LONG_ID
 import org.graphframes.GraphFrame.LONG_SRC
 import org.graphframes.GraphFrame.SRC
+import org.graphframes.JobDescription
 import org.graphframes.Logging
 
 import java.io.IOException
@@ -59,6 +61,8 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     val sc = spark.sparkContext
     val runId = UUID.randomUUID().toString.takeRight(8)
     val logPrefix = s"[CC $runId]"
+    val jobDescriptionPrefix = s"GraphFrames ConnectedComponents [$runId]"
+    val previousJobDescription = sc.getLocalProperty(JobDescription.JOB_DESCRIPTION_KEY)
 
     val checkpointDir = sc.getCheckpointDir
       .map { d =>
@@ -115,6 +119,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
     def axpb(a: Long, x: Column, b: Long): Column = call_function("_axpb", lit(a), x, lit(b))
 
     try {
+      sc.setJobDescription(s"$jobDescriptionPrefix: preparing graph")
       var rA = 0L
       var graphSize = edges.count()
       var ccRepresentatives: DataFrame = null
@@ -132,6 +137,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
       while (graphSize > 0) {
         logInfo(s"iteration ${iter}, edges left ${graphSize}")
+        sc.setJobDescription(s"$jobDescriptionPrefix: iteration $iter, $graphSize edges left")
         iter += 1
         rA = 0L
         while (rA == 0L) {
@@ -205,6 +211,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
       while (iter > 1) {
         iter -= 1
+        sc.setJobDescription(s"$jobDescriptionPrefix: reverse transformation step $iter")
         val poppedA = stackA.pop()
         val poppedB = stackB.pop()
 
@@ -238,6 +245,10 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
         }
       }
 
+      // Compose the remaining first-level transformation to get the full mapping
+      val fullA = FiniteAXPlusB.axpb(accA, stackA.pop(), 0L)
+      val fullB = FiniteAXPlusB.axpb(accA, stackB.pop(), accB)
+
       val finalReps = spark.read
         .parquet(tableName(1))
         .select(col("v").alias(ID), col("rep").alias(ConnectedComponents.COMPONENT))
@@ -268,28 +279,26 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
             coalesce(col("new_component"), col(ID))
               .alias(ConnectedComponents.COMPONENT))
       } else if (!inputGraph.hasIntegralIdType) {
-        // `finalReps` is keyed by the internal LongType vertex index, not by the original
-        // vertex ID, so for non-integral ID types the results have to be mapped back through
-        // `indexedVertices`. Joining `inputGraph.vertices` on ID directly would make Spark
-        // coerce the two sides to a common type, which either fails with CAST_INVALID_INPUT
-        // (ANSI mode) or silently produces wrong results.
-        // See https://github.com/graphframes/graphframes/issues/892
+        // we need to apply axpb to isolated vertices to avoid collision
         inputGraph.indexedVertices
           .withColumnRenamed(ID, ConnectedComponents.ORIG_ID)
           .join(finalReps, col(ID) === col(LONG_ID), "left")
           .select(
             col(ConnectedComponents.ORIG_ID).alias(ID),
-            coalesce(col(ConnectedComponents.COMPONENT), col(LONG_ID))
+            coalesce(col(ConnectedComponents.COMPONENT), axpb(fullA, col(LONG_ID), fullB))
               .alias(ConnectedComponents.COMPONENT))
       } else {
         inputGraph.vertices
           .join(finalReps, ID, "left")
           .select(
             col(ID),
-            coalesce(col(ConnectedComponents.COMPONENT), col(ID))
+            coalesce(
+              col(ConnectedComponents.COMPONENT),
+              axpb(fullA, col(ID).cast(LongType), fullB))
               .alias(ConnectedComponents.COMPONENT))
       }
 
+      sc.setJobDescription(s"$jobDescriptionPrefix: materializing final result")
       outputComponents.persist(intermediateStorageLevel)
       // materialize to be able to clean up everything
       outputComponents.count()
@@ -299,6 +308,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
 
       outputComponents
     } finally {
+      sc.setLocalProperty(JobDescription.JOB_DESCRIPTION_KEY, previousJobDescription)
       // to be 100% sure;
       edges.unpersist()
       cleanupCheckpointDir()

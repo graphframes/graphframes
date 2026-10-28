@@ -79,6 +79,7 @@ object KCore extends Serializable with Logging {
 
     try {
       val pregel = preparedGraph.pregel
+        .setJobDescriptionPrefix("GraphFrames KCore")
         .setMaxIter(Int.MaxValue)
         .setIntermediateStorageLevel(storageLevel)
         .setCheckpointInterval(checkpointInterval)

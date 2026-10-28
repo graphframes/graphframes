@@ -215,6 +215,7 @@ private object ShortestPaths extends Logging {
     // 2. If new message can improve distances send it
     // 3. Collect and aggregate messages
     val pregel = preparedGraph.pregel
+      .setJobDescriptionPrefix("GraphFrames ShortestPaths")
       .setIntermediateStorageLevel(intermediateStorageLevel)
       .setMaxIter(Int.MaxValue) // That is how the GraphX implementation works
       .withVertexColumn(
