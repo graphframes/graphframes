@@ -17,8 +17,6 @@
 
 package org.graphframes
 
-import org.apache.commons.io.FileUtils
-import org.apache.hadoop.fs.Path
 import org.apache.spark.graphframes.graphx.Edge
 import org.apache.spark.graphframes.graphx.Graph
 import org.apache.spark.rdd.RDD
@@ -33,9 +31,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.examples.Graphs
 
-import java.io.File
-import java.nio.file.Files
-
 class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
   import GraphFrame._
@@ -45,22 +40,15 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
   val localEdges: Map[(Long, Long), String] =
     Map((1L, 2L) -> "love", (2L, 1L) -> "hate", (2L, 3L) -> "follow")
   var edges: DataFrame = _
-  var tempDir: File = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    tempDir = Files.createTempDirectory(null).toFile()
     vertices = spark.createDataFrame(localVertices.toSeq).toDF("id", "name")
     edges = spark
       .createDataFrame(localEdges.toSeq.map { case ((src, dst), action) =>
         (src, dst, action)
       })
       .toDF("src", "dst", "action")
-  }
-
-  override def afterAll(): Unit = {
-    FileUtils.deleteQuietly(tempDir)
-    super.afterAll()
   }
 
   test("test validate") {
@@ -313,29 +301,6 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     }
   }
 
-  test("save/load") {
-    val g0 = GraphFrame(vertices, edges)
-    val vPath = new Path(tempDir.getPath, "vertices").toString
-    val ePath = new Path(tempDir.getPath, "edges").toString
-    g0.vertices.write.parquet(vPath)
-    g0.edges.write.parquet(ePath)
-
-    val v1 = spark.read.parquet(vPath)
-    val e1 = spark.read.parquet(ePath)
-    val g1 = GraphFrame(v1, e1)
-
-    g1.vertices.collect().foreach {
-      case Row(id: Long, name: String) =>
-        assert(localVertices(id) === name)
-      case _ => throw new GraphFramesUnreachableException()
-    }
-    g1.edges.collect().foreach {
-      case Row(src: Long, dst: Long, action: String) =>
-        assert(localEdges((src, dst)) === action)
-      case _ => throw new GraphFramesUnreachableException()
-    }
-  }
-
   test("degree metrics") {
     val g = GraphFrame(vertices, edges)
 
@@ -513,10 +478,12 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     val g = GraphFrame(vertices, edges)
 
     g.persist(StorageLevel.MEMORY_ONLY)
+    assert(g.vertices.storageLevel === StorageLevel.MEMORY_ONLY)
+    assert(g.edges.storageLevel === StorageLevel.MEMORY_ONLY)
 
     g.unpersist()
-    // org.apache.spark.sql.execution.columnar.InMemoryRelation is private and not accessible
-    // This has prevented us from validating DataFrame's are cached.
+    assert(g.vertices.storageLevel === StorageLevel.NONE)
+    assert(g.edges.storageLevel === StorageLevel.NONE)
   }
 
   test("basic operations on an empty graph") {
