@@ -23,9 +23,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 3.5.8
+          - spark-version: 3.5.9
             java-version: 8
-          - spark-version: 4.1.2
+          - spark-version: 4.2.1
             java-version: 17
     runs-on: ubuntu-latest
     steps:

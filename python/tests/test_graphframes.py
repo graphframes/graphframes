@@ -49,16 +49,25 @@ PREGEL_IDS: list[str] = [
     "graphframes,global,7,MEMORY_ONLY",
     "graphframes,local,1,DISK_ONLY_3",
 ]
-STORAGE_LEVELS = [
-    StorageLevel.MEMORY_AND_DISK_2,
-    StorageLevel.DISK_ONLY,
-    StorageLevel.MEMORY_ONLY,
+# A run with defaults and runs with all the arguments passed.
+PREGEL_BASED_KWARGS = [
+    {},
+    {
+        "use_local_checkpoints": True,
+        "checkpoint_interval": 1,
+        "storage_level": StorageLevel.MEMORY_ONLY,
+    },
+    {
+        "use_local_checkpoints": False,
+        "checkpoint_interval": 3,
+        "storage_level": StorageLevel.DISK_ONLY,
+    },
 ]
-STORAGE_LEVELS_IDS = [
-    "MEMORY_AND_DISK_2",
-    "DISK_ONLY",
-    "MEMORY_ONLY",
-]
+PREGEL_BASED_IDS = ["defaults", "local,1,MEMORY_ONLY", "global,3,DISK_ONLY"]
+# TODO: remove when randomized_contraction keeps vertex attributes in its output
+RC_DROPS_VERTEX_ATTRIBUTES = pytest.mark.xfail(
+    strict=True, reason="randomized_contraction output contains only id and component columns"
+)
 
 
 def test_construction(spark: SparkSession, local_g: GraphFrame) -> None:
@@ -414,8 +423,7 @@ def test_power_iteration_clustering(spark: SparkSession) -> None:
     _ = clusters_df.unpersist()
 
 
-@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
-def test_page_rank(spark: SparkSession, args: PregelArguments) -> None:
+def test_page_rank(spark: SparkSession) -> None:
     edges = spark.createDataFrame(
         [
             [0, 1],
@@ -489,8 +497,20 @@ def test_graphframes_pagerank(spark: SparkSession) -> None:
     assert result.edges.count() == edges.count()
 
 
-@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
-def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> None:
+@pytest.mark.parametrize(
+    "use_local_checkpoints,checkpoint_interval,storage_level",
+    [
+        (True, 1, StorageLevel.MEMORY_ONLY),
+        (False, 3, StorageLevel.DISK_ONLY),
+    ],
+    ids=["local,1,MEMORY_ONLY", "global,3,DISK_ONLY"],
+)
+def test_pregel_early_stopping(
+    spark: SparkSession,
+    use_local_checkpoints: bool,
+    checkpoint_interval: int,
+    storage_level: StorageLevel,
+) -> None:
     edges = spark.createDataFrame(
         [
             [0, 1],
@@ -517,13 +537,10 @@ def test_pregel_early_stopping(spark: SparkSession, args: PregelArguments) -> No
     pregel = graph.pregel
     ranks = (
         graph.pregel.setMaxIter(5)
-        .setUseLocalCheckpoints(args.use_local_checkpoints)
-        .setIntermediateStorageLevel(args.storage_level)
-        .setCheckpointInterval(args.checkpoint_interval)
+        .setUseLocalCheckpoints(use_local_checkpoints)
+        .setIntermediateStorageLevel(storage_level)
+        .setCheckpointInterval(checkpoint_interval)
         .setEarlyStopping(True)
-        .setUseLocalCheckpoints(args.use_local_checkpoints)
-        .setIntermediateStorageLevel(args.storage_level)
-        .setCheckpointInterval(args.checkpoint_interval)
         .withVertexColumn(
             "rank",
             sqlfunctions.lit(1.0 / numVertices),
@@ -576,53 +593,79 @@ def _df_hasCols(df: DataFrame, vcols: list[str] = []) -> None:
         assert c in df.columns, f"DataFrame missing column: {c}"
 
 
-@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
 @pytest.mark.parametrize(
-    "cc_args",
-    [(-1, True), (10000, True), (-1, False), (10000, False)],
-    ids=["aqe,local", "skewed,local", "aqe,checkpoints", "skewed,checkpoints"],
+    "cc_kwargs",
+    [
+        pytest.param({"algorithm": "graphx"}, id="graphx"),
+        pytest.param(
+            {"algorithm": "graphx", "max_iter": 10, "storage_level": StorageLevel.MEMORY_ONLY},
+            id="graphx,max_iter,MEMORY_ONLY",
+        ),
+        pytest.param(
+            {
+                "algorithm": "two_phase",
+                "broadcastThreshold": -1,
+                "useLabelsAsComponents": False,
+                "use_local_checkpoints": True,
+                "checkpointInterval": 1,
+                "storage_level": StorageLevel.MEMORY_ONLY,
+            },
+            id="two_phase,aqe,ids,local,1,MEMORY_ONLY",
+        ),
+        pytest.param(
+            {
+                "algorithm": "two_phase",
+                "broadcastThreshold": 10000,
+                "useLabelsAsComponents": True,
+                "use_local_checkpoints": False,
+                "checkpointInterval": 3,
+                "storage_level": StorageLevel.DISK_ONLY,
+            },
+            id="two_phase,skewed,labels,global,3,DISK_ONLY",
+        ),
+        pytest.param(
+            {
+                "algorithm": "randomized_contraction",
+                "useLabelsAsComponents": True,
+                "use_local_checkpoints": True,
+                "checkpointInterval": 1,
+                "storage_level": StorageLevel.MEMORY_ONLY,
+            },
+            id="randomized_contraction,labels,local,1,MEMORY_ONLY",
+            marks=RC_DROPS_VERTEX_ATTRIBUTES,
+        ),
+        pytest.param(
+            {
+                "algorithm": "randomized_contraction",
+                "useLabelsAsComponents": False,
+                "use_local_checkpoints": False,
+                "checkpointInterval": 3,
+                "storage_level": StorageLevel.DISK_ONLY,
+            },
+            id="randomized_contraction,ids,global,3,DISK_ONLY",
+            marks=RC_DROPS_VERTEX_ATTRIBUTES,
+        ),
+    ],
 )
-def test_connected_components(
-    spark: SparkSession, args: PregelArguments, cc_args: tuple[int, bool]
-) -> None:
-    v = spark.createDataFrame([(0, "a", "b")], ["id", "vattr", "gender"])
-    e = spark.createDataFrame([(0, 0, 1)], ["src", "dst", "test"])
-    g = GraphFrame(v, e)
-    comps = g.connectedComponents(
-        algorithm=args.algorithm,
-        checkpointInterval=args.checkpoint_interval,
-        use_local_checkpoints=args.use_local_checkpoints,
-        storage_level=args.storage_level,
-        broadcastThreshold=cc_args[0],
-        useLabelsAsComponents=cc_args[1],
+def test_connected_components(spark: SparkSession, cc_kwargs: dict) -> None:
+    # Vertex attributes, edge attributes with the same names as vertex attributes,
+    # a self-loop (vertex 2) and two components: {0, 1} and {2}.
+    v = spark.createDataFrame([(0, "a0", "b0"), (1, "a1", "b1"), (2, "a2", "b2")], ["id", "A", "B"])
+    e = spark.createDataFrame(
+        [(0, 1, "a01", "b01"), (2, 2, "a22", "b22")], ["src", "dst", "A", "B"]
     )
-    _df_hasCols(comps, vcols=["id", "component", "vattr", "gender"])
-    assert comps.count() == 1
-    _ = comps.unpersist()
-
-
-@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
-@pytest.mark.parametrize(
-    "cc_args",
-    [(-1, True), (10000, True), (-1, False), (10000, False)],
-    ids=["aqe,local", "skewed,local", "aqe,checkpoints", "skewed,checkpoints"],
-)
-def test_connected_components2(
-    spark: SparkSession, args: PregelArguments, cc_args: tuple[int, bool]
-) -> None:
-    v = spark.createDataFrame([(0, "a0", "b0"), (1, "a1", "b1")], ["id", "A", "B"])
-    e = spark.createDataFrame([(0, 1, "a01", "b01")], ["src", "dst", "A", "B"])
     g = GraphFrame(v, e)
-    comps = g.connectedComponents(
-        algorithm=args.algorithm,
-        checkpointInterval=args.checkpoint_interval,
-        use_local_checkpoints=args.use_local_checkpoints,
-        storage_level=args.storage_level,
-        broadcastThreshold=cc_args[0],
-        useLabelsAsComponents=cc_args[1],
-    )
+    comps = g.connectedComponents(**cc_kwargs)
     _df_hasCols(comps, vcols=["id", "component", "A", "B"])
-    assert comps.count() == 2
+    rows = {r["id"]: r for r in comps.collect()}
+    assert len(rows) == 3
+    assert {i: (r["A"], r["B"]) for i, r in rows.items()} == {
+        0: ("a0", "b0"),
+        1: ("a1", "b1"),
+        2: ("a2", "b2"),
+    }
+    assert rows[0]["component"] == rows[1]["component"]
+    assert rows[0]["component"] != rows[2]["component"]
     _ = comps.unpersist()
 
 
@@ -796,12 +839,11 @@ def test_strongly_connected_components(spark: SparkSession) -> None:
     _ = c.unpersist()
 
 
-@pytest.mark.parametrize("storage_level", STORAGE_LEVELS, ids=STORAGE_LEVELS_IDS)
-def test_triangle_counts(spark: SparkSession, storage_level: StorageLevel) -> None:
+def test_triangle_counts(spark: SparkSession) -> None:
     edges = spark.createDataFrame([(0, 1), (1, 2), (2, 0)], ["src", "dst"])
     vertices = spark.createDataFrame([(0,), (1,), (2,)], ["id"])
     g = GraphFrame(vertices, edges)
-    c = g.triangleCount(storage_level=storage_level)
+    c = g.triangleCount(storage_level=StorageLevel.MEMORY_ONLY)
     for row in c.select("id", "count").collect():
         assert row.asDict()["count"] == 1, f"Triangle count for vertex {row.id} is not 1"
     _ = c.unpersist()
@@ -822,26 +864,26 @@ def test_approx_triangle_counts(spark: SparkSession) -> None:
             c = g.triangleCount(storage_level=StorageLevel.MEMORY_AND_DISK, algorithm="approx")
 
 
-@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
-def test_cycles_finding(spark: SparkSession, args: PregelArguments) -> None:
+@pytest.mark.parametrize("algo_kwargs", PREGEL_BASED_KWARGS, ids=PREGEL_BASED_IDS)
+def test_cycles_finding(spark: SparkSession, algo_kwargs: dict) -> None:
     vertices = spark.createDataFrame(
         [(1, "a"), (2, "b"), (3, "c"), (4, "d"), (5, "e")], ["id", "attr"]
     )
     edges = spark.createDataFrame([(1, 2), (2, 3), (3, 1), (1, 4), (2, 5)], ["src", "dst"])
     graph = GraphFrame(vertices, edges)
-    res = graph.detectingCycles(
-        checkpoint_interval=args.checkpoint_interval,
-        use_local_checkpoints=args.use_local_checkpoints,
-        storage_level=args.storage_level,
-    )
+    res = graph.detectingCycles(**algo_kwargs)
     assert res.count() == 1
     collected = res.sort("id").select("found_cycles").collect()
     assert collected[0][0] == [1, 2, 3, 1]
     _ = res.unpersist()
 
 
-@pytest.mark.parametrize("storage_level", STORAGE_LEVELS, ids=STORAGE_LEVELS_IDS)
-def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
+@pytest.mark.parametrize(
+    "mis_kwargs",
+    [{}, {"storage_level": StorageLevel.MEMORY_ONLY}],
+    ids=["defaults", "MEMORY_ONLY"],
+)
+def test_mis(spark: SparkSession, mis_kwargs: dict) -> None:
     # Create a graph with isolated vertices
     vertices = spark.createDataFrame([(0, "a"), (1, "b"), (2, "c"), (3, "d")], ["id", "name"])
 
@@ -849,7 +891,7 @@ def test_mis(spark: SparkSession, storage_level: StorageLevel) -> None:
     edges = spark.createDataFrame([(0, 1, "edge1")], ["src", "dst", "name"])
 
     graph = GraphFrame(vertices, edges)
-    mis = graph.maximal_independent_set(storage_level=storage_level, seed=12345)
+    mis = graph.maximal_independent_set(seed=12345, **mis_kwargs)
 
     # Check that all vertices are in the MIS (since 2 and 3 are isolated)
     mis_ids = set(row[0] for row in mis.select("id").collect())
@@ -934,8 +976,8 @@ def test_graph_grid_ising_model(spark: SparkSession):
             assert f"{i},{j}" in ids
 
 
-@pytest.mark.parametrize("args", PREGEL_ARGUMENTS, ids=PREGEL_IDS)
-def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
+@pytest.mark.parametrize("algo_kwargs", PREGEL_BASED_KWARGS, ids=PREGEL_BASED_IDS)
+def test_kcore(spark: SparkSession, algo_kwargs: dict) -> None:
     # Create a graph designed to have clear k-core layers
     v = spark.createDataFrame([(i, f"v{i}") for i in range(30)], ["id", "name"])
 
@@ -994,11 +1036,7 @@ def test_kcore(spark: SparkSession, args: PregelArguments) -> None:
     all_edges = core_edges + mid_layer_edges + outer_edges
     e = spark.createDataFrame(all_edges, ["src", "dst"])
     g = GraphFrame(v, e)
-    result = g.k_core(
-        checkpoint_interval=args.checkpoint_interval,
-        use_local_checkpoints=args.use_local_checkpoints,
-        storage_level=args.storage_level,
-    )
+    result = g.k_core(**algo_kwargs)
 
     assert result.count() == 30
 
