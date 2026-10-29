@@ -1,5 +1,12 @@
 name: Python thin client CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -8,13 +15,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - spark-version: 4.0.3
+          - spark-version: 4.0.5
             scala-version: 2.13
             python-version: "3.12"
             java-version: 17
-          - spark-version: 4.1.2
+          - spark-version: 4.1.4
             scala-version: 2.13
             python-version: "3.13"
+            java-version: 17
+          - spark-version: 4.2.1
+            scala-version: 2.13
+            python-version: "3.12"
             java-version: 17
     runs-on: ubuntu-latest
     env:

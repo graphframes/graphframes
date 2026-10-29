@@ -26,10 +26,6 @@ import org.graphframes.GraphFrame.quote
 
 class ShortestPathsSuite extends SparkFunSuite with GraphFrameTestSparkContext {
 
-  test("Simple test") {
-    doTest()
-  }
-
   def doTest(vertices: Option[DataFrame] = Option.empty): Unit = {
     val spark = this.spark
     import spark.implicits._

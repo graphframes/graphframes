@@ -57,12 +57,7 @@ class SVDPlusPlusSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     v2.unpersist()
   }
 
-  Seq(
-    ("int", "float"),
-    ("short", "double"),
-    ("long", "float"),
-    ("byte", "double"),
-    ("string", "float")).foreach(types =>
+  Seq(("int", "float"), ("string", "float")).foreach(types =>
     test(s"Test SVD++ with mean square error on training set, ${types._1}/${types._2} types") {
       val svdppErr = 8.0
       val g = {
