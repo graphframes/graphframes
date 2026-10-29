@@ -45,6 +45,25 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     assertFunctionRegistryClean()
   }
 
+  test("RandomizedContraction: disabled checkpointing") {
+    val vertices =
+      spark.createDataFrame(List((0L, "a0", "b0"), (1L, "a1", "b1"))).toDF("id", "A", "B")
+    val edges = spark.createDataFrame(List((0L, 1L, "a01", "b01"))).toDF("src", "dst", "A", "B")
+    val graph = GraphFrame(vertices, edges)
+    val components = RandomizedContraction.run(
+      inputGraph = graph,
+      useLabelsAsComponents = false,
+      intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
+      useLocalCheckpoints = true,
+      checkpointInterval = 0, // disabled
+      isGraphPrepared = false)
+    assert(components.count() === 2L)
+    val compValues = components.select("id", "component").collect()
+    assert(compValues.map(_.getLong(1)).toSet.size === 1)
+    assert(compValues.map(_.getLong(0)) === Array(0L, 1L))
+    assertFunctionRegistryClean()
+  }
+
   test("RandomizedContraction: two connected vertices") {
     val vertices =
       spark.createDataFrame(List((0L, "a0", "b0"), (1L, "a1", "b1"))).toDF("id", "A", "B")
@@ -231,14 +250,14 @@ class RandomizedContractionSuite extends SparkFunSuite with GraphFrameTestSparkC
     val graph = Graphs.chain(3L)
     val checkpointRoot = new org.apache.hadoop.fs.Path(spark.sparkContext.getCheckpointDir.get)
 
-    intercept[ArithmeticException] {
+    intercept[IllegalArgumentException] {
       RandomizedContraction
         .run(
           inputGraph = graph,
           useLabelsAsComponents = false,
           intermediateStorageLevel = StorageLevel.MEMORY_AND_DISK,
           useLocalCheckpoints = true,
-          checkpointInterval = 0,
+          checkpointInterval = -1,
           isGraphPrepared = false)
         .count()
     }
