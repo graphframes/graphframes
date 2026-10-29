@@ -74,7 +74,10 @@ def get_gf_jar_locations() -> tuple[str, str, str]:
     return core_jar, connect_jar, graphx_jar
 
 
-@pytest.fixture(scope="module")
+# Session-scoped on purpose: stopping a local Spark Connect session ("local[*]" remote)
+# removes SPARK_CONNECT_MODE_ENABLED from the environment, so with a per-module fixture
+# every module after the first one would silently run against a classic session.
+@pytest.fixture(scope="session")
 def spark():
     warnings.filterwarnings("ignore", category=ResourceWarning)
     warnings.filterwarnings("ignore", category=DeprecationWarning)
