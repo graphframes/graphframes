@@ -34,7 +34,7 @@ from pyspark.storagelevel import StorageLevel
 
 from graphframes.classic.utils import storage_level_to_jvm
 from graphframes.internal.utils import _RandomWalksEmbeddingsParameters
-from graphframes.lib import Pregel
+from graphframes.lib.pregel import Pregel
 
 
 def _from_java_gf(jgf: JavaObject, spark: SparkSession) -> "GraphFrame":
