@@ -387,6 +387,18 @@ def test_all_paths(local_g: GraphFrame) -> None:
     assert paths_short.count() == 0
 
 
+def test_all_paths_args(local_g: GraphFrame) -> None:
+    paths = local_g.all_paths(
+        "name='A'",
+        "name='C'",
+        max_path_length=3,
+        checkpoint_interval=1,
+        use_local_checkpoints=False,
+        storage_level=StorageLevel.DISK_ONLY,
+    )
+    assert [r["path"] for r in paths.collect()] == [[1, 2, 3]]
+
+
 def test_power_iteration_clustering(spark: SparkSession) -> None:
     vertices = [
         (1, 0, 0.5),

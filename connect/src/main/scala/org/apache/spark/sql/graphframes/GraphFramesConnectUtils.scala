@@ -204,14 +204,22 @@ object GraphFramesConnectUtils {
       }
       case proto.GraphFramesAPI.MethodCase.ALL_PATHS => {
         val allPathsProto = apiMessage.getAllPaths
-        graphFrame.allPaths
+        val apBuilder = graphFrame.allPaths
           .toExpr(parseColumnOrExpression(allPathsProto.getToExpr, planner))
           .fromExpr(parseColumnOrExpression(allPathsProto.getFromExpr, planner))
           .edgeFilter(parseColumnOrExpression(allPathsProto.getEdgeFilter, planner))
           .maxPathLength(allPathsProto.getMaxPathLength)
           .setIsDirected(allPathsProto.getIsDirected)
+          .setCheckpointInterval(allPathsProto.getCheckpointInterval)
           .setUseLocalCheckpoints(allPathsProto.getUseLocalCheckpoints)
-          .run()
+
+        if (allPathsProto.hasStorageLevel) {
+          apBuilder
+            .setIntermediateStorageLevel(parseStorageLevel(allPathsProto.getStorageLevel))
+            .run()
+        } else {
+          apBuilder.run()
+        }
       }
       case proto.GraphFramesAPI.MethodCase.CONNECTED_COMPONENTS => {
         val cc = apiMessage.getConnectedComponents

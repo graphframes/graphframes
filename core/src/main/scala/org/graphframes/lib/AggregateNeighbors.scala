@@ -26,6 +26,8 @@ import org.graphframes.WithCheckpointInterval
 import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 
+import java.io.IOException
+
 /**
  * A class for performing multi-hop neighbor aggregation on a graph.
  *
@@ -270,6 +272,17 @@ class AggregateNeighbors private[graphframes] (graph: GraphFrame)
     require(
       stoppingCondition.orElse(targetCondition).isDefined,
       "Any of target or stopping conditions should be provided")
+
+    if (checkpointInterval > 0 && !useLocalCheckpoints && graph.spark.sparkContext.getCheckpointDir.isEmpty) {
+      // Spark Connect / Spark 3.x workaround: "spark.checkpoint.dir" is not applied automatically
+      graph.spark.conf.getOption("spark.checkpoint.dir") match {
+        case Some(d) => graph.spark.sparkContext.setCheckpointDir(d)
+        case None =>
+          throw new IOException(
+            "Checkpoint directory is not set. Please set it first using sc.setCheckpointDir()" +
+              "or by specifying the conf 'spark.checkpoint.dir'.")
+      }
+    }
 
     val reqAttrs = (if (requiredVertexAttributes.isEmpty) {
                       graph.vertices.columns.toSeq
