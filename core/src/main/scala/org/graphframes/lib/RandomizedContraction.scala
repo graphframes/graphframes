@@ -57,6 +57,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
       useLocalCheckpoints: Boolean,
       checkpointInterval: Int,
       isGraphPrepared: Boolean): DataFrame = {
+    require(checkpointInterval >= 0, "checkpointInterval should be greater or eq to zero")
     val spark = inputGraph.vertices.sparkSession
     val sc = spark.sparkContext
     val runId = UUID.randomUUID().toString.takeRight(8)
@@ -186,7 +187,7 @@ private[graphframes] object RandomizedContraction extends Logging with Serializa
             .select(col(s"e.$SRC").alias(SRC), col("r2.rep").alias(DST))
             .distinct()
 
-          if ((iter > 0) && (iter % checkpointInterval == 0)) {
+          if ((checkpointInterval > 0) && (iter > 0) && (iter % checkpointInterval == 0)) {
             if (useLocalCheckpoints) {
               te.localCheckpoint()
             } else {
