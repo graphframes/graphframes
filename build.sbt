@@ -11,6 +11,11 @@ lazy val scalaVersions = sparkMajorVer match {
   case "3" => Seq("2.12.21", "2.13.18")
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
+lazy val antlr4ToolVersion = sys.props.getOrElse("spark.version", "3.5.8").substring(0, 1) match {
+  case "4" => "4.13.1"
+  case "3" => "4.9.3"
+  case v => throw new IllegalArgumentException(s"Unsupported Spark version major: $v")
+}
 lazy val scalaVer = sys.props.getOrElse("scala.version", scalaVersions.head)
 lazy val defaultScalaTestVer = "3.2.19"
 lazy val jmhVersion = "1.37"
@@ -75,14 +80,20 @@ lazy val commonSetting = Seq(
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.slf4j" % "slf4j-api" % "2.0.17" % "provided",
-    "org.apache.datasketches" % "datasketches-java" % "6.2.0", // transitive dependency from Spark
+    "org.apache.datasketches" % "datasketches-java" % "6.2.0" % "provided", // transitive from Spark
+    "org.antlr" % "antlr4" % antlr4ToolVersion % "provided", // transitive from Spark
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   Compile / doc / scalacOptions ++= Seq(
     "-groups",
     "-implicits",
     "-skip-packages",
-    Seq("org.apache.spark").mkString(":")),
+    // org.apache.spark is skipped to avoid rendering transitive Spark types; the GQL query engine
+    // under org.graphframes.propertygraph.internal is entirely private[propertygraph] (and
+    // AstBuilder references generated ANTLR Java types), so it is skipped from rendered output too.
+    // The internal package is still type-checked so that the public PropertyGraphFrame, which calls
+    // into it, compiles in doc.
+    Seq("org.apache.spark", "org.graphframes.propertygraph.internal").mkString(":")),
   Test / doc / scalacOptions ++= Seq("-groups", "-implicits"),
 
   // Test settings
@@ -158,12 +169,17 @@ lazy val graphx = (project in file("graphx"))
 
 lazy val core = (project in file("core"))
   .dependsOn(graphx)
+  .enablePlugins(GraphFramesAntlr4Plugin)
   .settings(
     commonSetting,
     name := "graphframes",
     moduleName := s"${name.value}-spark$sparkMajorVer",
     // Export the JAR so that this can be excluded from shading in connect
     exportJars := true,
+
+    // Emit the generated GQL parser/lexer into the internal package so the
+    // (forthcoming) AstBuilder can import them.
+    antlr4GenPackage := Some("org.graphframes.propertygraph.internal"),
 
     // Global settings
     Global / concurrentRestrictions := Seq(Tags.limitAll(1)),
