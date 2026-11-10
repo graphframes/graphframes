@@ -17,6 +17,7 @@
 
 package org.graphframes.lib
 
+import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
@@ -28,6 +29,8 @@ import org.graphframes.*
 import org.graphframes.GraphFrame.*
 import org.graphframes.examples.Graphs
 
+import java.io.File
+import java.nio.file.Files
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
@@ -134,6 +137,37 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         assert(grouping === expected)
       }
       components.unpersist()
+    }
+  }
+
+  Seq(
+    ConnectedComponents.ALGO_GRAPHX,
+    ConnectedComponents.ALGO_TWO_PHASE,
+    ConnectedComponents.ALGO_RANDOMIZED_CONTRACTION).foreach { algorithm =>
+    test(s"non-integral IDs, a graph written where another was read, $algorithm") {
+      // Both graphs are read through the same directory: Spark matches a query over files to a
+      // cached one by the directory, not by the files in it.
+      val dir = Files.createTempDirectory("rewritten-graph").toFile
+      def components(edges: Seq[(String, String)], name: String): Set[Set[String]] = {
+        spark.createDataFrame(edges).toDF(SRC, DST).write.parquet(s"$dir/$name")
+        val e = spark.read.option("recursiveFileLookup", "true").parquet(dir.toString)
+        val v = e.select(col(SRC).as(ID)).union(e.select(col(DST).as(ID))).distinct()
+        val cc = GraphFrame(v, e).connectedComponents.setAlgorithm(algorithm).run()
+        val rows = cc.select(col(ID), col("component").cast("string")).collect()
+        cc.unpersist()
+        val ids = rows.map(_.getString(0))
+        assert(ids.distinct.length === ids.length, s"Duplicated vertices in ${ids.mkString(",")}")
+        rows.groupBy(_.getString(1)).values.map(_.map(_.getString(0)).toSet).toSet
+      }
+      try {
+        val first = components(Seq("a" -> "b", "b" -> "c", "d" -> "e"), "first")
+        assert(first === Set(Set("a", "b", "c"), Set("d", "e")))
+        FileUtils.deleteDirectory(new File(dir, "first"))
+        val second = components(Seq("a" -> "x", "y" -> "z", "z" -> "d"), "second")
+        assert(second === Set(Set("a", "x"), Set("d", "y", "z")))
+      } finally {
+        FileUtils.deleteDirectory(dir)
+      }
     }
   }
 
