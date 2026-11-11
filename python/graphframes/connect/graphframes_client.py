@@ -514,6 +514,25 @@ class GraphFrameConnect:
         )
         return GraphFrameConnect(new_vertices, self._edges)
 
+    def dropDanglingEdges(self) -> "GraphFrameConnect":
+        # Plain DataFrame joins, exactly like in the scala-core, so no plugin call is needed.
+        # A join on column names moves the key column first, so restore the column order.
+        ids = self._vertices.select(self._ID)
+        new_edges = (
+            self._edges.join(
+                ids.select(F.col(self._ID).alias(self._SRC)),
+                on=[self._SRC],
+                how="left_semi",
+            )
+            .join(
+                ids.select(F.col(self._ID).alias(self._DST)),
+                on=[self._DST],
+                how="left_semi",
+            )
+            .select(*self._edges.columns)
+        )
+        return GraphFrameConnect(self._vertices, new_edges)
+
     def bfs(
         self,
         fromExpr: Column | str,

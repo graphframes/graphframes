@@ -141,7 +141,7 @@ only showing top 10 rows
 
 ## Validating GraphFrames
 
-Let's validate that all edges in our `GraphFrame` object have valid IDs - it is common to make mistakes in ETL for knowledge graph construction and have edges that point nowhere. GraphFrames tries to validate itself but can sometimes accept bogus edges.
+Let's validate that all edges in our `GraphFrame` object have valid IDs - it is common to make mistakes in ETL for knowledge graph construction and have edges that point nowhere. GraphFrames does not check this when a graph is created, because it needs two joins of the edges with the vertices. `g.validate()` runs this check (and a check for duplicate vertices), and `g.dropDanglingEdges()` removes such edges. Here we count them by hand:
 
 ```python
 # Sanity test that all edges have valid ids
