@@ -2,7 +2,7 @@
 
 In GraphX, the `subgraph()` method takes an edge triplet (edge, src vertex, and dst vertex, plus attributes) and allows the user to select a subgraph based on triplet and vertex filters.
 
-GraphFrames provide an even more powerful way to select subgraphs based on a combination of motif finding and DataFrame filters. We provide three helper methods for subgraph selection. `filterVertices(condition)`, `filterEdges(condition)`, and `dropIsolatedVertices()`.
+GraphFrames provide an even more powerful way to select subgraphs based on a combination of motif finding and DataFrame filters. We provide four helper methods for subgraph selection: `filterVertices(condition)`, `filterEdges(condition)`, `dropIsolatedVertices()`, and `dropDanglingEdges()`.
 
 ## Simple subgraph
 The following example shows how to select a subgraph based upon vertex and edge filters.
@@ -29,6 +29,32 @@ val g: GraphFrame = examples.Graphs.friends
 // Select subgraph of users older than 30, and relationships of type "friend".
 // Drop isolated vertices (users) which are not contained in any edges (relationships).
 val g1 = g.filterVertices("age > 30").filterEdges("relationship = 'friend'").dropIsolatedVertices()
+```
+
+## Subgraph from a vertex join
+
+`filterVertices` also removes the edges of the vertices it drops. If you build the new vertices yourself instead, for example with a join against a set of IDs too large to collect, the edges still point to the dropped vertices. Use `dropDanglingEdges()` to remove every edge whose `src` or `dst` is not in the vertices. It keeps all vertices.
+
+GraphFrames does not check this when you create a graph, because it needs two joins of the edges with the vertices. `validate()` reports such edges without removing them.
+
+### Python API
+
+```python
+from graphframes import GraphFrame
+
+# "keep" is a DataFrame with an "id" column of the vertices to keep
+vertices = g.vertices.join(keep, on="id", how="left_semi")
+g2 = GraphFrame(vertices, g.edges).dropDanglingEdges()
+```
+
+### Scala API
+
+```scala
+import org.graphframes.GraphFrame
+
+// "keep" is a DataFrame with an "id" column of the vertices to keep
+val vertices = g.vertices.join(keep, Seq("id"), "left_semi")
+val g2 = GraphFrame(vertices, g.edges).dropDanglingEdges()
 ```
 
 ## Complex subgraph: triplet filters

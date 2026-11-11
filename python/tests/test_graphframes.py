@@ -341,6 +341,27 @@ def test_dropIsolatedVertices(local_g: GraphFrame) -> None:
     assert set(e2) == set(expected_e)
 
 
+def test_dropDanglingEdges(spark: SparkSession) -> None:
+    # Vertices built with a join: 3 is missing, so 2 -> 3, 3 -> 1 and 4 -> 4 are dangling.
+    all_v = spark.createDataFrame([(1, "A"), (2, "B"), (3, "C")], ["id", "name"])
+    keep = spark.createDataFrame([(1,), (2,), (4,)], ["id"])
+    v = all_v.join(keep, on="id", how="left_semi")
+    e = spark.createDataFrame(
+        [(1, 2, "love"), (2, 1, "hate"), (2, 3, "follow"), (3, 1, "follow"), (4, 4, "self")],
+        ["src", "dst", "action"],
+    )
+    g2 = GraphFrame(v, e).dropDanglingEdges()
+    assert set(g2.vertices.select("id", "name").collect()) == {(1, "A"), (2, "B")}
+    assert g2.edges.columns == e.columns
+    e2 = g2.edges.select("src", "dst", "action").collect()
+    assert sorted(e2) == [(1, 2, "love"), (2, 1, "hate")]
+
+
+def test_dropDanglingEdges_keeps_consistent_graph(local_g: GraphFrame) -> None:
+    e2 = local_g.dropDanglingEdges().edges.collect()
+    assert sorted(e2) == sorted(local_g.edges.collect())
+
+
 def test_bfs(local_g: GraphFrame) -> None:
     paths = local_g.bfs("name='A'", "name='C'")
     assert paths is not None

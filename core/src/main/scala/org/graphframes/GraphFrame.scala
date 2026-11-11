@@ -820,6 +820,24 @@ class GraphFrame private (
     GraphFrame(vv, ee)
   }
 
+  /**
+   * Drop dangling edges, edges whose source or destination is not in the vertices DataFrame. All
+   * vertices are kept.
+   *
+   * GraphFrames does not check this when a graph is created, because it needs two joins of the
+   * edges with the vertices. Use [[validate]] to check a graph, or this method to remove such
+   * edges, for example after building the vertices with a join instead of a condition.
+   *
+   * @group subgraph
+   */
+  def dropDanglingEdges(): GraphFrame = {
+    val ids = vertices.select(ID)
+    val ee = edges
+      .join(ids, ids(ID) === edges(SRC), "left_semi")
+      .join(ids, ids(ID) === edges(DST), "left_semi")
+    GraphFrame(vertices, ee)
+  }
+
   // **** Standard library ****
 
   /**
