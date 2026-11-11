@@ -691,6 +691,11 @@ class GraphFrame:
         :param storage_level: storage level for both intermediate and final dataframes.
 
         :return: DataFrame with new vertices column "component"
+
+        .. note:: The algorithm runs when this method is called. Over Spark Connect (PySpark 4.0
+            and later) the result is kept on the server by reference, as with
+            ``DataFrame.localCheckpoint()``, and is released when the returned DataFrame is
+            garbage collected or the session ends; ``unpersist()`` has no effect on it.
         """
         return self._impl.connectedComponents(
             algorithm=algorithm,

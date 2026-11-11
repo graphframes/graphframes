@@ -10,6 +10,7 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.connect.plan import LogicalPlan
 from pyspark.sql.connect.session import SparkSession
 from pyspark.storagelevel import StorageLevel
+from pyspark.version import __version__ as pyspark_version
 
 try:
     from typing import Self, override
@@ -37,6 +38,22 @@ def _dataframe_from_plan(plan: LogicalPlan, session: SparkSession) -> DataFrame:
 
     # Spark 4
     return DataFrame(plan, session)
+
+
+def _hold_by_reference(df: DataFrame, storage_level: StorageLevel) -> DataFrame:
+    """Run an eager algorithm once and keep its result on the server by reference.
+
+    The server runs the algorithm whenever it plans the relation, and Spark Connect plans a
+    relation for every action and schema lookup. A local checkpoint plans it once and returns a
+    DataFrame that refers to the result cached on the server; the result is released when that
+    DataFrame is garbage collected or the session ends.
+
+    Spark Connect supports checkpoints since PySpark 4.0; with older clients the relation is
+    returned as is.
+    """
+    if int(pyspark_version.split(".")[0]) < 4:
+        return df
+    return df.localCheckpoint(eager=True, storageLevel=storage_level)
 
 
 @final
@@ -763,19 +780,22 @@ class GraphFrameConnect:
                 plan.extension.Pack(graphframes_api_call)
                 return plan
 
-        return _dataframe_from_plan(
-            ConnectedComponents(
-                self._vertices,
-                self._edges,
-                algorithm,
-                checkpointInterval,
-                broadcastThreshold,
-                useLabelsAsComponents,
-                use_local_checkpoints,
-                max_iter,
-                storage_level,
+        return _hold_by_reference(
+            _dataframe_from_plan(
+                ConnectedComponents(
+                    self._vertices,
+                    self._edges,
+                    algorithm,
+                    checkpointInterval,
+                    broadcastThreshold,
+                    useLabelsAsComponents,
+                    use_local_checkpoints,
+                    max_iter,
+                    storage_level,
+                ),
+                self._spark,
             ),
-            self._spark,
+            storage_level,
         )
 
     def labelPropagation(
