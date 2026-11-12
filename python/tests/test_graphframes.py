@@ -24,6 +24,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as sqlfunctions
 from pyspark.sql.utils import is_remote
 from pyspark.storagelevel import StorageLevel
+from pyspark.version import __version__
 
 from graphframes.graphframe import AggregateNeighbors, GraphFrame, RandomWalkEmbeddings
 from graphframes.lib import AggregateMessages as AM
@@ -715,6 +716,33 @@ def test_connected_components_graphx_default_max_iter_is_unlimited(spark: SparkS
     assert result.select("component").distinct().count() == 1
 
     _ = result.unpersist()
+
+
+@pytest.mark.skipif(
+    not is_remote() or int(__version__.split(".")[0]) < 4,
+    reason="Spark Connect supports checkpoints since PySpark 4.0",
+)
+@pytest.mark.parametrize("algorithm", ["two_phase", "randomized_contraction", "graphx"])
+def test_connected_components_connect_result_is_held_by_reference(
+    spark: SparkSession, algorithm: str
+) -> None:
+    """Regression for #912: over Spark Connect the algorithm runs once, not on every action.
+
+    The server runs the algorithm whenever it plans the relation, so the client must refer to
+    the result cached on the server instead of sending the relation again.
+    """
+    from pyspark.sql.connect.plan import CachedRemoteRelation
+
+    v = spark.createDataFrame([(str(i),) for i in range(6)], ["id"])
+    e = spark.createDataFrame([("0", "1"), ("1", "2"), ("3", "4")], ["src", "dst"])
+    comps = GraphFrame(v, e).connectedComponents(algorithm=algorithm)
+
+    assert isinstance(comps._plan, CachedRemoteRelation)
+    assert comps.count() == 6
+    components = {r["id"]: r["component"] for r in comps.filter("id >= '0'").collect()}
+    assert components["0"] == components["1"] == components["2"]
+    assert components["3"] == components["4"]
+    assert len({components["0"], components["3"], components["5"]}) == 3
 
 
 def test_connected_components_max_iter_default_value() -> None:
