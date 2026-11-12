@@ -36,6 +36,22 @@ lazy val protocVersion = sparkMajorVer match {
   case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
 }
 
+// Libraries that GraphFrames uses directly but that Spark brings at runtime. They are declared
+// explicitly as "provided", so that the build does not depend on what Spark happens to pull in
+// transitively and so that they never end up as compile dependencies of the published artifacts.
+// The versions are the ones of the corresponding Spark release line (see Spark's pom.xml).
+lazy val sparkLibVersions: Map[String, String] = sparkBranch match {
+  case "3.5" => Map("datasketches" -> "3.3.0", "netlibBlas" -> "3.0.3", "hadoop" -> "3.3.4")
+  case "4.0" => Map("datasketches" -> "6.1.1", "netlibBlas" -> "3.0.3", "hadoop" -> "3.4.1")
+  case "4.1" => Map("datasketches" -> "6.2.0", "netlibBlas" -> "3.0.4", "hadoop" -> "3.4.2")
+  case "4.2" => Map("datasketches" -> "6.2.0", "netlibBlas" -> "3.2.0", "hadoop" -> "3.5.0")
+  case _ => throw new IllegalArgumentException(s"Unsupported Spark version: $sparkVer.")
+}
+lazy val datasketchesVersion = sparkLibVersions("datasketches")
+lazy val netlibBlasVersion = sparkLibVersions("netlibBlas")
+lazy val hadoopVersion = sparkLibVersions("hadoop")
+lazy val breezeVersion = "2.1.0"
+
 ThisBuild / scalaVersion := scalaVer
 ThisBuild / organization := "io.graphframes"
 ThisBuild / homepage := Some(url("https://graphframes.io/"))
@@ -75,7 +91,11 @@ lazy val commonSetting = Seq(
     "org.apache.spark" %% "spark-sql" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.apache.spark" %% "spark-mllib" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
     "org.slf4j" % "slf4j-api" % "2.0.17" % "provided",
-    "org.apache.datasketches" % "datasketches-java" % "6.2.0", // transitive dependency from Spark
+    // Provided by Spark at runtime, see sparkLibVersions
+    "org.apache.datasketches" % "datasketches-java" % datasketchesVersion % "provided",
+    "dev.ludovic.netlib" % "blas" % netlibBlasVersion % "provided",
+    "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion % "provided",
+    "org.scalanlp" %% "breeze" % breezeVersion % "provided" cross CrossVersion.for3Use2_13,
     "org.scalatest" %% "scalatest" % defaultScalaTestVer % Test,
     "com.github.zafarkhaja" % "java-semver" % "0.10.2" % Test),
   Compile / doc / scalacOptions ++= Seq(
@@ -189,7 +209,10 @@ lazy val connect = (project in file("connect"))
     PB.protocVersion := protocVersion,
     PB.additionalDependencies := Nil,
     libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13),
+      "org.apache.spark" %% "spark-connect" % sparkVer % "provided" cross CrossVersion.for3Use2_13,
+      // The plugin code uses com.google.protobuf directly; at runtime it is the copy bundled
+      // with Spark Connect (see the shading rule below).
+      "com.google.protobuf" % "protobuf-java" % protocVersion % "provided"),
 
     // Assembly and shading
     assembly / assemblyJarName := s"${moduleName.value}_${(scalaBinaryVersion).value}-${version.value}.jar",
