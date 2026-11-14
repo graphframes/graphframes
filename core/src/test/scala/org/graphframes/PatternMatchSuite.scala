@@ -114,6 +114,22 @@ class PatternMatchSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(res.edges.collect().toSet === expected_e)
   }
 
+  test("drop dangling edges") {
+    // vertices 1 and 2 only, built with a join instead of a condition
+    val keep = spark.createDataFrame(List(Tuple1(1L), Tuple1(2L), Tuple1(4L))).toDF("id")
+    val vv = v.join(keep, Seq("id"), "left_semi")
+    // plus edges with an unknown src (5) and with both ends unknown (4)
+    val ee = e.union(
+      spark.createDataFrame(List((4L, 4L, "self"), (5L, 1L, "friend"))).toDF(e.columns: _*))
+    val res = GraphFrame(vv, ee).dropDanglingEdges()
+    assert(res.vertices.collect().toSet === vv.collect().toSet)
+    assert(res.edges.collect().toSet === Set(Row(1L, 2L, "friend")))
+    assert(res.edges.columns.toSeq === ee.columns.toSeq)
+
+    // a consistent graph is unchanged
+    assert(g.dropDanglingEdges().edges.collect().toSet === e.collect().toSet)
+  }
+
   test("filter vertices") {
     // string expression
     val s = "id > 0"

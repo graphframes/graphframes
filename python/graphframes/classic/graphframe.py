@@ -125,6 +125,10 @@ class GraphFrame:
         jdf = self._jvm_graph.dropIsolatedVertices()
         return _from_java_gf(jdf, self._spark)
 
+    def dropDanglingEdges(self) -> "GraphFrame":
+        jdf = self._jvm_graph.dropDanglingEdges()
+        return _from_java_gf(jdf, self._spark)
+
     def bfs(
         self,
         fromExpr: str,
