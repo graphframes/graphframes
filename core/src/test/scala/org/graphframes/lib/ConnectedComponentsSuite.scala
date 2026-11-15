@@ -451,6 +451,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(uf.find(1L) === 1L)
     assert(uf.find(8L) === 2L)
     assert(uf.remapping(Seq(5L, 8L)) === Map(5L -> 1L, 8L -> 2L))
+    assert(uf.remappingTouched() === Map(5L -> 1L, 3L -> 1L, 1L -> 1L, 8L -> 2L, 2L -> 2L))
   }
 
   Seq(-1, 1000000).foreach { broadcastThreshold =>

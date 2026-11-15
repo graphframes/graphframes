@@ -92,6 +92,15 @@ private[graphframes] object TwoPhase extends Logging {
     def remapping(ids: Iterable[Long]): Map[Long, Long] = {
       ids.map(id => id -> find(id)).toMap
     }
+
+    /**
+     * Remaps every id inserted by [[union]] to its current root. Keys are copied first so path
+     * compression can update parent links without mutating the map during iteration.
+     */
+    def remappingTouched(): Map[Long, Long] = {
+      val ids = parent.keys.toArray
+      ids.iterator.map(id => id -> find(id)).toMap
+    }
   }
 
   /**
@@ -394,15 +403,19 @@ private[graphframes] object TwoPhase extends Logging {
       conflicts.unpersist(blocking = false)
       Some(edgesFromLabels(minNbrs1, Map.empty, intermediateStorageLevel))
     } else {
-      val pairs = conflicts.select(LABEL_SRC, LABEL_DST).collect()
-      pairs.foreach { row =>
+      // conflicts is cached, so each partition is read from that cache. Union rows as they
+      // arrive and drop them; the parent map already holds every label the remap needs.
+      val rows = conflicts.select(LABEL_SRC, LABEL_DST).toLocalIterator()
+      var labelPairs = 0
+      while (rows.hasNext) {
+        val row = rows.next()
         uf.union(row.getLong(0), row.getLong(1))
+        labelPairs += 1
       }
-      val involved = pairs.iterator.flatMap(r => Iterator(r.getLong(0), r.getLong(1))).toSet
-      val remap = uf.remapping(involved)
+      val remap = uf.remappingTouched()
       logInfo(
         s"$logPrefix In-memory finish accepted at iteration $iteration: " +
-          s"numSupersets=$numSupersets, labelPairs=${pairs.length}, remapped=${remap.size}.")
+          s"numSupersets=$numSupersets, labelPairs=$labelPairs, remapped=${remap.size}.")
       conflicts.unpersist(blocking = false)
       Some(edgesFromLabels(minNbrs1, remap, intermediateStorageLevel))
     }
