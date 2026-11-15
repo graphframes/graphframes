@@ -337,6 +337,22 @@ For `two_phase` and `randomized_contraction`. By default, GraphFrames uses persi
 
 The storage level for intermediate datasets and the output DataFrame. Default is `MEMORY_AND_DISK`. For very large graphs or out-of-core scenarios, `DISK_ONLY` may be preferable.
 
+- `in_memory_finish_enabled` (Python) / `setInMemoryFinishEnabled` (Scala)
+
+For `two_phase` only. Opt-in early finish that merges remaining provisional component IDs with a driver-side Union-Find after the leaf-pruning attempt (default: `false`). When enabled, INFO logs report per-iteration residual `edgeCnt` as a fraction of the post-preparation edge count so you can tune the gates below.
+
+- `in_memory_finish_edge_fraction` (Python) / `setInMemoryFinishEdgeFraction` (Scala)
+
+For `two_phase` only. Residual edge count must be at most this fraction of the initial (post-preparation) edge count before in-memory finish is considered (default: `0.01`).
+
+- `in_memory_finish_max_supersets` (Python) / `setInMemoryFinishMaxSupersets` (Scala)
+
+For `two_phase` only. Maximum number of distinct provisional set IDs (supersets) allowed on the driver for the Union-Find finish (default: `1000000`). If the count exceeds this budget, distributed iterations continue.
+
+- `in_memory_finish_min_iter` (Python) / `setInMemoryFinishMinIter` (Scala)
+
+For `two_phase` only. Minimum number of large-star / small-star iterations before in-memory finish may run (default: `2`). The finish still requires the prune attempt to have been tried and the edge / superset gates to pass.
+
 ### AQE-broadcast mode
 
 _Starting from 0.10.0_

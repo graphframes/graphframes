@@ -82,6 +82,43 @@ object GraphFramesConf {
       .stringConf
       .createOptional
 
+  private val CONNECTED_COMPONENTS_IN_MEMORY_FINISH_ENABLED =
+    SQLConf
+      .buildConf("spark.graphframes.connectedComponents.inMemoryFinish.enabled")
+      .doc(""" Enables the opt-in in-memory Union-Find finish for the two-phase connected components
+          | algorithm (default: false). When true, after the leaf-pruning attempt the algorithm may
+          | finish on the driver if residual edge-count and superset-budget gates pass.""".stripMargin)
+      .version("0.13.0")
+      .booleanConf
+      .createOptional
+
+  private val CONNECTED_COMPONENTS_IN_MEMORY_FINISH_EDGE_FRACTION =
+    SQLConf
+      .buildConf("spark.graphframes.connectedComponents.inMemoryFinish.edgeFraction")
+      .doc(""" Residual edge-count gate as a fraction of the post-preparation edge count (default: 0.01).
+          | Used only when in-memory finish is enabled.""".stripMargin)
+      .version("0.13.0")
+      .doubleConf
+      .createOptional
+
+  private val CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MAX_SUPERSETS =
+    SQLConf
+      .buildConf("spark.graphframes.connectedComponents.inMemoryFinish.maxSupersets")
+      .doc(""" Maximum distinct provisional set IDs allowed on the driver for in-memory finish
+          | (default: 1000000). Used only when in-memory finish is enabled.""".stripMargin)
+      .version("0.13.0")
+      .longConf
+      .createOptional
+
+  private val CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MIN_ITER =
+    SQLConf
+      .buildConf("spark.graphframes.connectedComponents.inMemoryFinish.minIter")
+      .doc(""" Minimum two-phase iterations before in-memory finish may run (default: 2).
+          | Used only when in-memory finish is enabled.""".stripMargin)
+      .version("0.13.0")
+      .intConf
+      .createOptional
+
   private def get(entry: ConfigEntry[_]): Option[String] = {
     try {
       Option(SparkSession.getActiveSession.get.conf.get(entry.key))
@@ -124,4 +161,16 @@ object GraphFramesConf {
   }
 
   def getUseLocalCheckpoints: Option[Boolean] = get(USE_LOCAL_CHECKPOINTS).map(_.toBoolean)
+
+  def getConnectedComponentsInMemoryFinishEnabled: Option[Boolean] =
+    get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_ENABLED).map(_.toBoolean)
+
+  def getConnectedComponentsInMemoryFinishEdgeFraction: Option[Double] =
+    get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_EDGE_FRACTION).map(_.toDouble)
+
+  def getConnectedComponentsInMemoryFinishMaxSupersets: Option[Long] =
+    get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MAX_SUPERSETS).map(_.toLong)
+
+  def getConnectedComponentsInMemoryFinishMinIter: Option[Int] =
+    get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MIN_ITER).map(_.toInt)
 }

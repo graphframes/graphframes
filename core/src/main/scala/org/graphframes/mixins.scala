@@ -280,3 +280,71 @@ private[graphframes] trait WithDirection {
    */
   def getIsDirected: Boolean = isDirected
 }
+
+/**
+ * Opt-in two-phase connected-components finish that merges remaining provisional component IDs
+ * with a driver-side Union-Find once the residual graph is small enough.
+ */
+private[graphframes] trait WithInMemoryFinish extends Logging {
+  protected var inMemoryFinishEnabled: Boolean = false
+  protected var inMemoryFinishEdgeFraction: Double = 0.01
+  protected var inMemoryFinishMaxSupersets: Long = 1000000L
+  protected var inMemoryFinishMinIter: Int = 2
+
+  /**
+   * Enables or disables the in-memory Union-Find finish for the two-phase algorithm (default:
+   * false). When enabled, after the leaf-pruning attempt the algorithm may collect remaining
+   * conflict edges and finish component assignment on the driver if size gates pass.
+   */
+  def setInMemoryFinishEnabled(value: Boolean): this.type = {
+    inMemoryFinishEnabled = value
+    this
+  }
+
+  /** Gets whether the in-memory Union-Find finish is enabled. */
+  def getInMemoryFinishEnabled: Boolean = inMemoryFinishEnabled
+
+  /**
+   * Sets the residual edge-count gate as a fraction of the edge count after graph preparation
+   * (default: 0.01). In-memory finish is considered only when
+   * `edgeCnt <= fraction * initialEdgeCnt`.
+   */
+  def setInMemoryFinishEdgeFraction(value: Double): this.type = {
+    require(
+      value >= 0.0 && value <= 1.0,
+      s"inMemoryFinishEdgeFraction must be in [0, 1], got $value")
+    inMemoryFinishEdgeFraction = value
+    this
+  }
+
+  /** Gets the residual edge-count fraction of the initial edge count. */
+  def getInMemoryFinishEdgeFraction: Double = inMemoryFinishEdgeFraction
+
+  /**
+   * Sets the maximum number of distinct provisional set IDs (supersets) allowed on the driver for
+   * the in-memory Union-Find finish (default: 1000000). If the distinct count exceeds this
+   * budget, the algorithm continues with distributed iterations.
+   */
+  def setInMemoryFinishMaxSupersets(value: Long): this.type = {
+    require(value >= 0L, s"inMemoryFinishMaxSupersets must be >= 0, got $value")
+    inMemoryFinishMaxSupersets = value
+    this
+  }
+
+  /** Gets the maximum number of supersets allowed for the in-memory finish. */
+  def getInMemoryFinishMaxSupersets: Long = inMemoryFinishMaxSupersets
+
+  /**
+   * Sets the minimum number of two-phase iterations before the in-memory finish may run (default:
+   * 2). The finish still requires the prune attempt to have been tried and the edge / superset
+   * gates to pass.
+   */
+  def setInMemoryFinishMinIter(value: Int): this.type = {
+    require(value >= 1, s"inMemoryFinishMinIter must be >= 1, got $value")
+    inMemoryFinishMinIter = value
+    this
+  }
+
+  /** Gets the minimum iteration count before the in-memory finish may run. */
+  def getInMemoryFinishMinIter: Int = inMemoryFinishMinIter
+}

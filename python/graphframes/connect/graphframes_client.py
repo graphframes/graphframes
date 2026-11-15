@@ -717,6 +717,10 @@ class GraphFrameConnect:
         use_local_checkpoints: bool,
         max_iter: int,
         storage_level: StorageLevel,
+        in_memory_finish_enabled: bool = False,
+        in_memory_finish_edge_fraction: float = 0.01,
+        in_memory_finish_max_supersets: int = 1000000,
+        in_memory_finish_min_iter: int = 2,
     ) -> DataFrame:
         @final
         class ConnectedComponents(LogicalPlan):
@@ -731,6 +735,10 @@ class GraphFrameConnect:
                 use_local_checkpoints: bool,
                 max_iter: int,
                 storage_level: StorageLevel,
+                in_memory_finish_enabled: bool,
+                in_memory_finish_edge_fraction: float,
+                in_memory_finish_max_supersets: int,
+                in_memory_finish_min_iter: int,
             ) -> None:
                 super().__init__(None)
                 self.v = v
@@ -742,6 +750,10 @@ class GraphFrameConnect:
                 self.use_local_checkpoints = use_local_checkpoints
                 self.max_iter = max_iter
                 self.storage_level = storage_level
+                self.in_memory_finish_enabled = in_memory_finish_enabled
+                self.in_memory_finish_edge_fraction = in_memory_finish_edge_fraction
+                self.in_memory_finish_max_supersets = in_memory_finish_max_supersets
+                self.in_memory_finish_min_iter = in_memory_finish_min_iter
 
             @override
             def plan(self, session: SparkConnectClient) -> proto.Relation:
@@ -757,6 +769,10 @@ class GraphFrameConnect:
                         use_local_checkpoints=self.use_local_checkpoints,
                         max_iter=self.max_iter,
                         storage_level=storage_level_to_proto(self.storage_level),
+                        in_memory_finish_enabled=self.in_memory_finish_enabled,
+                        in_memory_finish_edge_fraction=self.in_memory_finish_edge_fraction,
+                        in_memory_finish_max_supersets=self.in_memory_finish_max_supersets,
+                        in_memory_finish_min_iter=self.in_memory_finish_min_iter,
                     )
                 )
                 plan = self._create_proto_relation()
@@ -774,6 +790,10 @@ class GraphFrameConnect:
                 use_local_checkpoints,
                 max_iter,
                 storage_level,
+                in_memory_finish_enabled,
+                in_memory_finish_edge_fraction,
+                in_memory_finish_max_supersets,
+                in_memory_finish_min_iter,
             ),
             self._spark,
         )

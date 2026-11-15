@@ -663,6 +663,10 @@ class GraphFrame:
         use_local_checkpoints: bool = False,
         max_iter: int = 2**31 - 2,
         storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
+        in_memory_finish_enabled: bool = False,
+        in_memory_finish_edge_fraction: float = 0.01,
+        in_memory_finish_max_supersets: int = 1000000,
+        in_memory_finish_min_iter: int = 2,
     ) -> DataFrame:
         """
         Computes the connected components of the graph.
@@ -689,6 +693,15 @@ class GraphFrame:
                          "graphx" (default: 2 ** 31 - 2, that is effectively unlimited). The
                          other algorithms run until convergence and ignore this value.
         :param storage_level: storage level for both intermediate and final dataframes.
+        :param in_memory_finish_enabled: if True, allows the two_phase algorithm to finish with a
+                         driver-side Union-Find once residual edges are small enough (default: False).
+        :param in_memory_finish_edge_fraction: residual edge count must be <= this fraction of the
+                         post-preparation edge count before in-memory finish is considered
+                         (default: 0.01).
+        :param in_memory_finish_max_supersets: max distinct provisional set IDs allowed on the
+                         driver for in-memory finish (default: 1000000).
+        :param in_memory_finish_min_iter: minimum two_phase iterations before in-memory finish may
+                         run (default: 2).
 
         :return: DataFrame with new vertices column "component"
         """
@@ -700,6 +713,10 @@ class GraphFrame:
             use_local_checkpoints=use_local_checkpoints,
             max_iter=max_iter,
             storage_level=storage_level,
+            in_memory_finish_enabled=in_memory_finish_enabled,
+            in_memory_finish_edge_fraction=in_memory_finish_edge_fraction,
+            in_memory_finish_max_supersets=in_memory_finish_max_supersets,
+            in_memory_finish_min_iter=in_memory_finish_min_iter,
         )
 
     def maximal_independent_set(

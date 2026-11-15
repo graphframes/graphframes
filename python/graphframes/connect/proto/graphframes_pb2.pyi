@@ -1,45 +1,13 @@
-from collections.abc import Iterable as _Iterable
-from collections.abc import Mapping as _Mapping
-from typing import ClassVar as _ClassVar
-from typing import Optional as _Optional
-from typing import Union as _Union
-
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from google.protobuf.internal import containers as _containers
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class GraphFramesAPI(_message.Message):
-    __slots__ = (
-        "vertices",
-        "edges",
-        "aggregate_messages",
-        "bfs",
-        "connected_components",
-        "drop_isolated_vertices",
-        "detecting_cycles",
-        "filter_edges",
-        "filter_vertices",
-        "find",
-        "label_propagation",
-        "page_rank",
-        "parallel_personalized_page_rank",
-        "power_iteration_clustering",
-        "pregel",
-        "shortest_paths",
-        "strongly_connected_components",
-        "svd_plus_plus",
-        "triangle_count",
-        "triplets",
-        "kcore",
-        "mis",
-        "rw_embeddings",
-        "aggregate_neighbors",
-        "neighborhood_aware_cdlp",
-        "all_paths",
-        "hyper_anf",
-    )
+    __slots__ = ("vertices", "edges", "aggregate_messages", "bfs", "connected_components", "drop_isolated_vertices", "detecting_cycles", "filter_edges", "filter_vertices", "find", "label_propagation", "page_rank", "parallel_personalized_page_rank", "power_iteration_clustering", "pregel", "shortest_paths", "strongly_connected_components", "svd_plus_plus", "triangle_count", "triplets", "kcore", "mis", "rw_embeddings", "aggregate_neighbors", "neighborhood_aware_cdlp", "all_paths", "hyper_anf")
     VERTICES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FIELD_NUMBER: _ClassVar[int]
     AGGREGATE_MESSAGES_FIELD_NUMBER: _ClassVar[int]
@@ -94,52 +62,10 @@ class GraphFramesAPI(_message.Message):
     neighborhood_aware_cdlp: NeighborhoodAwareCDLP
     all_paths: AllPaths
     hyper_anf: HyperANF
-    def __init__(
-        self,
-        vertices: _Optional[bytes] = ...,
-        edges: _Optional[bytes] = ...,
-        aggregate_messages: _Optional[_Union[AggregateMessages, _Mapping]] = ...,
-        bfs: _Optional[_Union[BFS, _Mapping]] = ...,
-        connected_components: _Optional[_Union[ConnectedComponents, _Mapping]] = ...,
-        drop_isolated_vertices: _Optional[_Union[DropIsolatedVertices, _Mapping]] = ...,
-        detecting_cycles: _Optional[_Union[DetectingCycles, _Mapping]] = ...,
-        filter_edges: _Optional[_Union[FilterEdges, _Mapping]] = ...,
-        filter_vertices: _Optional[_Union[FilterVertices, _Mapping]] = ...,
-        find: _Optional[_Union[Find, _Mapping]] = ...,
-        label_propagation: _Optional[_Union[LabelPropagation, _Mapping]] = ...,
-        page_rank: _Optional[_Union[PageRank, _Mapping]] = ...,
-        parallel_personalized_page_rank: _Optional[
-            _Union[ParallelPersonalizedPageRank, _Mapping]
-        ] = ...,
-        power_iteration_clustering: _Optional[_Union[PowerIterationClustering, _Mapping]] = ...,
-        pregel: _Optional[_Union[Pregel, _Mapping]] = ...,
-        shortest_paths: _Optional[_Union[ShortestPaths, _Mapping]] = ...,
-        strongly_connected_components: _Optional[
-            _Union[StronglyConnectedComponents, _Mapping]
-        ] = ...,
-        svd_plus_plus: _Optional[_Union[SVDPlusPlus, _Mapping]] = ...,
-        triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ...,
-        triplets: _Optional[_Union[Triplets, _Mapping]] = ...,
-        kcore: _Optional[_Union[KCore, _Mapping]] = ...,
-        mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ...,
-        rw_embeddings: _Optional[_Union[RandomWalkEmbeddings, _Mapping]] = ...,
-        aggregate_neighbors: _Optional[_Union[AggregateNeighbors, _Mapping]] = ...,
-        neighborhood_aware_cdlp: _Optional[_Union[NeighborhoodAwareCDLP, _Mapping]] = ...,
-        all_paths: _Optional[_Union[AllPaths, _Mapping]] = ...,
-        hyper_anf: _Optional[_Union[HyperANF, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, vertices: _Optional[bytes] = ..., edges: _Optional[bytes] = ..., aggregate_messages: _Optional[_Union[AggregateMessages, _Mapping]] = ..., bfs: _Optional[_Union[BFS, _Mapping]] = ..., connected_components: _Optional[_Union[ConnectedComponents, _Mapping]] = ..., drop_isolated_vertices: _Optional[_Union[DropIsolatedVertices, _Mapping]] = ..., detecting_cycles: _Optional[_Union[DetectingCycles, _Mapping]] = ..., filter_edges: _Optional[_Union[FilterEdges, _Mapping]] = ..., filter_vertices: _Optional[_Union[FilterVertices, _Mapping]] = ..., find: _Optional[_Union[Find, _Mapping]] = ..., label_propagation: _Optional[_Union[LabelPropagation, _Mapping]] = ..., page_rank: _Optional[_Union[PageRank, _Mapping]] = ..., parallel_personalized_page_rank: _Optional[_Union[ParallelPersonalizedPageRank, _Mapping]] = ..., power_iteration_clustering: _Optional[_Union[PowerIterationClustering, _Mapping]] = ..., pregel: _Optional[_Union[Pregel, _Mapping]] = ..., shortest_paths: _Optional[_Union[ShortestPaths, _Mapping]] = ..., strongly_connected_components: _Optional[_Union[StronglyConnectedComponents, _Mapping]] = ..., svd_plus_plus: _Optional[_Union[SVDPlusPlus, _Mapping]] = ..., triangle_count: _Optional[_Union[TriangleCount, _Mapping]] = ..., triplets: _Optional[_Union[Triplets, _Mapping]] = ..., kcore: _Optional[_Union[KCore, _Mapping]] = ..., mis: _Optional[_Union[MaximalIndependentSet, _Mapping]] = ..., rw_embeddings: _Optional[_Union[RandomWalkEmbeddings, _Mapping]] = ..., aggregate_neighbors: _Optional[_Union[AggregateNeighbors, _Mapping]] = ..., neighborhood_aware_cdlp: _Optional[_Union[NeighborhoodAwareCDLP, _Mapping]] = ..., all_paths: _Optional[_Union[AllPaths, _Mapping]] = ..., hyper_anf: _Optional[_Union[HyperANF, _Mapping]] = ...) -> None: ...
 
 class StorageLevel(_message.Message):
-    __slots__ = (
-        "disk_only",
-        "disk_only_2",
-        "disk_only_3",
-        "memory_and_disk",
-        "memory_and_disk_2",
-        "memory_and_disk_deser",
-        "memory_only",
-        "memory_only_2",
-    )
+    __slots__ = ("disk_only", "disk_only_2", "disk_only_3", "memory_and_disk", "memory_and_disk_2", "memory_and_disk_deser", "memory_only", "memory_only_2")
     DISK_ONLY_FIELD_NUMBER: _ClassVar[int]
     DISK_ONLY_2_FIELD_NUMBER: _ClassVar[int]
     DISK_ONLY_3_FIELD_NUMBER: _ClassVar[int]
@@ -156,17 +82,7 @@ class StorageLevel(_message.Message):
     memory_and_disk_deser: bool
     memory_only: bool
     memory_only_2: bool
-    def __init__(
-        self,
-        disk_only: _Optional[bool] = ...,
-        disk_only_2: _Optional[bool] = ...,
-        disk_only_3: _Optional[bool] = ...,
-        memory_and_disk: _Optional[bool] = ...,
-        memory_and_disk_2: _Optional[bool] = ...,
-        memory_and_disk_deser: _Optional[bool] = ...,
-        memory_only: _Optional[bool] = ...,
-        memory_only_2: _Optional[bool] = ...,
-    ) -> None: ...
+    def __init__(self, disk_only: _Optional[bool] = ..., disk_only_2: _Optional[bool] = ..., disk_only_3: _Optional[bool] = ..., memory_and_disk: _Optional[bool] = ..., memory_and_disk_2: _Optional[bool] = ..., memory_and_disk_deser: _Optional[bool] = ..., memory_only: _Optional[bool] = ..., memory_only_2: _Optional[bool] = ...) -> None: ...
 
 class ColumnOrExpression(_message.Message):
     __slots__ = ("col", "expr")
@@ -194,13 +110,7 @@ class AggregateMessages(_message.Message):
     send_to_src: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     send_to_dst: _containers.RepeatedCompositeFieldContainer[ColumnOrExpression]
     storage_level: StorageLevel
-    def __init__(
-        self,
-        agg_col: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        send_to_src: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        send_to_dst: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, agg_col: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ..., send_to_src: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ..., send_to_dst: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class BFS(_message.Message):
     __slots__ = ("from_expr", "to_expr", "edge_filter", "max_path_length")
@@ -212,25 +122,10 @@ class BFS(_message.Message):
     to_expr: ColumnOrExpression
     edge_filter: ColumnOrExpression
     max_path_length: int
-    def __init__(
-        self,
-        from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        max_path_length: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., max_path_length: _Optional[int] = ...) -> None: ...
 
 class AllPaths(_message.Message):
-    __slots__ = (
-        "from_expr",
-        "to_expr",
-        "edge_filter",
-        "max_path_length",
-        "is_directed",
-        "checkpoint_interval",
-        "use_local_checkpoints",
-        "storage_level",
-    )
+    __slots__ = ("from_expr", "to_expr", "edge_filter", "max_path_length", "is_directed", "checkpoint_interval", "use_local_checkpoints", "storage_level")
     FROM_EXPR_FIELD_NUMBER: _ClassVar[int]
     TO_EXPR_FIELD_NUMBER: _ClassVar[int]
     EDGE_FILTER_FIELD_NUMBER: _ClassVar[int]
@@ -247,27 +142,10 @@ class AllPaths(_message.Message):
     checkpoint_interval: int
     use_local_checkpoints: bool
     storage_level: StorageLevel
-    def __init__(
-        self,
-        from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        max_path_length: _Optional[int] = ...,
-        is_directed: _Optional[bool] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, from_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., to_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., max_path_length: _Optional[int] = ..., is_directed: _Optional[bool] = ..., checkpoint_interval: _Optional[int] = ..., use_local_checkpoints: _Optional[bool] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class HyperANF(_message.Message):
-    __slots__ = (
-        "n_hops",
-        "lg_nom_entries",
-        "edges_filter_expression",
-        "checkpoint_interval",
-        "use_local_checkpoints",
-        "storage_level",
-    )
+    __slots__ = ("n_hops", "lg_nom_entries", "edges_filter_expression", "checkpoint_interval", "use_local_checkpoints", "storage_level")
     N_HOPS_FIELD_NUMBER: _ClassVar[int]
     LG_NOM_ENTRIES_FIELD_NUMBER: _ClassVar[int]
     EDGES_FILTER_EXPRESSION_FIELD_NUMBER: _ClassVar[int]
@@ -280,26 +158,10 @@ class HyperANF(_message.Message):
     checkpoint_interval: int
     use_local_checkpoints: bool
     storage_level: StorageLevel
-    def __init__(
-        self,
-        n_hops: _Optional[int] = ...,
-        lg_nom_entries: _Optional[int] = ...,
-        edges_filter_expression: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, n_hops: _Optional[int] = ..., lg_nom_entries: _Optional[int] = ..., edges_filter_expression: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., checkpoint_interval: _Optional[int] = ..., use_local_checkpoints: _Optional[bool] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class ConnectedComponents(_message.Message):
-    __slots__ = (
-        "algorithm",
-        "checkpoint_interval",
-        "broadcast_threshold",
-        "use_labels_as_components",
-        "use_local_checkpoints",
-        "max_iter",
-        "storage_level",
-    )
+    __slots__ = ("algorithm", "checkpoint_interval", "broadcast_threshold", "use_labels_as_components", "use_local_checkpoints", "max_iter", "storage_level", "in_memory_finish_enabled", "in_memory_finish_edge_fraction", "in_memory_finish_max_supersets", "in_memory_finish_min_iter")
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     CHECKPOINT_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     BROADCAST_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
@@ -307,6 +169,10 @@ class ConnectedComponents(_message.Message):
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    IN_MEMORY_FINISH_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    IN_MEMORY_FINISH_EDGE_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    IN_MEMORY_FINISH_MAX_SUPERSETS_FIELD_NUMBER: _ClassVar[int]
+    IN_MEMORY_FINISH_MIN_ITER_FIELD_NUMBER: _ClassVar[int]
     algorithm: str
     checkpoint_interval: int
     broadcast_threshold: int
@@ -314,16 +180,11 @@ class ConnectedComponents(_message.Message):
     use_local_checkpoints: bool
     max_iter: int
     storage_level: StorageLevel
-    def __init__(
-        self,
-        algorithm: _Optional[str] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        broadcast_threshold: _Optional[int] = ...,
-        use_labels_as_components: _Optional[bool] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        max_iter: _Optional[int] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    in_memory_finish_enabled: bool
+    in_memory_finish_edge_fraction: float
+    in_memory_finish_max_supersets: int
+    in_memory_finish_min_iter: int
+    def __init__(self, algorithm: _Optional[str] = ..., checkpoint_interval: _Optional[int] = ..., broadcast_threshold: _Optional[int] = ..., use_labels_as_components: _Optional[bool] = ..., use_local_checkpoints: _Optional[bool] = ..., max_iter: _Optional[int] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ..., in_memory_finish_enabled: _Optional[bool] = ..., in_memory_finish_edge_fraction: _Optional[float] = ..., in_memory_finish_max_supersets: _Optional[int] = ..., in_memory_finish_min_iter: _Optional[int] = ...) -> None: ...
 
 class DetectingCycles(_message.Message):
     __slots__ = ("use_local_checkpoints", "checkpoint_interval", "storage_level")
@@ -333,12 +194,7 @@ class DetectingCycles(_message.Message):
     use_local_checkpoints: bool
     checkpoint_interval: int
     storage_level: StorageLevel
-    def __init__(
-        self,
-        use_local_checkpoints: _Optional[bool] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, use_local_checkpoints: _Optional[bool] = ..., checkpoint_interval: _Optional[int] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class DropIsolatedVertices(_message.Message):
     __slots__ = ()
@@ -348,17 +204,13 @@ class FilterEdges(_message.Message):
     __slots__ = ("condition",)
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     condition: ColumnOrExpression
-    def __init__(
-        self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...
-    ) -> None: ...
+    def __init__(self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...) -> None: ...
 
 class FilterVertices(_message.Message):
     __slots__ = ("condition",)
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     condition: ColumnOrExpression
-    def __init__(
-        self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...
-    ) -> None: ...
+    def __init__(self, condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...) -> None: ...
 
 class Find(_message.Message):
     __slots__ = ("pattern",)
@@ -367,13 +219,7 @@ class Find(_message.Message):
     def __init__(self, pattern: _Optional[str] = ...) -> None: ...
 
 class LabelPropagation(_message.Message):
-    __slots__ = (
-        "algorithm",
-        "max_iter",
-        "use_local_checkpoints",
-        "checkpoint_interval",
-        "storage_level",
-    )
+    __slots__ = ("algorithm", "max_iter", "use_local_checkpoints", "checkpoint_interval", "storage_level")
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
@@ -384,27 +230,10 @@ class LabelPropagation(_message.Message):
     use_local_checkpoints: bool
     checkpoint_interval: int
     storage_level: StorageLevel
-    def __init__(
-        self,
-        algorithm: _Optional[str] = ...,
-        max_iter: _Optional[int] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, algorithm: _Optional[str] = ..., max_iter: _Optional[int] = ..., use_local_checkpoints: _Optional[bool] = ..., checkpoint_interval: _Optional[int] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class NeighborhoodAwareCDLP(_message.Message):
-    __slots__ = (
-        "max_iter",
-        "ignore_direct_links",
-        "structural_similarity_multiplier",
-        "use_local_checkpoints",
-        "checkpoint_interval",
-        "storage_level",
-        "is_directed",
-        "lg_nom_entries",
-        "initial_label_col",
-    )
+    __slots__ = ("max_iter", "ignore_direct_links", "structural_similarity_multiplier", "use_local_checkpoints", "checkpoint_interval", "storage_level", "is_directed", "lg_nom_entries", "initial_label_col")
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     IGNORE_DIRECT_LINKS_FIELD_NUMBER: _ClassVar[int]
     STRUCTURAL_SIMILARITY_MULTIPLIER_FIELD_NUMBER: _ClassVar[int]
@@ -423,18 +252,7 @@ class NeighborhoodAwareCDLP(_message.Message):
     is_directed: bool
     lg_nom_entries: int
     initial_label_col: str
-    def __init__(
-        self,
-        max_iter: _Optional[int] = ...,
-        ignore_direct_links: _Optional[bool] = ...,
-        structural_similarity_multiplier: _Optional[float] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-        is_directed: _Optional[bool] = ...,
-        lg_nom_entries: _Optional[int] = ...,
-        initial_label_col: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, max_iter: _Optional[int] = ..., ignore_direct_links: _Optional[bool] = ..., structural_similarity_multiplier: _Optional[float] = ..., use_local_checkpoints: _Optional[bool] = ..., checkpoint_interval: _Optional[int] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ..., is_directed: _Optional[bool] = ..., lg_nom_entries: _Optional[int] = ..., initial_label_col: _Optional[str] = ...) -> None: ...
 
 class PageRank(_message.Message):
     __slots__ = ("reset_probability", "source_id", "max_iter", "tol")
@@ -446,13 +264,7 @@ class PageRank(_message.Message):
     source_id: StringOrLongID
     max_iter: int
     tol: float
-    def __init__(
-        self,
-        reset_probability: _Optional[float] = ...,
-        source_id: _Optional[_Union[StringOrLongID, _Mapping]] = ...,
-        max_iter: _Optional[int] = ...,
-        tol: _Optional[float] = ...,
-    ) -> None: ...
+    def __init__(self, reset_probability: _Optional[float] = ..., source_id: _Optional[_Union[StringOrLongID, _Mapping]] = ..., max_iter: _Optional[int] = ..., tol: _Optional[float] = ...) -> None: ...
 
 class ParallelPersonalizedPageRank(_message.Message):
     __slots__ = ("reset_probability", "source_ids", "max_iter")
@@ -462,12 +274,7 @@ class ParallelPersonalizedPageRank(_message.Message):
     reset_probability: float
     source_ids: _containers.RepeatedCompositeFieldContainer[StringOrLongID]
     max_iter: int
-    def __init__(
-        self,
-        reset_probability: _Optional[float] = ...,
-        source_ids: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...,
-        max_iter: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, reset_probability: _Optional[float] = ..., source_ids: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ..., max_iter: _Optional[int] = ...) -> None: ...
 
 class PowerIterationClustering(_message.Message):
     __slots__ = ("k", "max_iter", "weight_col")
@@ -477,34 +284,10 @@ class PowerIterationClustering(_message.Message):
     k: int
     max_iter: int
     weight_col: str
-    def __init__(
-        self,
-        k: _Optional[int] = ...,
-        max_iter: _Optional[int] = ...,
-        weight_col: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, k: _Optional[int] = ..., max_iter: _Optional[int] = ..., weight_col: _Optional[str] = ...) -> None: ...
 
 class Pregel(_message.Message):
-    __slots__ = (
-        "agg_msgs",
-        "send_msg_to_dst",
-        "send_msg_to_src",
-        "checkpoint_interval",
-        "max_iter",
-        "additional_col_name",
-        "additional_col_initial",
-        "additional_col_upd",
-        "early_stopping",
-        "use_local_checkpoints",
-        "storage_level",
-        "stop_if_all_non_active",
-        "initial_active_expr",
-        "update_active_expr",
-        "skip_messages_from_non_active",
-        "required_src_columns",
-        "required_dst_columns",
-        "required_edge_columns",
-    )
+    __slots__ = ("agg_msgs", "send_msg_to_dst", "send_msg_to_src", "checkpoint_interval", "max_iter", "additional_col_name", "additional_col_initial", "additional_col_upd", "early_stopping", "use_local_checkpoints", "storage_level", "stop_if_all_non_active", "initial_active_expr", "update_active_expr", "skip_messages_from_non_active", "required_src_columns", "required_dst_columns", "required_edge_columns")
     AGG_MSGS_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_DST_FIELD_NUMBER: _ClassVar[int]
     SEND_MSG_TO_SRC_FIELD_NUMBER: _ClassVar[int]
@@ -541,37 +324,10 @@ class Pregel(_message.Message):
     required_src_columns: str
     required_dst_columns: str
     required_edge_columns: str
-    def __init__(
-        self,
-        agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        send_msg_to_dst: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        send_msg_to_src: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        max_iter: _Optional[int] = ...,
-        additional_col_name: _Optional[str] = ...,
-        additional_col_initial: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        additional_col_upd: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        early_stopping: _Optional[bool] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-        stop_if_all_non_active: _Optional[bool] = ...,
-        initial_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        update_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        skip_messages_from_non_active: _Optional[bool] = ...,
-        required_src_columns: _Optional[str] = ...,
-        required_dst_columns: _Optional[str] = ...,
-        required_edge_columns: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, agg_msgs: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., send_msg_to_dst: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ..., send_msg_to_src: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ..., checkpoint_interval: _Optional[int] = ..., max_iter: _Optional[int] = ..., additional_col_name: _Optional[str] = ..., additional_col_initial: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., additional_col_upd: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., early_stopping: _Optional[bool] = ..., use_local_checkpoints: _Optional[bool] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ..., stop_if_all_non_active: _Optional[bool] = ..., initial_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., update_active_expr: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., skip_messages_from_non_active: _Optional[bool] = ..., required_src_columns: _Optional[str] = ..., required_dst_columns: _Optional[str] = ..., required_edge_columns: _Optional[str] = ...) -> None: ...
 
 class ShortestPaths(_message.Message):
-    __slots__ = (
-        "landmarks",
-        "algorithm",
-        "use_local_checkpoints",
-        "checkpoint_interval",
-        "storage_level",
-        "is_directed",
-    )
+    __slots__ = ("landmarks", "algorithm", "use_local_checkpoints", "checkpoint_interval", "storage_level", "is_directed")
     LANDMARKS_FIELD_NUMBER: _ClassVar[int]
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
     USE_LOCAL_CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
@@ -584,15 +340,7 @@ class ShortestPaths(_message.Message):
     checkpoint_interval: int
     storage_level: StorageLevel
     is_directed: bool
-    def __init__(
-        self,
-        landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ...,
-        algorithm: _Optional[str] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-        is_directed: _Optional[bool] = ...,
-    ) -> None: ...
+    def __init__(self, landmarks: _Optional[_Iterable[_Union[StringOrLongID, _Mapping]]] = ..., algorithm: _Optional[str] = ..., use_local_checkpoints: _Optional[bool] = ..., checkpoint_interval: _Optional[int] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ..., is_directed: _Optional[bool] = ...) -> None: ...
 
 class StronglyConnectedComponents(_message.Message):
     __slots__ = ("max_iter",)
@@ -601,16 +349,7 @@ class StronglyConnectedComponents(_message.Message):
     def __init__(self, max_iter: _Optional[int] = ...) -> None: ...
 
 class SVDPlusPlus(_message.Message):
-    __slots__ = (
-        "rank",
-        "max_iter",
-        "min_value",
-        "max_value",
-        "gamma1",
-        "gamma2",
-        "gamma6",
-        "gamma7",
-    )
+    __slots__ = ("rank", "max_iter", "min_value", "max_value", "gamma1", "gamma2", "gamma6", "gamma7")
     RANK_FIELD_NUMBER: _ClassVar[int]
     MAX_ITER_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -627,17 +366,7 @@ class SVDPlusPlus(_message.Message):
     gamma2: float
     gamma6: float
     gamma7: float
-    def __init__(
-        self,
-        rank: _Optional[int] = ...,
-        max_iter: _Optional[int] = ...,
-        min_value: _Optional[float] = ...,
-        max_value: _Optional[float] = ...,
-        gamma1: _Optional[float] = ...,
-        gamma2: _Optional[float] = ...,
-        gamma6: _Optional[float] = ...,
-        gamma7: _Optional[float] = ...,
-    ) -> None: ...
+    def __init__(self, rank: _Optional[int] = ..., max_iter: _Optional[int] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., gamma1: _Optional[float] = ..., gamma2: _Optional[float] = ..., gamma6: _Optional[float] = ..., gamma7: _Optional[float] = ...) -> None: ...
 
 class TriangleCount(_message.Message):
     __slots__ = ("storage_level", "algorithm", "lg_nom_entries")
@@ -647,12 +376,7 @@ class TriangleCount(_message.Message):
     storage_level: StorageLevel
     algorithm: str
     lg_nom_entries: int
-    def __init__(
-        self,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-        algorithm: _Optional[str] = ...,
-        lg_nom_entries: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ..., algorithm: _Optional[str] = ..., lg_nom_entries: _Optional[int] = ...) -> None: ...
 
 class Triplets(_message.Message):
     __slots__ = ()
@@ -668,13 +392,7 @@ class MaximalIndependentSet(_message.Message):
     storage_level: StorageLevel
     use_local_checkpoints: bool
     seed: int
-    def __init__(
-        self,
-        checkpoint_interval: _Optional[int] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        seed: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, checkpoint_interval: _Optional[int] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ..., use_local_checkpoints: _Optional[bool] = ..., seed: _Optional[int] = ...) -> None: ...
 
 class KCore(_message.Message):
     __slots__ = ("use_local_checkpoints", "checkpoint_interval", "storage_level")
@@ -684,30 +402,10 @@ class KCore(_message.Message):
     use_local_checkpoints: bool
     checkpoint_interval: int
     storage_level: StorageLevel
-    def __init__(
-        self,
-        use_local_checkpoints: _Optional[bool] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, use_local_checkpoints: _Optional[bool] = ..., checkpoint_interval: _Optional[int] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class AggregateNeighbors(_message.Message):
-    __slots__ = (
-        "starting_vertices",
-        "max_hops",
-        "accumulator_names",
-        "accumulator_inits",
-        "accumulator_updates",
-        "stopping_condition",
-        "target_condition",
-        "required_vertex_attributes",
-        "required_edge_attributes",
-        "edge_filter",
-        "remove_loops",
-        "checkpoint_interval",
-        "use_local_checkpoints",
-        "storage_level",
-    )
+    __slots__ = ("starting_vertices", "max_hops", "accumulator_names", "accumulator_inits", "accumulator_updates", "stopping_condition", "target_condition", "required_vertex_attributes", "required_edge_attributes", "edge_filter", "remove_loops", "checkpoint_interval", "use_local_checkpoints", "storage_level")
     STARTING_VERTICES_FIELD_NUMBER: _ClassVar[int]
     MAX_HOPS_FIELD_NUMBER: _ClassVar[int]
     ACCUMULATOR_NAMES_FIELD_NUMBER: _ClassVar[int]
@@ -736,59 +434,10 @@ class AggregateNeighbors(_message.Message):
     checkpoint_interval: int
     use_local_checkpoints: bool
     storage_level: StorageLevel
-    def __init__(
-        self,
-        starting_vertices: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        max_hops: _Optional[int] = ...,
-        accumulator_names: _Optional[_Iterable[str]] = ...,
-        accumulator_inits: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        accumulator_updates: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ...,
-        stopping_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        target_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        required_vertex_attributes: _Optional[_Iterable[str]] = ...,
-        required_edge_attributes: _Optional[_Iterable[str]] = ...,
-        edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ...,
-        remove_loops: _Optional[bool] = ...,
-        checkpoint_interval: _Optional[int] = ...,
-        use_local_checkpoints: _Optional[bool] = ...,
-        storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, starting_vertices: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., max_hops: _Optional[int] = ..., accumulator_names: _Optional[_Iterable[str]] = ..., accumulator_inits: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ..., accumulator_updates: _Optional[_Iterable[_Union[ColumnOrExpression, _Mapping]]] = ..., stopping_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., target_condition: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., required_vertex_attributes: _Optional[_Iterable[str]] = ..., required_edge_attributes: _Optional[_Iterable[str]] = ..., edge_filter: _Optional[_Union[ColumnOrExpression, _Mapping]] = ..., remove_loops: _Optional[bool] = ..., checkpoint_interval: _Optional[int] = ..., use_local_checkpoints: _Optional[bool] = ..., storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...) -> None: ...
 
 class RandomWalkEmbeddings(_message.Message):
-    __slots__ = (
-        "use_edge_direction",
-        "rw_model",
-        "rw_max_nbrs",
-        "rw_num_walks_per_node",
-        "rw_batch_size",
-        "rw_num_batches",
-        "rw_seed",
-        "rw_restart_probability",
-        "rw_temporary_prefix",
-        "rw_cached_walks",
-        "sequence_model",
-        "hash2vec_context_size",
-        "hash2vec_num_partitions",
-        "hash2vec_embeddings_dim",
-        "hash2vec_decay_function",
-        "hash2vec_gaussian_sigma",
-        "hash2vec_hashing_seed",
-        "hash2vec_sign_seed",
-        "hash2vec_do_l2_norm",
-        "hash2vec_safe_l2",
-        "word2vec_max_iter",
-        "word2vec_embeddings_dim",
-        "word2vec_window_size",
-        "word2vec_num_partitions",
-        "word2vec_min_count",
-        "word2vec_max_sentence_length",
-        "word2vec_seed",
-        "word2vec_step_size",
-        "aggregate_neighbors",
-        "aggregate_neighbors_max_nbrs",
-        "aggregate_neighbors_seed",
-        "clean_up_after_run",
-    )
+    __slots__ = ("use_edge_direction", "rw_model", "rw_max_nbrs", "rw_num_walks_per_node", "rw_batch_size", "rw_num_batches", "rw_seed", "rw_restart_probability", "rw_temporary_prefix", "rw_cached_walks", "sequence_model", "hash2vec_context_size", "hash2vec_num_partitions", "hash2vec_embeddings_dim", "hash2vec_decay_function", "hash2vec_gaussian_sigma", "hash2vec_hashing_seed", "hash2vec_sign_seed", "hash2vec_do_l2_norm", "hash2vec_safe_l2", "word2vec_max_iter", "word2vec_embeddings_dim", "word2vec_window_size", "word2vec_num_partitions", "word2vec_min_count", "word2vec_max_sentence_length", "word2vec_seed", "word2vec_step_size", "aggregate_neighbors", "aggregate_neighbors_max_nbrs", "aggregate_neighbors_seed", "clean_up_after_run")
     USE_EDGE_DIRECTION_FIELD_NUMBER: _ClassVar[int]
     RW_MODEL_FIELD_NUMBER: _ClassVar[int]
     RW_MAX_NBRS_FIELD_NUMBER: _ClassVar[int]
@@ -853,38 +502,4 @@ class RandomWalkEmbeddings(_message.Message):
     aggregate_neighbors_max_nbrs: int
     aggregate_neighbors_seed: int
     clean_up_after_run: bool
-    def __init__(
-        self,
-        use_edge_direction: _Optional[bool] = ...,
-        rw_model: _Optional[str] = ...,
-        rw_max_nbrs: _Optional[int] = ...,
-        rw_num_walks_per_node: _Optional[int] = ...,
-        rw_batch_size: _Optional[int] = ...,
-        rw_num_batches: _Optional[int] = ...,
-        rw_seed: _Optional[int] = ...,
-        rw_restart_probability: _Optional[float] = ...,
-        rw_temporary_prefix: _Optional[str] = ...,
-        rw_cached_walks: _Optional[str] = ...,
-        sequence_model: _Optional[str] = ...,
-        hash2vec_context_size: _Optional[int] = ...,
-        hash2vec_num_partitions: _Optional[int] = ...,
-        hash2vec_embeddings_dim: _Optional[int] = ...,
-        hash2vec_decay_function: _Optional[str] = ...,
-        hash2vec_gaussian_sigma: _Optional[float] = ...,
-        hash2vec_hashing_seed: _Optional[int] = ...,
-        hash2vec_sign_seed: _Optional[int] = ...,
-        hash2vec_do_l2_norm: _Optional[bool] = ...,
-        hash2vec_safe_l2: _Optional[bool] = ...,
-        word2vec_max_iter: _Optional[int] = ...,
-        word2vec_embeddings_dim: _Optional[int] = ...,
-        word2vec_window_size: _Optional[int] = ...,
-        word2vec_num_partitions: _Optional[int] = ...,
-        word2vec_min_count: _Optional[int] = ...,
-        word2vec_max_sentence_length: _Optional[int] = ...,
-        word2vec_seed: _Optional[int] = ...,
-        word2vec_step_size: _Optional[float] = ...,
-        aggregate_neighbors: _Optional[bool] = ...,
-        aggregate_neighbors_max_nbrs: _Optional[int] = ...,
-        aggregate_neighbors_seed: _Optional[int] = ...,
-        clean_up_after_run: _Optional[bool] = ...,
-    ) -> None: ...
+    def __init__(self, use_edge_direction: _Optional[bool] = ..., rw_model: _Optional[str] = ..., rw_max_nbrs: _Optional[int] = ..., rw_num_walks_per_node: _Optional[int] = ..., rw_batch_size: _Optional[int] = ..., rw_num_batches: _Optional[int] = ..., rw_seed: _Optional[int] = ..., rw_restart_probability: _Optional[float] = ..., rw_temporary_prefix: _Optional[str] = ..., rw_cached_walks: _Optional[str] = ..., sequence_model: _Optional[str] = ..., hash2vec_context_size: _Optional[int] = ..., hash2vec_num_partitions: _Optional[int] = ..., hash2vec_embeddings_dim: _Optional[int] = ..., hash2vec_decay_function: _Optional[str] = ..., hash2vec_gaussian_sigma: _Optional[float] = ..., hash2vec_hashing_seed: _Optional[int] = ..., hash2vec_sign_seed: _Optional[int] = ..., hash2vec_do_l2_norm: _Optional[bool] = ..., hash2vec_safe_l2: _Optional[bool] = ..., word2vec_max_iter: _Optional[int] = ..., word2vec_embeddings_dim: _Optional[int] = ..., word2vec_window_size: _Optional[int] = ..., word2vec_num_partitions: _Optional[int] = ..., word2vec_min_count: _Optional[int] = ..., word2vec_max_sentence_length: _Optional[int] = ..., word2vec_seed: _Optional[int] = ..., word2vec_step_size: _Optional[float] = ..., aggregate_neighbors: _Optional[bool] = ..., aggregate_neighbors_max_nbrs: _Optional[int] = ..., aggregate_neighbors_seed: _Optional[int] = ..., clean_up_after_run: _Optional[bool] = ...) -> None: ...
