@@ -20,6 +20,8 @@ package org.graphframes.lib
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Encoders
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
@@ -37,7 +39,6 @@ import org.graphframes.Logging
 import java.io.IOException
 import java.math.BigDecimal
 import java.util.UUID
-
 import scala.collection.mutable
 
 /**
@@ -100,6 +101,23 @@ private[graphframes] object TwoPhase extends Logging {
     def remappingTouched(): Map[Long, Long] = {
       val ids = parent.keys.toArray
       ids.iterator.map(id => id -> find(id)).toMap
+    }
+  }
+
+  /**
+   * Unions one partition of conflict pairs and emits `label -> localRoot` for labels that moved.
+   * A serializable module so the closure shipped to executors does not capture [[TwoPhase]].
+   */
+  private object PartitionConflictLinks
+      extends (Iterator[Row] => Iterator[(Long, Long)])
+      with Serializable {
+    def apply(rows: Iterator[Row]): Iterator[(Long, Long)] = {
+      val uf = new MinIdUnionFind
+      while (rows.hasNext) {
+        val row = rows.next()
+        uf.union(row.getLong(0), row.getLong(1))
+      }
+      uf.remappingTouched().iterator.collect { case (id, root) if id != root => (id, root) }
     }
   }
 
@@ -403,19 +421,19 @@ private[graphframes] object TwoPhase extends Logging {
       conflicts.unpersist(blocking = false)
       Some(edgesFromLabels(minNbrs1, Map.empty, intermediateStorageLevel))
     } else {
-      // conflicts is cached, so each partition is read from that cache. Union rows as they
-      // arrive and drop them; the parent map already holds every label the remap needs.
-      val rows = conflicts.select(LABEL_SRC, LABEL_DST).toLocalIterator()
-      var labelPairs = 0
-      while (rows.hasNext) {
-        val row = rows.next()
-        uf.union(row.getLong(0), row.getLong(1))
-        labelPairs += 1
+      // Each partition resolves the pairs it holds. The driver unions the resulting parent links,
+      // which is enough to connect labels that were split across partitions.
+      val links = conflicts
+        .mapPartitions(PartitionConflictLinks)(
+          Encoders.tuple(Encoders.scalaLong, Encoders.scalaLong))
+        .collect()
+      links.foreach { case (id, root) =>
+        uf.union(id, root)
       }
       val remap = uf.remappingTouched()
       logInfo(
         s"$logPrefix In-memory finish accepted at iteration $iteration: " +
-          s"numSupersets=$numSupersets, labelPairs=$labelPairs, remapped=${remap.size}.")
+          s"numSupersets=$numSupersets, parentLinks=${links.length}, remapped=${remap.size}.")
       conflicts.unpersist(blocking = false)
       Some(edgesFromLabels(minNbrs1, remap, intermediateStorageLevel))
     }

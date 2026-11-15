@@ -454,6 +454,23 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(uf.remappingTouched() === Map(5L -> 1L, 3L -> 1L, 1L -> 1L, 8L -> 2L, 2L -> 2L))
   }
 
+  test("min-id union find merges partition forests") {
+    val left = new TwoPhase.MinIdUnionFind
+    left.union(1L, 3L)
+    left.union(3L, 5L)
+    val right = new TwoPhase.MinIdUnionFind
+    right.union(5L, 9L)
+    val merged = new TwoPhase.MinIdUnionFind
+    (left.remappingTouched().iterator ++ right.remappingTouched().iterator).foreach {
+      case (id, root) =>
+        if (id != root) merged.union(id, root)
+    }
+    assert(merged.find(9L) === 1L)
+    assert(merged.find(5L) === 1L)
+    assert(merged.find(3L) === 1L)
+    assert(merged.find(1L) === 1L)
+  }
+
   Seq(-1, 1000000).foreach { broadcastThreshold =>
     val mode = if (broadcastThreshold == -1) "AQE" else "skewed"
 
