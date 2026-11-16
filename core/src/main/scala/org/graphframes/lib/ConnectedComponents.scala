@@ -26,6 +26,7 @@ import org.graphframes.GraphFramesUnreachableException
 import org.graphframes.Logging
 import org.graphframes.WithBroadcastThreshold
 import org.graphframes.WithCheckpointInterval
+import org.graphframes.WithInMemoryFinish
 import org.graphframes.WithIntermediateStorageLevel
 import org.graphframes.WithLocalCheckpoints
 import org.graphframes.WithMaxIter
@@ -48,7 +49,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
     with WithIntermediateStorageLevel
     with WithUseLabelsAsComponents
     with WithMaxIter
-    with WithLocalCheckpoints {
+    with WithLocalCheckpoints
+    with WithInMemoryFinish {
 
   import ConnectedComponents._
 
@@ -66,6 +68,12 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   setUseLabelsAsComponents(
     GraphFramesConf.getUseLabelsAsComponents.getOrElse(useLabelsAsComponents))
   setUseLocalCheckpoints(GraphFramesConf.getUseLocalCheckpoints.getOrElse(useLocalCheckpoints))
+  GraphFramesConf.getConnectedComponentsInMemoryFinishEnabled.foreach(setInMemoryFinishEnabled)
+  GraphFramesConf.getConnectedComponentsInMemoryFinishEdgeFraction
+    .foreach(setInMemoryFinishEdgeFraction)
+  GraphFramesConf.getConnectedComponentsInMemoryFinishMaxProvisionalLabels
+    .foreach(setInMemoryFinishMaxProvisionalLabels)
+  GraphFramesConf.getConnectedComponentsInMemoryFinishMinIter.foreach(setInMemoryFinishMinIter)
 
   /**
    * Sets the algorithm to use for computing connected components. Supported values:
@@ -143,6 +151,11 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
           maxIter.getOrElse(Int.MaxValue),
           intermediateStorageLevel)
       case ALGO_TWO_PHASE =>
+        val inMemoryFinish = TwoPhase.InMemoryFinishParams(
+          enabled = inMemoryFinishEnabled,
+          edgeFraction = inMemoryFinishEdgeFraction,
+          maxProvisionalLabels = inMemoryFinishMaxProvisionalLabels,
+          minIter = inMemoryFinishMinIter)
         if (broadcastThreshold == -1) {
           TwoPhase.runAQE(
             graph,
@@ -150,7 +163,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
             intermediateStorageLevel = intermediateStorageLevel,
             useLabelsAsComponents = useLabelsAsComponents,
             useLocalCheckpoints = useLocalCheckpoints,
-            isGraphPrepared = isGraphPrepared)
+            isGraphPrepared = isGraphPrepared,
+            inMemoryFinish = inMemoryFinish)
         } else {
           TwoPhase.run(
             graph,
@@ -159,7 +173,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
             intermediateStorageLevel = intermediateStorageLevel,
             useLabelsAsComponents = useLabelsAsComponents,
             useLocalCheckpoints = useLocalCheckpoints,
-            isGraphPrepared = isGraphPrepared)
+            isGraphPrepared = isGraphPrepared,
+            inMemoryFinish = inMemoryFinish)
         }
       case ALGO_RANDOMIZED_CONTRACTION =>
         RandomizedContraction.run(

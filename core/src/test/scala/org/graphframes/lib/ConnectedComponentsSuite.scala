@@ -53,6 +53,10 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(cc.getBroadcastThreshold === 1000000)
     assert(cc.getCheckpointInterval === 2)
     assert(!cc.getUseLabelsAsComponents)
+    assert(!cc.getInMemoryFinishEnabled)
+    assert(cc.getInMemoryFinishEdgeFraction === 0.01)
+    assert(cc.getInMemoryFinishMaxProvisionalLabels === 1000000L)
+    assert(cc.getInMemoryFinishMinIter === 2)
     spark.conf.set("spark.graphframes.useLocalCheckpoints", "false")
   }
 
@@ -353,10 +357,28 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(
       Graphs.friends.connectedComponents.getIntermediateStorageLevel == StorageLevel.MEMORY_ONLY)
 
+    spark.conf.set("spark.graphframes.connectedComponents.inMemoryFinish.enabled", "true")
+    assert(Graphs.friends.connectedComponents.getInMemoryFinishEnabled)
+
+    spark.conf.set("spark.graphframes.connectedComponents.inMemoryFinish.edgeFraction", "0.25")
+    assert(Graphs.friends.connectedComponents.getInMemoryFinishEdgeFraction == 0.25)
+
+    spark.conf.set(
+      "spark.graphframes.connectedComponents.inMemoryFinish.maxProvisionalLabels",
+      "123")
+    assert(Graphs.friends.connectedComponents.getInMemoryFinishMaxProvisionalLabels == 123L)
+
+    spark.conf.set("spark.graphframes.connectedComponents.inMemoryFinish.minIter", "4")
+    assert(Graphs.friends.connectedComponents.getInMemoryFinishMinIter == 4)
+
     spark.conf.unset("spark.graphframes.connectedComponents.algorithm")
     spark.conf.unset("spark.graphframes.connectedComponents.broadcastthreshold")
     spark.conf.unset("spark.graphframes.connectedComponents.checkpointinterval")
     spark.conf.unset("spark.graphframes.connectedComponents.intermediatestoragelevel")
+    spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.enabled")
+    spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.edgeFraction")
+    spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.maxProvisionalLabels")
+    spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.minIter")
   }
 
   test("intermediate storage level MEMORY_ONLY") {
@@ -419,6 +441,139 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     val expectedR =
       Set(Row(0L, 0L), Row(0L, 1L), Row(0L, 2L), Row(0L, 3L), Row(0L, 4L), Row(0L, 5L))
     assert(r.collect().toSet == expectedR)
+  }
+
+  test("min-id union find prefers smaller roots") {
+    val uf = new TwoPhase.MinIdUnionFind
+    uf.union(5L, 3L)
+    uf.union(3L, 1L)
+    uf.union(8L, 2L)
+    assert(uf.find(5L) === 1L)
+    assert(uf.find(3L) === 1L)
+    assert(uf.find(1L) === 1L)
+    assert(uf.find(8L) === 2L)
+    assert(uf.remapping(Seq(5L, 8L)) === Map(5L -> 1L, 8L -> 2L))
+    assert(uf.remappingTouched() === Map(5L -> 1L, 3L -> 1L, 1L -> 1L, 8L -> 2L, 2L -> 2L))
+  }
+
+  test("min-id union find merges partition forests") {
+    val left = new TwoPhase.MinIdUnionFind
+    left.union(1L, 3L)
+    left.union(3L, 5L)
+    val right = new TwoPhase.MinIdUnionFind
+    right.union(5L, 9L)
+    val merged = new TwoPhase.MinIdUnionFind
+    (left.remappingTouched().iterator ++ right.remappingTouched().iterator).foreach {
+      case (id, root) =>
+        if (id != root) merged.union(id, root)
+    }
+    assert(merged.find(9L) === 1L)
+    assert(merged.find(5L) === 1L)
+    assert(merged.find(3L) === 1L)
+    assert(merged.find(1L) === 1L)
+  }
+
+  Seq(-1, 1000000).foreach { broadcastThreshold =>
+    val mode = if (broadcastThreshold == -1) "AQE" else "skewed"
+
+    test(s"in-memory finish matches baseline, $mode") {
+      val friends = Graphs.friends
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+      val baseline = friends.connectedComponents
+        .setAlgorithm(ConnectedComponents.ALGO_TWO_PHASE)
+        .setBroadcastThreshold(broadcastThreshold)
+        .setUseLocalCheckpoints(true)
+        .run()
+      assertComponents(baseline, expected)
+      baseline.unpersist()
+
+      val withFinish = friends.connectedComponents
+        .setAlgorithm(ConnectedComponents.ALGO_TWO_PHASE)
+        .setBroadcastThreshold(broadcastThreshold)
+        .setUseLocalCheckpoints(true)
+        .setInMemoryFinishEnabled(true)
+        .setInMemoryFinishEdgeFraction(1.0)
+        .setInMemoryFinishMaxProvisionalLabels(1000000L)
+        .setInMemoryFinishMinIter(2)
+        .run()
+      assertComponents(withFinish, expected)
+      withFinish.unpersist()
+    }
+
+    test(s"in-memory finish rejected by max provisional labels still converges, $mode") {
+      val friends = Graphs.friends
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+      val components = friends.connectedComponents
+        .setAlgorithm(ConnectedComponents.ALGO_TWO_PHASE)
+        .setBroadcastThreshold(broadcastThreshold)
+        .setUseLocalCheckpoints(true)
+        .setInMemoryFinishEnabled(true)
+        .setInMemoryFinishEdgeFraction(1.0)
+        .setInMemoryFinishMaxProvisionalLabels(0L)
+        .setInMemoryFinishMinIter(2)
+        .run()
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+
+    test(s"in-memory finish skipped by zero edge fraction still converges, $mode") {
+      val friends = Graphs.friends
+      val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
+      val components = friends.connectedComponents
+        .setAlgorithm(ConnectedComponents.ALGO_TWO_PHASE)
+        .setBroadcastThreshold(broadcastThreshold)
+        .setUseLocalCheckpoints(true)
+        .setInMemoryFinishEnabled(true)
+        .setInMemoryFinishEdgeFraction(0.0)
+        .setInMemoryFinishMaxProvisionalLabels(1000000L)
+        .setInMemoryFinishMinIter(2)
+        .run()
+      assertComponents(components, expected)
+      components.unpersist()
+    }
+  }
+
+  test("chain graph with in-memory finish") {
+    val n = 5L
+    val g = Graphs.chain(n)
+    val components = g.connectedComponents
+      .setUseLocalCheckpoints(true)
+      .setBroadcastThreshold(-1)
+      .setInMemoryFinishEnabled(true)
+      .setInMemoryFinishEdgeFraction(1.0)
+      .run()
+    val expected = Set((0L until n).toSet)
+    assertComponents(components, expected)
+    components.unpersist()
+  }
+
+  Seq(-1, 1000000).foreach { broadcastThreshold =>
+    val mode = if (broadcastThreshold == -1) "AQE" else "skewed"
+
+    test(s"in-memory finish keeps component ids, $mode") {
+      def run(enabled: Boolean): Set[(Long, Long)] = {
+        val components = Graphs
+          .twoBlobs(8)
+          .connectedComponents
+          .setAlgorithm(ConnectedComponents.ALGO_TWO_PHASE)
+          .setBroadcastThreshold(broadcastThreshold)
+          .setUseLocalCheckpoints(true)
+          .setInMemoryFinishEnabled(enabled)
+          .setInMemoryFinishEdgeFraction(1.0)
+          .setInMemoryFinishMaxProvisionalLabels(1000000L)
+          .setInMemoryFinishMinIter(2)
+          .run()
+        val rows = components
+          .select(col(ID).cast(LongType), col("component").cast(LongType))
+          .collect()
+          .map(row => (row.getLong(0), row.getLong(1)))
+          .toSet
+        components.unpersist()
+        rows
+      }
+
+      assert(run(enabled = true) === run(enabled = false))
+    }
   }
 
   private def assertComponents[T: ClassTag: TypeTag](

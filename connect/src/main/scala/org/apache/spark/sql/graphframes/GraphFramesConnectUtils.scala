@@ -231,6 +231,20 @@ object GraphFramesConnectUtils {
           .setUseLocalCheckpoints(cc.getUseLocalCheckpoints)
           .setUseLabelsAsComponents(cc.getUseLabelsAsComponents)
 
+        if (cc.hasInMemoryFinishEnabled) {
+          ccBuilder.setInMemoryFinishEnabled(cc.getInMemoryFinishEnabled)
+        }
+        if (cc.hasInMemoryFinishEdgeFraction) {
+          ccBuilder.setInMemoryFinishEdgeFraction(cc.getInMemoryFinishEdgeFraction)
+        }
+        if (cc.hasInMemoryFinishMaxProvisionalLabels) {
+          ccBuilder.setInMemoryFinishMaxProvisionalLabels(
+            cc.getInMemoryFinishMaxProvisionalLabels)
+        }
+        if (cc.hasInMemoryFinishMinIter) {
+          ccBuilder.setInMemoryFinishMinIter(cc.getInMemoryFinishMinIter)
+        }
+
         if (cc.hasStorageLevel) {
           ccBuilder.setIntermediateStorageLevel(parseStorageLevel(cc.getStorageLevel)).run()
         } else {

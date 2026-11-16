@@ -20,6 +20,8 @@ package org.graphframes.lib
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Encoders
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.*
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
@@ -37,6 +39,7 @@ import org.graphframes.Logging
 import java.io.IOException
 import java.math.BigDecimal
 import java.util.UUID
+import scala.collection.mutable
 
 /**
  * Two-phase label propagation implementation of connected components.
@@ -49,6 +52,74 @@ private[graphframes] object TwoPhase extends Logging {
   private val CHECKPOINT_NAME_PREFIX = "connected-components"
   private val MIN_NBR = "min_nbr"
   private val CNT = "cnt"
+  private val LABEL_SRC = "label_src"
+  private val LABEL_DST = "label_dst"
+
+  /**
+   * Parameters for the opt-in driver-side Union-Find finish of two-phase connected components.
+   */
+  private[graphframes] case class InMemoryFinishParams(
+      enabled: Boolean = false,
+      edgeFraction: Double = 0.01,
+      maxProvisionalLabels: Long = 1000000L,
+      minIter: Int = 2)
+
+  /**
+   * Union-Find with path compression that prefers the minimum ID as the representative root.
+   */
+  private[graphframes] final class MinIdUnionFind {
+    private val parent = mutable.Map.empty[Long, Long]
+
+    def find(x: Long): Long = {
+      val p = parent.getOrElseUpdate(x, x)
+      if (p != x) {
+        val root = find(p)
+        parent(x) = root
+        root
+      } else {
+        x
+      }
+    }
+
+    def union(a: Long, b: Long): Unit = {
+      val ra = find(a)
+      val rb = find(b)
+      if (ra != rb) {
+        if (ra < rb) parent(rb) = ra
+        else parent(ra) = rb
+      }
+    }
+
+    def remapping(ids: Iterable[Long]): Map[Long, Long] = {
+      ids.map(id => id -> find(id)).toMap
+    }
+
+    /**
+     * Remaps every id inserted by [[union]] to its current root. Keys are copied first so path
+     * compression can update parent links without mutating the map during iteration.
+     */
+    def remappingTouched(): Map[Long, Long] = {
+      val ids = parent.keys.toArray
+      ids.iterator.map(id => id -> find(id)).toMap
+    }
+  }
+
+  /**
+   * Unions one partition of conflict pairs and emits `label -> localRoot` for labels that moved.
+   * A serializable module so the closure shipped to executors does not capture [[TwoPhase]].
+   */
+  private object PartitionConflictLinks
+      extends (Iterator[Row] => Iterator[(Long, Long)])
+      with Serializable {
+    def apply(rows: Iterator[Row]): Iterator[(Long, Long)] = {
+      val uf = new MinIdUnionFind
+      while (rows.hasNext) {
+        val row = rows.next()
+        uf.union(row.getLong(0), row.getLong(1))
+      }
+      uf.remappingTouched().iterator.collect { case (id, root) if id != root => (id, root) }
+    }
+  }
 
   /**
    * Returns the symmetric directed graph of the graph specified by input edges.
@@ -243,6 +314,130 @@ private[graphframes] object TwoPhase extends Logging {
   }
 
   /**
+   * Builds conflict edges between provisional component labels for the remaining edge table.
+   */
+  private def conflictLabelEdges(ee: DataFrame, minNbrs1: DataFrame): DataFrame = {
+    ee.as("e")
+      .join(minNbrs1.as("a"), col(s"e.$SRC") === col(s"a.$SRC"))
+      .join(minNbrs1.as("b"), col(s"e.$DST") === col(s"b.$SRC"))
+      .select(col(s"a.$MIN_NBR").as(LABEL_SRC), col(s"b.$MIN_NBR").as(LABEL_DST))
+      .filter(col(LABEL_SRC) =!= col(LABEL_DST))
+  }
+
+  /**
+   * Materializes star-shaped component edges from remapped provisional labels.
+   *
+   * `minNbrs1` has one row per vertex, so the projection is already unique and does not need a
+   * shuffle distinct. Remaps use a broadcast join rather than a Scala UDF so the projection stays
+   * in whole-stage codegen.
+   */
+  private def edgesFromLabels(
+      minNbrs1: DataFrame,
+      remap: Map[Long, Long],
+      intermediateStorageLevel: StorageLevel): DataFrame = {
+    val labeled = if (remap.isEmpty) {
+      minNbrs1.select(col(MIN_NBR).as(SRC), col(SRC).as(DST))
+    } else {
+      import minNbrs1.sparkSession.implicits._
+      val remapDF = broadcast(remap.toSeq.toDF("old_label", "new_label"))
+      minNbrs1
+        .join(remapDF, col(MIN_NBR) === col("old_label"), "left")
+        .select(coalesce(col("new_label"), col(MIN_NBR)).as(SRC), col(SRC).as(DST))
+    }
+    labeled.filter(col(SRC) =!= col(DST)).persist(intermediateStorageLevel)
+  }
+
+  /**
+   * Attempts the opt-in in-memory Union-Find finish. Returns Some(newEdges) when finish succeeds,
+   * otherwise None so the caller continues distributed iterations.
+   */
+  private[graphframes] def tryInMemoryFinish(
+      ee: DataFrame,
+      minNbrs1: DataFrame,
+      edgeCnt: Long,
+      initialEdgeCnt: Long,
+      iteration: Int,
+      triedToOptimize: Boolean,
+      params: InMemoryFinishParams,
+      logPrefix: String,
+      intermediateStorageLevel: StorageLevel): Option[DataFrame] = {
+    if (!params.enabled) {
+      return None
+    }
+    if (!triedToOptimize) {
+      logInfo(
+        s"$logPrefix In-memory finish skipped at iteration $iteration: " +
+          "leaf-pruning attempt has not run yet.")
+      return None
+    }
+    if (iteration < params.minIter) {
+      logInfo(
+        s"$logPrefix In-memory finish skipped at iteration $iteration: " +
+          s"minIter=${params.minIter} not reached.")
+      return None
+    }
+
+    val edgeThreshold = params.edgeFraction * initialEdgeCnt.toDouble
+    if (edgeCnt.toDouble > edgeThreshold) {
+      logInfo(
+        s"$logPrefix In-memory finish rejected at iteration $iteration: " +
+          s"edgeCnt=$edgeCnt exceeds threshold $edgeThreshold " +
+          s"(fraction=${params.edgeFraction} of initialEdgeCnt=$initialEdgeCnt).")
+      return None
+    }
+
+    logInfo(
+      s"$logPrefix In-memory finish edge gate passed at iteration $iteration: " +
+        s"edgeCnt=$edgeCnt <= $edgeThreshold.")
+
+    // Collapse to one row per unordered label pair. Driver memory then tracks provisional labels,
+    // not the number of vertex edges that share the same pair.
+    val conflicts = conflictLabelEdges(ee, minNbrs1)
+      .select(
+        minValue(col(LABEL_SRC), col(LABEL_DST)).as(LABEL_SRC),
+        maxValue(col(LABEL_SRC), col(LABEL_DST)).as(LABEL_DST))
+      .distinct()
+      .persist(intermediateStorageLevel)
+    val numProvisionalLabels = conflicts
+      .select(col(LABEL_SRC).as(ID))
+      .union(conflicts.select(col(LABEL_DST).as(ID)))
+      .agg(countDistinct(col(ID)))
+      .first()
+      .getLong(0)
+
+    if (numProvisionalLabels > params.maxProvisionalLabels) {
+      logInfo(s"$logPrefix In-memory finish rejected at iteration $iteration: " +
+        s"numProvisionalLabels=$numProvisionalLabels exceeds maxProvisionalLabels=${params.maxProvisionalLabels}.")
+      conflicts.unpersist(blocking = false)
+      return None
+    }
+
+    val uf = new MinIdUnionFind
+    if (numProvisionalLabels == 0L) {
+      logInfo(
+        s"$logPrefix In-memory finish accepted at iteration $iteration: " +
+          "no conflicting labels; materializing current labels.")
+      conflicts.unpersist(blocking = false)
+      Some(edgesFromLabels(minNbrs1, Map.empty, intermediateStorageLevel))
+    } else {
+      // Each partition resolves the pairs it holds. The driver unions the resulting parent links,
+      // which is enough to connect labels that were split across partitions.
+      val links = conflicts
+        .mapPartitions(PartitionConflictLinks)(
+          Encoders.tuple(Encoders.scalaLong, Encoders.scalaLong))
+        .collect()
+      links.foreach { case (id, root) =>
+        uf.union(id, root)
+      }
+      val remap = uf.remappingTouched()
+      logInfo(s"$logPrefix In-memory finish accepted at iteration $iteration: " +
+        s"numProvisionalLabels=$numProvisionalLabels, parentLinks=${links.length}, remapped=${remap.size}.")
+      conflicts.unpersist(blocking = false)
+      Some(edgesFromLabels(minNbrs1, remap, intermediateStorageLevel))
+    }
+  }
+
+  /**
    * Runs the two-phase label propagation connected components algorithm.
    */
   private[graphframes] def run(
@@ -255,7 +450,8 @@ private[graphframes] object TwoPhase extends Logging {
       isGraphPrepared: Boolean,
       optStartIter: Int = 2,
       sparsityThreshold: Double = 2.0,
-      shrinkageThreshold: Double = 2.0): DataFrame = {
+      shrinkageThreshold: Double = 2.0,
+      inMemoryFinish: InMemoryFinishParams = InMemoryFinishParams()): DataFrame = {
 
     val spark = graph.spark
     val sc = spark.sparkContext
@@ -299,7 +495,8 @@ private[graphframes] object TwoPhase extends Logging {
       val g = if (isGraphPrepared) graph else prepare(graph)
       val vv = g.vertices
       var ee = g.edges.persist(intermediateStorageLevel) // src < dst
-      logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
+      val initialEdgeCnt = ee.count()
+      logInfo(s"$logPrefix Found $initialEdgeCnt edges after preparation.")
       var numNodes = vv.count()
       logInfo(s"$logPrefix Found $numNodes nodes after preparation.")
 
@@ -378,7 +575,11 @@ private[graphframes] object TwoPhase extends Logging {
 
         // test convergence
         val (currSum, edgeCnt) = calcMinNbrSum(minNbrs1)
-        logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
+        val edgePctOfInitial =
+          if (initialEdgeCnt == 0L) 0.0 else edgeCnt.toDouble / initialEdgeCnt.toDouble
+        logInfo(
+          s"$logPrefix Iteration $iteration: sum=$currSum, edgeCnt=$edgeCnt " +
+            s"(${edgePctOfInitial} of initial $initialEdgeCnt).")
 
         // Pruning Node Optimization: construct a new small graph with fewer nodes,
         // and find connected components of the shrunken graph, then join back to get the
@@ -396,6 +597,7 @@ private[graphframes] object TwoPhase extends Logging {
         // we will try such optimization at the end of $optStartIter iteration (default is 2).
         // For the dense graph, its edges will be pruned at each large/small star join iteration,
         // and we will try the optimization once the graph becomes sparse.
+        var prunedThisIteration = false
         if ((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0)
           && (iteration >= optStartIter) && (!triedToOptimize)) {
           edgesBeforePruning = ee
@@ -407,6 +609,7 @@ private[graphframes] object TwoPhase extends Logging {
               numNodes = r._3
               isOptimized = true
               shouldKeepCheckpoint = true
+              prunedThisIteration = true
               logInfo(s"$logPrefix Pruning node optimization performed in iteration $iteration.")
               logInfo(s"$logPrefix Shrunken graph node count: $numNodes.")
             case None =>
@@ -415,10 +618,34 @@ private[graphframes] object TwoPhase extends Logging {
           triedToOptimize = true
         }
 
-        if (currSum == prevSum) {
-          converged = true
-        } else {
-          prevSum = currSum
+        // Skip finish when this iteration already converged: the sum check is free and the
+        // distributed result is final. Also skip in the same iteration as a successful prune,
+        // because minNbrs1 still reflects the pre-prune edge table.
+        val finishedEe =
+          if (prunedThisIteration || currSum == prevSum) None
+          else
+            tryInMemoryFinish(
+              ee,
+              minNbrs1,
+              edgeCnt,
+              initialEdgeCnt,
+              iteration,
+              triedToOptimize,
+              inMemoryFinish,
+              logPrefix,
+              intermediateStorageLevel)
+
+        finishedEe match {
+          case Some(newEe) =>
+            ee = newEe
+            currRoundPersistedDFs = currRoundPersistedDFs :+ ee
+            converged = true
+          case None =>
+            if (currSum == prevSum) {
+              converged = true
+            } else {
+              prevSum = currSum
+            }
         }
 
         for (persistedDF <- lastRoundPersistedDFs) {
@@ -471,7 +698,8 @@ private[graphframes] object TwoPhase extends Logging {
       isGraphPrepared: Boolean,
       optStartIter: Int = 2,
       sparsityThreshold: Double = 2.0,
-      shrinkageThreshold: Double = 2.0): DataFrame =
+      shrinkageThreshold: Double = 2.0,
+      inMemoryFinish: InMemoryFinishParams = InMemoryFinishParams()): DataFrame =
     JobDescription.withRestoredJobDescription(graph.spark) {
       runAQEInternal(
         graph,
@@ -482,7 +710,8 @@ private[graphframes] object TwoPhase extends Logging {
         isGraphPrepared,
         optStartIter,
         sparsityThreshold,
-        shrinkageThreshold)
+        shrinkageThreshold,
+        inMemoryFinish)
     }
 
   private def runAQEInternal(
@@ -494,7 +723,8 @@ private[graphframes] object TwoPhase extends Logging {
       isGraphPrepared: Boolean,
       optStartIter: Int,
       sparsityThreshold: Double,
-      shrinkageThreshold: Double): DataFrame = {
+      shrinkageThreshold: Double,
+      inMemoryFinish: InMemoryFinishParams): DataFrame = {
 
     val sc = graph.spark.sparkContext
     val runId = UUID.randomUUID().toString.takeRight(8)
@@ -509,7 +739,8 @@ private[graphframes] object TwoPhase extends Logging {
     val g = if (isGraphPrepared) graph else prepare(graph)
     val vv = g.vertices
     var ee = g.edges.persist(intermediateStorageLevel) // src < dst
-    logInfo(s"$logPrefix Found ${ee.count()} edges after preparation.")
+    val initialEdgeCnt = ee.count()
+    logInfo(s"$logPrefix Found $initialEdgeCnt edges after preparation.")
     var numNodes = vv.count()
     logInfo(s"$logPrefix Found $numNodes nodes after preparation.")
 
@@ -581,7 +812,11 @@ private[graphframes] object TwoPhase extends Logging {
 
       // test convergence
       val (currSum, edgeCnt) = calcMinNbrSum(minNbrs1)
-      logInfo(s"$logPrefix Sum of assigned components in iteration $iteration: $currSum.")
+      val edgePctOfInitial =
+        if (initialEdgeCnt == 0L) 0.0 else edgeCnt.toDouble / initialEdgeCnt.toDouble
+      logInfo(
+        s"$logPrefix Iteration $iteration: sum=$currSum, edgeCnt=$edgeCnt " +
+          s"(${edgePctOfInitial} of initial $initialEdgeCnt).")
 
       // Pruning Node Optimization: construct a new small graph with fewer nodes,
       // and find connected components of the shrunken graph, then join back to get the
@@ -599,6 +834,7 @@ private[graphframes] object TwoPhase extends Logging {
       // we will try such optimization at the end of $optStartIter iteration (default is 2).
       // For the dense graph, its edges will be pruned at each large/small star join iteration,
       // and we will try the optimization once the graph becomes sparse.
+      var prunedThisIteration = false
       if ((edgeCnt < sparsityThreshold * numNodes) && (edgeCnt > 0)
         && (iteration >= optStartIter) && (!triedToOptimize)) {
         edgesBeforePruning = ee
@@ -609,6 +845,7 @@ private[graphframes] object TwoPhase extends Logging {
             currRoundPersistedDFs = currRoundPersistedDFs :+ ee
             numNodes = r._3
             isOptimized = true
+            prunedThisIteration = true
             logInfo(s"$logPrefix Pruning node optimization performed in iteration $iteration.")
             logInfo(s"$logPrefix Shrunken graph node count: $numNodes.")
           case None =>
@@ -617,10 +854,31 @@ private[graphframes] object TwoPhase extends Logging {
         triedToOptimize = true
       }
 
-      if (currSum == prevSum) {
-        converged = true
-      } else {
-        prevSum = currSum
+      val finishedEe =
+        if (prunedThisIteration || currSum == prevSum) None
+        else
+          tryInMemoryFinish(
+            ee,
+            minNbrs1,
+            edgeCnt,
+            initialEdgeCnt,
+            iteration,
+            triedToOptimize,
+            inMemoryFinish,
+            logPrefix,
+            intermediateStorageLevel)
+
+      finishedEe match {
+        case Some(newEe) =>
+          ee = newEe
+          currRoundPersistedDFs = currRoundPersistedDFs :+ ee
+          converged = true
+        case None =>
+          if (currSum == prevSum) {
+            converged = true
+          } else {
+            prevSum = currSum
+          }
       }
 
       for (persistedDF <- lastRoundPersistedDFs) {
