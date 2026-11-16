@@ -693,8 +693,9 @@ class GraphFrame:
                          "graphx" (default: 2 ** 31 - 2, that is effectively unlimited). The
                          other algorithms run until convergence and ignore this value.
         :param storage_level: storage level for both intermediate and final dataframes.
-        :param in_memory_finish_enabled: if True, allows the two_phase algorithm to finish with a
-                         driver-side Union-Find once residual edges are small enough (default: False).
+        :param in_memory_finish_enabled: if True, allows the two_phase algorithm to finish
+                         with a driver-side Union-Find once residual edges are small enough
+                         (default: False).
         :param in_memory_finish_edge_fraction: residual edge count must be <= this fraction of the
                          post-preparation edge count before in-memory finish is considered
                          (default: 0.01).
