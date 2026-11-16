@@ -55,7 +55,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     assert(!cc.getUseLabelsAsComponents)
     assert(!cc.getInMemoryFinishEnabled)
     assert(cc.getInMemoryFinishEdgeFraction === 0.01)
-    assert(cc.getInMemoryFinishMaxSupersets === 1000000L)
+    assert(cc.getInMemoryFinishMaxProvisionalLabels === 1000000L)
     assert(cc.getInMemoryFinishMinIter === 2)
     spark.conf.set("spark.graphframes.useLocalCheckpoints", "false")
   }
@@ -363,8 +363,10 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     spark.conf.set("spark.graphframes.connectedComponents.inMemoryFinish.edgeFraction", "0.25")
     assert(Graphs.friends.connectedComponents.getInMemoryFinishEdgeFraction == 0.25)
 
-    spark.conf.set("spark.graphframes.connectedComponents.inMemoryFinish.maxSupersets", "123")
-    assert(Graphs.friends.connectedComponents.getInMemoryFinishMaxSupersets == 123L)
+    spark.conf.set(
+      "spark.graphframes.connectedComponents.inMemoryFinish.maxProvisionalLabels",
+      "123")
+    assert(Graphs.friends.connectedComponents.getInMemoryFinishMaxProvisionalLabels == 123L)
 
     spark.conf.set("spark.graphframes.connectedComponents.inMemoryFinish.minIter", "4")
     assert(Graphs.friends.connectedComponents.getInMemoryFinishMinIter == 4)
@@ -375,7 +377,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     spark.conf.unset("spark.graphframes.connectedComponents.intermediatestoragelevel")
     spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.enabled")
     spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.edgeFraction")
-    spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.maxSupersets")
+    spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.maxProvisionalLabels")
     spark.conf.unset("spark.graphframes.connectedComponents.inMemoryFinish.minIter")
   }
 
@@ -491,14 +493,14 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         .setUseLocalCheckpoints(true)
         .setInMemoryFinishEnabled(true)
         .setInMemoryFinishEdgeFraction(1.0)
-        .setInMemoryFinishMaxSupersets(1000000L)
+        .setInMemoryFinishMaxProvisionalLabels(1000000L)
         .setInMemoryFinishMinIter(2)
         .run()
       assertComponents(withFinish, expected)
       withFinish.unpersist()
     }
 
-    test(s"in-memory finish rejected by max supersets still converges, $mode") {
+    test(s"in-memory finish rejected by max provisional labels still converges, $mode") {
       val friends = Graphs.friends
       val expected = Set(Set("a", "b", "c", "d", "e", "f"), Set("g"))
       val components = friends.connectedComponents
@@ -507,7 +509,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         .setUseLocalCheckpoints(true)
         .setInMemoryFinishEnabled(true)
         .setInMemoryFinishEdgeFraction(1.0)
-        .setInMemoryFinishMaxSupersets(0L)
+        .setInMemoryFinishMaxProvisionalLabels(0L)
         .setInMemoryFinishMinIter(2)
         .run()
       assertComponents(components, expected)
@@ -523,7 +525,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
         .setUseLocalCheckpoints(true)
         .setInMemoryFinishEnabled(true)
         .setInMemoryFinishEdgeFraction(0.0)
-        .setInMemoryFinishMaxSupersets(1000000L)
+        .setInMemoryFinishMaxProvisionalLabels(1000000L)
         .setInMemoryFinishMinIter(2)
         .run()
       assertComponents(components, expected)
@@ -558,7 +560,7 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
           .setUseLocalCheckpoints(true)
           .setInMemoryFinishEnabled(enabled)
           .setInMemoryFinishEdgeFraction(1.0)
-          .setInMemoryFinishMaxSupersets(1000000L)
+          .setInMemoryFinishMaxProvisionalLabels(1000000L)
           .setInMemoryFinishMinIter(2)
           .run()
         val rows = components

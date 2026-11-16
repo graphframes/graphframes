@@ -301,7 +301,7 @@ class ConnectedComponents(_message.Message):
         "storage_level",
         "in_memory_finish_enabled",
         "in_memory_finish_edge_fraction",
-        "in_memory_finish_max_supersets",
+        "in_memory_finish_max_provisional_labels",
         "in_memory_finish_min_iter",
     )
     ALGORITHM_FIELD_NUMBER: _ClassVar[int]
@@ -313,7 +313,7 @@ class ConnectedComponents(_message.Message):
     STORAGE_LEVEL_FIELD_NUMBER: _ClassVar[int]
     IN_MEMORY_FINISH_ENABLED_FIELD_NUMBER: _ClassVar[int]
     IN_MEMORY_FINISH_EDGE_FRACTION_FIELD_NUMBER: _ClassVar[int]
-    IN_MEMORY_FINISH_MAX_SUPERSETS_FIELD_NUMBER: _ClassVar[int]
+    IN_MEMORY_FINISH_MAX_PROVISIONAL_LABELS_FIELD_NUMBER: _ClassVar[int]
     IN_MEMORY_FINISH_MIN_ITER_FIELD_NUMBER: _ClassVar[int]
     algorithm: str
     checkpoint_interval: int
@@ -324,7 +324,7 @@ class ConnectedComponents(_message.Message):
     storage_level: StorageLevel
     in_memory_finish_enabled: bool
     in_memory_finish_edge_fraction: float
-    in_memory_finish_max_supersets: int
+    in_memory_finish_max_provisional_labels: int
     in_memory_finish_min_iter: int
     def __init__(
         self,
@@ -337,7 +337,7 @@ class ConnectedComponents(_message.Message):
         storage_level: _Optional[_Union[StorageLevel, _Mapping]] = ...,
         in_memory_finish_enabled: _Optional[bool] = ...,
         in_memory_finish_edge_fraction: _Optional[float] = ...,
-        in_memory_finish_max_supersets: _Optional[int] = ...,
+        in_memory_finish_max_provisional_labels: _Optional[int] = ...,
         in_memory_finish_min_iter: _Optional[int] = ...,
     ) -> None: ...
 

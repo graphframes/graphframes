@@ -250,7 +250,7 @@ class GraphFrame:
         storage_level: StorageLevel,
         in_memory_finish_enabled: bool = False,
         in_memory_finish_edge_fraction: float = 0.01,
-        in_memory_finish_max_supersets: int = 1000000,
+        in_memory_finish_max_provisional_labels: int = 1000000,
         in_memory_finish_min_iter: int = 2,
     ) -> DataFrame:
         java_cc = self._jvm_graph.connectedComponents()
@@ -263,7 +263,7 @@ class GraphFrame:
         java_cc.setIntermediateStorageLevel(storage_level_to_jvm(storage_level, self._spark))
         java_cc.setInMemoryFinishEnabled(in_memory_finish_enabled)
         java_cc.setInMemoryFinishEdgeFraction(float(in_memory_finish_edge_fraction))
-        java_cc.setInMemoryFinishMaxSupersets(int(in_memory_finish_max_supersets))
+        java_cc.setInMemoryFinishMaxProvisionalLabels(int(in_memory_finish_max_provisional_labels))
         java_cc.setInMemoryFinishMinIter(int(in_memory_finish_min_iter))
         jdf = java_cc.run()
 

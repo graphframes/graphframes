@@ -665,7 +665,7 @@ class GraphFrame:
         storage_level: StorageLevel = StorageLevel.MEMORY_AND_DISK_DESER,
         in_memory_finish_enabled: bool = False,
         in_memory_finish_edge_fraction: float = 0.01,
-        in_memory_finish_max_supersets: int = 1000000,
+        in_memory_finish_max_provisional_labels: int = 1000000,
         in_memory_finish_min_iter: int = 2,
     ) -> DataFrame:
         """
@@ -699,8 +699,8 @@ class GraphFrame:
         :param in_memory_finish_edge_fraction: residual edge count must be <= this fraction of the
                          post-preparation edge count before in-memory finish is considered
                          (default: 0.01).
-        :param in_memory_finish_max_supersets: max distinct provisional set IDs allowed on the
-                         driver for in-memory finish (default: 1000000).
+        :param in_memory_finish_max_provisional_labels: max distinct provisional component
+                         labels allowed on the driver for in-memory finish (default: 1000000).
         :param in_memory_finish_min_iter: minimum two_phase iterations before in-memory finish may
                          run (default: 2).
 
@@ -716,7 +716,7 @@ class GraphFrame:
             storage_level=storage_level,
             in_memory_finish_enabled=in_memory_finish_enabled,
             in_memory_finish_edge_fraction=in_memory_finish_edge_fraction,
-            in_memory_finish_max_supersets=in_memory_finish_max_supersets,
+            in_memory_finish_max_provisional_labels=in_memory_finish_max_provisional_labels,
             in_memory_finish_min_iter=in_memory_finish_min_iter,
         )
 

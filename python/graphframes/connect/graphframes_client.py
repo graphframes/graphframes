@@ -719,7 +719,7 @@ class GraphFrameConnect:
         storage_level: StorageLevel,
         in_memory_finish_enabled: bool = False,
         in_memory_finish_edge_fraction: float = 0.01,
-        in_memory_finish_max_supersets: int = 1000000,
+        in_memory_finish_max_provisional_labels: int = 1000000,
         in_memory_finish_min_iter: int = 2,
     ) -> DataFrame:
         @final
@@ -737,7 +737,7 @@ class GraphFrameConnect:
                 storage_level: StorageLevel,
                 in_memory_finish_enabled: bool,
                 in_memory_finish_edge_fraction: float,
-                in_memory_finish_max_supersets: int,
+                in_memory_finish_max_provisional_labels: int,
                 in_memory_finish_min_iter: int,
             ) -> None:
                 super().__init__(None)
@@ -752,7 +752,9 @@ class GraphFrameConnect:
                 self.storage_level = storage_level
                 self.in_memory_finish_enabled = in_memory_finish_enabled
                 self.in_memory_finish_edge_fraction = in_memory_finish_edge_fraction
-                self.in_memory_finish_max_supersets = in_memory_finish_max_supersets
+                self.in_memory_finish_max_provisional_labels = (
+                    in_memory_finish_max_provisional_labels
+                )
                 self.in_memory_finish_min_iter = in_memory_finish_min_iter
 
             @override
@@ -771,7 +773,9 @@ class GraphFrameConnect:
                         storage_level=storage_level_to_proto(self.storage_level),
                         in_memory_finish_enabled=self.in_memory_finish_enabled,
                         in_memory_finish_edge_fraction=self.in_memory_finish_edge_fraction,
-                        in_memory_finish_max_supersets=self.in_memory_finish_max_supersets,
+                        in_memory_finish_max_provisional_labels=(
+                            self.in_memory_finish_max_provisional_labels
+                        ),
                         in_memory_finish_min_iter=self.in_memory_finish_min_iter,
                     )
                 )
@@ -792,7 +796,7 @@ class GraphFrameConnect:
                 storage_level,
                 in_memory_finish_enabled,
                 in_memory_finish_edge_fraction,
-                in_memory_finish_max_supersets,
+                in_memory_finish_max_provisional_labels,
                 in_memory_finish_min_iter,
             ),
             self._spark,

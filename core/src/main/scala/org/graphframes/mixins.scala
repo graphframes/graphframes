@@ -288,7 +288,7 @@ private[graphframes] trait WithDirection {
 private[graphframes] trait WithInMemoryFinish extends Logging {
   protected var inMemoryFinishEnabled: Boolean = false
   protected var inMemoryFinishEdgeFraction: Double = 0.01
-  protected var inMemoryFinishMaxSupersets: Long = 1000000L
+  protected var inMemoryFinishMaxProvisionalLabels: Long = 1000000L
   protected var inMemoryFinishMinIter: Int = 2
 
   /**
@@ -321,23 +321,23 @@ private[graphframes] trait WithInMemoryFinish extends Logging {
   def getInMemoryFinishEdgeFraction: Double = inMemoryFinishEdgeFraction
 
   /**
-   * Sets the maximum number of distinct provisional set IDs (supersets) allowed on the driver for
+   * Sets the maximum number of distinct provisional component labels allowed on the driver for
    * the in-memory Union-Find finish (default: 1000000). If the distinct count exceeds this
    * budget, the algorithm continues with distributed iterations.
    */
-  def setInMemoryFinishMaxSupersets(value: Long): this.type = {
-    require(value >= 0L, s"inMemoryFinishMaxSupersets must be >= 0, got $value")
-    inMemoryFinishMaxSupersets = value
+  def setInMemoryFinishMaxProvisionalLabels(value: Long): this.type = {
+    require(value >= 0L, s"inMemoryFinishMaxProvisionalLabels must be >= 0, got $value")
+    inMemoryFinishMaxProvisionalLabels = value
     this
   }
 
-  /** Gets the maximum number of supersets allowed for the in-memory finish. */
-  def getInMemoryFinishMaxSupersets: Long = inMemoryFinishMaxSupersets
+  /** Gets the maximum number of provisional component labels allowed for the in-memory finish. */
+  def getInMemoryFinishMaxProvisionalLabels: Long = inMemoryFinishMaxProvisionalLabels
 
   /**
    * Sets the minimum number of two-phase iterations before the in-memory finish may run (default:
-   * 2). The finish still requires the prune attempt to have been tried and the edge / superset
-   * gates to pass.
+   * 2). The finish still requires the prune attempt to have been tried and the edge /
+   * provisional-label gates to pass.
    */
   def setInMemoryFinishMinIter(value: Int): this.type = {
     require(value >= 1, s"inMemoryFinishMinIter must be >= 1, got $value")

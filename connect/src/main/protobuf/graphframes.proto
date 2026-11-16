@@ -120,7 +120,7 @@ message ConnectedComponents {
   optional StorageLevel storage_level = 7;
   optional bool in_memory_finish_enabled = 8;
   optional double in_memory_finish_edge_fraction = 9;
-  optional int64 in_memory_finish_max_supersets = 10;
+  optional int64 in_memory_finish_max_provisional_labels = 10;
   optional int32 in_memory_finish_min_iter = 11;
 }
 

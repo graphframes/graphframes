@@ -61,7 +61,7 @@ private[graphframes] object TwoPhase extends Logging {
   private[graphframes] case class InMemoryFinishParams(
       enabled: Boolean = false,
       edgeFraction: Double = 0.01,
-      maxSupersets: Long = 1000000L,
+      maxProvisionalLabels: Long = 1000000L,
       minIter: Int = 2)
 
   /**
@@ -390,31 +390,30 @@ private[graphframes] object TwoPhase extends Logging {
       s"$logPrefix In-memory finish edge gate passed at iteration $iteration: " +
         s"edgeCnt=$edgeCnt <= $edgeThreshold.")
 
-    // Collapse to one row per unordered label pair. Driver memory then tracks supersets, not the
-    // number of vertex edges that share the same pair.
+    // Collapse to one row per unordered label pair. Driver memory then tracks provisional labels,
+    // not the number of vertex edges that share the same pair.
     val conflicts = conflictLabelEdges(ee, minNbrs1)
       .select(
         minValue(col(LABEL_SRC), col(LABEL_DST)).as(LABEL_SRC),
         maxValue(col(LABEL_SRC), col(LABEL_DST)).as(LABEL_DST))
       .distinct()
       .persist(intermediateStorageLevel)
-    val numSupersets = conflicts
+    val numProvisionalLabels = conflicts
       .select(col(LABEL_SRC).as(ID))
       .union(conflicts.select(col(LABEL_DST).as(ID)))
       .agg(countDistinct(col(ID)))
       .first()
       .getLong(0)
 
-    if (numSupersets > params.maxSupersets) {
-      logInfo(
-        s"$logPrefix In-memory finish rejected at iteration $iteration: " +
-          s"numSupersets=$numSupersets exceeds maxSupersets=${params.maxSupersets}.")
+    if (numProvisionalLabels > params.maxProvisionalLabels) {
+      logInfo(s"$logPrefix In-memory finish rejected at iteration $iteration: " +
+        s"numProvisionalLabels=$numProvisionalLabels exceeds maxProvisionalLabels=${params.maxProvisionalLabels}.")
       conflicts.unpersist(blocking = false)
       return None
     }
 
     val uf = new MinIdUnionFind
-    if (numSupersets == 0L) {
+    if (numProvisionalLabels == 0L) {
       logInfo(
         s"$logPrefix In-memory finish accepted at iteration $iteration: " +
           "no conflicting labels; materializing current labels.")
@@ -431,9 +430,8 @@ private[graphframes] object TwoPhase extends Logging {
         uf.union(id, root)
       }
       val remap = uf.remappingTouched()
-      logInfo(
-        s"$logPrefix In-memory finish accepted at iteration $iteration: " +
-          s"numSupersets=$numSupersets, parentLinks=${links.length}, remapped=${remap.size}.")
+      logInfo(s"$logPrefix In-memory finish accepted at iteration $iteration: " +
+        s"numProvisionalLabels=$numProvisionalLabels, parentLinks=${links.length}, remapped=${remap.size}.")
       conflicts.unpersist(blocking = false)
       Some(edgesFromLabels(minNbrs1, remap, intermediateStorageLevel))
     }

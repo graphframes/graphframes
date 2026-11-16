@@ -237,8 +237,9 @@ object GraphFramesConnectUtils {
         if (cc.hasInMemoryFinishEdgeFraction) {
           ccBuilder.setInMemoryFinishEdgeFraction(cc.getInMemoryFinishEdgeFraction)
         }
-        if (cc.hasInMemoryFinishMaxSupersets) {
-          ccBuilder.setInMemoryFinishMaxSupersets(cc.getInMemoryFinishMaxSupersets)
+        if (cc.hasInMemoryFinishMaxProvisionalLabels) {
+          ccBuilder.setInMemoryFinishMaxProvisionalLabels(
+            cc.getInMemoryFinishMaxProvisionalLabels)
         }
         if (cc.hasInMemoryFinishMinIter) {
           ccBuilder.setInMemoryFinishMinIter(cc.getInMemoryFinishMinIter)

@@ -71,8 +71,8 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
   GraphFramesConf.getConnectedComponentsInMemoryFinishEnabled.foreach(setInMemoryFinishEnabled)
   GraphFramesConf.getConnectedComponentsInMemoryFinishEdgeFraction
     .foreach(setInMemoryFinishEdgeFraction)
-  GraphFramesConf.getConnectedComponentsInMemoryFinishMaxSupersets
-    .foreach(setInMemoryFinishMaxSupersets)
+  GraphFramesConf.getConnectedComponentsInMemoryFinishMaxProvisionalLabels
+    .foreach(setInMemoryFinishMaxProvisionalLabels)
   GraphFramesConf.getConnectedComponentsInMemoryFinishMinIter.foreach(setInMemoryFinishMinIter)
 
   /**
@@ -154,7 +154,7 @@ class ConnectedComponents private[graphframes] (private val graph: GraphFrame)
         val inMemoryFinish = TwoPhase.InMemoryFinishParams(
           enabled = inMemoryFinishEnabled,
           edgeFraction = inMemoryFinishEdgeFraction,
-          maxSupersets = inMemoryFinishMaxSupersets,
+          maxProvisionalLabels = inMemoryFinishMaxProvisionalLabels,
           minIter = inMemoryFinishMinIter)
         if (broadcastThreshold == -1) {
           TwoPhase.runAQE(

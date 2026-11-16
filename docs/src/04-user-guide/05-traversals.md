@@ -345,13 +345,13 @@ For `two_phase` only. Opt-in early finish that merges remaining provisional comp
 
 For `two_phase` only. Residual edge count must be at most this fraction of the initial (post-preparation) edge count before in-memory finish is considered (default: `0.01`).
 
-- `in_memory_finish_max_supersets` (Python) / `setInMemoryFinishMaxSupersets` (Scala)
+- `in_memory_finish_max_provisional_labels` (Python) / `setInMemoryFinishMaxProvisionalLabels` (Scala)
 
-For `two_phase` only. Maximum number of distinct provisional set IDs (supersets) allowed on the driver for the Union-Find finish (default: `1000000`). If the count exceeds this budget, distributed iterations continue.
+For `two_phase` only. Maximum number of distinct provisional component labels allowed on the driver for the Union-Find finish (default: `1000000`). If the count exceeds this budget, distributed iterations continue.
 
 - `in_memory_finish_min_iter` (Python) / `setInMemoryFinishMinIter` (Scala)
 
-For `two_phase` only. Minimum number of large-star / small-star iterations before in-memory finish may run (default: `2`). The finish still requires the prune attempt to have been tried and the edge / superset gates to pass.
+For `two_phase` only. Minimum number of large-star / small-star iterations before in-memory finish may run (default: `2`). The finish still requires the prune attempt to have been tried and the edge / provisional-label gates to pass.
 
 ### AQE-broadcast mode
 

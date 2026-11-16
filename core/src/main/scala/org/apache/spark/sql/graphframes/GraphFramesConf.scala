@@ -87,7 +87,7 @@ object GraphFramesConf {
       .buildConf("spark.graphframes.connectedComponents.inMemoryFinish.enabled")
       .doc(""" Enables the opt-in in-memory Union-Find finish for the two-phase connected components
           | algorithm (default: false). When true, after the leaf-pruning attempt the algorithm may
-          | finish on the driver if residual edge-count and superset-budget gates pass.""".stripMargin)
+          | finish on the driver if residual edge-count and provisional-label gates pass.""".stripMargin)
       .version("0.13.0")
       .booleanConf
       .createOptional
@@ -101,11 +101,11 @@ object GraphFramesConf {
       .doubleConf
       .createOptional
 
-  private val CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MAX_SUPERSETS =
+  private val CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MAX_PROVISIONAL_LABELS =
     SQLConf
-      .buildConf("spark.graphframes.connectedComponents.inMemoryFinish.maxSupersets")
-      .doc(""" Maximum distinct provisional set IDs allowed on the driver for in-memory finish
-          | (default: 1000000). Used only when in-memory finish is enabled.""".stripMargin)
+      .buildConf("spark.graphframes.connectedComponents.inMemoryFinish.maxProvisionalLabels")
+      .doc(""" Maximum distinct provisional component labels allowed on the driver for in-memory
+          | finish (default: 1000000). Used only when in-memory finish is enabled.""".stripMargin)
       .version("0.13.0")
       .longConf
       .createOptional
@@ -168,8 +168,8 @@ object GraphFramesConf {
   def getConnectedComponentsInMemoryFinishEdgeFraction: Option[Double] =
     get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_EDGE_FRACTION).map(_.toDouble)
 
-  def getConnectedComponentsInMemoryFinishMaxSupersets: Option[Long] =
-    get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MAX_SUPERSETS).map(_.toLong)
+  def getConnectedComponentsInMemoryFinishMaxProvisionalLabels: Option[Long] =
+    get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MAX_PROVISIONAL_LABELS).map(_.toLong)
 
   def getConnectedComponentsInMemoryFinishMinIter: Option[Int] =
     get(CONNECTED_COMPONENTS_IN_MEMORY_FINISH_MIN_ITER).map(_.toInt)
