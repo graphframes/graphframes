@@ -31,6 +31,7 @@ import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.monotonically_increasing_id
 import org.apache.spark.sql.functions.struct
+import org.apache.spark.sql.graphframes.SparkShims
 import org.apache.spark.sql.types.*
 import org.apache.spark.storage.StorageLevel
 import org.graphframes.embeddings.RandomWalkEmbeddings
@@ -1077,12 +1078,19 @@ class GraphFrame private (
         col(ATTR + "." + ID).as(ID),
         col(ATTR))
     } else {
-      val withLongIds = vertices
+      // The long IDs depend on how Spark partitions the rows, which can differ between queries,
+      // so every query reads the partitions of one execution of the numbering. A persisted
+      // DataFrame would also keep them consistent, but Spark's cache serves it to any later query
+      // with a matching plan, including a query over files that have since changed under the same
+      // path. With adaptive query execution, building the index runs the numbering's shuffle at
+      // once, also for callers that only build a plan (indexedEdges, the GraphX conversion, the
+      // Spark Connect plugin).
+      val numbered = vertices
         .select(ID)
         .repartition(col(ID))
         .sortWithinPartitions(ID)
         .withColumn(LONG_ID, monotonically_increasing_id())
-        .persist(StorageLevel.MEMORY_AND_DISK)
+      val withLongIds = SparkShims.fromOneExecution(numbered)
       vertices
         .select(col(ID), nestAsCol(vertices, ATTR))
         .join(withLongIds, ID)

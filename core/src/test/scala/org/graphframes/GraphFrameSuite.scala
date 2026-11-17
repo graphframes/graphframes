@@ -618,13 +618,14 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
       .toDF("src", "dst", "weight")
     val vertices = Seq("0", "1", "2", "3", "4", "5").toDF("id")
     val gf = GraphFrame(vertices, edges)
-    val clusters = gf
+    val rows = gf
       .powerIterationClustering(k = 2, maxIter = 40, weightCol = Some("weight"))
       .collect()
-      .sortBy(_.getAs[String]("id"))
-      .map(_.getAs[Int]("cluster"))
-      .toSeq
-    assert(Seq(1, 1, 1, 1, 1, 0) == clusters)
+    assert(rows.map(_.getAs[String]("id")).sorted.toSeq == Seq("0", "1", "2", "3", "4", "5"))
+    // Cluster numbers follow the vertices' internal order, so only the grouping is checked.
+    val clusters =
+      rows.groupBy(_.getAs[Int]("cluster")).values.map(_.map(_.getAs[String]("id")).toSet).toSet
+    assert(clusters == Set(Set("0", "1", "2", "3", "4"), Set("5")))
   }
 
   test("convert directed graph to undirected") {
