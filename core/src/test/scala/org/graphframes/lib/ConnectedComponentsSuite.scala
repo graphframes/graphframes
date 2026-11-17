@@ -17,7 +17,6 @@
 
 package org.graphframes.lib
 
-import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
@@ -31,6 +30,7 @@ import org.graphframes.examples.Graphs
 
 import java.io.File
 import java.nio.file.Files
+import java.util.Comparator
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
@@ -148,6 +148,11 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       // Both graphs are read through the same directory: Spark matches a query over files to a
       // cached one by the directory, not by the files in it.
       val dir = Files.createTempDirectory("rewritten-graph").toFile
+      def deleteRecursively(file: File): Unit = {
+        val paths = Files.walk(file.toPath)
+        try paths.sorted(Comparator.reverseOrder()).forEach(path => Files.delete(path))
+        finally paths.close()
+      }
       def components(edges: Seq[(String, String)], name: String): Set[Set[String]] = {
         spark.createDataFrame(edges).toDF(SRC, DST).write.parquet(s"$dir/$name")
         val e = spark.read.option("recursiveFileLookup", "true").parquet(dir.toString)
@@ -162,11 +167,11 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
       try {
         val first = components(Seq("a" -> "b", "b" -> "c", "d" -> "e"), "first")
         assert(first === Set(Set("a", "b", "c"), Set("d", "e")))
-        FileUtils.deleteDirectory(new File(dir, "first"))
+        deleteRecursively(new File(dir, "first"))
         val second = components(Seq("a" -> "x", "y" -> "z", "z" -> "d"), "second")
         assert(second === Set(Set("a", "x"), Set("d", "y", "z")))
       } finally {
-        FileUtils.deleteDirectory(dir)
+        deleteRecursively(dir)
       }
     }
   }
