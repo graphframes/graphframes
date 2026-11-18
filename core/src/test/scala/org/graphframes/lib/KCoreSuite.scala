@@ -1,5 +1,6 @@
 package org.graphframes.lib
 
+import org.apache.spark.sql.graphframes.SparkShims
 import org.apache.spark.sql.types.DataTypes
 import org.graphframes.*
 import org.graphframes.examples.Graphs
@@ -321,5 +322,39 @@ class KCoreSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(kcoreMap(4L) === 1)
     assert(kcoreMap(5L) === 1)
     result.unpersist()
+  }
+
+  Seq(false, true).foreach { useLocalCheckpoints =>
+    test(
+      "long chain keeps checkpoint statistics bounded" +
+        s"${if (useLocalCheckpoints) " with local checkpoints" else ""}") {
+      // Without AQE, each checkpoint inherits the joined plan's size estimate, which then grows
+      // exponentially with the number of iterations.
+      val aqeKey = "spark.sql.adaptive.enabled"
+      val previousAqe = spark.conf.getOption(aqeKey)
+      spark.conf.set(aqeKey, "false")
+      try {
+        val chainLength = 16
+        val v = spark.range(chainLength + 1).toDF("id")
+        val e = spark.range(chainLength).selectExpr("id AS src", "id + 1 AS dst")
+        val result = GraphFrame(v, e).kCore
+          .setCheckpointInterval(2)
+          .setUseLocalCheckpoints(useLocalCheckpoints)
+          .run()
+
+        val limit = BigInt(spark.sessionState.conf.defaultSizeInBytes)
+        val leafSizes =
+          SparkShims.planFromDataFrame(result).collectLeaves().map(_.stats.sizeInBytes)
+        assert(leafSizes.forall(_ <= limit), s"leaf size bits: ${leafSizes.map(_.bitLength)}")
+        assert(result.count() === chainLength + 1)
+        assert(result.filter("kcore != 1").count() === 0)
+        result.unpersist()
+      } finally {
+        previousAqe match {
+          case Some(value) => spark.conf.set(aqeKey, value)
+          case None => spark.conf.unset(aqeKey)
+        }
+      }
+    }
   }
 }
