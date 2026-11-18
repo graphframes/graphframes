@@ -21,6 +21,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.graphframes.SparkShims
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.storage.StorageLevel
@@ -43,6 +44,41 @@ class ConnectedComponentsSuite extends SparkFunSuite with GraphFrameTestSparkCon
     edgesOpt = spark
       .createDataFrame(Seq((0L, 1L), (0L, 2L), (0L, 3L), (0L, 4L), (1L, 2L), (1L, 5L)))
       .toDF(SRC, DST)
+  }
+
+  Seq(false, true).foreach { useLocalCheckpoints =>
+    test(
+      "two-phase AQE keeps checkpoint statistics bounded" +
+        s"${if (useLocalCheckpoints) " with local checkpoints" else ""}") {
+      // A lower default size lets the compounding checkpoint estimates exceed it on a small graph.
+      val sizeKey = "spark.sql.defaultSizeInBytes"
+      val previousSize = spark.conf.getOption(sizeKey)
+      spark.conf.set(sizeKey, (1L << 30).toString)
+      try {
+        val chainLength = 1000
+        val v = spark.range(chainLength + 1).toDF(ID)
+        val e = spark.range(chainLength).selectExpr(s"id AS $SRC", s"id + 1 AS $DST")
+        val components = GraphFrame(v, e).connectedComponents
+          .setAlgorithm("two_phase")
+          .setBroadcastThreshold(-1)
+          .setCheckpointInterval(1)
+          .setUseLocalCheckpoints(useLocalCheckpoints)
+          .run()
+
+        val limit = BigInt(spark.sessionState.conf.defaultSizeInBytes)
+        val leafSizes =
+          SparkShims.planFromDataFrame(components).collectLeaves().map(_.stats.sizeInBytes)
+        assert(leafSizes.forall(_ <= limit), s"leaf size bits: ${leafSizes.map(_.bitLength)}")
+        assert(components.count() === chainLength + 1)
+        assert(components.select("component").distinct().count() === 1)
+        components.unpersist()
+      } finally {
+        previousSize match {
+          case Some(value) => spark.conf.set(sizeKey, value)
+          case None => spark.conf.unset(sizeKey)
+        }
+      }
+    }
   }
 
   test("default params") {

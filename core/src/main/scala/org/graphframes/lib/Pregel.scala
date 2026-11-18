@@ -25,7 +25,6 @@ import org.apache.spark.sql.functions.explode
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.struct
 import org.apache.spark.sql.graphframes.SparkShims
-import org.apache.spark.sql.internal.SQLConf
 import org.graphframes.GraphFrame
 import org.graphframes.GraphFrame.*
 import org.graphframes.JobDescription
@@ -397,28 +396,6 @@ class Pregel(val graph: GraphFrame)
   }
 
   /**
-   * Spark copies the size estimate of the checkpointed plan onto the checkpoint relation, and
-   * every Pregel iteration joins that relation again, so the estimate is multiplied on every
-   * checkpoint. Once it exceeds the default size of an unknown relation, it carries no
-   * information but keeps growing, and planners doing arithmetic on it can spend minutes per
-   * query. In that case the checkpointed data is re-exposed through the public API, which drops
-   * the estimate (and the output partitioning metadata) while keeping the checkpointed RDD
-   * lineage.
-   */
-  private def dropOversizedStatistics(vertices: DataFrame, iteration: Int): DataFrame = {
-    val stats = SparkShims.planFromDataFrame(vertices).stats
-    val limit = BigInt(SQLConf.get.defaultSizeInBytes)
-    if (stats.sizeInBytes > limit || stats.rowCount.exists(_ > limit)) {
-      logInfo(
-        s"dropping oversized checkpoint statistics at Pregel iteration $iteration " +
-          s"(sizeInBytes has ${stats.sizeInBytes.bitLength} bits)")
-      vertices.sparkSession.createDataFrame(vertices.rdd, vertices.schema)
-    } else {
-      vertices
-    }
-  }
-
-  /**
    * Runs the defined Pregel algorithm.
    *
    * @return
@@ -596,7 +573,8 @@ class Pregel(val graph: GraphFrame)
           } else {
             currentVertices = currentVertices.checkpoint(eager = false)
           }
-          currentVertices = dropOversizedStatistics(currentVertices, iteration)
+          currentVertices =
+            CheckpointStatistics.dropOversized(currentVertices, s"Pregel iteration $iteration")
         } else {
           // checkpointing do persistence and we do not need to do it again
           currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
