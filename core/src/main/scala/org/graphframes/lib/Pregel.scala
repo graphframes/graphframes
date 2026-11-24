@@ -573,6 +573,8 @@ class Pregel(val graph: GraphFrame)
           } else {
             currentVertices = currentVertices.checkpoint(eager = false)
           }
+          currentVertices =
+            CheckpointStatistics.dropOversized(currentVertices, s"Pregel iteration $iteration")
         } else {
           // checkpointing do persistence and we do not need to do it again
           currRoundPersistent.enqueue(currentVertices.persist(intermediateStorageLevel))
