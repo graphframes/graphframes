@@ -118,6 +118,10 @@ message ConnectedComponents {
   bool use_local_checkpoints = 5;
   int32 max_iter = 6;
   optional StorageLevel storage_level = 7;
+  optional bool in_memory_finish_enabled = 8;
+  optional double in_memory_finish_edge_fraction = 9;
+  optional int64 in_memory_finish_max_provisional_labels = 10;
+  optional int32 in_memory_finish_min_iter = 11;
 }
 
 message DetectingCycles {
