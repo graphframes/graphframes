@@ -457,6 +457,19 @@ class GraphFrame:
         """
         return GraphFrame._from_impl(self._impl.dropIsolatedVertices())
 
+    def dropDanglingEdges(self) -> "GraphFrame":
+        """
+        Drops dangling edges, edges whose source or destination is not in the vertices
+        DataFrame. All vertices are kept.
+
+        GraphFrames does not check this when a graph is created, because it needs two joins of
+        the edges with the vertices. Use :meth:`validate` to check a graph, or this method to
+        remove such edges.
+
+        :return: GraphFrame with filtered edges.
+        """
+        return GraphFrame._from_impl(self._impl.dropDanglingEdges())
+
     def detectingCycles(
         self,
         checkpoint_interval: int = 2,
