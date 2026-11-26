@@ -32,6 +32,7 @@ import org.apache.spark.sql.classic.DataFrame as ClassicDataFrame
 import org.apache.spark.sql.classic.Dataset
 import org.apache.spark.sql.classic.ExpressionUtils
 import org.apache.spark.sql.classic.SparkSession as ClassicSparkSession
+import org.apache.spark.sql.execution.LogicalRDD
 
 import scala.collection.mutable
 
@@ -125,6 +126,17 @@ object SparkShims {
 
   def createDataFrame(spark: SparkSession, plan: LogicalPlan): DataFrame = {
     Dataset.ofRows(spark.asInstanceOf[ClassicSparkSession], plan)
+  }
+
+  /**
+   * A DataFrame over one execution of `df`: every query that reads it reads the partitions of
+   * that execution, with the partitioning and ordering its physical plan reports, and nothing
+   * enters Spark's cache. With adaptive query execution, building it runs `df`'s query stages.
+   */
+  def fromOneExecution(df: DataFrame): DataFrame = {
+    val classic = df.asInstanceOf[ClassicDataFrame]
+    val plan = LogicalRDD.fromDataset(classic.queryExecution.toRdd, classic, classic.isStreaming)
+    Dataset.ofRows(classic.sparkSession, plan)
   }
 
   def planFromDataFrame(df: DataFrame): LogicalPlan = {
