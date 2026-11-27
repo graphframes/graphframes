@@ -111,3 +111,58 @@ result.show()
 - **Storage Levels**: When setting the `spark.graphframes.connectedComponents.intermediatestoragelevel` configuration, use one of the following values: `MEMORY_ONLY`, `MEMORY_AND_DISK`, `MEMORY_ONLY_SER`, `MEMORY_AND_DISK_SER`, `DISK_ONLY`, `MEMORY_ONLY_2`, `MEMORY_AND_DISK_2`, etc.
 - **Algorithm Selection**: The choice of algorithm for connected components can significantly impact performance. The DataFrame-based algorithms, "two_phase" (the default) and "randomized_contraction", are generally more scalable for large graphs, while the RDD-based "graphx" algorithm may be faster for smaller graphs. See [Traversals](/04-user-guide/05-traversals.md) for a comparison of the algorithms.
 - **Local Checkpoints**: Local checkpoints are faster and can put strain on the local disk if insufficiently large. They are also less reliable than checkpoints in persistent storage, because they do not survive the loss of an executor. Because local checkpoints do not require setting `checkpointDir` for "two_phase", they are a convenient option for shorter runs.
+- **Input DataFrames**: The checkpointing configured above only shortens the lineage of the algorithms' own intermediate results. If the vertices or edges come out of a long chain of transformations, see [Preparing Input DataFrames](#preparing-input-dataframes).
+
+## Preparing Input DataFrames
+
+### The Growing Lineage Problem
+
+A `GraphFrame` does not copy its vertices and edges. It keeps the DataFrames you pass to `GraphFrame(vertices, edges)` together with their logical plan, that is, the full description of how they were computed (their lineage). Algorithms build every query on top of these DataFrames, often refer to them several times in one query (for example, joining the edges on both `src` and `dst`), and iterative algorithms join them again in every iteration.
+
+As a result, the whole plan that produced the inputs becomes part of every query the algorithm runs. When the inputs are the result of a long pipeline (many joins, unions, window functions, UDFs, or the output of another graph algorithm), Spark has to analyze and optimize that large plan again and again, and to recompute it unless it is cached. Typical symptoms are:
+
+- long pauses on the driver before each job starts, while Spark is planning the query;
+- very large plans in `explain()` and in the SQL tab of the Spark UI;
+- driver out-of-memory errors or a `StackOverflowError` during query planning;
+- the stages that compute the inputs running again in every iteration.
+
+The `checkpointInterval` parameters of the algorithms do not fully solve this: they truncate the lineage of the intermediate results that an algorithm produces, but algorithms built on Pregel and message passing keep joining the input DataFrames in every iteration, and their plan is still analyzed before the first checkpoint and in every query that reads them.
+
+### Recommendation: Materialize Complex Inputs
+
+If the vertices or edges are built by complex transformations, materialize them before you create the graph, so that the graph starts from a short plan:
+
+#### Scala API
+
+```scala
+import org.graphframes.GraphFrame
+
+spark.sparkContext.setCheckpointDir("/path/to/checkpoint/dir")
+
+// vertices and edges are the results of a long ETL pipeline
+val g = GraphFrame(vertices.checkpoint(), edges.checkpoint())
+```
+
+#### Python API
+
+```python
+from graphframes import GraphFrame
+
+spark.sparkContext.setCheckpointDir("/path/to/checkpoint/dir")
+
+# vertices and edges are the results of a long ETL pipeline
+g = GraphFrame(vertices.checkpoint(), edges.checkpoint())
+```
+
+There are several ways to materialize a DataFrame:
+
+| Method | Truncates the lineage | Notes |
+|--------|-----------------------|-------|
+| `df.checkpoint()` | Yes | Writes the data to the checkpoint directory and survives the loss of an executor. Needs a checkpoint directory, see the note on the checkpoint directory above. The files are not deleted automatically unless `spark.cleaner.referenceTracking.cleanCheckpoints` is set to `true`. |
+| `df.localCheckpoint()` | Yes | Stores the data on the executors and needs no checkpoint directory. Faster, but the data is lost, and the job fails, if an executor is lost. |
+| Writing to a table or to files (for example Parquet) and reading them back | Yes | The data outlives the Spark application, and you control when it is deleted. Useful when the same graph is analyzed several times. |
+| `df.persist()` / `df.cache()` | No | Avoids recomputing the inputs, but their full plan still has to be analyzed in every query. Not enough on its own for very long pipelines. |
+
+With Spark Connect, `checkpoint()` and `localCheckpoint()` are available from Spark 4.0 on. Because `sparkContext` is not reachable from a Spark Connect client, configure the checkpoint directory with `spark.checkpoint.dir` on the server.
+
+Materializing writes the data once more, so it is not worth it for inputs that are cheap to compute, such as a table that is read with a few column selections and filters.
