@@ -486,6 +486,30 @@ class GraphFrameSuite extends SparkFunSuite with GraphFrameTestSparkContext {
     assert(g.edges.storageLevel === StorageLevel.NONE)
   }
 
+  test("unpersistIndexedVertices releases the persisted vertex index") {
+    val v = spark.createDataFrame(Seq(("a", 1), ("b", 2), ("c", 3))).toDF("id", "attr")
+    val e = spark.createDataFrame(Seq(("a", "b"), ("b", "c"))).toDF("src", "dst")
+    val g = GraphFrame(v, e)
+
+    // Nothing is created before the index is used.
+    g.unpersistIndexedVertices(blocking = true)
+    assert(g.persistedVertexIndex.isEmpty)
+
+    assert(g.indexedVertices.count() === 3)
+    val index = g.persistedVertexIndex.get
+    assert(index.storageLevel === StorageLevel.MEMORY_AND_DISK)
+
+    g.unpersistIndexedVertices(blocking = true)
+    assert(index.storageLevel === StorageLevel.NONE)
+  }
+
+  test("unpersistIndexedVertices is a no-op for integral vertex IDs") {
+    val g = GraphFrame(vertices, edges)
+    assert(g.indexedVertices.count() === vertices.count())
+    assert(g.persistedVertexIndex.isEmpty)
+    g.unpersistIndexedVertices(blocking = true)
+  }
+
   test("basic operations on an empty graph") {
     for (empty <- Seq(Graphs.empty[Int], Graphs.empty[Long], Graphs.empty[String])) {
       assert(empty.inDegrees.count() === 0L)

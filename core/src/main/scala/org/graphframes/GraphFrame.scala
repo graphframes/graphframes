@@ -1083,11 +1083,36 @@ class GraphFrame private (
         .sortWithinPartitions(ID)
         .withColumn(LONG_ID, monotonically_increasing_id())
         .persist(StorageLevel.MEMORY_AND_DISK)
+      persistedVertexIndex = Some(withLongIds)
       vertices
         .select(col(ID), nestAsCol(vertices, ATTR))
         .join(withLongIds, ID)
         .select(LONG_ID, ID, ATTR)
     }
+  }
+
+  /**
+   * The DataFrame persisted by [[indexedVertices]] for non-integral vertex IDs, set once that
+   * lazy val has been initialized. Kept so that it can be released without initializing it.
+   */
+  @transient @volatile private[graphframes] var persistedVertexIndex: Option[DataFrame] = None
+
+  /**
+   * !! WARNING: INTERNAL API !!
+   *
+   * Releases the vertex index that algorithms persist for graphs with non-integral vertex IDs, if
+   * it has been created. It is public only so that the Spark Connect plugin, which lives in
+   * another package, can release the index of the graphs it creates for a single call.
+   *
+   * Do not run any algorithm on this graph after calling this method: the index is not persisted
+   * again, and recomputing it is not guaranteed to assign the same long IDs, which can silently
+   * produce wrong results.
+   *
+   * @param blocking
+   *   whether to block until all blocks are deleted
+   */
+  def unpersistIndexedVertices(blocking: Boolean): Unit = {
+    persistedVertexIndex.foreach(_.unpersist(blocking))
   }
 
   /**

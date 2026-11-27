@@ -139,6 +139,34 @@ object GraphFramesConnectUtils {
   }
 
   /**
+   * Detaches the result of an algorithm that runs eagerly and persists its output (such as
+   * connected components) from the Spark cache.
+   *
+   * The relation plugin runs such an algorithm every time Spark Connect plans the relation, and
+   * neither the persisted output nor the vertex index of the per-call server-side graph is
+   * reachable from the client, so nothing could ever unpersist them. Instead, the result is
+   * local-checkpointed, and both are released right away. The checkpointed blocks belong to the
+   * returned plan: Spark's ContextCleaner removes them once nothing references that plan any
+   * more, for example after the client releases a DataFrame that holds the result by reference
+   * (see `DataFrame.localCheckpoint` in Spark Connect).
+   *
+   * @param result
+   *   the persisted and already materialized output of the algorithm
+   * @param graph
+   *   the graph the algorithm ran on; it must not be used after this call
+   * @return
+   *   the result as a DataFrame that does not depend on the Spark cache
+   */
+  private[graphframes] def detachFromCache(result: DataFrame, graph: GraphFrame): DataFrame = {
+    try {
+      result.localCheckpoint(eager = true)
+    } finally {
+      result.unpersist(blocking = false)
+      graph.unpersistIndexedVertices(blocking = false)
+    }
+  }
+
+  /**
    * Parses a GraphFrames API call from a protocol buffer message and executes the corresponding
    * operation on the GraphFrame object obtained from the planner.
    *
@@ -231,11 +259,12 @@ object GraphFramesConnectUtils {
           .setUseLocalCheckpoints(cc.getUseLocalCheckpoints)
           .setUseLabelsAsComponents(cc.getUseLabelsAsComponents)
 
-        if (cc.hasStorageLevel) {
+        val components = if (cc.hasStorageLevel) {
           ccBuilder.setIntermediateStorageLevel(parseStorageLevel(cc.getStorageLevel)).run()
         } else {
           ccBuilder.run()
         }
+        detachFromCache(components, graphFrame)
       }
 
       case proto.GraphFramesAPI.MethodCase.DETECTING_CYCLES => {
